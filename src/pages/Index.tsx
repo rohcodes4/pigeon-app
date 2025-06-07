@@ -1,11 +1,114 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MessageCircle, Settings, Search, CheckSquare, Bell } from "lucide-react";
+import { OnboardingFlow } from "@/components/OnboardingFlow";
+import { UnifiedInbox } from "@/components/UnifiedInbox";
+import { DashboardSettings } from "@/components/DashboardSettings";
+import { SearchPanel } from "@/components/SearchPanel";
+import { ActionCenter } from "@/components/ActionCenter";
+import { toast } from "@/hooks/use-toast";
 
 const Index = () => {
+  const [isOnboarded, setIsOnboarded] = useState(false);
+  const [activeTab, setActiveTab] = useState("inbox");
+  const [isConnected, setIsConnected] = useState(false);
+
+  useEffect(() => {
+    // Check if user has completed onboarding
+    const onboardingComplete = localStorage.getItem("chatpilot_onboarded");
+    if (onboardingComplete) {
+      setIsOnboarded(true);
+      setIsConnected(true);
+    }
+  }, []);
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem("chatpilot_onboarded", "true");
+    setIsOnboarded(true);
+    setIsConnected(true);
+    toast({
+      title: "Welcome to ChatPilot!",
+      description: "Your dashboard is ready. Start managing your conversations.",
+    });
+  };
+
+  if (!isOnboarded) {
+    return <OnboardingFlow onComplete={handleOnboardingComplete} />;
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div className="container mx-auto p-6 max-w-7xl">
+        {/* Header */}
+        <header className="mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                <MessageCircle className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  ChatPilot
+                </h1>
+                <p className="text-gray-600 text-lg">Your intelligent conversation dashboard</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              {isConnected && (
+                <Badge variant="secondary" className="bg-green-100 text-green-800 px-3 py-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                  Connected
+                </Badge>
+              )}
+              <Button variant="outline" size="sm" className="gap-2">
+                <Bell className="w-4 h-4" />
+                Notifications
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        {/* Navigation Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4 mb-8 bg-white/70 backdrop-blur-sm">
+            <TabsTrigger value="inbox" className="flex items-center gap-2">
+              <MessageCircle className="w-4 h-4" />
+              Unified Inbox
+            </TabsTrigger>
+            <TabsTrigger value="search" className="flex items-center gap-2">
+              <Search className="w-4 h-4" />
+              Search
+            </TabsTrigger>
+            <TabsTrigger value="actions" className="flex items-center gap-2">
+              <CheckSquare className="w-4 h-4" />
+              Action Center
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              Settings
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="inbox" className="mt-0">
+            <UnifiedInbox />
+          </TabsContent>
+
+          <TabsContent value="search" className="mt-0">
+            <SearchPanel />
+          </TabsContent>
+
+          <TabsContent value="actions" className="mt-0">
+            <ActionCenter />
+          </TabsContent>
+
+          <TabsContent value="settings" className="mt-0">
+            <DashboardSettings />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
