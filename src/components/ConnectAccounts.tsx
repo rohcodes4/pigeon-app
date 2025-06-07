@@ -1,45 +1,127 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Users, Check, ExternalLink } from "lucide-react";
+import { MessageCircle, Users, Check, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ConnectAccountsProps {
   onAccountsConnected: () => void;
 }
 
 export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) => {
+  const { user } = useAuth();
   const [telegramConnected, setTelegramConnected] = useState(false);
   const [discordConnected, setDiscordConnected] = useState(false);
+  const [loading, setLoading] = useState({ telegram: false, discord: false });
 
-  const connectTelegram = () => {
-    // This will be replaced with actual Supabase auth + Telegram integration
-    setTimeout(() => {
+  useEffect(() => {
+    if (user) {
+      checkConnectedAccounts();
+    }
+  }, [user]);
+
+  const checkConnectedAccounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("connected_accounts")
+        .select("platform")
+        .eq("user_id", user?.id);
+
+      if (error) {
+        console.error("Error checking connected accounts:", error);
+        return;
+      }
+
+      const platforms = data?.map(account => account.platform) || [];
+      setTelegramConnected(platforms.includes("telegram"));
+      setDiscordConnected(platforms.includes("discord"));
+
+      if (platforms.includes("telegram") && platforms.includes("discord")) {
+        onAccountsConnected();
+      }
+    } catch (error) {
+      console.error("Error checking connected accounts:", error);
+    }
+  };
+
+  const connectTelegram = async () => {
+    if (!user) return;
+    
+    setLoading(prev => ({ ...prev, telegram: true }));
+    try {
+      // Simulate Telegram OAuth flow - in reality this would redirect to Telegram
+      const response = await supabase.functions.invoke('telegram-auth', {
+        body: {
+          code: Math.random().toString(36).substring(7), // Demo code
+          user_id: user.id,
+        },
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+
       setTelegramConnected(true);
       toast({
         title: "Telegram Connected",
         description: "Successfully connected to your Telegram account",
       });
+      
       if (discordConnected) {
         onAccountsConnected();
       }
-    }, 1500);
+    } catch (error) {
+      console.error("Telegram connection error:", error);
+      toast({
+        title: "Connection Failed",
+        description: "Failed to connect to Telegram. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(prev => ({ ...prev, telegram: false }));
+    }
   };
 
-  const connectDiscord = () => {
-    // This will be replaced with actual Discord OAuth
-    setTimeout(() => {
+  const connectDiscord = async () => {
+    if (!user) return;
+    
+    setLoading(prev => ({ ...prev, discord: true }));
+    try {
+      // Simulate Discord OAuth flow - in reality this would redirect to Discord
+      const response = await supabase.functions.invoke('discord-auth', {
+        body: {
+          code: Math.random().toString(36).substring(7), // Demo code
+          user_id: user.id,
+        },
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+
       setDiscordConnected(true);
       toast({
         title: "Discord Connected",
         description: "Successfully connected to your Discord account",
       });
+      
       if (telegramConnected) {
         onAccountsConnected();
       }
-    }, 1500);
+    } catch (error) {
+      console.error("Discord connection error:", error);
+      toast({
+        title: "Connection Failed",
+        description: "Failed to connect to Discord. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(prev => ({ ...prev, discord: false }));
+    }
   };
 
   return (
@@ -63,7 +145,8 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
                   Connected
                 </Badge>
               ) : (
-                <Button onClick={connectTelegram} className="gap-2">
+                <Button onClick={connectTelegram} className="gap-2" disabled={loading.telegram}>
+                  {loading.telegram && <Loader2 className="w-4 h-4 animate-spin" />}
                   Connect
                   <ExternalLink className="w-4 h-4" />
                 </Button>
@@ -92,7 +175,8 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
                   Connected
                 </Badge>
               ) : (
-                <Button onClick={connectDiscord} variant="outline" className="gap-2">
+                <Button onClick={connectDiscord} variant="outline" className="gap-2" disabled={loading.discord}>
+                  {loading.discord && <Loader2 className="w-4 h-4 animate-spin" />}
                   Connect
                   <ExternalLink className="w-4 h-4" />
                 </Button>
