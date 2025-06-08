@@ -188,6 +188,8 @@ export const AccountManagement = () => {
       const stateParam = encodeURIComponent(JSON.stringify(stateObj));
       console.log("stateObj")
       console.log(stateObj)
+      console.log("stateParam")
+      console.log(stateParam)
   
       const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${stateParam}`;
   
