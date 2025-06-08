@@ -206,26 +206,73 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
     }
   };
 
+  // const connectDiscord = async () => {
+  //   if (!user) return;
+    
+  //   setLoading(prev => ({ ...prev, discord: true }));
+    
+  //   try {
+  //     const discordClientId = '1380883180533452970';
+  //     const redirectUri = encodeURIComponent(`https://zyccvvhrdvgjjwcteywg.supabase.co/functions/v1/discord-auth`);
+  //     const scope = encodeURIComponent('identify guilds');
+  //     const state = user.id;
+      
+  //     const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
+      
+  //     // Open Discord auth in popup
+  //     const popup = window.open(
+  //       discordAuthUrl, 
+  //       'discord-auth', 
+  //       'width=500,height=600,scrollbars=yes,resizable=yes'
+  //     );
+
+  //     // Monitor popup closure
+  //     const checkClosed = setInterval(() => {
+  //       if (popup?.closed) {
+  //         clearInterval(checkClosed);
+  //         if (!discordConnected) {
+  //           setLoading(prev => ({ ...prev, discord: false }));
+  //         }
+  //       }
+  //     }, 1000);
+
+  //   } catch (error) {
+  //     console.error("Discord connection error:", error);
+  //     toast({
+  //       title: "Connection Failed",
+  //       description: "Failed to connect to Discord. Please try again.",
+  //       variant: "destructive",
+  //     });
+  //     setLoading(prev => ({ ...prev, discord: false }));
+  //   }
+  // };
+
   const connectDiscord = async () => {
     if (!user) return;
-    
+  
     setLoading(prev => ({ ...prev, discord: true }));
-    
+  
     try {
       const discordClientId = '1380883180533452970';
-      const redirectUri = encodeURIComponent(`https://zyccvvhrdvgjjwcteywg.supabase.co/functions/v1/discord-auth`);
+      const redirectUri = 'https://zyccvvhrdvgjjwcteywg.supabase.co/functions/v1/discord-auth'; // unencoded for state
       const scope = encodeURIComponent('identify guilds');
-      const state = user.id;
-      
-      const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
-      
+  
+      // Build state object with userId and redirectTo
+      const stateObj = {
+        userId: user.id,
+        redirectTo: window.location.href, // or use window.location.origin + '/dashboard' if redirect target is fixed
+      };
+      const state = encodeURIComponent(JSON.stringify(stateObj));
+  
+      const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}`;
+  
       // Open Discord auth in popup
       const popup = window.open(
-        discordAuthUrl, 
-        'discord-auth', 
+        discordAuthUrl,
+        'discord-auth',
         'width=500,height=600,scrollbars=yes,resizable=yes'
       );
-
+  
       // Monitor popup closure
       const checkClosed = setInterval(() => {
         if (popup?.closed) {
@@ -235,7 +282,7 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
           }
         }
       }, 1000);
-
+  
     } catch (error) {
       console.error("Discord connection error:", error);
       toast({
@@ -246,7 +293,7 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
       setLoading(prev => ({ ...prev, discord: false }));
     }
   };
-
+  
   return (
     <div className="space-y-4">
       <Card className="border-2 border-dashed border-border hover:border-blue-300 transition-colors">
