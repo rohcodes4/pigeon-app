@@ -260,7 +260,7 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
     // Build state object with userId and redirectTo
     const stateObj = {
       userId: user.id,
-      redirectTo: window.location.href, // or use window.location.origin + '/dashboard' if redirect target is fixed
+      // redirectTo: window.location.href, // or use window.location.origin + '/dashboard' if redirect target is fixed
     };
     const state = encodeURIComponent(JSON.stringify(stateObj));
 

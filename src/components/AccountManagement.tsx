@@ -194,7 +194,7 @@ export const AccountManagement = () => {
 
       const stateObj = {
         userId: user?.id,
-        redirectTo: window.location.href // or window.location.origin + '/somepath'
+        // redirectTo: window.location.href // or window.location.origin + '/somepath'
       };
       
       const state = encodeURIComponent(JSON.stringify(stateObj));
