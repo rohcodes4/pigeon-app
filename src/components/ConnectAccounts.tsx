@@ -43,6 +43,7 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
       if (platforms.includes("telegram") && platforms.includes("discord")) {
         onAccountsConnected();
       }
+      
     } catch (error) {
       console.error("Error checking connected accounts:", error);
     }
@@ -91,6 +92,12 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
     
     setLoading(prev => ({ ...prev, discord: true }));
     try {
+      // const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
+      // const redirectUri = encodeURIComponent('https://zyccvvhrdvgjjwcteywg.supabase.co/functions/v1/discord-auth');
+
+      // const discordAuthUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=identify`;
+
+      // window.location.href = discordAuthUrl;
       // Simulate Discord OAuth flow - in reality this would redirect to Discord
       const response = await supabase.functions.invoke('discord-auth', {
         body: {
