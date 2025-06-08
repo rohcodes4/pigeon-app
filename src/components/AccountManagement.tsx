@@ -157,15 +157,35 @@ export const AccountManagement = () => {
     }
   };
 
+  // const connectDiscord = async () => {
+  //   try {
+  //     const discordClientId = '1380883180533452970';
+  //     const redirectUri = encodeURIComponent(`https://zyccvvhrdvgjjwcteywg.supabase.co/functions/v1/discord-auth`);
+  //     const scope = encodeURIComponent('identify guilds guilds.members.read');
+  //     const state = user?.id;
+      
+  //     const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
+      
+  //     window.open(discordAuthUrl, '_blank');
+  //   } catch (error) {
+  //     console.error("Discord connection error:", error);
+  //     toast({
+  //       title: "Connection Failed",
+  //       description: "Failed to connect to Discord",
+  //       variant: "destructive",
+  //     });
+  //   }
+  // };
+
   const connectDiscord = async () => {
     try {
       const discordClientId = '1380883180533452970';
-      const redirectUri = encodeURIComponent(`https://zyccvvhrdvgjjwcteywg.supabase.co/functions/v1/discord-auth`);
+      const redirectUri = 'https://zyccvvhrdvgjjwcteywg.supabase.co/functions/v1/discord-auth'; // <-- unencoded
       const scope = encodeURIComponent('identify guilds guilds.members.read');
       const state = user?.id;
-      
-      const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
-      
+  
+      const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}`;
+  
       window.open(discordAuthUrl, '_blank');
     } catch (error) {
       console.error("Discord connection error:", error);
@@ -176,6 +196,7 @@ export const AccountManagement = () => {
       });
     }
   };
+  
 
   const connectTelegram = async () => {
     try {
