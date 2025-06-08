@@ -27,21 +27,21 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg">
               <Zap className="w-6 h-6 text-blue-600" />
               <div className="text-left">
-                <h4 className="font-semibold">AI-Powered Summaries</h4>
+                <h4 className="font-semibold text-black">AI-Powered Summaries</h4>
                 <p className="text-sm text-gray-600">Get instant insights from your conversations</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg">
               <Users className="w-6 h-6 text-green-600" />
               <div className="text-left">
-                <h4 className="font-semibold">Unified Dashboard</h4>
+                <h4 className="font-semibold text-black">Unified Dashboard</h4>
                 <p className="text-sm text-gray-600">Manage all your chats in one place</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-4 bg-purple-50 rounded-lg">
               <MessageCircle className="w-6 h-6 text-purple-600" />
               <div className="text-left">
-                <h4 className="font-semibold">Smart Replies</h4>
+                <h4 className="font-semibold text-black">Smart Replies</h4>
                 <p className="text-sm text-gray-600">AI-suggested responses to save time</p>
               </div>
             </div>
