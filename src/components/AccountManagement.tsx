@@ -179,6 +179,7 @@ export const AccountManagement = () => {
 
   const connectDiscord = async () => {
     try {
+      console.log("Starting discord connection")
       const frontendUrl = encodeURIComponent(window.location.origin);
       const discordClientId = '1380883180533452970';
       const redirectUri = 'https://zyccvvhrdvgjjwcteywg.supabase.co/functions/v1/discord-auth'; // <-- unencoded
