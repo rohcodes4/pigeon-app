@@ -108,7 +108,7 @@ export const ChatSummary = ({ chat }: ChatSummaryProps) => {
                 {summaryData.alpha.map((item, index) => (
                   <div key={index} className="flex items-start gap-3 p-3 bg-red-50 rounded-lg">
                     <Flame className="w-5 h-5 text-red-500 mt-0.5" />
-                    <p className="text-sm">{item}</p>
+                    <p className="text-sm text-black">{item}</p>
                   </div>
                 ))}
               </div>
@@ -119,7 +119,7 @@ export const ChatSummary = ({ chat }: ChatSummaryProps) => {
                 {summaryData.todos.map((item, index) => (
                   <div key={index} className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
                     <CheckSquare className="w-5 h-5 text-green-500 mt-0.5" />
-                    <p className="text-sm">{item}</p>
+                    <p className="text-sm text-black">{item}</p>
                   </div>
                 ))}
               </div>
@@ -132,8 +132,8 @@ export const ChatSummary = ({ chat }: ChatSummaryProps) => {
                     <div className="flex items-center gap-3">
                       <Link className="w-5 h-5 text-blue-500" />
                       <div>
-                        <p className="text-sm font-medium">{item.title}</p>
-                        <Badge variant="outline" className="text-xs mt-1">{item.type}</Badge>
+                        <p className="text-sm font-medium text-black">{item.title}</p>
+                        <Badge variant="outline" className="text-xs mt-1 text-black">{item.type}</Badge>
                       </div>
                     </div>
                     <Button variant="outline" size="sm">

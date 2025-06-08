@@ -96,8 +96,9 @@ export const ChatList = ({ onSelectChat, selectedChat }: ChatListProps) => {
                 : "bg-white hover:bg-gray-50"
             )}
           >
-            <div className="flex items-start gap-3">
-              <div className="relative">
+            <div className="flex items-start justify-center gap-3">
+              <div className="flex flex-col justify-center items-center gap-2">
+              <div className="relative w-max">
                 <Avatar className="w-12 h-12">
                   <AvatarFallback className={cn(
                     "text-white font-semibold",
@@ -106,21 +107,29 @@ export const ChatList = ({ onSelectChat, selectedChat }: ChatListProps) => {
                     {chat.avatar}
                   </AvatarFallback>
                 </Avatar>
+                
                 {chat.isPinned && (
                   <Pin className="w-3 h-3 text-blue-600 absolute -top-1 -right-1" />
                 )}
               </div>
-              
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-sm truncate">{chat.name}</h3>
-                    <Badge variant="outline" className={cn(
+              <Badge variant="outline" className={cn(
                       "text-xs",
                       chat.platform === "telegram" ? "text-blue-600" : "text-purple-600"
                     )}>
                       {chat.platform}
                     </Badge>
+                    </div>
+              
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-sm truncate text-black">{chat.name}</h3>
+                    {/* <Badge variant="outline" className={cn(
+                      "text-xs",
+                      chat.platform === "telegram" ? "text-blue-600" : "text-purple-600"
+                    )}>
+                      {chat.platform}
+                    </Badge> */}
                   </div>
                   {chat.unreadCount > 0 && (
                     <Badge variant="destructive" className="text-xs min-w-[20px] h-5">

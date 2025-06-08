@@ -165,7 +165,7 @@ export const ActionCenter = () => {
                   activeTasks.map((task) => (
                     <div 
                       key={task.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50"
+                      className="flex items-center gap-3 p-3 rounded-lg border hover:bg-[#ffffff10]"
                     >
                       <Checkbox
                         checked={task.completed}

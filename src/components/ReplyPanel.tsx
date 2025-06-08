@@ -73,7 +73,7 @@ export const ReplyPanel = ({ chat }: ReplyPanelProps) => {
             >
               <p className="text-sm text-blue-800 mb-2">{reply}</p>
               <div className="flex justify-end">
-                <Badge variant="outline" className="text-xs bg-white">
+                <Badge variant="outline" className="text-xs bg-white text-black">
                   Click to send
                 </Badge>
               </div>

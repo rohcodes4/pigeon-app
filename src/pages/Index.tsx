@@ -117,7 +117,7 @@ const Index = () => {
 
         {/* Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-8 bg-white/70 backdrop-blur-sm">
+          <TabsList className="grid w-full grid-cols-4 mb-8 bg-white/10 backdrop-blur-sm">
             <TabsTrigger value="inbox" className="flex items-center gap-2">
               <MessageCircle className="w-4 h-4" />
               Unified Inbox

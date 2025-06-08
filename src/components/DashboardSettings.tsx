@@ -127,6 +127,7 @@ export const DashboardSettings = () => {
                       <SelectItem value="hourly">Hourly</SelectItem>
                       <SelectItem value="daily">Daily</SelectItem>
                       <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="manual">Manual</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -163,11 +164,10 @@ export const DashboardSettings = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1month">1 Month</SelectItem>
-                      <SelectItem value="3months">3 Months</SelectItem>
-                      <SelectItem value="6months">6 Months</SelectItem>
-                      <SelectItem value="1year">1 Year</SelectItem>
-                      <SelectItem value="forever">Forever</SelectItem>
+                      <SelectItem value="7days">1 Week</SelectItem>
+                      <SelectItem value="30days">1 Month</SelectItem>
+                      <SelectItem value="90days">3 Months</SelectItem>
+                      <SelectItem value="unlimited">Forever</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
