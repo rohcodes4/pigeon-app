@@ -179,12 +179,16 @@ export const AccountManagement = () => {
 
   const connectDiscord = async () => {
     try {
+      const frontendUrl = encodeURIComponent(window.location.origin);
       const discordClientId = '1380883180533452970';
       const redirectUri = 'https://zyccvvhrdvgjjwcteywg.supabase.co/functions/v1/discord-auth'; // <-- unencoded
       const scope = encodeURIComponent('identify guilds guilds.members.read');
-      const state = user?.id;
+      // const state = user?.id;
+      const stateObj = { userId: user?.id, redirectTo: window.location.origin + '/somepath' };
+      const stateParam = encodeURIComponent(JSON.stringify(stateObj));
+
   
-      const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}`;
+      const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${stateParam}`;
   
       window.open(discordAuthUrl, '_blank');
     } catch (error) {
