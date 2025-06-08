@@ -18,7 +18,10 @@ serve(async (req) => {
     const state = url.searchParams.get('state') // This is the user_id
     const error = url.searchParams.get('error')
 
+    console.log('Discord auth received:', { code: !!code, state, error })
+
     if (error) {
+      console.error('Discord OAuth error:', error)
       return new Response(`
         <html>
           <body>
@@ -37,6 +40,7 @@ serve(async (req) => {
     }
 
     if (!code || !state) {
+      console.error('Missing code or state', { code: !!code, state })
       return new Response(`
         <html>
           <body>
@@ -59,6 +63,28 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
+    const discordClientId = Deno.env.get('DISCORD_CLIENT_ID')
+    const discordClientSecret = Deno.env.get('DISCORD_CLIENT_SECRET')
+
+    if (!discordClientId || !discordClientSecret) {
+      console.error('Discord credentials not configured')
+      return new Response(`
+        <html>
+          <body>
+            <script>
+              window.opener?.postMessage({ 
+                type: 'DISCORD_AUTH_ERROR', 
+                error: 'Discord credentials not configured' 
+              }, '*');
+              window.close();
+            </script>
+          </body>
+        </html>
+      `, { 
+        headers: { 'Content-Type': 'text/html' } 
+      })
+    }
+
     // Exchange code for access token
     const tokenResponse = await fetch('https://discord.com/api/v10/oauth2/token', {
       method: 'POST',
@@ -66,8 +92,8 @@ serve(async (req) => {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        client_id: Deno.env.get('DISCORD_CLIENT_ID') ?? '',
-        client_secret: Deno.env.get('DISCORD_CLIENT_SECRET') ?? '',
+        client_id: discordClientId,
+        client_secret: discordClientSecret,
         grant_type: 'authorization_code',
         code: code,
         redirect_uri: `${Deno.env.get('SUPABASE_URL')}/functions/v1/discord-auth`,
@@ -95,6 +121,7 @@ serve(async (req) => {
     }
 
     const tokenData = await tokenResponse.json()
+    console.log('Token exchange successful')
 
     // Get user info from Discord
     const userResponse = await fetch('https://discord.com/api/v10/users/@me', {
@@ -104,6 +131,7 @@ serve(async (req) => {
     })
 
     if (!userResponse.ok) {
+      console.error('Failed to fetch user info')
       return new Response(`
         <html>
           <body>
@@ -122,6 +150,7 @@ serve(async (req) => {
     }
 
     const userData = await userResponse.json()
+    console.log('User data fetched successfully')
 
     // Store the connection in database
     const { error: insertError } = await supabaseClient
@@ -139,6 +168,7 @@ serve(async (req) => {
           discriminator: userData.discriminator,
           avatar: userData.avatar,
           email: userData.email,
+          global_name: userData.global_name,
         },
       })
 
@@ -161,7 +191,7 @@ serve(async (req) => {
       })
     }
 
-    // Automatically fetch and store guilds
+    // Fetch user's guilds (servers)
     const guildsResponse = await fetch('https://discord.com/api/v10/users/@me/guilds', {
       headers: {
         'Authorization': `Bearer ${tokenData.access_token}`,
@@ -170,6 +200,7 @@ serve(async (req) => {
 
     if (guildsResponse.ok) {
       const guilds = await guildsResponse.json()
+      console.log(`Fetched ${guilds.length} guilds for user`)
       
       for (const guild of guilds) {
         await supabaseClient
@@ -184,6 +215,9 @@ serve(async (req) => {
             is_synced: false,
           })
       }
+      console.log('Successfully stored guilds')
+    } else {
+      console.error('Failed to fetch guilds:', await guildsResponse.text())
     }
 
     return new Response(`

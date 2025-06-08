@@ -42,6 +42,15 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
           description: "Successfully connected to your Discord account",
         });
         checkConnectedAccounts();
+      } else if (event.data.type === 'DISCORD_AUTH_ERROR') {
+        toast({
+          title: "Discord Connection Failed",
+          description: event.data.error || "Something went wrong",
+          variant: "destructive",
+        });
+        setLoading(prev => ({ ...prev, discord: false }));
+      } else if (event.data.type === 'TELEGRAM_AUTH_SUCCESS') {
+        handleTelegramAuth(event.data.data);
       }
     };
 
@@ -65,7 +74,7 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
       setTelegramConnected(platforms.includes("telegram"));
       setDiscordConnected(platforms.includes("discord"));
 
-      if (platforms.includes("telegram") || platforms.includes("discord")) {
+      if (platforms.length > 0) {
         onAccountsConnected();
       }
     } catch (error) {
@@ -73,32 +82,39 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
     }
   };
 
-  useEffect(() => {
-    const handleMessage = (event) => {
-      if (event.data?.type === 'DISCORD_AUTH_SUCCESS') {
-        console.log("Discord user data:", event.data.data);
-        setDiscordConnected(true);
-        toast({
-          title: "Discord Connected",
-          description: "Successfully connected to your Discord account",
-        });
-        if (telegramConnected) {
-          onAccountsConnected();
-        }
-        setLoading(prev => ({ ...prev, discord: false }));
-      } else if (event.data?.type === 'DISCORD_AUTH_ERROR') {
-        toast({
-          title: "Discord Connection Failed",
-          description: event.data.error || "Something went wrong",
-          variant: "destructive",
-        });
-        setLoading(prev => ({ ...prev, discord: false }));
-      }
-    };
+  const handleTelegramAuth = async (telegramData: any) => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('telegram-auth', {
+        body: {
+          telegramData: telegramData,
+          user_id: user.id,
+        },
+      });
 
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [telegramConnected, onAccountsConnected]);
+      if (error) {
+        throw error;
+      }
+
+      setTelegramConnected(true);
+      setLoading(prev => ({ ...prev, telegram: false }));
+      toast({
+        title: "Telegram Connected",
+        description: "Successfully connected to your Telegram account",
+      });
+      
+      checkConnectedAccounts();
+    } catch (error) {
+      console.error("Telegram connection error:", error);
+      toast({
+        title: "Connection Failed",
+        description: "Failed to connect to Telegram. Please try again.",
+        variant: "destructive",
+      });
+      setLoading(prev => ({ ...prev, telegram: false }));
+    }
+  };
 
   const connectTelegram = async () => {
     if (!user) return;
@@ -117,7 +133,7 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
         throw new Error('Popup blocked');
       }
 
-      // Create the Telegram login widget HTML
+      // Create the Telegram login widget HTML with a test bot
       const telegramHTML = `
         <!DOCTYPE html>
         <html>
@@ -147,7 +163,7 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
             <h2>Connect to Telegram</h2>
             <p>Click the button below to connect your Telegram account</p>
             <script async src="https://telegram.org/js/telegram-widget.js?22" 
-                    data-telegram-login=${import.meta.env.VITE_DISCORD_CLIENT_ID}
+                    data-telegram-login="ChatPilotTestBot"
                     data-size="large" 
                     data-onauth="onTelegramAuth(user)" 
                     data-request-access="write">
@@ -169,51 +185,13 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
       authWindow.document.write(telegramHTML);
       authWindow.document.close();
 
-      // Listen for the auth response
-      const handleTelegramMessage = async (event: MessageEvent) => {
-        if (event.data.type === 'TELEGRAM_AUTH_SUCCESS') {
-          try {
-            const response = await supabase.functions.invoke('telegram-auth', {
-              body: {
-                telegramData: event.data.data,
-                user_id: user.id,
-              },
-            });
-
-            if (response.error) {
-              throw response.error;
-            }
-
-            setTelegramConnected(true);
-            toast({
-              title: "Telegram Connected",
-              description: "Successfully connected to your Telegram account",
-            });
-            
-            if (discordConnected) {
-              onAccountsConnected();
-            }
-          } catch (error) {
-            console.error("Telegram connection error:", error);
-            toast({
-              title: "Connection Failed",
-              description: "Failed to connect to Telegram. Please try again.",
-              variant: "destructive",
-            });
-          }
-          window.removeEventListener('message', handleTelegramMessage);
-          setLoading(prev => ({ ...prev, telegram: false }));
-        }
-      };
-
-      window.addEventListener('message', handleTelegramMessage);
-
       // Monitor popup closure
       const checkClosed = setInterval(() => {
         if (authWindow.closed) {
           clearInterval(checkClosed);
-          window.removeEventListener('message', handleTelegramMessage);
-          setLoading(prev => ({ ...prev, telegram: false }));
+          if (!telegramConnected) {
+            setLoading(prev => ({ ...prev, telegram: false }));
+          }
         }
       }, 1000);
       
@@ -234,9 +212,7 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
     setLoading(prev => ({ ...prev, discord: true }));
     
     try {
-      // Get the base URL from the current window location
-      const baseUrl = window.location.origin;
-      const discordClientId = '1380883180533452970'; // Your Discord client ID
+      const discordClientId = '1380883180533452970';
       const redirectUri = encodeURIComponent(`https://zyccvvhrdvgjjwcteywg.supabase.co/functions/v1/discord-auth`);
       const scope = encodeURIComponent('identify guilds');
       const state = user.id;
