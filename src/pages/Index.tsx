@@ -32,7 +32,7 @@ const Index = () => {
       // Check if user has completed onboarding
       const onboardingComplete = localStorage.getItem(`chatpilot_onboarded_${user.id}`);
       if (onboardingComplete) {
-        // setIsOnboarded(true);
+        setIsOnboarded(true);
         setIsConnected(true);
       }
     }
