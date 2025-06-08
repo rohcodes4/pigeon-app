@@ -186,7 +186,8 @@ export const AccountManagement = () => {
       // const state = user?.id;
       const stateObj = { userId: user?.id, redirectTo: window.location.origin };
       const stateParam = encodeURIComponent(JSON.stringify(stateObj));
-
+      console.log("stateObj")
+      console.log(stateObj)
   
       const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${stateParam}`;
   
