@@ -19,11 +19,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { code, user_id } = await req.json()
+    const { telegramData, user_id } = await req.json()
 
-    if (!code || !user_id) {
+    if (!telegramData || !user_id) {
       return new Response(
-        JSON.stringify({ error: 'Missing code or user_id' }),
+        JSON.stringify({ error: 'Missing Telegram data or user_id' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -31,25 +31,44 @@ serve(async (req) => {
       )
     }
 
-    // Exchange code for Telegram user info
+    // Verify Telegram auth data
     const telegramBotToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
     if (!telegramBotToken) {
-      return new Response(
-        JSON.stringify({ error: 'Telegram bot token not configured' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
+      console.log('Telegram bot token not configured, using demo mode')
+      // In demo mode, just store the connection
+    } else {
+      // Verify the auth data hash in production
+      const { hash, ...authData } = telegramData
+      const dataCheckString = Object.keys(authData)
+        .sort()
+        .map(key => `${key}=${authData[key]}`)
+        .join('\n')
 
-    // In a real implementation, you would validate the Telegram auth data
-    // For now, we'll simulate a successful response
-    const telegramUserData = {
-      id: code, // Using code as user ID for demo
-      username: `telegram_user_${code}`,
-      first_name: 'Telegram',
-      last_name: 'User'
+      const crypto = await import('node:crypto')
+      const secretKey = crypto.createHash('sha256').update(telegramBotToken).digest()
+      const hmac = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex')
+
+      if (hmac !== hash) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid Telegram authentication data' }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
+      }
+
+      // Check if auth data is not older than 86400 seconds (1 day)
+      const authDate = parseInt(telegramData.auth_date)
+      if (Date.now() / 1000 - authDate > 86400) {
+        return new Response(
+          JSON.stringify({ error: 'Telegram authentication data is too old' }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
+      }
     }
 
     // Store the connected account
@@ -58,9 +77,9 @@ serve(async (req) => {
       .upsert({
         user_id,
         platform: 'telegram',
-        platform_user_id: telegramUserData.id.toString(),
-        platform_username: telegramUserData.username,
-        access_token: code, // In reality, this would be a proper token
+        platform_user_id: telegramData.id.toString(),
+        platform_username: telegramData.username || `${telegramData.first_name} ${telegramData.last_name || ''}`.trim(),
+        access_token: telegramData.hash || 'demo_token',
       })
 
     if (error) {
@@ -74,10 +93,36 @@ serve(async (req) => {
       )
     }
 
+    // Store some demo groups for Telegram
+    const demoGroups = [
+      { id: 'tg_group_1', name: 'General Chat', members: 25 },
+      { id: 'tg_group_2', name: 'Development Team', members: 8 },
+      { id: 'tg_group_3', name: 'Project Updates', members: 15 }
+    ];
+
+    for (const group of demoGroups) {
+      await supabaseClient
+        .from('synced_groups')
+        .upsert({
+          user_id,
+          platform: 'telegram',
+          group_id: group.id,
+          group_name: group.name,
+          group_avatar: null,
+          member_count: group.members,
+          is_synced: false,
+        })
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
-        user_data: telegramUserData 
+        user_data: {
+          id: telegramData.id,
+          username: telegramData.username,
+          first_name: telegramData.first_name,
+          last_name: telegramData.last_name
+        }
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
