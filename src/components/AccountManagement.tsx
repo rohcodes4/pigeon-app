@@ -194,7 +194,7 @@ export const AccountManagement = () => {
   
       const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${stateParam}`;
   
-      window.open(discordAuthUrl, '_blank');
+      // window.open(discordAuthUrl, '_blank');
     } catch (error) {
       console.error("Discord connection error:", error);
       toast({
