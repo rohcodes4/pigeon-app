@@ -8,6 +8,13 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
+declare global {
+  interface Window {
+    Telegram: any;
+    onTelegramAuth: (user: any) => void;
+  }
+}
+
 interface ConnectAccountsProps {
   onAccountsConnected: () => void;
 }
@@ -72,55 +79,116 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
     setLoading(prev => ({ ...prev, telegram: true }));
     
     try {
-      // Create a Telegram Login Widget dynamically
-      const widget = document.createElement('div');
-      widget.innerHTML = `
-        <iframe src="https://oauth.telegram.org/auth?bot_id=${import.meta.env.VITE_TELEGRAM_BOT_ID || 'YOUR_BOT_ID'}&origin=${encodeURIComponent(window.location.origin)}&request_access=write&return_to=${encodeURIComponent(window.location.origin + '/telegram-callback')}" 
-                width="300" height="400" frameborder="0"></iframe>
+      // Create a popup window for Telegram auth
+      const authWindow = window.open(
+        '', 
+        'telegram-auth', 
+        'width=500,height=600,scrollbars=yes,resizable=yes'
+      );
+
+      if (!authWindow) {
+        throw new Error('Popup blocked');
+      }
+
+      // Create the Telegram login widget HTML
+      const telegramHTML = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Telegram Login</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              display: flex; 
+              justify-content: center; 
+              align-items: center; 
+              height: 100vh; 
+              margin: 0; 
+              background: #f5f5f5;
+            }
+            .container {
+              text-align: center;
+              background: white;
+              padding: 20px;
+              border-radius: 8px;
+              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h2>Connect to Telegram</h2>
+            <p>Click the button below to connect your Telegram account</p>
+            <script async src="https://telegram.org/js/telegram-widget.js?22" 
+                    data-telegram-login="your_bot_username"
+                    data-size="large" 
+                    data-onauth="onTelegramAuth(user)" 
+                    data-request-access="write">
+            </script>
+            <script>
+              function onTelegramAuth(user) {
+                window.opener?.postMessage({ 
+                  type: 'TELEGRAM_AUTH_SUCCESS', 
+                  data: user 
+                }, '*');
+                window.close();
+              }
+            </script>
+          </div>
+        </body>
+        </html>
       `;
-      
-      // For demo purposes, simulate successful connection
-      // In production, this would handle the actual Telegram OAuth flow
-      setTimeout(async () => {
-        try {
-          const response = await supabase.functions.invoke('telegram-auth', {
-            body: {
-              telegramData: {
-                id: Math.floor(Math.random() * 1000000),
-                first_name: 'Telegram',
-                last_name: 'User',
-                username: 'telegram_user',
-                auth_date: Math.floor(Date.now() / 1000),
-                hash: 'demo_hash'
+
+      authWindow.document.write(telegramHTML);
+      authWindow.document.close();
+
+      // Listen for the auth response
+      const handleTelegramMessage = async (event: MessageEvent) => {
+        if (event.data.type === 'TELEGRAM_AUTH_SUCCESS') {
+          try {
+            const response = await supabase.functions.invoke('telegram-auth', {
+              body: {
+                telegramData: event.data.data,
+                user_id: user.id,
               },
-              user_id: user.id,
-            },
-          });
+            });
 
-          if (response.error) {
-            throw response.error;
-          }
+            if (response.error) {
+              throw response.error;
+            }
 
-          setTelegramConnected(true);
-          toast({
-            title: "Telegram Connected",
-            description: "Successfully connected to your Telegram account",
-          });
-          
-          if (discordConnected) {
-            onAccountsConnected();
+            setTelegramConnected(true);
+            toast({
+              title: "Telegram Connected",
+              description: "Successfully connected to your Telegram account",
+            });
+            
+            if (discordConnected) {
+              onAccountsConnected();
+            }
+          } catch (error) {
+            console.error("Telegram connection error:", error);
+            toast({
+              title: "Connection Failed",
+              description: "Failed to connect to Telegram. Please try again.",
+              variant: "destructive",
+            });
           }
-        } catch (error) {
-          console.error("Telegram connection error:", error);
-          toast({
-            title: "Connection Failed",
-            description: "Failed to connect to Telegram. Please try again.",
-            variant: "destructive",
-          });
-        } finally {
+          window.removeEventListener('message', handleTelegramMessage);
           setLoading(prev => ({ ...prev, telegram: false }));
         }
-      }, 2000);
+      };
+
+      window.addEventListener('message', handleTelegramMessage);
+
+      // Monitor popup closure
+      const checkClosed = setInterval(() => {
+        if (authWindow.closed) {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', handleTelegramMessage);
+          setLoading(prev => ({ ...prev, telegram: false }));
+        }
+      }, 1000);
       
     } catch (error) {
       console.error("Telegram connection error:", error);
@@ -139,8 +207,10 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
     setLoading(prev => ({ ...prev, discord: true }));
     
     try {
-      const discordClientId = import.meta.env.VITE_DISCORD_CLIENT_ID || '1380883180533452970';
-      const redirectUri = encodeURIComponent(`${supabase.supabaseUrl}/functions/v1/discord-auth`);
+      // Get the base URL from the current window location
+      const baseUrl = window.location.origin;
+      const discordClientId = '1380883180533452970'; // Your Discord client ID
+      const redirectUri = encodeURIComponent(`https://zyccvvhrdvgjjwcteywg.supabase.co/functions/v1/discord-auth`);
       const scope = encodeURIComponent('identify guilds');
       const state = user.id;
       
@@ -185,7 +255,7 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
               </div>
               <div>
                 <h3 className="font-semibold">Telegram</h3>
-                <p className="text-sm text-muted-foreground">Connect your Telegram account</p>
+                <p className="text-sm text-muted-foreground">Connect your Telegram account to access your chats</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -215,7 +285,7 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
               </div>
               <div>
                 <h3 className="font-semibold">Discord</h3>
-                <p className="text-sm text-muted-foreground">Connect your Discord account</p>
+                <p className="text-sm text-muted-foreground">Connect your Discord account to access your servers</p>
               </div>
             </div>
             <div className="flex items-center gap-3">

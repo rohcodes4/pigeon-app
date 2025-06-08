@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MessageCircle, Users, Settings, Save } from "lucide-react";
+import { MessageCircle, Users, Check, Save } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -90,17 +90,19 @@ export const ChatSelection = () => {
   const saveAllChanges = async () => {
     setSaving(true);
     try {
-      const updates = chatGroups.map(group => ({
-        id: group.id,
-        is_synced: group.is_synced
-      }));
+      // Update each group individually since we need to use individual updates
+      const updatePromises = chatGroups.map(group => 
+        supabase
+          .from("synced_groups")
+          .update({ is_synced: group.is_synced })
+          .eq("id", group.id)
+      );
 
-      const { error } = await supabase
-        .from("synced_groups")
-        .upsert(updates);
-
-      if (error) {
-        throw error;
+      const results = await Promise.all(updatePromises);
+      
+      const hasError = results.some(result => result.error);
+      if (hasError) {
+        throw new Error("Failed to update some chat sync settings");
       }
 
       toast({
@@ -155,7 +157,7 @@ export const ChatSelection = () => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5" />
+              <Check className="w-5 h-5" />
               Select Chats to Sync
             </CardTitle>
             <Button onClick={saveAllChanges} disabled={saving} className="gap-2">
