@@ -185,16 +185,23 @@ export const AccountManagement = () => {
       const redirectUri = 'https://zyccvvhrdvgjjwcteywg.supabase.co/functions/v1/discord-auth'; // <-- unencoded
       const scope = encodeURIComponent('identify guilds guilds.members.read');
       // const state = user?.id;
-      const stateObj = {userId:user?.id,redirectTo: window.location.origin};
-      const stateParam = encodeURIComponent(JSON.stringify(stateObj));
-      console.log("stateObj")
-      console.log(stateObj)
-      console.log("stateParam")
-      console.log(stateParam)
+      // const stateObj = {userId:user?.id,redirectTo: window.location.origin};
+      // const stateParam = encodeURIComponent(JSON.stringify(stateObj));
+      // console.log("stateObj")
+      // console.log(stateObj)
+      // console.log("stateParam")
+      // console.log(stateParam)
+
+      const stateObj = {
+        userId: user?.id,
+        redirectTo: window.location.href // or window.location.origin + '/somepath'
+      };
+      
+      const state = encodeURIComponent(JSON.stringify(stateObj));
   
-      const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${stateParam}`;
+      const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}`;
   
-      // window.open(discordAuthUrl, '_blank');
+      window.open(discordAuthUrl, '_blank');
     } catch (error) {
       console.error("Discord connection error:", error);
       toast({
