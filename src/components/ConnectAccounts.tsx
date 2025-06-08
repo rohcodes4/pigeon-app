@@ -163,7 +163,7 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
             <h2>Connect to Telegram</h2>
             <p>Click the button below to connect your Telegram account</p>
             <script async src="https://telegram.org/js/telegram-widget.js?22" 
-                    data-telegram-login="ChatPilotTestBot"
+                    data-telegram-login="chatPilot22_bot"
                     data-size="large" 
                     data-onauth="onTelegramAuth(user)" 
                     data-request-access="write">
