@@ -184,7 +184,7 @@ export const AccountManagement = () => {
       const redirectUri = 'https://zyccvvhrdvgjjwcteywg.supabase.co/functions/v1/discord-auth'; // <-- unencoded
       const scope = encodeURIComponent('identify guilds guilds.members.read');
       // const state = user?.id;
-      const stateObj = { userId: user?.id, redirectTo: window.location.origin + '/somepath' };
+      const stateObj = { userId: user?.id, redirectTo: window.location.origin };
       const stateParam = encodeURIComponent(JSON.stringify(stateObj));
 
   
