@@ -37,6 +37,18 @@ const Index = () => {
       }
     }
   }, [user]);
+  useEffect(() => {
+    if (user) {
+      // Check if user has completed onboarding
+      const onboardingComplete = localStorage.getItem(`chatpilot_onboarded_${user.id}`);
+      console.log("onboarding?")
+      console.log(onboardingComplete)
+      if (onboardingComplete) {
+        setIsOnboarded(true);
+        setIsConnected(true);
+      }
+    }
+  }, []);
 
   const handleOnboardingComplete = () => {
     if (user) {
