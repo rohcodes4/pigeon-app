@@ -50,7 +50,7 @@ export const ChatSummary = ({ chat }: ChatSummaryProps) => {
               <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${
                 chat.platform === "telegram" ? "bg-blue-500" : "bg-purple-500"
               }`}>
-                {chat.avatar}
+                {chat.avatar!="NA" && <img src={chat.avatar} className="rounded-full "/>}
               </div>
               <div>
                 <CardTitle className="flex items-center gap-2">
