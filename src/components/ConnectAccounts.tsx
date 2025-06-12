@@ -206,6 +206,7 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
       const redirectUri = "https://zyccvvhrdvgjjwcteywg.supabase.co/functions/v1/discord-auth";
       // Updated scope to include channels and message history access
       const scope = encodeURIComponent("identify guilds channels.read messages.read");
+      // const scope = encodeURIComponent('identify guilds email guilds.channels.read guilds.members.read messages.read');
 
       const stateObj = {
         userId: user.id,

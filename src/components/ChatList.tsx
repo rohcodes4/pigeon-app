@@ -116,7 +116,8 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
         const { data, error } = await supabase
           .from('synced_groups')
           .select('*')
-          .eq('user_id', userId);
+          .eq('user_id', userId)
+          .eq('is_synced', true);
 
         if (error) {
           console.error("Error fetching chats:", error);
@@ -182,7 +183,7 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
       // For each guild, get its channels
       if (guildsData?.guilds) {
         for (const guild of guildsData.guilds) {
-          await fetchChannelsForGuild(guild.id);
+          // await fetchChannelsForGuild(guild.id);
         }
       }
 
@@ -240,7 +241,7 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
       newExpanded.delete(guildId);
     } else {
       newExpanded.add(guildId);
-      await fetchChannelsForGuild(guildId);
+      // await fetchChannelsForGuild(guildId);
     }
     setExpandedGuilds(newExpanded);
   };
