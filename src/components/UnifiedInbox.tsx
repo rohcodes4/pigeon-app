@@ -8,17 +8,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MessageCircle, Users, Clock, TrendingUp, Filter, Pin } from "lucide-react";
 import { ChatSummary } from "@/components/ChatSummary";
 import { ChatList } from "@/components/ChatList";
+import { useChatStats } from "@/hooks/useChatStats";
 
 export const UnifiedInbox = () => {
   const [selectedChat, setSelectedChat] = useState(null);
-  const [filter, setFilter] = useState("all");
+  const [chats, setChats] = useState([]);
 
-  // Mock stats - will be replaced with real data
-  const stats = {
-    activeChats: 5,
-    unreadMessages: 19,
-    totalParticipants: 180,
-    aiSummaries: 12,
+  // Get dynamic stats
+  const stats = useChatStats(chats);
+
+  // Handle chat updates from ChatList
+  const handleChatsUpdate = (updatedChats: any[]) => {
+    setChats(updatedChats);
   };
 
   return (
@@ -83,16 +84,8 @@ export const UnifiedInbox = () => {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <MessageCircle className="w-5 h-5" />
-                  Recent Chats (5)
+                  Recent Chats ({stats.activeChats})
                 </CardTitle>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Pin className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Filter className="w-4 h-4" />
-                  </Button>
-                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
