@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -28,11 +27,12 @@ interface Chat {
 interface ChatListProps {
   onSelectChat: (chat: Chat) => void;
   selectedChat: Chat | null;  
+  onChatsUpdate?: (chats: Chat[]) => void;
 }
 
 type FilterType = "all" | "telegram" | "discord" | "unread" | "pinned" | "groups" | "dms";
 
-export const ChatList = ({ onSelectChat, selectedChat }: ChatListProps) => {
+export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatListProps) => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [expandedGuilds, setExpandedGuilds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
@@ -116,7 +116,9 @@ export const ChatList = ({ onSelectChat, selectedChat }: ChatListProps) => {
 
         if (error) {
           console.error("Error fetching chats:", error);
-          setChats(mockTelegramChats);
+          const allChats = mockTelegramChats;
+          setChats(allChats);
+          onChatsUpdate?.(allChats);
           return;
         }
 
@@ -130,39 +132,46 @@ export const ChatList = ({ onSelectChat, selectedChat }: ChatListProps) => {
           participants: row.member_count || (row.is_group ? 0 : 2),
           isGroup: row.is_group ?? true,
           isPinned: row.is_pinned ?? false,
-          avatar: row.group_avatar || (row.name ? row.name.split(' ').map((w:string) => w[0]).join('') : "NA"),
+          avatar: row.group_avatar || (row.group_name ? row.group_name.split(' ').map((w:string) => w[0]).join('') : "NA"),
           guild_id: row.metadata?.guild_id,
           channel_type: row.metadata?.channel_type,
         }));
 
         // Combine real Discord chats with mock Telegram chats
-        setChats([...chatsData, ...mockTelegramChats]);
+        const allChats = [...chatsData, ...mockTelegramChats];
+        setChats(allChats);
+        onChatsUpdate?.(allChats);
       } catch (err) {
         console.error("Fetch error:", err);
-        setChats(mockTelegramChats);
+        const allChats = mockTelegramChats;
+        setChats(allChats);
+        onChatsUpdate?.(allChats);
       } finally {
         setLoading(false);
       }
     }
 
     if (userId) fetchChats();
-  }, [userId]);
+  }, [userId, onChatsUpdate]);
 
   const togglePin = async (chatId: string | number) => {
-    setChats(prevChats => 
-      prevChats.map(chat => 
+    setChats(prevChats => {
+      const updatedChats = prevChats.map(chat => 
         chat.id === chatId 
           ? { ...chat, isPinned: !chat.isPinned }
           : chat
-      )
-    );
+      );
+      onChatsUpdate?.(updatedChats);
+      return updatedChats;
+    });
 
     // Update in database for real chats (not mock Telegram ones)
-    if (typeof chatId !== 'string' || !chatId.startsWith('tg_')) {
+    if (typeof chatId === 'string' && !chatId.startsWith('tg_')) {
       try {
+        const currentChat = chats.find(c => c.id === chatId);
         await supabase
           .from('synced_groups')
-          .update({ is_pinned: !chats.find(c => c.id === chatId)?.isPinned })
+          .update({ is_pinned: !currentChat?.isPinned })
           .eq('group_id', chatId)
           .eq('user_id', userId);
       } catch (error) {
@@ -200,11 +209,13 @@ export const ChatList = ({ onSelectChat, selectedChat }: ChatListProps) => {
           participants: row.member_count || (row.is_group ? 0 : 2),
           isGroup: row.is_group ?? true,
           isPinned: row.is_pinned ?? false,
-          avatar: row.group_avatar || (row.name ? row.name.split(' ').map((w:string) => w[0]).join('') : "NA"),
+          avatar: row.group_avatar || (row.group_name ? row.group_name.split(' ').map((w:string) => w[0]).join('') : "NA"),
           guild_id: row.metadata?.guild_id,
           channel_type: row.metadata?.channel_type,
         }));
-        setChats([...chatsData, ...mockTelegramChats]);
+        const allChats = [...chatsData, ...mockTelegramChats];
+        setChats(allChats);
+        onChatsUpdate?.(allChats);
       }
     } catch (err) {
       console.error('Error fetching channels:', err);

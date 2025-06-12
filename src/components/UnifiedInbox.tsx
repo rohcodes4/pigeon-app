@@ -10,15 +10,30 @@ import { ChatSummary } from "@/components/ChatSummary";
 import { ChatList } from "@/components/ChatList";
 import { useChatStats } from "@/hooks/useChatStats";
 
+interface Chat {
+  id: number | string;
+  name: string;
+  platform: "telegram" | "discord";
+  lastMessage: string;
+  timestamp: string;
+  unreadCount: number;
+  participants: number;
+  isGroup: boolean;
+  isPinned: boolean;
+  avatar: string;
+  guild_id?: string;
+  channel_type?: number;
+}
+
 export const UnifiedInbox = () => {
-  const [selectedChat, setSelectedChat] = useState(null);
-  const [chats, setChats] = useState([]);
+  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+  const [chats, setChats] = useState<Chat[]>([]);
 
   // Get dynamic stats
   const stats = useChatStats(chats);
 
   // Handle chat updates from ChatList
-  const handleChatsUpdate = (updatedChats: any[]) => {
+  const handleChatsUpdate = (updatedChats: Chat[]) => {
     setChats(updatedChats);
   };
 
@@ -89,7 +104,11 @@ export const UnifiedInbox = () => {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <ChatList onSelectChat={setSelectedChat} selectedChat={selectedChat} />
+              <ChatList 
+                onSelectChat={setSelectedChat} 
+                selectedChat={selectedChat} 
+                onChatsUpdate={handleChatsUpdate}
+              />
             </CardContent>
           </Card>
         </div>
