@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from "@/hooks/use-toast";
 import Layout from '@/components/Layout';
 
-const PrivcyPolicy = () => {
+const PrivacyPolicy = () => {
   const [isConnected, setIsConnected] = useState(false);
   const { user, loading, signOut } = useAuth();
 
@@ -163,4 +163,4 @@ const PrivcyPolicy = () => {
   )
 }
 
-export default PrivcyPolicy
+export default PrivacyPolicy
