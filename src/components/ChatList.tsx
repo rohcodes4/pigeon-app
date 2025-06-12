@@ -152,7 +152,7 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
     }
 
     if (userId) fetchChats();
-  }, [userId, onChatsUpdate]);
+  }, [userId]);
 
   const togglePin = async (chatId: string | number) => {
     setChats(prevChats => {
