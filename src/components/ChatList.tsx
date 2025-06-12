@@ -18,7 +18,7 @@ interface Chat {
   unreadCount: number;
   participants: number;
   isGroup: boolean;
-  isPinned: boolean;
+  is_pinned: boolean;
   avatar: string;
   guild_id?: string;
   channel_type?: number;
@@ -51,7 +51,7 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
       unreadCount: 3,
       participants: 1247,
       isGroup: true,
-      isPinned: false,
+      is_pinned: false,
       avatar: "RD"
     },
     {
@@ -63,7 +63,7 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
       unreadCount: 1,
       participants: 2,
       isGroup: false,
-      isPinned: true,
+      is_pinned: true,
       avatar: "JS"
     },
     {
@@ -75,7 +75,7 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
       unreadCount: 0,
       participants: 5432,
       isGroup: true,
-      isPinned: false,
+      is_pinned: false,
       avatar: "TN"
     },
     {
@@ -87,7 +87,7 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
       unreadCount: 0,
       participants: 2,
       isGroup: false,
-      isPinned: false,
+      is_pinned: false,
       avatar: "SW"
     },
     {
@@ -99,7 +99,7 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
       unreadCount: 7,
       participants: 892,
       isGroup: true,
-      isPinned: true,
+      is_pinned: true,
       avatar: "JC"
     }
   ];
@@ -131,13 +131,14 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
           unreadCount: row.unread_count || 0,
           participants: row.member_count || (row.is_group ? 0 : 2),
           isGroup: row.is_group ?? true,
-          isPinned: row.is_pinned ?? false,
+          is_pinned: row.is_pinned ?? false,
           avatar: row.group_avatar || (row.group_name ? row.group_name.split(' ').map((w:string) => w[0]).join('') : "NA"),
           guild_id: row.metadata?.guild_id,
           channel_type: row.metadata?.channel_type,
         }));
 
         // Combine real Discord chats with mock Telegram chats
+        // const allChats = [...chatsData, ...mockTelegramChats];
         const allChats = [...chatsData, ...mockTelegramChats];
         setChats(allChats);
         onChatsUpdate?.(allChats);
@@ -158,7 +159,7 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
     setChats(prevChats => {
       const updatedChats = prevChats.map(chat => 
         chat.id === chatId 
-          ? { ...chat, isPinned: !chat.isPinned }
+          ? { ...chat, is_pinned: !chat.is_pinned }
           : chat
       );
       onChatsUpdate?.(updatedChats);
@@ -171,7 +172,7 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
         const currentChat = chats.find(c => c.id === chatId);
         await supabase
           .from('synced_groups')
-          .update({ is_pinned: !currentChat?.isPinned })
+          .update({ is_pinned: !currentChat?.is_pinned })
           .eq('group_id', chatId)
           .eq('user_id', userId);
       } catch (error) {
@@ -208,7 +209,7 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
           unreadCount: row.unread_count || 0,
           participants: row.member_count || (row.is_group ? 0 : 2),
           isGroup: row.is_group ?? true,
-          isPinned: row.is_pinned ?? false,
+          is_pinned: row.is_pinned ?? false,
           avatar: row.group_avatar || (row.group_name ? row.group_name.split(' ').map((w:string) => w[0]).join('') : "NA"),
           guild_id: row.metadata?.guild_id,
           channel_type: row.metadata?.channel_type,
@@ -244,7 +245,7 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
         case "unread":
           return chat.unreadCount > 0;
         case "pinned":
-          return chat.isPinned;
+          return chat.is_pinned;
         case "groups":
           return chat.isGroup;
         case "dms":
@@ -280,8 +281,8 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
 
   // Sort chats: pinned first, then by timestamp
   const sortedStandaloneChats = [...groupedChats.standalone].sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
+    if (a.is_pinned && !b.is_pinned) return -1;
+    if (!a.is_pinned && b.is_pinned) return 1;
     return 0;
   });
 
@@ -405,7 +406,7 @@ const ChatItem = ({
             </AvatarFallback>
           </Avatar>
 
-          {chat.isPinned && (
+          {chat.is_pinned && (
             <Pin className="w-3 h-3 text-blue-600 absolute -top-1 -right-1" />
           )}
         </div>
@@ -435,7 +436,7 @@ const ChatItem = ({
                 onTogglePin(chat.id);
               }}
             >
-              <Pin className={cn("w-3 h-3", chat.isPinned ? "text-blue-600" : "text-gray-400")} />
+              <Pin className={cn("w-3 h-3", chat.is_pinned ? "text-blue-600" : "text-gray-400")} />
             </Button>
             {chat.unreadCount > 0 && (
               <Badge variant="destructive" className="text-xs min-w-[20px] h-5">

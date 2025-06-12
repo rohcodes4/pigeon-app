@@ -116,6 +116,7 @@ export type Database = {
           group_name: string
           id: string
           is_synced: boolean
+          is_pinned: boolean
           member_count: number | null
           platform: string
           updated_at: string
@@ -128,6 +129,7 @@ export type Database = {
           group_name: string
           id?: string
           is_synced?: boolean
+          is_pinned?: boolean
           member_count?: number | null
           platform: string
           updated_at?: string
@@ -140,6 +142,7 @@ export type Database = {
           group_name?: string
           id?: string
           is_synced?: boolean
+          is_pinned?: boolean
           member_count?: number | null
           platform?: string
           updated_at?: string

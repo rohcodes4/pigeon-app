@@ -19,7 +19,7 @@ interface Chat {
   unreadCount: number;
   participants: number;
   isGroup: boolean;
-  isPinned: boolean;
+  is_pinned: boolean;
   avatar: string;
   guild_id?: string;
   channel_type?: number;
