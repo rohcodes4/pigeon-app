@@ -169,7 +169,7 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
 
       const platforms = data?.map((account) => account.platform) || [];
       setTelegramConnected(!platforms.includes("telegram"));
-      setDiscordConnected(!platforms.includes("discord"));
+      setDiscordConnected(platforms.includes("discord"));
       onAccountsConnected();
 
       if (platforms.length > 0) {
