@@ -28,7 +28,7 @@ const PrivacyPolicy = () => {
     });
   };
   return (
-    <Layout>
+    <Layout isConnected={isConnected}>
         <div className='w-full mb-8 bg-white backdrop-blur-sm mt-2 rounded-sm p-4'>
         
   <div className="min-h-screen bg-white text-gray-800 px-6 py-12 w-full mx-auto space-y-8">
