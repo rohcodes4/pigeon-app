@@ -172,13 +172,13 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
       }
 
       // Get user's DMs
-      const { data: dmsData, error: dmsError } = await supabase.functions.invoke('get-discord-dms', {
-        body: { user_id: userId }
-      });
+      // const { data: dmsData, error: dmsError } = await supabase.functions.invoke('get-discord-dms', {
+      //   body: { user_id: userId }
+      // });
 
-      if (dmsError) {
-        console.error('Failed to fetch Discord DMs:', dmsError);
-      }
+      // if (dmsError) {
+      //   console.error('Failed to fetch Discord DMs:', dmsError);
+      // }
 
       // For each guild, get its channels
       if (guildsData?.guilds) {
@@ -317,7 +317,7 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
     <div className="space-y-4">
       <ChatFilter activeFilter={activeFilter} onFilterChange={setActiveFilter} />
       <ScrollArea className="h-[600px]">
-        <div className="space-y-2 p-4">
+        <div className="space-y-2 p-4 w-full max-w-[87vw] mx-auto">
           {/* Discord DMs */}
           {sortedDMs.length > 0 && (
             <div className="space-y-1">

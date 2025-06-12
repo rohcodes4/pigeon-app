@@ -37,27 +37,27 @@ const Layout: React.FC<LayoutProps> = ({ isConnected = true, children }) => {
                 <MessageCircle className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <h1 className="text-xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   ChatPilot
                 </h1>
-                <p className="text-gray-600 text-lg">Your intelligent conversation dashboard</p>
+                <p className="text-gray-600 text-lg hidden md:block">Your intelligent conversation dashboard</p>
               </div>
             </div>
             </Link>
             {isConnected && (
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1 md:gap-4">
                 <Badge variant="secondary" className="bg-green-100 text-green-800 px-3 py-1 flex items-center">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2" />
-                  Connected
+                  <div className="w-2 h-2 bg-green-500 rounded-full md:mr-2" />
+                  <span className="hidden md:block">Connected</span>
                 </Badge>
               <Button variant="outline" size="sm" className="gap-2">
                 <Bell className="w-4 h-4" />
-                Notifications
+                <span className="hidden md:block">Notifications</span>
               </Button>
               <Button variant="outline" size="sm" className="gap-2" onClick={handleSignOut}>
                 <LogOut className="w-4 h-4" />
-                Sign Out
+                <span className="hidden md:block">Sign Out</span>
               </Button>
             </div>
               )}
