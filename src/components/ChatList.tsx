@@ -1,11 +1,13 @@
+
 import React, { useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MessageCircle, Users, Clock, Pin } from "lucide-react";
+import { MessageCircle, Users, Clock, Pin, ChevronRight, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
 
 interface Chat {
   id: number | string;
@@ -18,6 +20,8 @@ interface Chat {
   isGroup: boolean;
   isPinned: boolean;
   avatar: string;
+  guild_id?: string;
+  channel_type?: number;
 }
 
 interface ChatListProps {
@@ -27,6 +31,7 @@ interface ChatListProps {
 
 export const ChatList = ({ onSelectChat, selectedChat }: ChatListProps) => {
   const [chats, setChats] = useState<Chat[]>([]);
+  const [expandedGuilds, setExpandedGuilds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
   const userId = user.id;
@@ -35,10 +40,6 @@ export const ChatList = ({ onSelectChat, selectedChat }: ChatListProps) => {
     async function fetchChats() {
       setLoading(true);
       try {
-        // Fetch chats from your Supabase table 'synced_groups' (adjust table/column names as per your schema)
-        // Also, fetch last message and unread counts from wherever you store them
-        
-        // Example query: get synced groups for this user
         const { data, error } = await supabase
           .from('synced_groups')
           .select('*')
@@ -51,9 +52,6 @@ export const ChatList = ({ onSelectChat, selectedChat }: ChatListProps) => {
           return;
         }
 
-        // Map Supabase rows to your Chat type with defaults for missing fields
-        // You'll need to join or fetch lastMessage, unreadCount, timestamp, participants separately or via RPCs if you store them differently
-
         const chatsData: Chat[] = (data ?? []).map((row: any) => ({
           id: row.group_id,
           name: row.group_name,
@@ -61,10 +59,12 @@ export const ChatList = ({ onSelectChat, selectedChat }: ChatListProps) => {
           lastMessage: row.last_message || "No messages yet",
           timestamp: row.last_message_timestamp || "Unknown",
           unreadCount: row.unread_count || 0,
-          participants: row.member_count || (row.is_group ? 0 : 2), // guess 2 for private chat
+          participants: row.member_count || (row.is_group ? 0 : 2),
           isGroup: row.is_group ?? true,
           isPinned: row.is_pinned ?? false,
           avatar: row.group_avatar || (row.name ? row.name.split(' ').map((w:string) => w[0]).join('') : "NA"),
+          guild_id: row.metadata?.guild_id,
+          channel_type: row.metadata?.channel_type,
         }));
 
         setChats(chatsData);
@@ -79,11 +79,88 @@ export const ChatList = ({ onSelectChat, selectedChat }: ChatListProps) => {
     if (userId) fetchChats();
   }, [userId]);
 
-  // Sort chats: pinned first, then by timestamp (you can improve timestamp sorting if it's ISO string or date)
-  const sortedChats = [...chats].sort((a, b) => {
+  const fetchChannelsForGuild = async (guildId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('get-discord-channels', {
+        body: { user_id: userId, guild_id: guildId }
+      });
+
+      if (error) {
+        console.error('Failed to fetch channels:', error);
+        return;
+      }
+
+      // Refresh chat list to include new channels
+      const { data: updatedChats } = await supabase
+        .from('synced_groups')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_synced', true);
+
+      if (updatedChats) {
+        const chatsData: Chat[] = updatedChats.map((row: any) => ({
+          id: row.group_id,
+          name: row.group_name,
+          platform: row.platform,
+          lastMessage: row.last_message || "No messages yet",
+          timestamp: row.last_message_timestamp || "Unknown",
+          unreadCount: row.unread_count || 0,
+          participants: row.member_count || (row.is_group ? 0 : 2),
+          isGroup: row.is_group ?? true,
+          isPinned: row.is_pinned ?? false,
+          avatar: row.group_avatar || (row.name ? row.name.split(' ').map((w:string) => w[0]).join('') : "NA"),
+          guild_id: row.metadata?.guild_id,
+          channel_type: row.metadata?.channel_type,
+        }));
+        setChats(chatsData);
+      }
+    } catch (err) {
+      console.error('Error fetching channels:', err);
+    }
+  };
+
+  const toggleGuildExpansion = async (guildId: string) => {
+    const newExpanded = new Set(expandedGuilds);
+    if (expandedGuilds.has(guildId)) {
+      newExpanded.delete(guildId);
+    } else {
+      newExpanded.add(guildId);
+      // Fetch channels when expanding
+      await fetchChannelsForGuild(guildId);
+    }
+    setExpandedGuilds(newExpanded);
+  };
+
+  // Group chats by Discord guilds and standalone chats
+  const groupedChats = React.useMemo(() => {
+    const guilds: { [key: string]: Chat[] } = {};
+    const standalone: Chat[] = [];
+
+    chats.forEach(chat => {
+      if (chat.platform === 'discord' && chat.guild_id && !chat.name.startsWith('#')) {
+        // This is a Discord server/guild
+        if (!guilds[chat.id]) {
+          guilds[chat.id] = [];
+        }
+      } else if (chat.platform === 'discord' && chat.guild_id) {
+        // This is a Discord channel within a guild
+        if (!guilds[chat.guild_id]) {
+          guilds[chat.guild_id] = [];
+        }
+        guilds[chat.guild_id].push(chat);
+      } else {
+        // Standalone chat (Telegram, Discord DMs)
+        standalone.push(chat);
+      }
+    });
+
+    return { guilds, standalone };
+  }, [chats]);
+
+  // Sort chats: pinned first, then by timestamp
+  const sortedStandaloneChats = [...groupedChats.standalone].sort((a, b) => {
     if (a.isPinned && !b.isPinned) return -1;
     if (!a.isPinned && b.isPinned) return 1;
-    // fallback no order change
     return 0;
   });
 
@@ -92,245 +169,157 @@ export const ChatList = ({ onSelectChat, selectedChat }: ChatListProps) => {
   return (
     <ScrollArea className="h-[600px]">
       <div className="space-y-2 p-4">
-        {sortedChats.map((chat) => (
-          <div
+        {/* Standalone chats (Telegram, Discord DMs) */}
+        {sortedStandaloneChats.map((chat) => (
+          <ChatItem
             key={chat.id}
-            onClick={() => onSelectChat(chat)}
-            className={cn(
-              "p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md",
-              selectedChat?.id === chat.id
-                ? "bg-blue-50 border-blue-200 shadow-sm"
-                : "bg-white hover:bg-gray-50"
-            )}
-          >
-            <div className="flex items-start justify-center gap-3">
-              <div className="flex flex-col justify-center items-center gap-2">
-                <div className="relative w-max">
-                  <Avatar className="w-12 h-12">
-                    <AvatarFallback
-                      className={cn(
-                        "text-white font-semibold",
-                        chat.platform === "telegram" ? "bg-blue-500" : "bg-purple-500"
-                      )}
-                    >
-                      {chat.avatar!="NA" && <img src={chat.avatar}/>}
-                    </AvatarFallback>
-                  </Avatar>
+            chat={chat}
+            onSelect={onSelectChat}
+            isSelected={selectedChat?.id === chat.id}
+          />
+        ))}
 
-                  {chat.isPinned && (
-                    <Pin className="w-3 h-3 text-blue-600 absolute -top-1 -right-1" />
-                  )}
-                </div>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-xs",
-                    chat.platform === "telegram" ? "text-blue-600" : "text-purple-600"
-                  )}
-                >
-                  {chat.platform}
+        {/* Discord Servers with Channels */}
+        {Object.entries(groupedChats.guilds).map(([guildId, channels]) => {
+          const guildChat = chats.find(c => c.id === guildId);
+          if (!guildChat) return null;
+
+          const isExpanded = expandedGuilds.has(guildId);
+
+          return (
+            <div key={guildId} className="space-y-1">
+              {/* Guild Header */}
+              <div
+                onClick={() => toggleGuildExpansion(guildId)}
+                className="p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md bg-white hover:bg-gray-50 flex items-center gap-2"
+              >
+                <ChevronRight className={cn("w-4 h-4 transition-transform", isExpanded && "rotate-90")} />
+                <Avatar className="w-8 h-8">
+                  <AvatarFallback className="bg-purple-500 text-white text-xs">
+                    {guildChat.avatar !== "NA" ? (
+                      <img src={guildChat.avatar} alt={guildChat.name} />
+                    ) : (
+                      guildChat.name.substring(0, 2)
+                    )}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="font-medium text-sm">{guildChat.name}</span>
+                <Badge variant="outline" className="text-xs text-purple-600 ml-auto">
+                  discord
                 </Badge>
               </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-sm truncate text-black">{chat.name}</h3>
-                  </div>
-                  {chat.unreadCount > 0 && (
-                    <Badge variant="destructive" className="text-xs min-w-[20px] h-5">
-                      {chat.unreadCount}
-                    </Badge>
-                  )}
+              {/* Guild Channels */}
+              {isExpanded && (
+                <div className="ml-6 space-y-1">
+                  {channels.map((channel) => (
+                    <div
+                      key={channel.id}
+                      onClick={() => onSelectChat(channel)}
+                      className={cn(
+                        "p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md flex items-center gap-2",
+                        selectedChat?.id === channel.id
+                          ? "bg-blue-50 border-blue-200 shadow-sm"
+                          : "bg-white hover:bg-gray-50"
+                      )}
+                    >
+                      <Hash className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm">{channel.name.replace('#', '')}</span>
+                      {channel.unreadCount > 0 && (
+                        <Badge variant="destructive" className="text-xs min-w-[20px] h-5 ml-auto">
+                          {channel.unreadCount}
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
                 </div>
-
-                <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                  {chat.lastMessage}
-                </p>
-
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {chat.timestamp}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {chat.isGroup ? (
-                      <Users className="w-3 h-3" />
-                    ) : (
-                      <MessageCircle className="w-3 h-3" />
-                    )}
-                    {chat.participants}
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </ScrollArea>
   );
 };
 
+const ChatItem = ({ chat, onSelect, isSelected }: { 
+  chat: Chat; 
+  onSelect: (chat: Chat) => void; 
+  isSelected: boolean;
+}) => (
+  <div
+    onClick={() => onSelect(chat)}
+    className={cn(
+      "p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md",
+      isSelected
+        ? "bg-blue-50 border-blue-200 shadow-sm"
+        : "bg-white hover:bg-gray-50"
+    )}
+  >
+    <div className="flex items-start justify-center gap-3">
+      <div className="flex flex-col justify-center items-center gap-2">
+        <div className="relative w-max">
+          <Avatar className="w-12 h-12">
+            <AvatarFallback
+              className={cn(
+                "text-white font-semibold",
+                chat.platform === "telegram" ? "bg-blue-500" : "bg-purple-500"
+              )}
+            >
+              {chat.avatar !== "NA" ? (
+                <img src={chat.avatar} alt={chat.name} />
+              ) : (
+                chat.name.substring(0, 2)
+              )}
+            </AvatarFallback>
+          </Avatar>
 
+          {chat.isPinned && (
+            <Pin className="w-3 h-3 text-blue-600 absolute -top-1 -right-1" />
+          )}
+        </div>
+        <Badge
+          variant="outline"
+          className={cn(
+            "text-xs",
+            chat.platform === "telegram" ? "text-blue-600" : "text-purple-600"
+          )}
+        >
+          {chat.platform}
+        </Badge>
+      </div>
 
-// import { ScrollArea } from "@/components/ui/scroll-area";
-// import { Badge } from "@/components/ui/badge";
-// import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-// import { MessageCircle, Users, Clock, Pin } from "lucide-react";
-// import { cn } from "@/lib/utils";
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-sm truncate text-black">{chat.name}</h3>
+          </div>
+          {chat.unreadCount > 0 && (
+            <Badge variant="destructive" className="text-xs min-w-[20px] h-5">
+              {chat.unreadCount}
+            </Badge>
+          )}
+        </div>
 
-// // Mock data - will be replaced with real Supabase data
-// const mockChats = [
-//   {
-//     id: 1,
-//     name: "Crypto Traders Elite",
-//     platform: "telegram",
-//     lastMessage: "Anyone have thoughts on the BTC movement today? I'm seeing some interesting patterns...",
-//     timestamp: "2 minutes ago",
-//     unreadCount: 5,
-//     participants: 156,
-//     isGroup: true,
-//     isPinned: true,
-//     avatar: "CTE",
-//   },
-//   {
-//     id: 2,
-//     name: "Sarah Johnson",
-//     platform: "telegram",
-//     lastMessage: "Thanks for the project update! Looking forward to the presentation tomorrow",
-//     timestamp: "15 minutes ago",
-//     unreadCount: 2,
-//     participants: 2,
-//     isGroup: false,
-//     isPinned: false,
-//     avatar: "SJ",
-//   },
-//   {
-//     id: 3,
-//     name: "Development Team",
-//     platform: "discord",
-//     lastMessage: "The new feature is ready for testing. Can someone review the PR?",
-//     timestamp: "1 hour ago",
-//     unreadCount: 8,
-//     participants: 12,
-//     isGroup: true,
-//     isPinned: true,
-//     avatar: "DT",
-//   },
-//   {
-//     id: 4,
-//     name: "Marketing Squad",
-//     platform: "discord",
-//     lastMessage: "Campaign results are looking promising! CTR is up 23% from last month",
-//     timestamp: "3 hours ago",
-//     unreadCount: 3,
-//     participants: 8,
-//     isGroup: true,
-//     isPinned: false,
-//     avatar: "MS",
-//   },
-//   {
-//     id: 5,
-//     name: "Alex Rodriguez",
-//     platform: "telegram",
-//     lastMessage: "Let's schedule a call for tomorrow to discuss the quarterly goals",
-//     timestamp: "5 hours ago",
-//     unreadCount: 1,
-//     participants: 2,
-//     isGroup: false,
-//     isPinned: false,
-//     avatar: "AR",
-//   },
-// ];
+        <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+          {chat.lastMessage}
+        </p>
 
-// interface ChatListProps {
-//   onSelectChat: (chat: any) => void;
-//   selectedChat: any;
-// }
-
-// export const ChatList = ({ onSelectChat, selectedChat }: ChatListProps) => {
-//   // Sort chats: pinned first, then by timestamp
-//   const sortedChats = [...mockChats].sort((a, b) => {
-//     if (a.isPinned && !b.isPinned) return -1;
-//     if (!a.isPinned && b.isPinned) return 1;
-//     return 0;
-//   });
-
-//   return (
-//     <ScrollArea className="h-[600px]">
-//       <div className="space-y-2 p-4">
-//         {sortedChats.map((chat) => (
-//           <div
-//             key={chat.id}
-//             onClick={() => onSelectChat(chat)}
-//             className={cn(
-//               "p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md",
-//               selectedChat?.id === chat.id
-//                 ? "bg-blue-50 border-blue-200 shadow-sm"
-//                 : "bg-white hover:bg-gray-50"
-//             )}
-//           >
-//             <div className="flex items-start justify-center gap-3">
-//               <div className="flex flex-col justify-center items-center gap-2">
-//               <div className="relative w-max">
-//                 <Avatar className="w-12 h-12">
-//                   <AvatarFallback className={cn(
-//                     "text-white font-semibold",
-//                     chat.platform === "telegram" ? "bg-blue-500" : "bg-purple-500"
-//                   )}>
-//                     {chat.avatar}
-//                   </AvatarFallback>
-//                 </Avatar>
-                
-//                 {chat.isPinned && (
-//                   <Pin className="w-3 h-3 text-blue-600 absolute -top-1 -right-1" />
-//                 )}
-//               </div>
-//               <Badge variant="outline" className={cn(
-//                       "text-xs",
-//                       chat.platform === "telegram" ? "text-blue-600" : "text-purple-600"
-//                     )}>
-//                       {chat.platform}
-//                     </Badge>
-//                     </div>
-              
-//               <div className="flex-1 min-w-0">
-//                 <div className="flex items-center justify-between mb-1">
-//                   <div className="flex items-center gap-2">
-//                     <h3 className="font-semibold text-sm truncate text-black">{chat.name}</h3>
-//                     {/* <Badge variant="outline" className={cn(
-//                       "text-xs",
-//                       chat.platform === "telegram" ? "text-blue-600" : "text-purple-600"
-//                     )}>
-//                       {chat.platform}
-//                     </Badge> */}
-//                   </div>
-//                   {chat.unreadCount > 0 && (
-//                     <Badge variant="destructive" className="text-xs min-w-[20px] h-5">
-//                       {chat.unreadCount}
-//                     </Badge>
-//                   )}
-//                 </div>
-                
-//                 <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-//                   {chat.lastMessage}
-//                 </p>
-                
-//                 <div className="flex items-center justify-between text-xs text-gray-500">
-//                   <div className="flex items-center gap-1">
-//                     <Clock className="w-3 h-3" />
-//                     {chat.timestamp}
-//                   </div>
-//                   <div className="flex items-center gap-1">
-//                     {chat.isGroup ? <Users className="w-3 h-3" /> : <MessageCircle className="w-3 h-3" />}
-//                     {chat.participants}
-//                   </div>
-//                 </div>
-//               </div>
-//             </div>
-//           </div>
-//         ))}
-//       </div>
-//     </ScrollArea>
-//   );
-// };
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <div className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {chat.timestamp}
+          </div>
+          <div className="flex items-center gap-1">
+            {chat.isGroup ? (
+              <Users className="w-3 h-3" />
+            ) : (
+              <MessageCircle className="w-3 h-3" />
+            )}
+            {chat.participants}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);

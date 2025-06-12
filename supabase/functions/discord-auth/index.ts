@@ -15,7 +15,7 @@ serve(async (req) => {
   try {
     const url = new URL(req.url)
     const code = url.searchParams.get('code')
-    const state = url.searchParams.get('state') // This is the user_id
+    const state = url.searchParams.get('state')
     const error = url.searchParams.get('error')
 
     console.log('Discord auth received:', { code: !!code, state, error })
@@ -34,9 +34,7 @@ serve(async (req) => {
             </script>
           </body>
         </html>
-      `, { 
-        headers: { 'Content-Type': 'text/html' } 
-      })
+      `, { headers: { 'Content-Type': 'text/html' } })
     }
 
     if (!code || !state) {
@@ -53,9 +51,15 @@ serve(async (req) => {
             </script>
           </body>
         </html>
-      `, { 
-        headers: { 'Content-Type': 'text/html' } 
-      })
+      `, { headers: { 'Content-Type': 'text/html' } })
+    }
+
+    let userId;
+    try {
+      const stateObj = JSON.parse(decodeURIComponent(state));
+      userId = stateObj.userId;
+    } catch {
+      userId = state;
     }
 
     const supabaseClient = createClient(
@@ -80,9 +84,7 @@ serve(async (req) => {
             </script>
           </body>
         </html>
-      `, { 
-        headers: { 'Content-Type': 'text/html' } 
-      })
+      `, { headers: { 'Content-Type': 'text/html' } })
     }
 
     // Exchange code for access token
@@ -115,9 +117,7 @@ serve(async (req) => {
             </script>
           </body>
         </html>
-      `, { 
-        headers: { 'Content-Type': 'text/html' } 
-      })
+      `, { headers: { 'Content-Type': 'text/html' } })
     }
 
     const tokenData = await tokenResponse.json()
@@ -144,9 +144,7 @@ serve(async (req) => {
             </script>
           </body>
         </html>
-      `, { 
-        headers: { 'Content-Type': 'text/html' } 
-      })
+      `, { headers: { 'Content-Type': 'text/html' } })
     }
 
     const userData = await userResponse.json()
@@ -156,7 +154,7 @@ serve(async (req) => {
     const { error: insertError } = await supabaseClient
       .from('connected_accounts')
       .upsert({
-        user_id: state,
+        user_id: userId,
         platform: 'discord',
         platform_user_id: userData.id,
         platform_username: userData.username,
@@ -186,9 +184,7 @@ serve(async (req) => {
             </script>
           </body>
         </html>
-      `, { 
-        headers: { 'Content-Type': 'text/html' } 
-      })
+      `, { headers: { 'Content-Type': 'text/html' } })
     }
 
     // Fetch user's guilds (servers)
@@ -206,7 +202,7 @@ serve(async (req) => {
         await supabaseClient
           .from('synced_groups')
           .upsert({
-            user_id: state,
+            user_id: userId,
             platform: 'discord',
             group_id: guild.id,
             group_name: guild.name,
@@ -216,8 +212,38 @@ serve(async (req) => {
           })
       }
       console.log('Successfully stored guilds')
-    } else {
-      console.error('Failed to fetch guilds:', await guildsResponse.text())
+    }
+
+    // Fetch DMs (Direct Messages)
+    const dmsResponse = await fetch('https://discord.com/api/v10/users/@me/channels', {
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+      },
+    })
+
+    if (dmsResponse.ok) {
+      const dms = await dmsResponse.json()
+      console.log(`Fetched ${dms.length} DM channels for user`)
+      
+      for (const dm of dms) {
+        if (dm.type === 1) { // DM channel
+          const recipientName = dm.recipients?.[0]?.username || 'Unknown User'
+          await supabaseClient
+            .from('synced_groups')
+            .upsert({
+              user_id: userId,
+              platform: 'discord',
+              group_id: dm.id,
+              group_name: `DM: ${recipientName}`,
+              group_avatar: dm.recipients?.[0]?.avatar 
+                ? `https://cdn.discordapp.com/avatars/${dm.recipients[0].id}/${dm.recipients[0].avatar}.png`
+                : null,
+              member_count: 2,
+              is_synced: false,
+            })
+        }
+      }
+      console.log('Successfully stored DM channels')
     }
 
     return new Response(`
@@ -232,9 +258,7 @@ serve(async (req) => {
           </script>
         </body>
       </html>
-    `, { 
-      headers: { 'Content-Type': 'text/html' } 
-    })
+    `, { headers: { 'Content-Type': 'text/html' } })
 
   } catch (error) {
     console.error('Discord auth error:', error)
@@ -249,9 +273,7 @@ serve(async (req) => {
             window.close();
           </script>
         </body>
-      </html>
-    `, { 
-      headers: { 'Content-Type': 'text/html' } 
-    })
+        </html>
+    `, { headers: { 'Content-Type': 'text/html' } })
   }
 })
