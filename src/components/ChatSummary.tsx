@@ -1,13 +1,29 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Flame, CheckSquare, Link, RefreshCw, Clock, Users } from "lucide-react";
+import { Flame, CheckSquare, Link, RefreshCw, Clock, Users, MessageSquare } from "lucide-react";
 import { ReplyPanel } from "@/components/ReplyPanel";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+
+interface Message {
+  id: string;
+  content: string;
+  author: {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar: string | null;
+  };
+  timestamp: string;
+  attachments: any[];
+  embeds: any[];
+}
 
 interface ChatSummaryProps {
   chat: any;
@@ -15,6 +31,9 @@ interface ChatSummaryProps {
 
 export const ChatSummary = ({ chat }: ChatSummaryProps) => {
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const { user } = useAuth();
 
   // Mock summary data - will be replaced with AI-generated content
   const summaryData = {
@@ -35,9 +54,47 @@ export const ChatSummary = ({ chat }: ChatSummaryProps) => {
     ],
   };
 
+  useEffect(() => {
+    if (chat && chat.platform === 'discord') {
+      fetchMessages();
+    }
+  }, [chat]);
+
+  const fetchMessages = async () => {
+    if (!chat || chat.platform !== 'discord') return;
+    
+    setLoadingMessages(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-discord-messages', {
+        body: { 
+          user_id: user.id, 
+          channel_id: chat.id,
+          limit: 50
+        }
+      });
+
+      if (error) {
+        console.error('Failed to fetch messages:', error);
+        return;
+      }
+
+      if (data?.messages) {
+        setMessages(data.messages);
+      }
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
   const regenerateSummary = () => {
     setIsRegenerating(true);
     setTimeout(() => setIsRegenerating(false), 2000);
+  };
+
+  const formatTimestamp = (timestamp: string) => {
+    return new Date(timestamp).toLocaleString();
   };
 
   return (
@@ -50,7 +107,11 @@ export const ChatSummary = ({ chat }: ChatSummaryProps) => {
               <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${
                 chat.platform === "telegram" ? "bg-blue-500" : "bg-purple-500"
               }`}>
-                {chat.avatar!="NA" && <img src={chat.avatar} className="rounded-full "/>}
+                {chat.avatar !== "NA" && chat.avatar ? (
+                  <img src={chat.avatar} className="rounded-full w-full h-full object-cover" alt={chat.name} />
+                ) : (
+                  chat.name.substring(0, 2)
+                )}
               </div>
               <div>
                 <CardTitle className="flex items-center gap-2">
@@ -60,6 +121,11 @@ export const ChatSummary = ({ chat }: ChatSummaryProps) => {
                   }>
                     {chat.platform}
                   </Badge>
+                  {chat.recipient_id && (
+                    <Badge variant="secondary" className="text-xs">
+                      DM
+                    </Badge>
+                  )}
                 </CardTitle>
                 <div className="flex items-center gap-4 text-sm text-gray-600">
                   <div className="flex items-center gap-1">
@@ -84,11 +150,11 @@ export const ChatSummary = ({ chat }: ChatSummaryProps) => {
       {/* Summary Content */}
       <Card>
         <CardHeader>
-          <CardTitle>AI Summary</CardTitle>
+          <CardTitle>AI Summary & Messages</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="alpha" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="alpha" className="flex items-center gap-2">
                 <Flame className="w-4 h-4" />
                 Alpha
@@ -100,6 +166,10 @@ export const ChatSummary = ({ chat }: ChatSummaryProps) => {
               <TabsTrigger value="links" className="flex items-center gap-2">
                 <Link className="w-4 h-4" />
                 Links
+              </TabsTrigger>
+              <TabsTrigger value="messages" className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" />
+                Messages
               </TabsTrigger>
             </TabsList>
 
@@ -141,6 +211,67 @@ export const ChatSummary = ({ chat }: ChatSummaryProps) => {
                     </Button>
                   </div>
                 ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="messages" className="mt-4">
+              <div className="space-y-4">
+                {loadingMessages ? (
+                  <div className="text-center py-4">Loading messages...</div>
+                ) : messages.length > 0 ? (
+                  <ScrollArea className="h-96">
+                    <div className="space-y-3 pr-4">
+                      {messages.map((message) => (
+                        <div key={message.id} className="p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-white text-xs font-semibold">
+                              {message.author.avatar ? (
+                                <img 
+                                  src={`https://cdn.discordapp.com/avatars/${message.author.id}/${message.author.avatar}.png`}
+                                  alt={message.author.username}
+                                  className="w-full h-full rounded-full object-cover"
+                                />
+                              ) : (
+                                message.author.username.substring(0, 2).toUpperCase()
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold text-sm">
+                                  {message.author.display_name || message.author.username}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {formatTimestamp(message.timestamp)}
+                                </span>
+                              </div>
+                              {message.content && (
+                                <p className="text-sm text-gray-700 mb-2">{message.content}</p>
+                              )}
+                              {message.attachments.length > 0 && (
+                                <div className="space-y-1">
+                                  {message.attachments.map((attachment, index) => (
+                                    <div key={index} className="text-xs text-blue-600">
+                                      📎 {attachment.filename}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {message.embeds.length > 0 && (
+                                <div className="text-xs text-gray-500">
+                                  {message.embeds.length} embed(s)
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    {chat.platform === 'discord' ? 'No messages found' : 'Message fetching not available for this platform'}
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>

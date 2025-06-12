@@ -18,11 +18,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { user_id, guild_id } = await req.json()
+    const { user_id } = await req.json()
 
-    if (!user_id || !guild_id) {
+    if (!user_id) {
       return new Response(
-        JSON.stringify({ error: 'Missing user_id or guild_id' }),
+        JSON.stringify({ error: 'Missing user_id' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -48,17 +48,18 @@ serve(async (req) => {
       )
     }
 
-    // Fetch channels for the guild
-    const channelsResponse = await fetch(`https://discord.com/api/v10/guilds/${guild_id}/channels`, {
+    // Fetch user's DMs from Discord
+    const dmsResponse = await fetch(`https://discord.com/api/v10/users/@me/channels`, {
       headers: {
         'Authorization': `Bearer ${account.access_token}`,
         'Content-Type': 'application/json',
       },
     })
 
-    if (!channelsResponse.ok) {
+    if (!dmsResponse.ok) {
+      console.error('Failed to fetch Discord DMs:', await dmsResponse.text())
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch Discord channels' }),
+        JSON.stringify({ error: 'Failed to fetch Discord DMs' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -66,44 +67,42 @@ serve(async (req) => {
       )
     }
 
-    const channels = await channelsResponse.json()
-    console.log('Discord channels fetched:', channels.length)
+    const dms = await dmsResponse.json()
+    console.log('Discord DMs fetched:', dms.length)
 
-    // Filter for text channels and store them
-    const textChannels = channels.filter((channel: any) => 
-      channel.type === 0 || channel.type === 5 // Text channels and announcement channels
-    )
-
-    for (const channel of textChannels) {
-      await supabaseClient
-        .from('synced_groups')
-        .upsert({
-          user_id,
-          platform: 'discord',
-          group_id: channel.id,
-          group_name: `#${channel.name}`,
-          group_avatar: null,
-          member_count: null,
-          is_synced: true,
-          is_group: true,
-          metadata: {
-            guild_id: guild_id,
-            channel_type: channel.type,
-            parent_id: channel.parent_id,
-            topic: channel.topic
-          }
-        })
+    // Store DMs in database
+    for (const dm of dms) {
+      if (dm.type === 1) { // DM channel type
+        const recipient = dm.recipients?.[0]
+        if (recipient) {
+          await supabaseClient
+            .from('synced_groups')
+            .upsert({
+              user_id,
+              platform: 'discord',
+              group_id: dm.id,
+              group_name: recipient.global_name || recipient.username,
+              group_avatar: recipient.avatar ? `https://cdn.discordapp.com/avatars/${recipient.id}/${recipient.avatar}.png` : null,
+              member_count: 2,
+              is_synced: true,
+              is_group: false,
+              metadata: {
+                recipient_id: recipient.id,
+                channel_type: dm.type,
+                recipient_username: recipient.username
+              }
+            })
+        }
+      }
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        channels: textChannels.map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          type: c.type,
-          topic: c.topic,
-          parent_id: c.parent_id
+        dms: dms.map((dm: any) => ({
+          id: dm.id,
+          type: dm.type,
+          recipient: dm.recipients?.[0]
         }))
       }),
       { 

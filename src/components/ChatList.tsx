@@ -1,8 +1,9 @@
+
 import React, { useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MessageCircle, Users, Clock, Pin, ChevronRight, Hash } from "lucide-react";
+import { MessageCircle, Users, Clock, Pin, ChevronRight, Hash, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +23,7 @@ interface Chat {
   avatar: string;
   guild_id?: string;
   channel_type?: number;
+  recipient_id?: string; // For DMs
 }
 
 interface ChatListProps {
@@ -108,11 +110,13 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
     async function fetchChats() {
       setLoading(true);
       try {
+        // First, sync Discord guilds and get channels/DMs
+        await syncDiscordData();
+        
         const { data, error } = await supabase
           .from('synced_groups')
           .select('*')
-          .eq('user_id', userId)
-          .eq('is_synced', true);
+          .eq('user_id', userId);
 
         if (error) {
           console.error("Error fetching chats:", error);
@@ -135,10 +139,9 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
           avatar: row.group_avatar || (row.group_name ? row.group_name.split(' ').map((w:string) => w[0]).join('') : "NA"),
           guild_id: row.metadata?.guild_id,
           channel_type: row.metadata?.channel_type,
+          recipient_id: row.metadata?.recipient_id,
         }));
 
-        // Combine real Discord chats with mock Telegram chats
-        // const allChats = [...chatsData, ...mockTelegramChats];
         const allChats = [...chatsData, ...mockTelegramChats];
         setChats(allChats);
         onChatsUpdate?.(allChats);
@@ -154,6 +157,39 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
 
     if (userId) fetchChats();
   }, [userId]);
+
+  const syncDiscordData = async () => {
+    try {
+      // Get Discord guilds and sync them
+      const { data: guildsData, error: guildsError } = await supabase.functions.invoke('get-discord-guilds', {
+        body: { user_id: userId }
+      });
+
+      if (guildsError) {
+        console.error('Failed to fetch Discord guilds:', guildsError);
+        return;
+      }
+
+      // Get user's DMs
+      const { data: dmsData, error: dmsError } = await supabase.functions.invoke('get-discord-dms', {
+        body: { user_id: userId }
+      });
+
+      if (dmsError) {
+        console.error('Failed to fetch Discord DMs:', dmsError);
+      }
+
+      // For each guild, get its channels
+      if (guildsData?.guilds) {
+        for (const guild of guildsData.guilds) {
+          await fetchChannelsForGuild(guild.id);
+        }
+      }
+
+    } catch (error) {
+      console.error('Error syncing Discord data:', error);
+    }
+  };
 
   const togglePin = async (chatId: string | number) => {
     setChats(prevChats => {
@@ -173,7 +209,7 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
         await supabase
           .from('synced_groups')
           .update({ is_pinned: !currentChat?.is_pinned })
-          .eq('group_id', chatId)
+          .eq('group_id', chatId.toString())
           .eq('user_id', userId);
       } catch (error) {
         console.error('Error updating pin status:', error);
@@ -192,32 +228,7 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
         return;
       }
 
-      // Refresh chat list to include new channels
-      const { data: updatedChats } = await supabase
-        .from('synced_groups')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('is_synced', true);
-
-      if (updatedChats) {
-        const chatsData: Chat[] = updatedChats.map((row: any) => ({
-          id: row.group_id,
-          name: row.group_name,
-          platform: row.platform,
-          lastMessage: row.last_message || "No messages yet",
-          timestamp: row.last_message_timestamp || "Unknown",
-          unreadCount: row.unread_count || 0,
-          participants: row.member_count || (row.is_group ? 0 : 2),
-          isGroup: row.is_group ?? true,
-          is_pinned: row.is_pinned ?? false,
-          avatar: row.group_avatar || (row.group_name ? row.group_name.split(' ').map((w:string) => w[0]).join('') : "NA"),
-          guild_id: row.metadata?.guild_id,
-          channel_type: row.metadata?.channel_type,
-        }));
-        const allChats = [...chatsData, ...mockTelegramChats];
-        setChats(allChats);
-        onChatsUpdate?.(allChats);
-      }
+      console.log(`Fetched ${data?.channels?.length || 0} channels for guild ${guildId}`);
     } catch (err) {
       console.error('Error fetching channels:', err);
     }
@@ -256,31 +267,44 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
     });
   }, [chats, activeFilter]);
 
-  // Group filtered chats by Discord guilds and standalone chats
+  // Group filtered chats by Discord guilds, DMs, and standalone chats
   const groupedChats = React.useMemo(() => {
     const guilds: { [key: string]: Chat[] } = {};
+    const dms: Chat[] = [];
     const standalone: Chat[] = [];
 
     filteredChats.forEach(chat => {
-      if (chat.platform === 'discord' && chat.guild_id && !chat.name.startsWith('#')) {
+      if (chat.platform === 'discord' && chat.guild_id && !chat.name.startsWith('#') && !chat.recipient_id) {
+        // This is a guild/server
         if (!guilds[chat.id]) {
           guilds[chat.id] = [];
         }
-      } else if (chat.platform === 'discord' && chat.guild_id) {
+      } else if (chat.platform === 'discord' && chat.guild_id && chat.name.startsWith('#')) {
+        // This is a channel in a guild
         if (!guilds[chat.guild_id]) {
           guilds[chat.guild_id] = [];
         }
         guilds[chat.guild_id].push(chat);
+      } else if (chat.platform === 'discord' && chat.recipient_id) {
+        // This is a DM
+        dms.push(chat);
       } else {
+        // Telegram chats and other standalone chats
         standalone.push(chat);
       }
     });
 
-    return { guilds, standalone };
+    return { guilds, dms, standalone };
   }, [filteredChats]);
 
   // Sort chats: pinned first, then by timestamp
   const sortedStandaloneChats = [...groupedChats.standalone].sort((a, b) => {
+    if (a.is_pinned && !b.is_pinned) return -1;
+    if (!a.is_pinned && b.is_pinned) return 1;
+    return 0;
+  });
+
+  const sortedDMs = [...groupedChats.dms].sort((a, b) => {
     if (a.is_pinned && !b.is_pinned) return -1;
     if (!a.is_pinned && b.is_pinned) return 1;
     return 0;
@@ -293,7 +317,26 @@ export const ChatList = ({ onSelectChat, selectedChat, onChatsUpdate }: ChatList
       <ChatFilter activeFilter={activeFilter} onFilterChange={setActiveFilter} />
       <ScrollArea className="h-[600px]">
         <div className="space-y-2 p-4">
-          {/* Standalone chats (Telegram, Discord DMs) */}
+          {/* Discord DMs */}
+          {sortedDMs.length > 0 && (
+            <div className="space-y-1">
+              <div className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded">
+                Discord Direct Messages
+              </div>
+              {sortedDMs.map((dm) => (
+                <ChatItem
+                  key={dm.id}
+                  chat={dm}
+                  onSelect={onSelectChat}
+                  onTogglePin={togglePin}
+                  isSelected={selectedChat?.id === dm.id}
+                  isDM={true}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Standalone chats (Telegram, etc.) */}
           {sortedStandaloneChats.map((chat) => (
             <ChatItem
               key={chat.id}
@@ -372,12 +415,14 @@ const ChatItem = ({
   chat, 
   onSelect, 
   onTogglePin, 
-  isSelected 
+  isSelected,
+  isDM = false
 }: { 
   chat: Chat; 
   onSelect: (chat: Chat) => void; 
   onTogglePin: (chatId: string | number) => void;
   isSelected: boolean;
+  isDM?: boolean;
 }) => (
   <div
     onClick={() => onSelect(chat)}
@@ -401,7 +446,7 @@ const ChatItem = ({
               {chat.avatar !== "NA" ? (
                 <img src={chat.avatar} alt={chat.name} />
               ) : (
-                chat.name.substring(0, 2)
+                isDM ? <User className="w-6 h-6" /> : chat.name.substring(0, 2)
               )}
             </AvatarFallback>
           </Avatar>
@@ -417,7 +462,7 @@ const ChatItem = ({
             chat.platform === "telegram" ? "text-blue-600" : "text-purple-600"
           )}
         >
-          {chat.platform}
+          {chat.platform} {isDM && "(DM)"}
         </Badge>
       </div>
 
