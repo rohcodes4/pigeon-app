@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import { Link } from "react-router-dom";
 
 type LayoutProps = {
   isConnected?: boolean;
@@ -30,6 +31,7 @@ const Layout: React.FC<LayoutProps> = ({ isConnected = true, children }) => {
         {/* Header */}
         <header className="mb-8">
           <div className="flex items-center justify-between">
+            <Link to="/">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
                 <MessageCircle className="w-7 h-7 text-white" />
@@ -41,13 +43,14 @@ const Layout: React.FC<LayoutProps> = ({ isConnected = true, children }) => {
                 <p className="text-gray-600 text-lg">Your intelligent conversation dashboard</p>
               </div>
             </div>
+            </Link>
+            {isConnected && (
+
             <div className="flex items-center gap-4">
-              {isConnected && (
                 <Badge variant="secondary" className="bg-green-100 text-green-800 px-3 py-1 flex items-center">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2" />
                   Connected
                 </Badge>
-              )}
               <Button variant="outline" size="sm" className="gap-2">
                 <Bell className="w-4 h-4" />
                 Notifications
@@ -57,6 +60,8 @@ const Layout: React.FC<LayoutProps> = ({ isConnected = true, children }) => {
                 Sign Out
               </Button>
             </div>
+              )}
+
           </div>
         </header>
 
