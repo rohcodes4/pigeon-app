@@ -244,16 +244,16 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
 
   return (
     <div className="space-y-4">
-      <Card className="border border-gray-200 hover:border-blue-300 transition-colors">
+      <Card className="border-2 border-dashed border-border hover:border-blue-300 transition-colors">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <MessageCircle className="w-6 h-6 text-blue-600" />
+              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                <MessageCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">Telegram</h3>
-                <p className="text-sm text-gray-600">
+                <h3 className="font-semibold">Telegram</h3>
+                <p className="text-sm text-muted-foreground">
                   Connect your Telegram account to access your chats
                 </p>
                 {showTelegramLogin && <TelegramLogin onSuccess={handleTelegramSuccess} />}
@@ -261,18 +261,18 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
             </div>
             <div className="flex items-center gap-3">
               {telegramConnected ? (
-                <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1 rounded-full">
-                  <Check className="w-4 h-4" />
-                  <span className="text-sm font-medium">Connected</span>
-                </div>
-              ) : (
-                <Button 
-                  onClick={openTelegramLogin} 
-                  className="bg-blue-600 hover:bg-blue-700 text-white" 
-                  disabled={loading.telegram}
+                <Badge
+                  variant="secondary"
+                  className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
                 >
-                  {loading.telegram && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <Check className="w-3 h-3 mr-1" />
+                  Connected
+                </Badge>
+              ) : (
+                <Button onClick={openTelegramLogin} className="gap-2" disabled={loading.telegram}>
+                  {loading.telegram && <Loader2 className="w-4 h-4 animate-spin" />}
                   Connect
+                  <ExternalLink className="w-4 h-4" />
                 </Button>
               )}
             </div>
@@ -280,34 +280,39 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
         </CardContent>
       </Card>
 
-      <Card className="border border-gray-200 hover:border-purple-300 transition-colors">
+      <Card className="border-2 border-dashed border-border hover:border-purple-300 transition-colors">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Users className="w-6 h-6 text-purple-600" />
+              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
+                <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">Discord</h3>
-                <p className="text-sm text-gray-600">
+                <h3 className="font-semibold">Discord</h3>
+                <p className="text-sm text-muted-foreground">
                   Connect your Discord account to access your servers and channels
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               {discordConnected ? (
-                <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1 rounded-full">
-                  <Check className="w-4 h-4" />
-                  <span className="text-sm font-medium">Connected</span>
-                </div>
+                <Badge
+                  variant="secondary"
+                  className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                >
+                  <Check className="w-3 h-3 mr-1" />
+                  Connected
+                </Badge>
               ) : (
                 <Button
                   onClick={connectDiscord}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                  variant="outline"
+                  className="gap-2"
                   disabled={loading.discord}
                 >
-                  {loading.discord && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {loading.discord && <Loader2 className="w-4 h-4 animate-spin" />}
                   Connect
+                  <ExternalLink className="w-4 h-4" />
                 </Button>
               )}
             </div>
@@ -316,11 +321,11 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
       </Card>
 
       {telegramConnected && discordConnected && (
-        <Card className="bg-green-50 border-green-200">
+        <Card className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <Check className="w-5 h-5 text-green-600" />
-              <p className="text-green-800 font-medium">
+              <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <p className="text-green-800 dark:text-green-300 font-medium">
                 All accounts connected successfully!
               </p>
             </div>
