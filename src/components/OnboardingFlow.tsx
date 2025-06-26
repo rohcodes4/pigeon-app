@@ -3,7 +3,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { MessageCircle, Users, Check, ArrowRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { MessageCircle, Users, Check, ArrowRight, RefreshCw, Inbox } from "lucide-react";
 import { ConnectAccounts } from "@/components/ConnectAccounts";
 import { ChatSelection } from "@/components/ChatSelection";
 import { Header } from "@/components/Header";
@@ -18,7 +19,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [accountsConnected, setAccountsConnected] = useState(false);
   const [chatsSelected, setChatsSelected] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(0);
+  const [syncProgress, setSyncProgress] = useState({ discord: 0, telegram: 0 });
+  const [syncComplete, setSyncComplete] = useState(false);
+  const [telegramConnected, setTelegramConnected] = useState(false);
+  const [discordConnected, setDiscordConnected] = useState(false);
 
   const steps = [
     {
@@ -43,6 +47,14 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
   const handleAccountsConnected = () => {
     setAccountsConnected(true);
+    // Check which accounts are connected from localStorage
+    const user = { id: 'demo-user' }; // Mock user for demo
+    const accountsData = localStorage.getItem(`chatpilot_accounts_${user.id}`);
+    if (accountsData) {
+      const accounts = JSON.parse(accountsData);
+      setTelegramConnected(accounts.telegram || false);
+      setDiscordConnected(accounts.discord || false);
+    }
   };
 
   const handleChatsSelected = () => {
@@ -55,18 +67,34 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     } else {
       // Start syncing process
       setSyncing(true);
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 10;
-        setSyncProgress(progress);
-        if (progress >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setSyncing(false);
-            onComplete();
-          }, 1000);
+      setSyncComplete(false);
+      
+      // Simulate Discord syncing
+      let discordProgress = 0;
+      const discordInterval = setInterval(() => {
+        discordProgress += 15;
+        setSyncProgress(prev => ({ ...prev, discord: Math.min(discordProgress, 100) }));
+        if (discordProgress >= 100) {
+          clearInterval(discordInterval);
         }
-      }, 300);
+      }, 400);
+
+      // Simulate Telegram syncing (slightly delayed)
+      setTimeout(() => {
+        let telegramProgress = 0;
+        const telegramInterval = setInterval(() => {
+          telegramProgress += 12;
+          setSyncProgress(prev => ({ ...prev, telegram: Math.min(telegramProgress, 100) }));
+          if (telegramProgress >= 100) {
+            clearInterval(telegramInterval);
+            // Complete syncing after both are done
+            setTimeout(() => {
+              setSyncing(false);
+              setSyncComplete(true);
+            }, 500);
+          }
+        }, 350);
+      }, 800);
     }
   };
 
@@ -74,6 +102,23 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
     }
+  };
+
+  const restartOnboarding = () => {
+    // Clear localStorage
+    const user = { id: 'demo-user' };
+    localStorage.removeItem(`chatpilot_accounts_${user.id}`);
+    localStorage.removeItem(`chatpilot_chats_${user.id}`);
+    
+    // Reset all states
+    setCurrentStep(0);
+    setAccountsConnected(false);
+    setChatsSelected(false);
+    setSyncing(false);
+    setSyncProgress({ discord: 0, telegram: 0 });
+    setSyncComplete(false);
+    setTelegramConnected(false);
+    setDiscordConnected(false);
   };
 
   const canProceed = () => {
@@ -97,60 +142,149 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         return <ChatSelection onChatsSelected={handleChatsSelected} />;
       case 2:
         return (
-          <div className="space-y-6">
-            {syncing ? (
-              <div className="max-w-md mx-auto space-y-6">
-                <div className="text-center">
-                  <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Syncing Your Conversations</h3>
-                  <p className="text-gray-600 mb-4">Please wait while we sync your selected chats...</p>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span>Syncing Discord chats...</span>
-                    <span>{syncProgress}%</span>
-                  </div>
-                  <Progress value={syncProgress} className="w-full" />
-                  
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-green-600" />
-                      <span>Connected to platforms</span>
+          <div className="space-y-8">
+            {/* Connection Status Header */}
+            <div className="text-center space-y-4">
+              <h2 className="text-2xl font-bold text-gray-900">All platforms connected successfully</h2>
+              <div className="flex gap-4 justify-center">
+                <Badge variant={discordConnected ? "default" : "secondary"} className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Discord {discordConnected ? "Connected" : "Not Connected"}
+                </Badge>
+                <Badge variant={telegramConnected ? "default" : "secondary"} className="flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4" />
+                  Telegram {telegramConnected ? "Connected" : "Not Connected"}
+                </Badge>
+              </div>
+            </div>
+
+            {!syncComplete ? (
+              <div className="max-w-2xl mx-auto">
+                {/* Sync in Progress */}
+                <Card>
+                  <CardContent className="p-8">
+                    <div className="text-center mb-8">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2">Sync in Progress</h3>
+                      <p className="text-gray-600">Please wait while we sync your selected chats...</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {syncProgress > 30 ? <Check className="w-4 h-4 text-green-600" /> : <div className="w-4 h-4 border-2 border-gray-300 rounded-full animate-pulse" />}
-                      <span>Loading chat history</span>
+
+                    <div className="space-y-6">
+                      <hr className="border-gray-200" />
+                      
+                      {/* Discord Progress */}
+                      {discordConnected && (
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center">
+                            <h4 className="font-medium flex items-center gap-2">
+                              <Users className="w-5 h-5 text-purple-600" />
+                              Discord Servers
+                            </h4>
+                            <span className="text-sm text-gray-600">3 servers connected</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Progress value={syncProgress.discord} className="flex-1" />
+                            <span className="text-sm font-medium min-w-[3rem]">{syncProgress.discord}%</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Telegram Progress */}
+                      {telegramConnected && (
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center">
+                            <h4 className="font-medium flex items-center gap-2">
+                              <MessageCircle className="w-5 h-5 text-blue-600" />
+                              Telegram Chats
+                            </h4>
+                            <span className="text-sm text-gray-600">5 chats connected</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Progress value={syncProgress.telegram} className="flex-1" />
+                            <span className="text-sm font-medium min-w-[3rem]">{syncProgress.telegram}%</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      {syncProgress > 60 ? <Check className="w-4 h-4 text-green-600" /> : <div className="w-4 h-4 border-2 border-gray-300 rounded-full animate-pulse" />}
-                      <span>Processing messages</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {syncProgress > 90 ? <Check className="w-4 h-4 text-green-600" /> : <div className="w-4 h-4 border-2 border-gray-300 rounded-full animate-pulse" />}
-                      <span>Setting up unified inbox</span>
-                    </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               </div>
             ) : (
-              <div className="text-center space-y-6">
-                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                  <Check className="w-12 h-12 text-green-600" />
-                </div>
-                <div className="space-y-4">
-                  <h3 className="text-xl font-semibold">All Set!</h3>
-                  <p className="text-gray-600">
-                    Your conversations have been synced successfully. ChatPilot is ready to use!
-                  </p>
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <p className="text-sm text-blue-800">
-                      <strong>Pro tip:</strong> Check your Action Center for AI-extracted tasks from your chats!
-                    </p>
-                  </div>
-                </div>
+              /* Sync Complete - Two Box Layout */
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                {/* Status Box */}
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="text-center space-y-4">
+                      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                        <Check className="w-8 h-8 text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2">Sync Complete</h3>
+                        <ul className="text-sm text-gray-600 space-y-2 text-left">
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                            <span>All conversations synced</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                            <span>Unified inbox ready</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                            <span>Real-time sync enabled</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                            <span>Notifications configured</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Next Steps Box */}
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <h3 className="font-semibold text-lg mb-2">Synchronization successful!</h3>
+                        <ul className="text-sm text-gray-600 space-y-2 text-left mb-6">
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                            <span>Explore your unified inbox</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                            <span>Search across all platforms</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                            <span>Check AI-extracted tasks</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                            <span>Manage notification settings</span>
+                          </li>
+                        </ul>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <Button onClick={onComplete} className="w-full gap-2">
+                          <Inbox className="w-4 h-4" />
+                          Continue to Inbox
+                        </Button>
+                        <Button onClick={restartOnboarding} variant="outline" className="w-full gap-2">
+                          <RefreshCw className="w-4 h-4" />
+                          Restart Onboarding
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
           </div>
@@ -164,7 +298,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <Header />
       
-      <div className="container mx-auto p-6 max-w-6xl">
+      <div className="container mx-auto p-6 max-w-6xl mt-6">
         <Card className="w-full">
           <CardHeader>
             <div className="space-y-6">
@@ -213,7 +347,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           <CardContent className="space-y-6">
             {renderStepContent()}
             
-            {!syncing && (
+            {!syncing && !syncComplete && (
               <div className="flex justify-between pt-6">
                 <Button
                   variant="outline"
@@ -227,7 +361,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   disabled={!canProceed()}
                   className="gap-2"
                 >
-                  {currentStep === steps.length - 1 ? "Complete Setup" : "Next"}
+                  {currentStep === steps.length - 1 ? "Start Sync" : "Next"}
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </div>
