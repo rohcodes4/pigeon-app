@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -5,320 +6,174 @@ import { Badge } from "@/components/ui/badge";
 import { MessageCircle, Users, Check, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
-
-declare global {
-  interface Window {
-    Telegram: any;
-    onTelegramAuth: (user: any) => void;
-  }
-}
 
 interface ConnectAccountsProps {
   onAccountsConnected: () => void;
 }
-
-const TelegramLogin = ({ onSuccess }: { onSuccess: () => void }) => {
-  const { user } = useAuth();
-  const [step, setStep] = useState<"phone" | "otp" | "success">("phone");
-  const [phone, setPhone] = useState("+919840989414");
-  const [phoneCodeHash, setPhoneCodeHash] = useState("");
-  const [sessionString, setSessionString] = useState("");
-  const [otp, setOtp] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(()=>{
-    console.log("step")
-    console.log(step)
-  },[step])
-  // Start login by sending phone number
-  async function requestLogin() {
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/telegram-login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
-      });
-      const data = await res.json();
-      setPhoneCodeHash(data.phoneCodeHash)
-      setSessionString(data.session)
-      console.log({data})
-      if (!data.success) throw new Error(data.error || "Failed to send OTP");
-      setStep("otp");
-    } catch (e: any) {
-      setError(e.message);
-    }
-    setLoading(false);
-  }
-
-  // Verify OTP
-  async function submitOtp() {
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/telegram-login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: user?.id, phone, code: otp, phoneCodeHash, sessionString }),
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || "Invalid OTP");
-      setStep("success");
-      onSuccess();
-    } catch (e: any) {
-      setError(e.message);
-    }
-    setLoading(false);
-  }
-
-  if (step === "success") {
-    return <p className="text-green-600 font-semibold">Telegram connected successfully! 🎉</p>;
-  }
-
-  return (
-    <div className="space-y-3 max-w-xs mr-auto mt-2">
-      {step === "phone" && (
-        <>
-          <input
-            type="tel"
-            placeholder="+1234567890"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            disabled={loading}
-            className="w-full p-2 border rounded"
-          />
-          <Button onClick={requestLogin} disabled={loading || !phone} className="w-full">
-            {loading ? "Sending OTP..." : "Send OTP"}
-          </Button>
-        </>
-      )}
-
-      {step === "otp" && (
-        <>
-          <input
-            type="text"
-            placeholder="Enter OTP"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value)}
-            disabled={loading}
-            className="w-full p-2 border rounded"
-          />
-          <Button onClick={submitOtp} disabled={loading || !otp} className="w-full">
-            {loading ? "Verifying..." : "Verify OTP"}
-          </Button>
-        </>
-      )}
-
-      {error && <p className="text-red-600">{error}</p>}
-    </div>
-  );
-};
 
 export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) => {
   const { user } = useAuth();
   const [telegramConnected, setTelegramConnected] = useState(false);
   const [discordConnected, setDiscordConnected] = useState(false);
   const [loading, setLoading] = useState({ telegram: false, discord: false });
-  const [showTelegramLogin, setShowTelegramLogin] = useState(false);
 
   useEffect(() => {
     if (user) {
-      checkConnectedAccounts();
+      // Simulate checking connected accounts with fake data
+      const onboardingData = localStorage.getItem(`chatpilot_accounts_${user.id}`);
+      if (onboardingData) {
+        const data = JSON.parse(onboardingData);
+        setTelegramConnected(data.telegram || false);
+        setDiscordConnected(data.discord || false);
+        
+        if (data.telegram && data.discord) {
+          onAccountsConnected();
+        }
+      }
     }
-  }, [user]);
+  }, [user, onAccountsConnected]);
 
-  // Listen for auth success messages from popup windows (Discord etc.)
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data.type === "DISCORD_AUTH_SUCCESS") {
-        setDiscordConnected(true);
-        setLoading((prev) => ({ ...prev, discord: false }));
-        toast({
-          title: "Discord Connected",
-          description: "Successfully connected to your Discord account",
-        });
-        checkConnectedAccounts();
-      } else if (event.data.type === "DISCORD_AUTH_ERROR") {
-        toast({
-          title: "Discord Connection Failed",
-          description: event.data.error || "Something went wrong",
-          variant: "destructive",
-        });
-        setLoading((prev) => ({ ...prev, discord: false }));
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, []);
-
-  const checkConnectedAccounts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("connected_accounts")
-        .select("platform")
-        .eq("user_id", user?.id);
-
-      if (error) {
-        console.error("Error checking connected accounts:", error);
-        return;
-      }
-
-      const platforms = data?.map((account) => account.platform) || [];
-      setTelegramConnected(platforms.includes("telegram"));
-      setDiscordConnected(platforms.includes("discord"));
-      onAccountsConnected();
-
-      if (platforms.length > 0) {
+  const connectTelegram = async () => {
+    if (!user) return;
+    
+    setLoading(prev => ({ ...prev, telegram: true }));
+    
+    // Simulate connection delay
+    setTimeout(() => {
+      setTelegramConnected(true);
+      setLoading(prev => ({ ...prev, telegram: false }));
+      
+      // Save to localStorage for simulation
+      const existingData = JSON.parse(localStorage.getItem(`chatpilot_accounts_${user.id}`) || '{}');
+      localStorage.setItem(`chatpilot_accounts_${user.id}`, JSON.stringify({
+        ...existingData,
+        telegram: true
+      }));
+      
+      toast({
+        title: "Telegram Connected",
+        description: "Successfully connected to your Telegram account",
+      });
+      
+      // Check if both are connected
+      if (discordConnected) {
         onAccountsConnected();
       }
-    } catch (error) {
-      console.error("Error checking connected accounts:", error);
-    }
-  };
-
-  // Called after successful Telegram login via OTP component
-  const handleTelegramSuccess = () => {
-    setTelegramConnected(true);
-    setShowTelegramLogin(false);
-    toast({
-      title: "Telegram Connected",
-      description: "Successfully connected to your Telegram account",
-    });
-    checkConnectedAccounts();
-  };
-
-  // Show inline Telegram login form
-  const openTelegramLogin = () => {
-    setShowTelegramLogin(true);
+    }, 2000);
   };
 
   const connectDiscord = async () => {
     if (!user) return;
-
-    setLoading((prev) => ({ ...prev, discord: true }));
-
-    try {
-      const discordClientId = "1380883180533452970";
-      const redirectUri = "https://zyccvvhrdvgjjwcteywg.supabase.co/functions/v1/discord-auth";
-      // Updated scope to include channels and message history access
-      const scope = encodeURIComponent("identify guilds channels.read messages.read");
-      // const scope = encodeURIComponent('identify guilds email guilds.channels.read guilds.members.read messages.read');
-
-      const stateObj = {
-        userId: user.id,
-      };
-      const state = encodeURIComponent(JSON.stringify(stateObj));
-
-      const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${discordClientId}&redirect_uri=${encodeURIComponent(
-        redirectUri
-      )}&response_type=code&scope=${scope}&state=${state}`;
-
-      const popup = window.open(
-        discordAuthUrl,
-        "discord-auth",
-        "width=500,height=600,scrollbars=yes,resizable=yes"
-      );
-
-      const checkClosed = setInterval(() => {
-        if (popup?.closed) {
-          clearInterval(checkClosed);
-          if (!discordConnected) {
-            setLoading((prev) => ({ ...prev, discord: false }));
-          }
-        }
-      }, 1000);
-    } catch (error) {
-      console.error("Discord connection error:", error);
+    
+    setLoading(prev => ({ ...prev, discord: true }));
+    
+    // Simulate connection delay
+    setTimeout(() => {
+      setDiscordConnected(true);
+      setLoading(prev => ({ ...prev, discord: false }));
+      
+      // Save to localStorage for simulation
+      const existingData = JSON.parse(localStorage.getItem(`chatpilot_accounts_${user.id}`) || '{}');
+      localStorage.setItem(`chatpilot_accounts_${user.id}`, JSON.stringify({
+        ...existingData,
+        discord: true
+      }));
+      
       toast({
-        title: "Connection Failed",
-        description: "Failed to connect to Discord. Please try again.",
-        variant: "destructive",
+        title: "Discord Connected",
+        description: "Successfully connected to your Discord account",
       });
-      setLoading((prev) => ({ ...prev, discord: false }));
-    }
+      
+      // Check if both are connected
+      if (telegramConnected) {
+        onAccountsConnected();
+      }
+    }, 2000);
   };
 
   return (
-    <div className="space-y-4">
-      <Card className="border-2 border-dashed border-border hover:border-blue-300 transition-colors">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                <MessageCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Telegram</h3>
-                <p className="text-sm text-muted-foreground">
-                  Connect your Telegram account to access your chats
-                </p>
-                {showTelegramLogin && <TelegramLogin onSuccess={handleTelegramSuccess} />}
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {telegramConnected ? (
-                <Badge
-                  variant="secondary"
-                  className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                >
-                  <Check className="w-3 h-3 mr-1" />
-                  Connected
-                </Badge>
-              ) : (
-                <Button onClick={openTelegramLogin} className="gap-2" disabled={loading.telegram}>
-                  {loading.telegram && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Connect
-                  <ExternalLink className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Connect Your Platforms</h2>
+        <p className="text-gray-600">Connect your Discord and Telegram accounts to get started</p>
+      </div>
 
-      <Card className="border-2 border-dashed border-border hover:border-purple-300 transition-colors">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
-                <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+      <div className="space-y-4">
+        <Card className="border-2 border-dashed border-border hover:border-blue-300 transition-colors">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                  <MessageCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Telegram</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Connect your Telegram account to access your chats
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold">Discord</h3>
-                <p className="text-sm text-muted-foreground">
-                  Connect your Discord account to access your servers and channels
-                </p>
+              <div className="flex items-center gap-3">
+                {telegramConnected ? (
+                  <Badge
+                    variant="secondary"
+                    className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                  >
+                    <Check className="w-3 h-3 mr-1" />
+                    Connected
+                  </Badge>
+                ) : (
+                  <Button onClick={connectTelegram} className="gap-2" disabled={loading.telegram}>
+                    {loading.telegram && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Connect
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              {discordConnected ? (
-                <Badge
-                  variant="secondary"
-                  className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                >
-                  <Check className="w-3 h-3 mr-1" />
-                  Connected
-                </Badge>
-              ) : (
-                <Button
-                  onClick={connectDiscord}
-                  variant="outline"
-                  className="gap-2"
-                  disabled={loading.discord}
-                >
-                  {loading.discord && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Connect
-                  <ExternalLink className="w-4 h-4" />
-                </Button>
-              )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-dashed border-border hover:border-purple-300 transition-colors">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
+                  <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Discord</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Connect your Discord account to access your servers and channels
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {discordConnected ? (
+                  <Badge
+                    variant="secondary"
+                    className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                  >
+                    <Check className="w-3 h-3 mr-1" />
+                    Connected
+                  </Badge>
+                ) : (
+                  <Button
+                    onClick={connectDiscord}
+                    variant="outline"
+                    className="gap-2"
+                    disabled={loading.discord}
+                  >
+                    {loading.discord && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Connect
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {telegramConnected && discordConnected && (
         <Card className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
