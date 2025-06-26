@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +18,11 @@ interface ChatGroup {
   is_synced: boolean;
 }
 
-export const ChatSelection = () => {
+interface ChatSelectionProps {
+  onChatsSelected?: () => void;
+}
+
+export const ChatSelection = ({ onChatsSelected }: ChatSelectionProps) => {
   const { user } = useAuth();
   const [chatGroups, setChatGroups] = useState<ChatGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +74,15 @@ export const ChatSelection = () => {
         )
       );
 
+      // Check if any chats are selected and notify parent
+      const hasSelectedChats = chatGroups.some(group => 
+        group.id === groupId ? !currentSyncStatus : group.is_synced
+      );
+      
+      if (hasSelectedChats && onChatsSelected) {
+        onChatsSelected();
+      }
+
       toast({
         title: !currentSyncStatus ? "Chat Added" : "Chat Removed",
         description: !currentSyncStatus 
@@ -90,7 +102,6 @@ export const ChatSelection = () => {
   const saveAllChanges = async () => {
     setSaving(true);
     try {
-      // Update each group individually since we need to use individual updates
       const updatePromises = chatGroups.map(group => 
         supabase
           .from("synced_groups")
@@ -103,6 +114,12 @@ export const ChatSelection = () => {
       const hasError = results.some(result => result.error);
       if (hasError) {
         throw new Error("Failed to update some chat sync settings");
+      }
+
+      // Check if any chats are selected and notify parent
+      const hasSelectedChats = chatGroups.some(group => group.is_synced);
+      if (hasSelectedChats && onChatsSelected) {
+        onChatsSelected();
       }
 
       toast({

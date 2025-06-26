@@ -38,18 +38,6 @@ const Index = () => {
       }
     }
   }, [user]);
-  useEffect(() => {
-    if (user) {
-      // Check if user has completed onboarding
-      const onboardingComplete = localStorage.getItem(`chatpilot_onboarded_${user.id}`);
-      console.log("onboarding?")
-      console.log(onboardingComplete)
-      if (onboardingComplete) {
-        setIsOnboarded(true);
-        setIsConnected(true);
-      }
-    }
-  }, []);
 
   const handleOnboardingComplete = () => {
     if (user) {
@@ -94,45 +82,44 @@ const Index = () => {
 
   return (
     <Layout isConnected={isConnected}>
+      {/* Navigation Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4 mb-8 bg-white/10 backdrop-blur-sm">
+          <TabsTrigger value="inbox" className="flex items-center gap-2">
+            <MessageCircle className="w-4 h-4" />
+            <span className="max-md:hidden">Unified Inbox</span>
+          </TabsTrigger>
+          <TabsTrigger value="search" className="flex items-center gap-2">
+            <Search className="w-4 h-4" />
+            <span className="max-md:hidden">Search</span>
+          </TabsTrigger>
+          <TabsTrigger value="actions" className="flex items-center gap-2">
+            <CheckSquare className="w-4 h-4" />
+            <span className="max-md:hidden">Action Center</span>
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            <span className="max-md:hidden">Settings</span>
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Navigation Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-8 bg-white/10 backdrop-blur-sm">
-            <TabsTrigger value="inbox" className="flex items-center gap-2">
-              <MessageCircle className="w-4 h-4" />
-              <span className="max-md:hidden">Unified Inbox</span>
-            </TabsTrigger>
-            <TabsTrigger value="search" className="flex items-center gap-2">
-              <Search className="w-4 h-4" />
-              <span className="max-md:hidden">Search</span>
-            </TabsTrigger>
-            <TabsTrigger value="actions" className="flex items-center gap-2">
-              <CheckSquare className="w-4 h-4" />
-              <span className="max-md:hidden">Action Center</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              <span className="max-md:hidden">Settings</span>
-            </TabsTrigger>
-          </TabsList>
+        <TabsContent value="inbox" className="mt-0">
+          <UnifiedInbox />
+        </TabsContent>
 
-          <TabsContent value="inbox" className="mt-0">
-            <UnifiedInbox />
-          </TabsContent>
+        <TabsContent value="search" className="mt-0">
+          <SearchPanel />
+        </TabsContent>
 
-          <TabsContent value="search" className="mt-0">
-            <SearchPanel />
-          </TabsContent>
+        <TabsContent value="actions" className="mt-0">
+          <ActionCenter />
+        </TabsContent>
 
-          <TabsContent value="actions" className="mt-0">
-            <ActionCenter />
-          </TabsContent>
-
-          <TabsContent value="settings" className="mt-0">
-            <DashboardSettings />
-          </TabsContent>
-        </Tabs>
-      </Layout>
+        <TabsContent value="settings" className="mt-0">
+          <DashboardSettings />
+        </TabsContent>
+      </Tabs>
+    </Layout>
   );
 };
 
