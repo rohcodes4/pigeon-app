@@ -131,84 +131,95 @@ export const ChatSelection = () => {
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center">Loading your chats...</div>
-        </CardContent>
-      </Card>
+      <div className="text-center py-8">
+        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+          <MessageCircle className="w-4 h-4 text-blue-600" />
+        </div>
+        <p className="text-gray-600">Loading your chats...</p>
+      </div>
     );
   }
 
   if (chatGroups.length === 0) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center text-muted-foreground">
-            No chats found. Make sure you've connected your Discord and Telegram accounts.
-          </div>
-        </CardContent>
-      </Card>
+      <div className="text-center py-8">
+        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <MessageCircle className="w-8 h-8 text-gray-400" />
+        </div>
+        <p className="text-gray-600">
+          No chats found. Make sure you've connected your Discord and Telegram accounts.
+        </p>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Check className="w-5 h-5" />
-              Select Chats to Sync
-            </CardTitle>
-            <Button onClick={saveAllChanges} disabled={saving} className="gap-2">
-              {saving ? "Saving..." : "Save All"}
-              <Save className="w-4 h-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {chatGroups.map((group) => (
-            <Card key={group.id} className="p-4">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Select chats to sync</h3>
+          <p className="text-sm text-gray-600">Choose which conversations to include in your inbox</p>
+        </div>
+        <Button 
+          onClick={saveAllChanges} 
+          disabled={saving} 
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          {saving ? "Saving..." : "Save Selection"}
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        {chatGroups.map((group) => (
+          <Card key={group.id} className="border border-gray-200 hover:border-blue-200 transition-colors">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <Checkbox
                       checked={group.is_synced}
                       onCheckedChange={() => toggleChatSync(group.id, group.is_synced)}
+                      className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                     />
-                    {group.group_avatar && (
+                    {group.group_avatar ? (
                       <img
                         src={group.group_avatar}
                         alt={group.group_name}
-                        className="w-8 h-8 rounded-full"
+                        className="w-10 h-10 rounded-full"
                       />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                        <span className={getPlatformColor(group.platform)}>
+                          {getPlatformIcon(group.platform)}
+                        </span>
+                      </div>
                     )}
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 ${!group.group_avatar ? 'visible' : 'hidden'}`}>
-                      <span className={getPlatformColor(group.platform)}>
-                        {getPlatformIcon(group.platform)}
-                      </span>
-                    </div>
                   </div>
                   <div>
-                    <h4 className="font-medium">{group.group_name}</h4>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Badge variant="outline" className="text-xs">
-                        {group.platform}
-                      </Badge>
+                    <h4 className="font-medium text-gray-900">{group.group_name}</h4>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <span className="capitalize">{group.platform}</span>
                       {group.member_count && (
-                        <span>{group.member_count} members</span>
+                        <>
+                          <span>•</span>
+                          <span>{group.member_count} members</span>
+                        </>
                       )}
                     </div>
                   </div>
                 </div>
-                <Badge variant={group.is_synced ? "default" : "secondary"}>
+                <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  group.is_synced 
+                    ? 'bg-green-50 text-green-700' 
+                    : 'bg-gray-50 text-gray-600'
+                }`}>
                   {group.is_synced ? "Synced" : "Not Synced"}
-                </Badge>
+                </div>
               </div>
-            </Card>
-          ))}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 };
