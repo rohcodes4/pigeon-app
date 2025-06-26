@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Users, Check, ExternalLink, Loader2 } from "lucide-react";
+import { MessageCircle, Users, Check, ExternalLink, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -19,14 +19,13 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
 
   useEffect(() => {
     if (user) {
-      // Simulate checking connected accounts with fake data
       const onboardingData = localStorage.getItem(`chatpilot_accounts_${user.id}`);
       if (onboardingData) {
         const data = JSON.parse(onboardingData);
         setTelegramConnected(data.telegram || false);
         setDiscordConnected(data.discord || false);
         
-        if (data.telegram && data.discord) {
+        if (data.telegram || data.discord) {
           onAccountsConnected();
         }
       }
@@ -38,12 +37,10 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
     
     setLoading(prev => ({ ...prev, telegram: true }));
     
-    // Simulate connection delay
     setTimeout(() => {
       setTelegramConnected(true);
       setLoading(prev => ({ ...prev, telegram: false }));
       
-      // Save to localStorage for simulation
       const existingData = JSON.parse(localStorage.getItem(`chatpilot_accounts_${user.id}`) || '{}');
       localStorage.setItem(`chatpilot_accounts_${user.id}`, JSON.stringify({
         ...existingData,
@@ -55,10 +52,7 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
         description: "Successfully connected to your Telegram account",
       });
       
-      // Check if both are connected
-      if (discordConnected) {
-        onAccountsConnected();
-      }
+      onAccountsConnected();
     }, 2000);
   };
 
@@ -67,12 +61,10 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
     
     setLoading(prev => ({ ...prev, discord: true }));
     
-    // Simulate connection delay
     setTimeout(() => {
       setDiscordConnected(true);
       setLoading(prev => ({ ...prev, discord: false }));
       
-      // Save to localStorage for simulation
       const existingData = JSON.parse(localStorage.getItem(`chatpilot_accounts_${user.id}`) || '{}');
       localStorage.setItem(`chatpilot_accounts_${user.id}`, JSON.stringify({
         ...existingData,
@@ -84,109 +76,116 @@ export const ConnectAccounts = ({ onAccountsConnected }: ConnectAccountsProps) =
         description: "Successfully connected to your Discord account",
       });
       
-      // Check if both are connected
-      if (telegramConnected) {
-        onAccountsConnected();
-      }
+      onAccountsConnected();
     }, 2000);
   };
 
+  const canContinue = telegramConnected || discordConnected;
+
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-8">
+    <div className="space-y-8">
+      <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Connect Your Platforms</h2>
-        <p className="text-gray-600">Connect your Discord and Telegram accounts to get started</p>
+        <p className="text-gray-600">Connect at least one platform to continue</p>
       </div>
 
-      <div className="space-y-4">
-        <Card className="border-2 border-dashed border-border hover:border-blue-300 transition-colors">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Discord Box */}
+        <Card className="border-2 border-dashed hover:border-purple-300 transition-colors">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                  <MessageCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Telegram</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Connect your Telegram account to access your chats
-                  </p>
-                </div>
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mx-auto">
+                <Users className="w-8 h-8 text-purple-600 dark:text-purple-400" />
               </div>
-              <div className="flex items-center gap-3">
-                {telegramConnected ? (
-                  <Badge
-                    variant="secondary"
-                    className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                  >
-                    <Check className="w-3 h-3 mr-1" />
-                    Connected
-                  </Badge>
-                ) : (
-                  <Button onClick={connectTelegram} className="gap-2" disabled={loading.telegram}>
-                    {loading.telegram && <Loader2 className="w-4 h-4 animate-spin" />}
-                    Connect
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
-                )}
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Discord</h3>
+                <ul className="text-sm text-gray-600 space-y-1 mb-4">
+                  <li>• Access server channels</li>
+                  <li>• View direct messages</li>
+                  <li>• Manage notifications</li>
+                  <li>• Real-time sync</li>
+                </ul>
               </div>
+              {discordConnected ? (
+                <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                  <Check className="w-3 h-3 mr-1" />
+                  Connected
+                </Badge>
+              ) : (
+                <Button
+                  onClick={connectDiscord}
+                  disabled={loading.discord}
+                  className="w-full gap-2"
+                  variant="outline"
+                >
+                  {loading.discord && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Connect Discord
+                  <ExternalLink className="w-4 h-4" />
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-dashed border-border hover:border-purple-300 transition-colors">
+        {/* Telegram Box */}
+        <Card className="border-2 border-dashed hover:border-blue-300 transition-colors">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
-                  <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Discord</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Connect your Discord account to access your servers and channels
-                  </p>
-                </div>
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto">
+                <MessageCircle className="w-8 h-8 text-blue-600 dark:text-blue-400" />
               </div>
-              <div className="flex items-center gap-3">
-                {discordConnected ? (
-                  <Badge
-                    variant="secondary"
-                    className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                  >
-                    <Check className="w-3 h-3 mr-1" />
-                    Connected
-                  </Badge>
-                ) : (
-                  <Button
-                    onClick={connectDiscord}
-                    variant="outline"
-                    className="gap-2"
-                    disabled={loading.discord}
-                  >
-                    {loading.discord && <Loader2 className="w-4 h-4 animate-spin" />}
-                    Connect
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
-                )}
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Telegram</h3>
+                <ul className="text-sm text-gray-600 space-y-1 mb-4">
+                  <li>• Access group chats</li>
+                  <li>• View private messages</li>
+                  <li>• Bot integration</li>
+                  <li>• Cloud sync</li>
+                </ul>
+              </div>
+              {telegramConnected ? (
+                <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                  <Check className="w-3 h-3 mr-1" />
+                  Connected
+                </Badge>
+              ) : (
+                <Button
+                  onClick={connectTelegram}
+                  disabled={loading.telegram}
+                  className="w-full gap-2"
+                >
+                  {loading.telegram && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Connect Telegram
+                  <ExternalLink className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Continue Box */}
+        <Card className={`border-2 ${canContinue ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50'} transition-colors`}>
+          <CardContent className="p-6">
+            <div className="text-center space-y-4">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${canContinue ? 'bg-green-100' : 'bg-gray-100'}`}>
+                <ArrowRight className={`w-8 h-8 ${canContinue ? 'text-green-600' : 'text-gray-400'}`} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Ready to Continue</h3>
+                <ul className="text-sm text-gray-600 space-y-1 mb-4">
+                  <li>• Select your chats</li>
+                  <li>• Configure sync settings</li>
+                  <li>• Start using ChatPilot</li>
+                  <li>• Unified inbox ready</li>
+                </ul>
+              </div>
+              <div className={`text-sm ${canContinue ? 'text-green-600' : 'text-gray-500'}`}>
+                {canContinue ? '✓ Ready to proceed' : 'Connect at least one platform'}
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {telegramConnected && discordConnected && (
-        <Card className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
-              <p className="text-green-800 dark:text-green-300 font-medium">
-                All accounts connected successfully!
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };

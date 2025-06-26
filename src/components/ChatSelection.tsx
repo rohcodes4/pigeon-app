@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import { MessageCircle, Users, Check, Save } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,7 +23,6 @@ interface ChatSelectionProps {
   onChatsSelected?: () => void;
 }
 
-// Fake chat data for simulation
 const fakeChatGroups: ChatGroup[] = [
   {
     id: "discord_1",
@@ -85,12 +85,20 @@ export const ChatSelection = ({ onChatsSelected }: ChatSelectionProps) => {
   const [chatGroups, setChatGroups] = useState<ChatGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [telegramConnected, setTelegramConnected] = useState(false);
+  const [discordConnected, setDiscordConnected] = useState(false);
 
   useEffect(() => {
     if (user) {
-      // Simulate loading chat groups
+      // Check connected accounts
+      const accountsData = localStorage.getItem(`chatpilot_accounts_${user.id}`);
+      if (accountsData) {
+        const accounts = JSON.parse(accountsData);
+        setTelegramConnected(accounts.telegram || false);
+        setDiscordConnected(accounts.discord || false);
+      }
+
       setTimeout(() => {
-        // Load saved selections from localStorage
         const savedSelections = localStorage.getItem(`chatpilot_chats_${user.id}`);
         let updatedGroups = [...fakeChatGroups];
         
@@ -105,7 +113,6 @@ export const ChatSelection = ({ onChatsSelected }: ChatSelectionProps) => {
         setChatGroups(updatedGroups);
         setLoading(false);
         
-        // Check if any chats are already selected
         const hasSelectedChats = updatedGroups.some(group => group.is_synced);
         if (hasSelectedChats && onChatsSelected) {
           onChatsSelected();
@@ -123,12 +130,10 @@ export const ChatSelection = ({ onChatsSelected }: ChatSelectionProps) => {
       )
     );
 
-    // Save to localStorage for simulation
     const updatedSelections = { ...JSON.parse(localStorage.getItem(`chatpilot_chats_${user?.id}`) || '{}') };
     updatedSelections[groupId] = !currentSyncStatus;
     localStorage.setItem(`chatpilot_chats_${user?.id}`, JSON.stringify(updatedSelections));
 
-    // Check if any chats are selected and notify parent
     const hasSelectedChats = chatGroups.some(group => 
       group.id === groupId ? !currentSyncStatus : group.is_synced
     );
@@ -148,11 +153,9 @@ export const ChatSelection = ({ onChatsSelected }: ChatSelectionProps) => {
   const saveAllChanges = async () => {
     setSaving(true);
     
-    // Simulate saving delay
     setTimeout(() => {
       setSaving(false);
       
-      // Check if any chats are selected and notify parent
       const hasSelectedChats = chatGroups.some(group => group.is_synced);
       if (hasSelectedChats && onChatsSelected) {
         onChatsSelected();
@@ -165,13 +168,8 @@ export const ChatSelection = ({ onChatsSelected }: ChatSelectionProps) => {
     }, 1500);
   };
 
-  const getPlatformIcon = (platform: string) => {
-    return platform === 'discord' ? <Users className="w-4 h-4" /> : <MessageCircle className="w-4 h-4" />;
-  };
-
-  const getPlatformColor = (platform: string) => {
-    return platform === 'discord' ? 'text-purple-600 dark:text-purple-400' : 'text-blue-600 dark:text-blue-400';
-  };
+  const discordChats = chatGroups.filter(group => group.platform === 'discord');
+  const telegramChats = chatGroups.filter(group => group.platform === 'telegram');
 
   if (loading) {
     return (
@@ -189,24 +187,6 @@ export const ChatSelection = ({ onChatsSelected }: ChatSelectionProps) => {
     );
   }
 
-  if (chatGroups.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Select Chats to Sync</h2>
-          <p className="text-gray-600">Choose which chats you want to include in your unified inbox</p>
-        </div>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center text-muted-foreground">
-              No chats found. Make sure you've connected your Discord and Telegram accounts.
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="text-center mb-8">
@@ -214,55 +194,92 @@ export const ChatSelection = ({ onChatsSelected }: ChatSelectionProps) => {
         <p className="text-gray-600">Choose which chats you want to include in your unified inbox</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+      {/* Connection Status */}
+      <div className="flex gap-4 justify-center mb-6">
+        <Badge variant={discordConnected ? "default" : "secondary"} className="flex items-center gap-2">
+          <Users className="w-4 h-4" />
+          Discord {discordConnected ? "Connected" : "Not Connected"}
+        </Badge>
+        <Badge variant={telegramConnected ? "default" : "secondary"} className="flex items-center gap-2">
+          <MessageCircle className="w-4 h-4" />
+          Telegram {telegramConnected ? "Connected" : "Not Connected"}
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Discord Chats */}
+        <Card className={`${discordConnected ? '' : 'opacity-50'}`}>
+          <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Check className="w-5 h-5" />
-              Available Chats
+              <Users className="w-5 h-5 text-purple-600" />
+              Discord Chats
             </CardTitle>
-            <Button onClick={saveAllChanges} disabled={saving} className="gap-2">
-              {saving ? "Saving..." : "Save All"}
-              <Save className="w-4 h-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {chatGroups.map((group) => (
-            <Card key={group.id} className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {discordConnected ? (
+              discordChats.map((group) => (
+                <div key={group.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center gap-3">
                     <Checkbox
                       checked={group.is_synced}
                       onCheckedChange={() => toggleChatSync(group.id, group.is_synced)}
                     />
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800`}>
-                      <span className={getPlatformColor(group.platform)}>
-                        {getPlatformIcon(group.platform)}
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-medium">{group.group_name}</h4>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Badge variant="outline" className="text-xs">
-                        {group.platform}
-                      </Badge>
-                      {group.member_count && (
-                        <span>{group.member_count} members</span>
-                      )}
+                    <div>
+                      <p className="font-medium text-sm">{group.group_name}</p>
+                      <p className="text-xs text-gray-500">{group.member_count} members</p>
                     </div>
                   </div>
                 </div>
-                <Badge variant={group.is_synced ? "default" : "secondary"}>
-                  {group.is_synced ? "Synced" : "Not Synced"}
-                </Badge>
-              </div>
-            </Card>
-          ))}
-        </CardContent>
-      </Card>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">Connect Discord to see chats</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Telegram Chats */}
+        <Card className={`${telegramConnected ? '' : 'opacity-50'}`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageCircle className="w-5 h-5 text-blue-600" />
+              Telegram Chats
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {telegramConnected ? (
+              telegramChats.map((group) => (
+                <div key={group.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={group.is_synced}
+                      onCheckedChange={() => toggleChatSync(group.id, group.is_synced)}
+                    />
+                    <div>
+                      <p className="font-medium text-sm">{group.group_name}</p>
+                      <p className="text-xs text-gray-500">{group.member_count} members</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">Connect Telegram to see chats</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Save Settings */}
+        <Card className="flex items-center justify-center">
+          <CardContent className="p-6 text-center">
+            <Button onClick={saveAllChanges} disabled={saving} className="gap-2 mb-4">
+              {saving ? "Saving..." : "Save Settings"}
+              <Save className="w-4 h-4" />
+            </Button>
+            <p className="text-sm text-gray-600">
+              {chatGroups.filter(g => g.is_synced).length} chats selected
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
