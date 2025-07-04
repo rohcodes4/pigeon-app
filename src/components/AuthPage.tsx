@@ -13,16 +13,20 @@ import { Mail } from "lucide-react";
 import google from '@/assets/images/google.png';
 import telegram from '@/assets/images/telegram.png';
 import discord from '@/assets/images/discord.png';
+import { useLocation } from "react-router-dom";
 
 export const AuthPage = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [isSignIn, setIsSignIn] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [acceptTnC, setAcceptTnC] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const initialMode = params.get("mode") === "signup" ? false : true; // false = sign up, true = sign in
+  const [isSignIn, setIsSignIn] = useState(initialMode);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();

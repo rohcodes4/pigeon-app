@@ -8,6 +8,8 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  signIn: () => void;
+  signUp: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,11 +55,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     await supabase.auth.signOut();
   };
 
+  const signIn = () => {
+    // e.g., navigate("/auth?mode=signin");
+    window.location.href = "/auth?mode=signin";
+  };
+  const signUp = () => {
+    // e.g., navigate("/auth?mode=signup");
+    window.location.href = "/auth?mode=signup";
+  };
+
   const value = {
     user,
     session,
     loading,
     signOut,
+    signIn,
+    signUp
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

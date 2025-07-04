@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 import logo from "@/assets/images/logo.png";
 
 export const Header = () => {
-  const { user } = useAuth();
+  const { user, signIn, signUp } = useAuth();
 
   return (
     <header className="w-full bg-[#00000012] backdrop-blur-sm px-6 py-4">
@@ -26,16 +26,12 @@ export const Header = () => {
           </Avatar>
         ) : (
           <div className="flex justify-end gap-4">
-          <Link to="/auth">
-            <Button variant="outline" className="bg-[#3474FF12] text-[#84afff] rounded-[10px] px-[16px] py-[8px] border-0" size="sm">
+            <Button onClick={signIn} variant="outline" className="bg-[#3474FF12] text-[#84afff] rounded-[10px] px-[16px] py-[8px] border-0" size="sm">
               Sign In
             </Button>
-          </Link>
-          <Link to="/auth">
-            <Button variant="outline" className="bg-[#5389ff] text-black  rounded-[10px] px-[16px] py-[8px]" size="sm">
-              Sign In
+            <Button onClick={signUp} variant="outline" className="bg-[#5389ff] text-black  rounded-[10px] px-[16px] py-[8px]" size="sm">
+              Sign Up
             </Button>
-          </Link>
           </div>
         )}
       </div>
