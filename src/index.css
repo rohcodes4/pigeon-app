@@ -51,7 +51,7 @@
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 0 0 7%;
     --card-foreground: 210 40% 98%;
 
     --popover: 222.2 84% 4.9%;
@@ -104,15 +104,23 @@
   }
 }
 
+input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 /* Dark mode specific styles */
 .dark {
   color-scheme: dark;
 }
 
 .dark .bg-gradient-to-br {
-  @apply from-gray-900 via-gray-800 to-gray-900;
+  /* @apply from-gray-900 via-gray-800 to-gray-900; */
+  background-color: #171717;
 }
-
+input:focus {
+  outline: none;
+}
 /* Ensure smooth transitions for theme changes */
 * {
   transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;

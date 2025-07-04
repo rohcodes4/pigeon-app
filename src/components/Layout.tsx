@@ -26,7 +26,7 @@ const Layout: React.FC<LayoutProps> = ({ isConnected = true, children }) => {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br ">
       <div className="container mx-auto p-6 max-w-7xl">
         {/* Header */}
         <header className="mb-8">
