@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import google from '@/assets/images/google.png';
 import telegram from '@/assets/images/telegram.png';
 import discord from '@/assets/images/discord.png';
 import { useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 export const AuthPage = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -27,6 +28,14 @@ export const AuthPage = () => {
   const params = new URLSearchParams(location.search);
   const initialMode = params.get("mode") === "signup" ? false : true; // false = sign up, true = sign in
   const [isSignIn, setIsSignIn] = useState(initialMode);
+  const { user, loading } = useAuth();
+
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/");
+    }
+  }, [user, loading, navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
