@@ -21,6 +21,7 @@ import { AppChatList } from "@/components/AppChatList";
 import { ChatHeader } from "@/components/ChatHeader";
 import { ChatWindow } from "@/components/ChatWindow";
 import { ChatInput } from "@/components/ChatInput";
+import AIimg from '@/assets/images/authAI.png';
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -140,12 +141,12 @@ const Index = () => {
     });
   };
 
-  if (loading) {
+  if (!loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#171717] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <MessageCircle className="w-7 h-7 text-white" />
+          <div className="w-24 h-24 bg-gradient-to-r rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <img src={AIimg} className="w-20 h-20 text-white" />
           </div>
           <p className="text-gray-600">Loading...</p>
         </div>
