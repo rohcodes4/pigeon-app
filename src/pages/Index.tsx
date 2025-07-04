@@ -141,7 +141,7 @@ const Index = () => {
     });
   };
 
-  if (!loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-[#171717] flex items-center justify-center">
         <div className="text-center">
