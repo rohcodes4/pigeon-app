@@ -255,7 +255,7 @@ useEffect(() => {
         {/* Status pill */}
         <span className={`text-xs pr-3 py-1 flex gap-2 items-center text-[#84afff]`}>          
           <Button
-          onClick={restartOnboarding}
+          onClick={restartOnboarding} 
            className="bg-transparent text-[#ffffff96] hover:bg-transparent hover:text-white">Restart <RotateCcw/> </Button>
         </span>
         {/* Action button */}
