@@ -27,6 +27,7 @@ import ChatPanel from "@/components/ChatPanel";
 import UnifiedHeader from "@/components/UnifiedHeader";
 import UnifiedChatPanel from "@/components/UnifiedChatPanel";
 import TasksPanel from "@/components/TasksPanel";
+import SmartTask from "@/components/SmartTasks";
 
 const SmartTasks = () => {
   const { user, loading, signOut } = useAuth();
@@ -92,6 +93,8 @@ const SmartTasks = () => {
       {/* <UnifiedChatPanel/> */}
       <TasksPanel/>
     </div>
+    {isSmartTask && <SmartTask/>}
+
       </main>
     </div>
     </Layout>

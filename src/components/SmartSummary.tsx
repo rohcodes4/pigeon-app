@@ -130,7 +130,7 @@ const handleCheckboxChange = (id: number) => {
   }, [dropdownOpen]);
 
   return (
-    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden w-[30vw] min-w-[340px] bg-[#111111] text-white rounded-2xl p-2 flex flex-col gap-4 shadow-lg border border-[#23242a]"
+    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden w-[40vw] min-w-[340px] bg-[#111111] text-white rounded-2xl p-2 flex flex-col gap-4 shadow-lg border border-[#23242a]"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
