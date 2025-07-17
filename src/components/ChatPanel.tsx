@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
-import { ChevronLeft, ChevronRight, Eye, Filter, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Filter, MoreVertical, Search, X } from "lucide-react";
 import { Pin, PinOff } from "lucide-react";
 import aiIMG from "@/assets/images/aiBlue.png";
 import discord from "@/assets/images/discord.png";
@@ -23,6 +23,15 @@ const sampleMessages = [
   "Congrats on the launch!",
   "Are you coming tonight?",
   "Thanks for your help!",
+];
+
+const ALL_CHANNELS = [
+  { name: "All Channels", platform: ["telegram", "discord"] },
+  { name: "sahil", platform: ["telegram"] },
+  { name: "Portalcoin | $Portal", platform: ["discord"] },
+  { name: "Alpha Guild", platform: ["discord"] },
+  { name: "Crypto News", platform: ["telegram"] },
+  // ...add more as needed
 ];
 
 const TOP_ITEMS = ["Inbox", "Mentions", "Unread", "Telegram", "Discord"];
@@ -158,8 +167,34 @@ export const ChatPanel: React.FC = () => {
   const [activeTopItem, setActiveTopItem] = useState(TOP_ITEMS[0]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedId, setSelectedId] = useState<string | number>("all-channels");
-
+  const [showFilterPopup, setShowFilterPopup] = useState(false);
+  const [channelSearch, setChannelSearch] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedChannels, setSelectedChannels] = useState([]);
     const hideScrollbar = "scrollbar-hide";
+
+    const handleCancel = () => {
+      setShowFilterPopup(false);
+      setChannelSearch("");
+      setSelectedChannels([]);
+    };
+    
+    const handleSave = () => {
+      // Do something with selectedChannels
+      setShowFilterPopup(false);
+    };
+
+    useEffect(() => {
+      if (channelSearch.trim() === "") {
+        setSearchResults([]);
+        return;
+      }
+      setSearchResults(
+        chats.filter((ch) =>
+          ch.name.toLowerCase().includes(channelSearch.toLowerCase())
+        )
+      );
+    }, [channelSearch]);
 
     const scroll = (ref: React.RefObject<HTMLDivElement>, dir: "left" | "right", checkScroll: () => void) => {
         if (ref.current) {
@@ -229,8 +264,152 @@ export const ChatPanel: React.FC = () => {
         )}
       </div>
       <div className="mt-4 flex-1">
-      <Filter className="h-full w-4"/>
+<div className="relative">
+  <button
+    onClick={() => setShowFilterPopup((open) => !open)}
+    className="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#23262F]"
+  >
+    <MoreVertical className="h-full w-4 text-[#5389ff]" />
+  </button>
+  {showFilterPopup && (
+  <>
+    {/* Backdrop for outside click */}
+    <div
+      className="fixed inset-0 z-40"
+      onClick={() => setShowFilterPopup(false)}
+      style={{ background: "transparent" }}
+    />
+    {/* Popup */}
+    <div className="absolute left-0 top-full mt-2 z-50 w-[400px] bg-[#161717] border border-[#fafafa10] rounded-xl shadow-lg p-5">
+      {/* --- Popup content below --- */}
+      <div className="text-white text-base font-[200] mb-1">Create Filtered Streams</div>
+      <div className="text-xs text-[#ffffff80] mb-3">Give your stream a descriptive name so you can find it later.</div>
+      <input
+        className="w-full bg-[#fafafa10] rounded-[8px] px-3 py-2 mb-3 text-sm text-white outline-none"
+        placeholder="Filter Name"
+      />
+      <div className="text-xs text-[#ffffff80] mb-1">Select Channels</div>
+      <div className="flex items-center rounded-[8px]  px-3 py-2 mb-2">
+        <Search className="w-4 h-4 text-[#ffffff80] mr-2" />
+        <input
+          className="flex-1 bg-transparent outline-none text-white text-sm"
+          placeholder="Channel Name"
+          value={channelSearch}
+    onChange={(e) => setChannelSearch(e.target.value)}
+        />
+         {channelSearch && (
+    <button
+      className="ml-2 text-[#ffffff80]"
+      onClick={() => setChannelSearch("")}
+      aria-label="Clear search"
+    >
+      ×
+    </button>
+  )}
       </div>
+      {channelSearch && (
+  <div className="max-h-32 overflow-y-auto mb-2">
+    {searchResults.length === 0 ? (
+      <div className="text-xs text-[#ffffff80] px-3 py-2">No results found.</div>
+    ) : (
+      searchResults.map((ch, idx) => (
+        <div
+          key={ch.name + idx}
+          className="flex items-center gap-2 hover:bg-[#ffffff10] rounded-[10px] px-3 py-2 mb-1 cursor-pointer"
+          onClick={() => {
+            if (!selectedChannels.some(sel => sel.name === ch.name)) {
+              setSelectedChannels([...selectedChannels, ch]);
+            }
+          }}
+        >
+          {/* Platform icons */}
+          <span className="flex gap-1">
+  {ch.platform === "Telegram" && (
+    <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#3474ff]">
+      <img src={telegram} className="w-4 h-4" alt="Telegram" />
+    </span>
+  )}
+  {ch.platform === "Discord" && (
+    <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#7B5CFA]">
+      <img src={discord} className="w-4 h-4" alt="Discord" />
+    </span>
+  )}
+</span>
+          <span className="text-white text-sm">{ch.name}</span>
+        </div>
+      ))
+    )}
+  </div>
+)}
+
+{selectedChannels.length > 0 && (
+  <div className="mb-2 max-h-32 overflow-y-auto">
+    {selectedChannels.map((ch, idx) => (
+      <div
+        key={ch.name + idx}
+        className="flex items-center gap-2 hover:bg-[#ffffff10] rounded px-3 py-2 mb-1"
+      >
+      <span className="flex gap-1">
+  {ch.platform === "Telegram" && (
+    <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#3474ff]">
+      <img src={telegram} className="w-4 h-4" alt="Telegram" />
+    </span>
+  )}
+  {ch.platform === "Discord" && (
+    <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#7B5CFA]">
+      <img src={discord} className="w-4 h-4" alt="Discord" />
+    </span>
+  )}
+</span>
+        <span className="text-white text-sm">{ch.name}</span>
+        <button
+          className="ml-auto text-[#ffffff80]"
+          onClick={() =>
+            setSelectedChannels(selectedChannels.filter((sel) => sel.name !== ch.name))
+          }
+        >
+          ×
+        </button>
+      </div>
+    ))}
+  </div>
+)}
+      {/* Filter row */}
+      <div className="grid grid-cols-2 gap-2 mb-4">
+  <select className="bg-[#fafafa10] rounded-[8px] px-3 py-2 text-sm text-white w-full">
+    <option value="contains">Contains</option>
+    <option value="not_contains">Does Not Contain</option>
+    <option value="equals">Equals</option>
+    <option value="not_equals">Does Not Equal</option>
+    <option value="starts_with">Starts With</option>
+    <option value="ends_with">Ends With</option>
+  </select>
+  <div className="flex bg-[#fafafa10] rounded-[8px] overflow-hidden w-full">
+    <input
+      className="flex-1 bg-[#fafafa10] px-3 py-2 text-white outline-none"
+      placeholder="Keyword"
+    />
+    <button className="flex-shrink-0 text-white px-3 py-2">+</button>
+  </div>
+</div>
+      {/* Actions */}
+      <div className="flex justify-between">
+        <button
+          className="text-[#ffffff80] px-4 py-2 rounded hover:bg-[#23262F]"
+    onClick={handleCancel}
+        >
+          Cancel
+        </button>
+        <button className="bg-[#2563eb] text-white px-8 py-2 rounded hover:bg-[#1d4ed8]"
+            onClick={handleSave}
+>
+          Save
+        </button>
+      </div>
+    </div>
+  </>
+)}
+</div>      </div>
       </div>
       {/* Top Row  */}
         <div className=" pl-3  relative flex items-center mt-6">
