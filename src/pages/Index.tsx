@@ -22,8 +22,13 @@ import { ChatHeader } from "@/components/ChatHeader";
 import { ChatWindow } from "@/components/ChatWindow";
 import { ChatInput } from "@/components/ChatInput";
 import AIimg from '@/assets/images/authAI.png';
+import { AppHeader } from "@/components/AppHeader";
+import ChatPanel from "@/components/ChatPanel";
+import UnifiedHeader from "@/components/UnifiedHeader";
+import UnifiedChatPanel from "@/components/UnifiedChatPanel";
+import SmartSummary from "@/components/SmartSummary";
 
-const Index = () => {
+const Index = ({title}) => {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [isOnboarded, setIsOnboarded] = useState(false);
@@ -35,6 +40,7 @@ const Index = () => {
   const [selectedId, setSelectedId] = useState(null);
   const [aiChats, setAiChats] = useState(fakeChatsAI);
   const [alphaChats, setAlphaChats] = useState(fakeChatsAlpha);
+  const [isSmartSummary, setIsSmartSummary] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -163,84 +169,20 @@ const Index = () => {
   }
 
   return (
-    <Layout title="Unified AI Inbox">
-      {/* Navigation Tabs */}
-      {/* <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-8 bg-white/10 backdrop-blur-sm">
-          <TabsTrigger value="inbox" className="flex items-center gap-2">
-            <MessageCircle className="w-4 h-4" />
-            <span className="max-md:hidden">Unified Inbox</span>
-          </TabsTrigger>
-          <TabsTrigger value="search" className="flex items-center gap-2">
-            <Search className="w-4 h-4" />
-            <span className="max-md:hidden">Search</span>
-          </TabsTrigger>
-          <TabsTrigger value="actions" className="flex items-center gap-2">
-            <CheckSquare className="w-4 h-4" />
-            <span className="max-md:hidden">Action Center</span>
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
-            <Settings className="w-4 h-4" />
-            <span className="max-md:hidden">Settings</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="inbox" className="mt-0">
-          <UnifiedInbox />
-        </TabsContent>
-
-        <TabsContent value="search" className="mt-0">
-          <SearchPanel />
-        </TabsContent>
-
-        <TabsContent value="actions" className="mt-0">
-          <ActionCenter />
-        </TabsContent>
-
-        <TabsContent value="settings" className="mt-0">
-          <DashboardSettings />
-        </TabsContent>
-      </Tabs> */}
-      <div>
-      <SearchBarWithFilter 
-       searchTerm={searchTerm}
-       setSearchTerm={setSearchTerm}
-       coin={coin}
-       setCoin={setCoin}
-       onFilterClick={handleFilterClick}
-       coinOptions={coinOptions}/>
-    <hr className="w-full h-0.5 bg-[#23272f]"/>
-
-      {/* <AISummaryPanel /> */}
-      <UnifiedTabs active={activeTab} onTabChange={setActiveTab} />
-      <div className="flex gap-6 mt-4">
-      <div className="w-full">
-      <div ref={scrollRef} className="h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-
-          <AppChatList
-            chats={
-              activeTab === "ai"
-                ? getSortedChats(aiChats)
-                : getSortedChats(alphaChats)
-            }
-            onSelect={handleSelect}
-            selectedId={selectedId}
-            onAISummary={(id) => handleAISummary(id, activeTab)}
-            onPin={(id) => handlePin(id, activeTab)}
-            onMute={(id) => handleMute(id, activeTab)}
-            onOpenPlatform={handleOpenPlatform}
-            onAction={(id) => handleAction(id, activeTab)}
-
-          />
-          </div>
-        </div>
-  {/* <div className="flex-1 flex flex-col bg-[#181B23] rounded-xl">
-          <ChatHeader chat={{}} />
-          <ChatWindow messages={[]} />
-          <ChatInput value="" onChange={() => {}} onSend={() => {}} />
-        </div> */}
-        </div>
+    <Layout>
+      <div className="flex-1 flex flex-col min-h-screen">
+      <AppHeader title={title}/>
+      <main className="h-[calc(100vh-72px)] flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-hidden">
+        <ChatPanel/>
       
+      <div className="w-full h-[calc(100vh-72px)] overflow-hidden">
+    
+      <UnifiedHeader title="Unified Inbox" smartText="Summarize" isReadAll={true} isSmartSummary={isSmartSummary} setIsSmartSummary={setIsSmartSummary}/>      
+      <UnifiedChatPanel/>
+    
+    </div>
+    {isSmartSummary && <SmartSummary/>}
+      </main>
     </div>
     </Layout>
   );

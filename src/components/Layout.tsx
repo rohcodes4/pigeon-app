@@ -9,13 +9,15 @@ import { toast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { AppHeader } from "./AppHeader";
 import { SidebarNav } from "./SidebarNav";
+import { useLocation } from "react-router-dom";
+
 type LayoutProps = {
-  children: React.ReactNode;
-  title?: string;
+  children: React.ReactNode;  
 };
 
-const Layout: React.FC<LayoutProps> = ({ title="Chat Pilot", children }) => {
+const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, loading, signOut } = useAuth();
+  const location = useLocation();
 
   const handleSignOut = async () => {
     await signOut();
@@ -28,15 +30,15 @@ const Layout: React.FC<LayoutProps> = ({ title="Chat Pilot", children }) => {
   return (
     <div className="flex min-h-screen bg-[#171717]">
     {/* Sidebar: full height, fixed width */}
-    <SidebarNav />
-
+    <SidebarNav activePage={location.pathname}/>
+{children}
     {/* Right side: header at top, content below */}
-    <div className="flex-1 flex flex-col min-h-screen">
+    {/* <div className="flex-1 flex flex-col min-h-screen">
       <AppHeader title={title}/>
       <main className="flex-1 p-6 overflow-y-auto">
         {children}
       </main>
-    </div>
+    </div> */}
   </div>
   );
 

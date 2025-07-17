@@ -40,3 +40,15 @@
 .read-the-docs {
   color: #888;
 }
+.active-nav::before {
+  content: "";
+  position: absolute;
+  left: -30px;
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
+  border-radius: 4px;
+  background: #5389ff;
+  display: block;
+}
+
