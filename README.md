@@ -24,9 +24,6 @@ This document explains the file and folder structure of the **ChatPilot** projec
 - **vercel.json**  
   Vercel deployment configuration.
 
-- **components.json**  
-  (If present) Custom component registry or configuration.
-
 - **bun.lockb**  
   Bun package manager lockfile (if using Bun).
 
@@ -131,5 +128,3 @@ This document explains the file and folder structure of the **ChatPilot** projec
 - **Use Tailwind CSS for styling.**
 - **Check this README and code comments for guidance.**
 - **Ask questions or propose changes via GitHub issues or PRs.**
-
----
