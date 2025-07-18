@@ -30,6 +30,7 @@ import TasksPanel from "@/components/TasksPanel";
 import SmartTask from "@/components/SmartTasks";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
+import SmartBookmark from "@/components/SmartBookmark";
 
 const Bookmarks = () => {
   const { user, loading, signOut } = useAuth();
@@ -104,7 +105,7 @@ const Bookmarks = () => {
       <UnifiedChatPanel/>
     </div>
     
-    {openPanel === "smartTask" && <SmartTask />}
+    {openPanel === "smartTask" && <SmartBookmark />}
     {openPanel === "notification" && <NotificationsPanel />}
     {openPanel === "pinned" && <PinnedPanel />}
     {openPanel === "search" && <SearchPanel />}

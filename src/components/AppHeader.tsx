@@ -21,7 +21,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   setIsPinnedOpen,
   isPinnedOpen,
   isSearchOpen,
-  setIsSearchOpen
+  setIsSearchOpen,
+  
 }) => {
   const { user, signOut } = useAuth();
   const [dropdown, setDropdown] = useState(false);

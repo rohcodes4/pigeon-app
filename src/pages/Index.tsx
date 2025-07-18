@@ -198,7 +198,8 @@ const handleClosePanel = () => setOpenPanel(null);
   smartText="Summarize"
   isReadAll={true}
   isSmartSummary={openPanel === "smartSummary"}
-  setIsSmartSummary={(open) => setOpenPanel(open ? "smartSummary" : null)}/>      
+  setIsSmartSummary={(open) => setOpenPanel(open ? "smartSummary" : null)}
+  isPinnable={true}/>      
       <UnifiedChatPanel/>
     
     </div>

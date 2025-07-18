@@ -30,6 +30,7 @@ import TasksPanel from "@/components/TasksPanel";
 import SmartTask from "@/components/SmartTasks";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
+import ContactsPanel from "@/components/ContactsPanel";
 
 const Contacts = () => {
   const { user, loading, signOut } = useAuth();
@@ -99,9 +100,9 @@ const Contacts = () => {
       <main className="flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
         <ChatPanel/>      
       <div className="w-full">
-      <UnifiedHeader title="Bookmarks" smartText="Smart Tasks" isReadAll={false} isSmartSummary={openPanel === "smartTask"}
+      <UnifiedHeader title="Contacts" smartText="Smart Tasks" isReadAll={false} isContact={true} isSmartSummary={openPanel === "smartTask"}
   setIsSmartSummary={(open) => setOpenPanel(open ? "smartTask" : null)}/>         
-      <UnifiedChatPanel/>
+      <ContactsPanel/>
     </div>
     
     {openPanel === "smartTask" && <SmartTask />}

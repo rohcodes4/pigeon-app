@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Filter, Settings, Plus, CheckCheck, PinOff } from "lucide-react";
+import { Search, Filter, Settings, Plus, CheckCheck, PinOff, SmilePlusIcon } from "lucide-react";
 import aiIMG from "@/assets/images/aiBlue.png";
 
 type UnifiedHeaderProps = {
@@ -8,14 +8,20 @@ type UnifiedHeaderProps = {
     isSmartSummary?: boolean;
     isReadAll?: boolean;
     setIsSmartSummary?: (value:boolean)=>void;
+  isPinnable?: boolean;
+  isContact?: boolean;
+
   };
 const UnifiedHeader:React.FC<UnifiedHeaderProps> = ({
     title,
     smartText,
     isReadAll,
     isSmartSummary,
-    setIsSmartSummary
+    setIsSmartSummary,
+    isPinnable,
+    isContact=false
 }) => {
+  console.log(isContact)
   return (
     <header className="flex items-center justify-between px-6 py-1 border-b border-[#23272f] rounded-tl-[12px]">
       {/* Left: Title and subtitle */}
@@ -24,29 +30,39 @@ const UnifiedHeader:React.FC<UnifiedHeaderProps> = ({
         {/* <span className="p-1.5 rounded-[6px] text-[11px] text-[#84afff] bg-[#3474ff12]">All Channels</span> */}
         <span className="p-1.5 rounded-[6px] text-[11px] text-[#bfd6ff] bg-[#3474ff]">Telegram</span>
         <span className="p-1.5 rounded-[6px] text-[11px] text-[#d7d5ff] bg-[#7b5cfa]">Discord</span>
-        <div className="p-2 flex items-center justify-center bg-[#fafafa10] rounded-[6px]">
+        
+        {isPinnable && <div className="p-2 flex items-center justify-center bg-[#fafafa10] rounded-[6px]">
   <PinOff
     className="text-[#fafafa60] fill-[#fafafa60] w-4 h-4"
     aria-label="Unpin"
   />
-</div>
+</div>}
       </div>
 
-      {/* Center: Search bar */}
-      <div className="flex-1 flex justify-center px-6">
-        <div className="relative w-full max-w-xs">
-        </div>
-      </div>
-
+    
       {/* Right: Actions and avatar */}
-      <div className="flex items-center gap-3">
-        {isReadAll && <button className="p-1.5 my-1 flex gap-2 text-[11px] items-center rounded-lg bg-[#ffffff06] border border-[#ffffff03] text-[#ffffff32] hover:text-[#ffffff64] hover:bg-[#ffffff32] transition">
-          <CheckCheck className="w-5 h-5" /> <span>Read All</span>
-        </button>}
-        <button   onClick={() => setIsSmartSummary(!isSmartSummary)} className="p-1.5 my-1 flex gap-2 text-[11px] items-center rounded-lg  text-[#84afff] bg-[#3474ff12] hover:text-[#ffffff] hover:bg-[#3474ff] transition">
-          <img src={aiIMG} className="w-5 h-5" /><span>{smartText}</span>
-        </button>
-      </div>
+      {isContact ? (
+  <div className="flex items-center gap-3">
+      <button className="p-1.5 my-1 flex gap-2 text-[11px] items-center rounded-lg bg-[#fafafa10] border border-[#ffffff03] text-[#ffffff] hover:text-[#ffffff] hover:bg-[#ffffff32] transition">
+        <SmilePlusIcon className="w-4 h-4" /> <span>Add a friend</span>
+      </button>
+  </div>
+) : (
+  <div className="flex items-center gap-3">
+    {isReadAll && (
+      <button className="p-1.5 my-1 flex gap-2 text-[11px] items-center rounded-lg bg-[#ffffff06] border border-[#ffffff03] text-[#ffffff32] hover:text-[#ffffff64] hover:bg-[#ffffff32] transition">
+        <CheckCheck className="w-5 h-5" /> <span>Read All</span>
+      </button>
+    )}
+    <button
+      onClick={() => setIsSmartSummary(!isSmartSummary)}
+      className="p-1.5 my-1 flex gap-2 text-[11px] items-center rounded-lg text-[#84afff] bg-[#3474ff12] hover:text-[#ffffff] hover:bg-[#3474ff] transition"
+    >
+      <img src={aiIMG} className="w-5 h-5" />
+      <span>{smartText}</span>
+    </button>
+  </div>
+)}
     </header>
   );
 };

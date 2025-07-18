@@ -100,7 +100,9 @@ const SmartTasks = () => {
         <ChatPanel/>      
       <div className="w-full">
       <UnifiedHeader title="Tasks Center" smartText="Smart Tasks" isReadAll={false} isSmartSummary={openPanel === "smartTask"}
-  setIsSmartSummary={(open) => setOpenPanel(open ? "smartTask" : null)}/>         
+  setIsSmartSummary={(open) => setOpenPanel(open ? "smartTask" : null)}
+  
+  />         
       {/* <UnifiedChatPanel/> */}
       <TasksPanel/>
     </div>

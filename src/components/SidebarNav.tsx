@@ -26,7 +26,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
     "/": "AI",
     "/smart-tasks": "Tasks",
     "/bookmarks": "Bookmarks",
-    "/contacts": "contacts",
+    "/contacts": "Contacts",
     "/help": "Help",
     // add more as needed
   };
