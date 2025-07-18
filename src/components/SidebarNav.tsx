@@ -77,7 +77,7 @@ useEffect(() => {
   }, [activePage]);
 
   return(
-  <aside className="h-screen w-16 flex flex-col items-center py-6">
+  <aside className="h-screen w-16 flex flex-col items-center py-[18px]">
           <img src={logo} alt="AI" className="w-9 h-9 mb-4" />
     <nav className="flex flex-col gap-4 flex-1">
         {/* AI */}

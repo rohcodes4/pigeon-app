@@ -1,614 +1,233 @@
-import React, { useState, useRef, useEffect } from "react";
-import { FaCog, FaChevronDown, FaStar, FaCheckCircle, FaClock, FaPlus, FaEllipsisH, FaChevronRight, FaChevronLeft, FaDiscord, FaTelegram, FaTelegramPlane } from "react-icons/fa";
-import alphaImage from "@/assets/images/alphaFeatured.png";
-import todoIcon from "@/assets/images/todoIcon.png";
-import aiBlue from "@/assets/images/aiBlue.png";
-import smartTodo from "@/assets/images/smartTodo.png";
-import CustomCheckbox from "./CustomCheckbox";
-import LinkPreview from "./LinkPreview";
-import { CalendarCogIcon, ChevronDown, ChevronUp } from "lucide-react";
+import React, { useState } from "react";
+import { Bell, Check, ChevronDown, ChevronRight, Heart, MoreHorizontal, Pin, PinOff, Plus, SmilePlus, VolumeX, X } from "lucide-react";
+import { FaTelegramPlane, FaDiscord } from "react-icons/fa";
+import discord from "@/assets/images/discord.png";
+import telegram from "@/assets/images/telegram.png";
+import smartIcon from "@/assets/images/sidebar/Chat.png";
 
-const TIME_OPTIONS = [
-  { label: "5 min", value: "5m" },
-  { label: "30 min", value: "30m" },
-  { label: "1 hr", value: "1h" },
-  { label: "6 hr", value: "6h" },
-  { label: "24 hr", value: "24h" },
-];
+const NotificationPanel = () => {
+  const [openChannel, setOpenChannel] = useState('pow');
+  const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
 
+  const [channels, setChannels] = useState({
+    pow: [
+      {
+        id: 1,
+        name: "James Steven",
+        date: "17/07/25, 18:49",
+        message: "For the first time in MENA, Play It is a gaming platform...",
+        platform: "telegram",
+        reactions: { replies: 38, likes: 21, thumbsUp: 16 },
+      },
+      {
+        id: 2,
+        name: "Alice Johnson",
+        date: "17/07/25, 19:00",
+        message: "Join us for an exciting event this weekend!",
+        platform: "telegram",
+        reactions: { replies: 12, likes: 30, thumbsUp: 5 },
+      },
+      {
+        id: 3,
+        name: "Bob Smith",
+        date: "17/07/25, 20:15",
+        message: "New updates are coming soon. Stay tuned!",
+        platform: "telegram",
+        reactions: { replies: 20, likes: 18, thumbsUp: 10 },
+      },
+    ],
+    xt: [
+      {
+        id: 1,
+        name: "Michael Saylor",
+        date: "23/07/25, 18:49",
+        message: "$GOR entered Proof-of-Cope meta. 0 devs. 100% community raid...",
+        platform: "discord",
+        reactions: { replies: 38, likes: 21, thumbsUp: 16 },
+      },
+      {
+        id: 2,
+        name: "Sarah Connor",
+        date: "23/07/25, 19:30",
+        message: "Check out the latest market trends!",
+        platform: "discord",
+        reactions: { replies: 15, likes: 25, thumbsUp: 8 },
+      },
+      {
+        id: 3,
+        name: "John Doe",
+        date: "23/07/25, 20:45",
+        message: "We're hosting a live Q&A session tomorrow.",
+        platform: "discord",
+        reactions: { replies: 22, likes: 19, thumbsUp: 12 },
+      },
+    ],
+    // Add more channels here
+    alpha: [
+      {
+        id: 1,
+        name: "Alpha Bot",
+        date: "24/07/25, 10:00",
+        message: "Welcome to the Alpha channel!",
+        platform: "telegram",
+        reactions: { replies: 10, likes: 15, thumbsUp: 7 },
+      },
+      // More messages...
+    ],
+    beta: [
+      {
+        id: 1,
+        name: "Beta Tester",
+        date: "24/07/25, 11:30",
+        message: "Beta testing is now open for all users.",
+        platform: "discord",
+        reactions: { replies: 18, likes: 22, thumbsUp: 9 },
+      },
+      // More messages...
+    ],
+    gamma: [
+      {
+        id: 1,
+        name: "Gamma Group",
+        date: "24/07/25, 12:45",
+        message: "Join our group for exclusive content.",
+        platform: "telegram",
+        reactions: { replies: 25, likes: 30, thumbsUp: 14 },
+      },
+      // More messages...
+    ],
+    delta: [
+      {
+        id: 1,
+        name: "Delta Team",
+        date: "24/07/25, 14:00",
+        message: "Team meeting scheduled for tomorrow.",
+        platform: "discord",
+        reactions: { replies: 20, likes: 18, thumbsUp: 10 },
+      },
+      // More messages...
+    ],
+  });
 
-// const todos = [
-//     {
-//       id: 1,
-//       label: "To-do",
-//       desc: "$GOR entered Proof-of-Cope meta...",
-//       tag: "#PORTALCOIN | $PORTAL",
-//       bot: "#BOT",
-//       icon: smartTodo,
-//       platform: 'telegram'
-//     },
-//     {
-//       id: 2,
-//       label: "Reminder",
-//       desc: "Updates: Monad mainnet live",
-//       tag: "ALPHA GUILD | #GENERAL",
-//       bot: "",
-//       icon: smartTodo,
-//       platform: 'discord'
-//     },
-//     // ...more items
-//   ];
-
-const filteredTodos = [
-  {
-    id: 1,
-    label: "To-do",
-    desc: "$GOR entered Proof-of-Cope meta...",
-    tag: "#PORTALCOIN | $PORTAL",
-    bot: "#BOT",
-    icon: smartTodo,
-    platform: 'telegram',
-    type: 'todo'
-  },
-  {
-    id: 2,
-    label: "Reminder",
-    desc: "Updates: Monad mainnet live",
-    tag: "ALPHA GUILD | #GENERAL",
-    bot: "",
-    icon: smartTodo,
-    platform: 'discord',
-    type: 'reminder'
-
-  },
-  // ...more filtered items
-];
-
-const favoriteTodos = [
-  {
-    id: 101,
-    label: "To-do",
-    desc: "Check $ETH staking rewards",
-    tag: "#ETH | #STAKING",
-    bot: "#FAVBOT",
-    icon: smartTodo,
-    platform: 'telegram',
-    type: 'todo'
-
-  },
-  // ...more favorite items
-];
-
-const backlogTodos = [
-  {
-    id: 201,
-    label: "Reminder",
-    desc: "Review last week's analytics Review last week's analytics Review last week's analytics Review last week's analytics",
-    tag: "#ANALYTICS | #REVIEW",
-    bot: "",
-    icon: smartTodo,
-    platform: 'discord',
-    type: 'reminder'
-  },
-  {
-    id: 202,
-    label: "Reminder",
-    desc: "Review last week's analytics",
-    tag: "#ANALYTICS | #REVIEW",
-    bot: "",
-    icon: smartTodo,
-    platform: 'discord',
-    type: 'reminder'
-  },
-  // ...more backlog items
-];
-
-
-  const smartActivities = [
-    {
-      platform: "telegram",
-      url: "https://t.me/examplechannel",
-      content: "$GOR entered Proof-of-Cope meta. 0 devs. 100% community raid. ATH in 40 mins.",
-      name: "WOLVERINE",
-      channel: "POW'S GEM CALLS",
-      img: `https://api.dicebear.com/7.x/bottts/svg?seed=alpha1`,
-    },
-    {
-      platform: "discord",
-      url: "https://discord.com/channels/example",
-      content: "Big news: Project X just launched! 🚀 Join the discussion in #general.",
-      name: "CRYPTOCAT",
-      channel: "ALPHA SIGNALS",
-      img: `https://api.dicebear.com/7.x/bottts/svg?seed=alpha2`,
-    },
-    {
-      platform: "telegram",
-      url: "https://slack.com/examplechannel",
-      content: "Reminder: AMA with the devs at 5pm UTC today in #announcements.",
-      name: "BOTMASTER",
-      channel: "DEV UPDATES",
-      img: `https://api.dicebear.com/7.x/bottts/svg?seed=alpha3`,
-    },
-  ];
-
-const NotificationsPanel = () => {
-  const [selectedTime, setSelectedTime] = useState(TIME_OPTIONS[4]);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const tabScrollRef = useRef<HTMLDivElement>(null);
-  const [showLeftArrow, setShowLeftArrow] = useState(false);
-  const [showRightArrow, setShowRightArrow] = useState(false);
-const [checkedItems, setCheckedItems] = useState<{ [id: number]: boolean }>({});
-const [source, setSource] = useState<'all' | 'tg' | 'discord'>('all');
-const [showSourceDropdown, setShowSourceDropdown] = useState(false);
-const [selectedTab, setSelectedTab] = useState<'all' | 'todo' | 'reminder' | 'mentions'>('all');
-const [openTab, setOpenTab] = useState<number | null>(0);
-const [selectedTasks, setSelectedTasks] = useState([]);
-const dropdownRef2 = useRef<HTMLDivElement>(null);
-
-useEffect(() => {
-  function handleClickOutside(event: MouseEvent) {
-    if (dropdownRef2.current && !dropdownRef2.current.contains(event.target as Node)) {
-      setShowSourceDropdown(false);
-    }
-  }
-  if (showSourceDropdown) {
-    document.addEventListener("mousedown", handleClickOutside);
-  }
-  return () => {
-    document.removeEventListener("mousedown", handleClickOutside);
+  const toggleChannel = (channel) => {
+    setOpenChannel(openChannel === channel ? null : channel);
   };
-}, [showSourceDropdown]);
 
-const handleCheckboxChange = (task) => {
-    setCheckedItems((prev) => ({
-      ...prev,
-      [task.id]: !prev[task.id],
+  const removeMessage = (channelKey, messageId) => {
+    setChannels((prevChannels) => ({
+      ...prevChannels,
+      [channelKey]: prevChannels[channelKey].filter((message) => message.id !== messageId),
     }));
-  
-    setSelectedTasks((prev) => {
-      if (checkedItems[task.id]) {
-        // If currently checked, remove from selectedTasks
-        return prev.filter((t) => t.id !== task.id);
-      } else {
-        // If currently unchecked, add to selectedTasks
-        return [...prev, task];
-      }
-    });
   };
 
-//   const handleSelectAll = () => {
-//     const allChecked: { [id: number]: boolean } = {};
-//     todos.forEach(todo => {
-//       allChecked[todo.id] = true;
-//     });
-//     setCheckedItems(allChecked);
-//   };
-  useEffect(() => {
-    const checkScroll = () => {
-      const el = tabScrollRef.current;
-      if (!el) return;
-      setShowLeftArrow(el.scrollLeft > 0);
-      setShowRightArrow(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
-    };
-    checkScroll();
-    const el = tabScrollRef.current;
-    if (el) {
-      el.addEventListener("scroll", checkScroll);
-      window.addEventListener("resize", checkScroll);
-    }
-    return () => {
-      if (el) el.removeEventListener("scroll", checkScroll);
-      window.removeEventListener("resize", checkScroll);
-    };
-  }, []);
-  
-  const scrollTabs = (dir: "left" | "right") => {
-    const el = tabScrollRef.current;
-    if (!el) return;
-    const scrollAmount = 120;
-    el.scrollBy({ left: dir === "left" ? -scrollAmount : scrollAmount, behavior: "smooth" });
-  };
-  
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false);
-      }
-    }
-    if (dropdownOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [dropdownOpen]);
-
-  const handleSelectAll = (todosArray) => {
-    const newChecked = { ...checkedItems };
-    todosArray.forEach(todo => {
-      newChecked[todo.id] = true;
-    });
-    setCheckedItems(newChecked);
-    setSelectedTasks(todosArray)
-  };
-
-  const handleAddAllSelected = (todosArray) => {
-     
-    // Do something with selectedTodos, e.g.:
-    console.log("Adding these todos:", selectedTasks);
-    // You can add your logic here (e.g., move to another list, send to API, etc.)
-  };
-  return (
-    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between py-2 px-2">
-        <span className="font-[200] text-[#ffffff72]">Notifications</span>
-        <div className="flex items-center gap-2">
-          {/* Dropdown */}
-          <div className="relative inline-block">
-  <button
-    className="bg-[#23262F] text-[#fafafa] text-[12px] py-1.5 px-2 rounded-[6px] flex items-center gap-2"
-    onClick={() => setShowSourceDropdown((prev) => !prev)}
-    type="button"
-  >
-    {/* {source === 'all' ? 'All' : source === 'tg' ? 'Telegram' : 'Discord'} */}
-    Source
-    <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-    </svg>
-  </button>
-  {showSourceDropdown && (
-    <div className="absolute left-0 mt-2 w-32 bg-[#23262F] rounded shadow-lg z-10">
-      <button
-        className={`block w-full text-left px-4 py-2 hover:bg-[#353945] ${source === 'all' ? 'font-bold' : ''}`}
-        onClick={() => { setSource('all'); setShowSourceDropdown(false); }}
-      >
-        All
-      </button>
-      <button
-        className={`block w-full text-left px-4 py-2 hover:bg-[#353945] ${source === 'tg' ? 'font-bold' : ''}`}
-        onClick={() => { setSource('tg'); setShowSourceDropdown(false); }}
-      >
-        Telegram
-      </button>
-      <button
-        className={`block w-full text-left px-4 py-2 hover:bg-[#353945] ${source === 'discord' ? 'font-bold' : ''}`}
-        onClick={() => { setSource('discord'); setShowSourceDropdown(false); }}
-      >
-        Discord
-      </button>
-    </div>
-  )}
-</div>
-          <div className="relative" ref={dropdownRef}>
-          <button
-  className="bg-[#23262F] text-[#fafafa] text-[12px] py-1.5 px-2 rounded-[6px] flex items-center gap-2"
-  onClick={() => setDropdownOpen((open) => !open)}
->
-  <span className="flex items-center gap-2 truncate w-full">
-    <CalendarCogIcon className="w-4 h-4"/>
-    <span className="truncate">{selectedTime.label}</span>
-  </span>
-  <FaChevronDown className="ml-2 text-xs" />
-</button>
-            {dropdownOpen && (
-              <div className="absolute right-0 mt-1 w-24 bg-[#23242a] border border-[#333] rounded-lg shadow-lg z-10">
-                {TIME_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    className={`block w-full text-left px-3 py-1 text-xs hover:bg-[#333] ${
-                      selectedTime.value === option.value ? "text-blue-400" : "text-white"
-                    }`}
-                    onClick={() => {
-                      setSelectedTime(option);
-                      setDropdownOpen(false);
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <button className="p-2 hover:bg-[#23242a] rounded-lg">
-            <FaCog />
-          </button>
+  const renderChats = (chats, channelKey) => {
+    if(chats.length<=0) return;
+    return chats?.map((chat) => (
+      <div key={chat.id} className="relative flex items-start gap-2 mb-2 bg-[#212121] p-2 rounded-[10px] border border-[#ffffff09]">
+        <div className="absolute top-2 right-2 cursor-pointer" onClick={() => removeMessage(channelKey, chat.id)}>
+          <X className="w-4 h-4 text-[#fafafa60] hover:text-[#fafafa]" />
         </div>
-      </div>
-     
-      {/* Tabs */}
-      <div className="flex justify-end items-center gap-2 text-xs mb-2 border-t border-b p-2">
-        <div className="flex flex-nowrap overflow-x-auto relative"
-        >
-       {showLeftArrow && <button
-  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-1 shadow "
-  style={{
-    background: "linear-gradient(to left, transparent, rgba(0,0,0,1) 70%)"
-  }}
-  onClick={() => scrollTabs("left")}
-  aria-label="Scroll left"
->
-  <FaChevronLeft size={14} />
-</button>}
-<div
-  ref={tabScrollRef}
-  className="flex justify-end w-full flex-nowrap overflow-x-auto scrollbar-hide gap-2 text-xs px-0"
-  style={{ WebkitOverflowScrolling: "touch" }}
->
-  <button
-    className={`flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 rounded-lg ${
-      selectedTab === 'all'
-        ? 'text-white bg-[#fafafa10]'
-        : 'text-[#fafafa60] hover:text-white hover:bg-[#fafafa10]'
-    }`}
-    onClick={() => setSelectedTab('all')}
-  >
-    All
-  </button>
-  <button
-    className={`flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 rounded-lg ${
-      selectedTab === 'todo'
-        ? 'text-white bg-[#fafafa10]'
-        : 'text-[#fafafa60] hover:text-white hover:bg-[#fafafa10]'
-    }`}
-    onClick={() => setSelectedTab('todo')}
-  >
-    To-do's
-  </button>
-  <button
-    className={`flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 rounded-lg ${
-      selectedTab === 'reminder'
-        ? 'text-white bg-[#fafafa10]'
-        : 'text-[#fafafa60] hover:text-white hover:bg-[#fafafa10]'
-    }`}
-    onClick={() => setSelectedTab('reminder')}
-  >
-    Reminder's
-  </button>
-  <button
-    className={`flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 rounded-lg ${
-      selectedTab === 'mentions'
-        ? 'text-white bg-[#fafafa10]'
-        : 'text-[#fafafa60] hover:text-white hover:bg-[#fafafa10]'
-    }`}
-    onClick={() => setSelectedTab('mentions')}
-  >
-    @
-  </button>
-</div>
-   {showRightArrow && <button
-  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-1 shadow"
-  style={{
-    background: "linear-gradient(to right, transparent, rgba(0,0,0,1) 70%)"
-  }}
-  onClick={() => scrollTabs("right")}
-  aria-label="Scroll right"
->
-  <FaChevronRight size={14} />
-</button>}
-        
+        <div className="flex-shrink-0 w-8 flex items-center justify-center">
+          <img
+            src={`https://www.gravatar.com/avatar/${Math.random() * 100}?d=identicon&s=80`}
+            className="w-7 h-7 rounded-full object-cover"
+          />
         </div>
-      </div>
-
-
-      {/* To-dos / Requests */}
-      <div className="mb-2 px-2">
-      <div className="flex justify-between items-center gap-2 mb-2 cursor-pointer"
-          onClick={() => setOpenTab(openTab === 0 ? null : 0)}
->
-        
-<span className="text-xs font-[200] text-[#fafafa] leading-none">Filtered Streams</span>
-    {openTab === 0
-      ? <ChevronUp className="text-[#fafafa]" />
-      : <ChevronDown className="text-[#fafafa]" />}
-        </div>
-        {openTab === 0 && (
-
-<div className=" px-2 py-2 rounded-[16px]" >
-
-{filteredTodos.filter((todo) => {
-      if (selectedTab === 'all' || selectedTab === 'mentions') {
-        return true;
-      }
-      return todo.type.toLowerCase() === selectedTab;
-    }).map((todo) => (
-<div className="flex  items-start gap-0 mb-2 bg-[#222327] p-2 rounded-[6px] border border-[#ffffff09]" key={todo.id}>
-<div className="flex-shrink-0 w-8 flex items-center justify-center">
-<CustomCheckbox
-checked={!!checkedItems[todo.id]}
-onChange={() => handleCheckboxChange(todo)}
-className="mt-2"
-/>
-</div>
-<div className=" grow bg-[#222327] rounded-[8px] px-2">
-  <div className="flex items-center gap-2">
-    <span className="bg-[#fafafa10] border-[#ffffff03] border-2 shadow-xl text-blue-300 text-xs px-1 py-0.5 rounded-[6px] font-medium flex items-center gap-1">
-      <img src={todo.icon} className="h-4 w-4" />
-      {todo.label}
-      {/* {todo.label=="Reminder" && <span className="bg-[#23242a] text-xs text-gray-400 px-2 py-0.5 rounded flex items-center gap-1"></span>} */}
-    </span>
-    {/* <button className="ml-auto p-1 bg-[#2d2d2d] border-2 border-[#ffffff03] rounded-[6px] hover:text-white text-[#ffffff72] ">
-      <FaPlus />
-    </button>
-    <button className="p-1 bg-[#2d2d2d] border-2 border-[#ffffff03] rounded-[6px] hover:text-white text-[#ffffff72]">
-      <FaEllipsisH />
-    </button> */}
-  </div>
-  <div className="text-sm text-[#fafafa] break-words w-full">{todo.desc}</div>
-  <span className={`text-xs ${todo.platform=="telegram"?'text-[#3474ff]':'text-[#7b5cfa]'} flex gap-1 items-center mt-1`}>
-    {todo.platform=="telegram"?<FaTelegramPlane />:<FaDiscord/>}
-    {todo.tag.split('|')[0]}
-    {todo.bot && <span className="text-xs text-[#ffffff48]">{todo.bot}</span>}
-    <span className="text-[#FAFAFA60]">03/02/25, 18:49</span>
-  </span>
-</div>
-<div className="flex flex-col gap-0">
-    <span className="bg-[#F03D3D12] grow rounded-[6px] px-2 py-1 text-[#F68989]">High</span>
-    <span className="bg-[#fafafa10] rounded-[6px] text-center grow flex items-center justify-center gap-1 text-[12px]"><CalendarCogIcon className="w-3 h-3"/> 3d</span>
-</div>
-</div>
-))}
-      <div className="flex items-center justify-between mt-2">
-          {/* <button   
-            onClick={handleSelectAll}
-            className="w-[50%] text-xs text-gray-400 hover:text-white">Select All</button>
-          <button className="w-[50%] bg-[#3474ff12] text-[#84afff] hover:text-[#ffffff] hover:bg-[#3474ff72] text-xs px-4 py-2 rounded-[8px]">Add Selected</button> */}
-        </div>
-    </div>
-        )}       
-      </div>
-
-      <div className="mb-2 px-2">
-      <div className="flex justify-between items-center gap-2 mb-2 cursor-pointer"
-          onClick={() => setOpenTab(openTab === 1 ? null : 1)}
->
-<span className="text-xs font-[200] text-[#fafafa] leading-none">Favourites</span>
-
-{openTab === 1
-      ? <ChevronUp className="text-[#fafafa]" />
-      : <ChevronDown className="text-[#fafafa]" />}
-        </div>
-        {openTab === 1 && (
-
-<div className=" px-2 py-2 rounded-[16px]" >
-
-{favoriteTodos.filter((todo) => {
-      if (selectedTab === 'all' || selectedTab === 'mentions') {
-        return true;
-      }
-      return todo.type.toLowerCase() === selectedTab;
-    }).map((todo) => (
-<div className="flex  items-start gap-0 mb-2 bg-[#222327] p-2 rounded-[6px] border border-[#ffffff09]" key={todo.id}>
-<div className="flex-shrink-0 w-8 flex items-center justify-center">
-<CustomCheckbox
-checked={!!checkedItems[todo.id]}
-onChange={() => handleCheckboxChange(todo)}
-className="mt-2"
-/>
-</div>
-<div className=" grow bg-[#222327] rounded-[8px] px-2">
-  <div className="flex items-center gap-2">
-    <span className="bg-[#fafafa10] border-[#ffffff03] border-2 shadow-xl text-blue-300 text-xs px-1 py-0.5 rounded-[6px] font-medium flex items-center gap-1">
-      <img src={todo.icon} className="h-4 w-4" />
-      {todo.label}
-      {/* {todo.label=="Reminder" && <span className="bg-[#23242a] text-xs text-gray-400 px-2 py-0.5 rounded flex items-center gap-1"></span>} */}
-    </span>
-    {/* <button className="ml-auto p-1 bg-[#2d2d2d] border-2 border-[#ffffff03] rounded-[6px] hover:text-white text-[#ffffff72] ">
-      <FaPlus />
-    </button>
-    <button className="p-1 bg-[#2d2d2d] border-2 border-[#ffffff03] rounded-[6px] hover:text-white text-[#ffffff72]">
-      <FaEllipsisH />
-    </button> */}
-  </div>
-  <div className="text-sm text-[#fafafa] break-words w-full">{todo.desc}</div>
-  <span className={`text-xs ${todo.platform=="telegram"?'text-[#3474ff]':'text-[#7b5cfa]'} flex gap-1 items-center mt-1`}>
-    {todo.platform=="telegram"?<FaTelegramPlane />:<FaDiscord/>}
-    {todo.tag.split('|')[0]}
-    {todo.bot && <span className="text-xs text-[#ffffff48]">{todo.bot}</span>}
-    <span className="text-[#FAFAFA60]">03/02/25, 18:49</span>
-  </span>
-</div>
-<div className="flex flex-col gap-0">
-    <span className="bg-[#F03D3D12] grow rounded-[6px] px-2 py-1 text-[#F68989]">High</span>
-    <span className="bg-[#fafafa10] rounded-[6px] text-center grow flex items-center justify-center gap-1 text-[12px]"><CalendarCogIcon className="w-3 h-3"/> 3d</span>
-</div>
-</div>
-))}
-      <div className="flex items-center justify-between mt-2">
-          {/* <button   
-            onClick={handleSelectAll}
-            className="w-[50%] text-xs text-gray-400 hover:text-white">Select All</button>
-          <button className="w-[50%] bg-[#3474ff12] text-[#84afff] hover:text-[#ffffff] hover:bg-[#3474ff72] text-xs px-4 py-2 rounded-[8px]">Add Selected</button> */}
-        </div>
-    </div>
-        )}       
-      </div>
-      <div className="mb-2 px-2">
-      <div className="flex justify-between items-center gap-2 mb-2 cursor-pointer"
-          onClick={() => setOpenTab(openTab === 2 ? null : 2)}
->
-        
-<span className="text-xs font-[200] text-[#fafafa] leading-none">Backlog</span>
-    {openTab === 2
-      ? <ChevronUp className="text-[#fafafa]" />
-      : <ChevronDown className="text-[#fafafa]" />}
-        </div>
-        {openTab === 2 && (
-
-        <div className=" px-2 py-2 rounded-[16px]" >
-
-        {backlogTodos.filter((todo) => {
-      if (selectedTab === 'all' || selectedTab === 'mentions') {
-        return true;
-      }
-      return todo.type.toLowerCase() === selectedTab;
-    }).map((todo) => (
-      <div className="flex  items-start gap-0 mb-2 bg-[#222327] p-2 rounded-[6px] border border-[#ffffff09]" key={todo.id}>
-       <div className="flex-shrink-0 w-8 flex items-center justify-center">
-    <CustomCheckbox
-      checked={!!checkedItems[todo.id]}
-      onChange={() => handleCheckboxChange(todo)}
-      className="mt-2"
-    />
-  </div>
-        <div className=" grow bg-[#222327] rounded-[8px] px-2">
+        <div className="grow rounded-[8px] px-2">
           <div className="flex items-center gap-2">
-            <span className="bg-[#fafafa10] border-[#ffffff03] border-2 shadow-xl text-blue-300 text-xs px-1 py-0.5 rounded-[6px] font-medium flex items-center gap-1">
-              <img src={todo.icon} className="h-4 w-4" />
-              {todo.label}
-              {/* {todo.label=="Reminder" && <span className="bg-[#23242a] text-xs text-gray-400 px-2 py-0.5 rounded flex items-center gap-1"></span>} */}
-            </span>
-            {/* <button className="ml-auto p-1 bg-[#2d2d2d] border-2 border-[#ffffff03] rounded-[6px] hover:text-white text-[#ffffff72] ">
-              <FaPlus />
-            </button>
-            <button className="p-1 bg-[#2d2d2d] border-2 border-[#ffffff03] rounded-[6px] hover:text-white text-[#ffffff72]">
-              <FaEllipsisH />
-            </button> */}
+            <span className="text-sm text-[#fafafa] font-medium">{chat.name}</span>
+            <span className="text-xs text-[#FAFAFA60]">{chat.date}</span>
           </div>
-          <div className="text-sm text-[#fafafa] break-words w-full">{todo.desc}</div>
-          <span className={`text-xs ${todo.platform=="telegram"?'text-[#3474ff]':'text-[#7b5cfa]'} flex gap-1 items-center mt-1`}>
-            {todo.platform=="telegram"?<FaTelegramPlane />:<FaDiscord/>}
-            {todo.tag.split('|')[0]}
-            {todo.bot && <span className="text-xs text-[#ffffff48]">{todo.bot}</span>}
-            <span className="text-[#FAFAFA60]">03/02/25, 18:49</span>
-          </span>
-        </div>
-        <div className="flex flex-col gap-0">
-            <span className="bg-[#F03D3D12] grow rounded-[6px] px-2 py-1 text-[#F68989]">High</span>
-            <span className="bg-[#fafafa10] rounded-[6px] text-center grow flex items-center justify-center gap-1 text-[12px]"><CalendarCogIcon className="w-3 h-3"/> 3d</span>
+          <div className="text-sm text-[#fafafa] break-words w-full">{chat.message}</div>
+          <div className="flex space-x-2 mt-2">
+            <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">🤍 {chat.reactions.replies}</span>
+            <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">🔥 {chat.reactions.likes}</span>
+            <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">😂 {chat.reactions.thumbsUp}</span>
+            <span className="text-xs rounded-full bg-[#ffffff16] px-1 py-1 flex items-center"><SmilePlus className="w-3 h-3" /></span>
+          </div>
         </div>
       </div>
-    ))}
-      <div className="flex items-center justify-between mt-2">
-          {/* <button   
-            onClick={handleSelectAll}
-            className="w-[50%] text-xs text-gray-400 hover:text-white">Select All</button>
-          <button className="w-[50%] bg-[#3474ff12] text-[#84afff] hover:text-[#ffffff] hover:bg-[#3474ff72] text-xs px-4 py-2 rounded-[8px]">Add Selected</button> */}
-        </div>
-    </div>
-        )}
-       
+    ));
+  };
+
+  return (
+    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]">
+      <div className="text-[#84AFFF] flex items-center gap-2 p-4">
+        <Bell className="w-4 h-4 fill-[#84AFFF]" />
+        <span className="">Notifications</span>
       </div>
-      <div className="flex w-full px-2">
-      <button
-  onClick={() => {handleSelectAll([...filteredTodos,...favoriteTodos,...backlogTodos])}}
-  className="w-[50%] text-xs text-gray-400 hover:text-white"
->
-  Select All
-</button>
-<button
-  onClick={() => handleAddAllSelected(filteredTodos)}
-  className="w-[50%] bg-[#3474ff12] text-[#84afff] hover:text-[#ffffff] hover:bg-[#3474ff72] text-xs px-4 py-2 rounded-[8px]"
->
-  Add all Selected
-</button>
+      {Object.keys(channels).map((channelKey) => (
+        <div key={channelKey} className="mb-2 px-4">
+          <div
+            className="flex justify-between items-center gap-2 mb-2 cursor-pointer"
+            
+          >
+            <div className="flex items-center gap-2" onClick={() => toggleChannel(channelKey)}>
+              {openChannel === channelKey ? <ChevronDown className="text-[#fafafa]" /> : <ChevronRight className="text-[#fafafa]" />}
+              <div className="relative mr-2">
+                <img
+                  src={`https://www.gravatar.com/avatar/${Math.random() * 100}?d=identicon&s=80`}
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+                <img
+                  src={channels[channelKey][0]?.platform === "discord" ? discord : telegram}
+                  className={`
+                    absolute -bottom-2 -right-1
+                    ${channels[channelKey][0]?.platform === "discord" ? "bg-[#7b5cfa]" : "bg-[#3474ff]"}
+                    rounded-[4px] w-5 h-5 p-0.5 border-2 border-[#111111]
+                  `}
+                  alt={channels[channelKey][0]?.platform}
+                />
+              </div>
+              <span className="text-sm text-[#fafafa] leading-none">{channelKey.replace(/^\w/, (c) => c.toUpperCase())}</span>
+            </div>
+            <div className="flex gap-2">
+              <div className="bg-[#fafafa10] p-2 rounded-[6px]">
+                <Check className="w-3 h-3 fill-[#fafafa60]" />
+              </div>
+              <div className="bg-[#fafafa10] p-2 rounded-[6px]">
+                <PinOff className="w-3 h-3 fill-[#fafafa60]" />
+              </div>
+              <div className="bg-[#fafafa10] p-2 rounded-[6px] relative"  onClick={()=>{setOpenMenuId(openMenuId === channelKey ? null : channelKey);}}>
+                <MoreHorizontal className="w-3 h-3 fill-[#fafafa60] z-50" 
+                        
+                       />
+                {openMenuId === channelKey && (
+                        <div className="absolute right-0 top-[30px] mt-2 bg-[#111111] border border-[#ffffff12] rounded-[10px] shadow-lg z-50 flex flex-col p-2 min-w-max">
+                        <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                            <img src={smartIcon} className="w-6 h-6"/>
+                          Add to Smart Channels
+                        </button>
+                        <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                            <Heart className="w-6 h-6" stroke="currentColor" fill="currentColor"/>
+                          Save to Favorites
+                        </button>
+                        <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                        <Pin className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
+                          Pin Message
+                        </button>
+                        <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                        <Plus className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
+                          Add Tags
+                        </button>
+                        <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#f36363] hover:text-[#f36363] whitespace-nowrap">
+                        <VolumeX className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
+                          Mute Channel
+                        </button>
+                      </div>
+                      )}
+              </div>
+            </div>
           </div>
-      
+          {openChannel === channelKey && (
+            <div className="px-0 py-2 rounded-[16px]">
+              {renderChats(channels[channelKey], channelKey)}
+            </div>
+          )}
+        </div>
+      ))}
     </aside>
   );
 };
 
-export default NotificationsPanel;
+export default NotificationPanel;
