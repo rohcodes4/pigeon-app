@@ -174,8 +174,8 @@ export const ChatPanel: React.FC = () => {
   const [selectedChannels, setSelectedChannels] = useState([]);
   const [isFilteredStreamsOpen, setIsFilteredStreamsOpen] = useState(true);
 const [isChannelsOpen, setIsChannelsOpen] = useState(true);
-const [searchMore, setSearchMore] = useState(true);
-const [filterFull, setFilterFull] = useState(true);
+const [searchMore, setSearchMore] = useState(false);
+const [filterFull, setFilterFull] = useState(false);
     const hideScrollbar = "scrollbar-hide";
     
     const handleCancel = () => {

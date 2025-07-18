@@ -30,10 +30,10 @@ import SmartSummary from "@/components/SmartSummary";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
 
-const Index = ({title}) => {
+const Index = () => {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
-  const [isOnboarded, setIsOnboarded] = useState(false);
+  const [isOnboarded, setIsOnboarded] = useState(true);
   const [activeTab, setActiveTab] = useState("ai");
   const [isConnected, setIsConnected] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -44,7 +44,7 @@ const Index = ({title}) => {
   const [alphaChats, setAlphaChats] = useState(fakeChatsAlpha);
   const [isSmartSummary, setIsSmartSummary] = useState(false);
   const [isNotificationPanel, setIsNotificationPanel] = useState(false);
-  const [openPanel, setOpenPanel] = useState<null | "smartSummary" | "notification" | "pinned">(null);
+  const [openPanel, setOpenPanel] = useState<null | "smartSummary" | "notification" | "pinned" | "search">(null);
 
   const handleOpenSmartSummary = () => setOpenPanel("smartSummary");
 const handleOpenNotificationPanel = () => setOpenPanel("notification");
@@ -180,11 +180,15 @@ const handleClosePanel = () => setOpenPanel(null);
   return (
     <Layout>
       <div className="flex-1 flex flex-col min-h-screen">
-      <AppHeader title={title}  isNotificationPanel={openPanel === "notification"}
+      <AppHeader isNotificationPanel={openPanel === "notification"}
   setIsNotificationPanel={(open) => setOpenPanel(open ? "notification" : null)}
   // onOpenPinnedPanel={() => setOpenPanel("pinned")}
   isPinnedOpen={openPanel === "pinned"}
-  setIsPinnedOpen={(open) => {setOpenPanel(open ? "pinned" : null)}}/>      
+  setIsPinnedOpen={(open) => {setOpenPanel(open ? "pinned" : null)}}
+  isSearchOpen={openPanel === "search"}
+  setIsSearchOpen={(open) => {setOpenPanel(open ? "search" : null)}}
+
+  />      
       <main className="h-[calc(100vh-72px)] flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-hidden">
         <ChatPanel/>
       
@@ -201,6 +205,7 @@ const handleClosePanel = () => setOpenPanel(null);
     {openPanel === "smartSummary" && <SmartSummary />}
     {openPanel === "notification" && <NotificationsPanel />}
     {openPanel === "pinned" && <PinnedPanel />}
+    {openPanel === "search" && <SearchPanel />}
       </main>
     </div>
     </Layout>

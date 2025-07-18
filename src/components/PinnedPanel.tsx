@@ -232,7 +232,7 @@ const handleCheckboxChange = (task) => {
     // You can add your logic here (e.g., move to another list, send to API, etc.)
   };
   return (
-    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden w-[40vw] min-w-[340px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]"
+    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]"
     >
       {/* Header */}
       <div className="flex items-center justify-between py-2 px-2">

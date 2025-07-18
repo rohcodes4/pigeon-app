@@ -21,7 +21,7 @@ const UnifiedHeader:React.FC<UnifiedHeaderProps> = ({
       {/* Left: Title and subtitle */}
       <div className="flex gap-2 items-center">
         <h1 className="text-[15px] text-[#ffffff72]">{title}</h1>
-        <span className="p-1.5 rounded-[6px] text-[11px] text-[#84afff] bg-[#3474ff12]">All Channels</span>
+        {/* <span className="p-1.5 rounded-[6px] text-[11px] text-[#84afff] bg-[#3474ff12]">All Channels</span> */}
         <span className="p-1.5 rounded-[6px] text-[11px] text-[#bfd6ff] bg-[#3474ff]">Telegram</span>
         <span className="p-1.5 rounded-[6px] text-[11px] text-[#d7d5ff] bg-[#7b5cfa]">Discord</span>
         <div className="p-2 flex items-center justify-center bg-[#fafafa10] rounded-[6px]">

@@ -137,6 +137,7 @@ const [selectedTab, setSelectedTab] = useState<'all' | 'todo' | 'reminder' | 'me
 const [openTab, setOpenTab] = useState<number | null>(0);
 const [selectedTasks, setSelectedTasks] = useState([]);
 const dropdownRef2 = useRef<HTMLDivElement>(null);
+
 useEffect(() => {
   function handleClickOutside(event: MouseEvent) {
     if (dropdownRef2.current && !dropdownRef2.current.contains(event.target as Node)) {
@@ -232,7 +233,7 @@ const handleCheckboxChange = (task) => {
     // You can add your logic here (e.g., move to another list, send to API, etc.)
   };
   return (
-    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden w-[40vw] min-w-[340px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]"
+    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]"
     >
       {/* Header */}
       <div className="flex items-center justify-between py-2 px-2">
@@ -446,6 +447,7 @@ className="mt-2"
     </div>
         )}       
       </div>
+
       <div className="mb-2 px-2">
       <div className="flex justify-between items-center gap-2 mb-2 cursor-pointer"
           onClick={() => setOpenTab(openTab === 1 ? null : 1)}
@@ -569,7 +571,7 @@ className="mt-2"
       </div>
       <div className="flex w-full px-2">
       <button
-  onClick={() => {handleSelectAll(filteredTodos);handleSelectAll(favoriteTodos);handleSelectAll(backlogTodos)}}
+  onClick={() => {handleSelectAll([...filteredTodos,...favoriteTodos,...backlogTodos])}}
   className="w-[50%] text-xs text-gray-400 hover:text-white"
 >
   Select All

@@ -31,7 +31,7 @@ import SmartTask from "@/components/SmartTasks";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
 
-const SmartTasks = () => {
+const Contacts = () => {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [isOnboarded, setIsOnboarded] = useState(false);
@@ -88,7 +88,7 @@ const SmartTasks = () => {
   return (
     <Layout>
       <div className="flex-1 flex flex-col min-h-screen">
-      <AppHeader isNotificationPanel={openPanel === "notification"}
+      <AppHeader  isNotificationPanel={openPanel === "notification"}
   setIsNotificationPanel={(open) => setOpenPanel(open ? "notification" : null)}
   // onOpenPinnedPanel={() => setOpenPanel("pinned")}
   isPinnedOpen={openPanel === "pinned"}
@@ -99,10 +99,9 @@ const SmartTasks = () => {
       <main className="flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
         <ChatPanel/>      
       <div className="w-full">
-      <UnifiedHeader title="Tasks Center" smartText="Smart Tasks" isReadAll={false} isSmartSummary={openPanel === "smartTask"}
+      <UnifiedHeader title="Bookmarks" smartText="Smart Tasks" isReadAll={false} isSmartSummary={openPanel === "smartTask"}
   setIsSmartSummary={(open) => setOpenPanel(open ? "smartTask" : null)}/>         
-      {/* <UnifiedChatPanel/> */}
-      <TasksPanel/>
+      <UnifiedChatPanel/>
     </div>
     
     {openPanel === "smartTask" && <SmartTask />}
@@ -115,4 +114,4 @@ const SmartTasks = () => {
   );
 };
 
-export default SmartTasks;
+export default Contacts;

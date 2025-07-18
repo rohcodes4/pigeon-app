@@ -18,6 +18,7 @@ import { BellOff, Check, CheckCheck, ChevronDown, ChevronUp, MessageCircleMoreIc
 import todoIcon2 from "@/assets/images/todoIcon2.png";
 import reminderIcon from "@/assets/images/reminderIcon.png";
 import { FaCalendarAlt, FaTag, FaFlag } from "react-icons/fa";
+import { Button } from "./ui/button";
 
 const TASK_SECTIONS = [
     {
@@ -403,6 +404,19 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
     (section) => filteredTasks.filter((t) => t.status === section.status).length
   );
 
+  const selectAllTasks = () => {
+    const allTaskIds = tasks.map((task) => task.id);
+    setSelectedTasks(allTaskIds);
+  };
+  const markSelectedAsDone = () => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        selectedTasks.includes(task.id) ? { ...task, status: "done" } : task
+      )
+    );
+    setSelectedTasks([]); // Clear selection after marking as done
+  };
+
   return (
     <div className="bg-[#171717] text-white flex flex-col h-[calc(100vh-121px)] overflow-y-scroll">
       {/* Filters and Task Count */}
@@ -469,8 +483,15 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
           </select>
           </div>
         </div>
-        <div className="text-sm text-[#ffffff48] uppercase self-end">
-            Showing {totalTasks} Task{totalTasks>1?'s':''}
+        <div className="text-sm text-[#ffffff48] uppercase self-end flex gap-2">
+          <Button variant="ghost" onClick={selectAllTasks}>
+Select All
+            </Button>
+          <Button variant="default" className="bg-[#3474FF60] hover:text-[#3474FF] text-[#B8D1Ff]"
+          onClick={markSelectedAsDone}>
+Mark as Done
+            </Button>
+            {/* Showing {totalTasks} Task{totalTasks>1?'s':''} */}
           {/* Total Tasks: <span className="font-bold text-white">{totalTasks}</span>
           {TASK_SECTIONS.map((section, idx) => (
             <span key={section.status} className="ml-4">
@@ -571,12 +592,13 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
                       <span className="bg-[#212121] text-[#ffffff72] px-2 py-1 rounded-[6px]">{formatDueText(task.due)}</span>
                         <span className="text-[#ffffff72]">{task.name}</span>
                         </div>
-                        <div className="text-xs text-gray-400 flex gap-2 items-center mb-1">
+                        <div className={`text-xs text-white flex gap-2 items-center mb-1 w-max rounded-[4px] px-2 py-0.5 ${task.platform=="telegram"?"bg-[#3474ff]":"bg-[#7B5CFA]"}`}>
                           
-                      <div className="ml-3">{platformIcon(task.platform)}                        
+                      <div className="">{task.platform==="telegram"?<FaTelegramPlane/>:<FaDiscord/>}
                       </div>
-                          <span className={task.platform=="telegram"?"text-[#3474ff]":"text-[#7B5CFA]"}>{task.channel}</span>
-                          <span>#{task.server}</span>
+                      
+                          <span>{task.channel}</span>
+                          {/* <span>#{task.server}</span> */}
                         </div>
                         <div className="flex gap-2 mt-1">
   {/* Priority tag (first tag) */}
@@ -616,7 +638,9 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
                         }`}
                       >
                         <button title="Edit"
-                        className="rounded-[12px] bg-[#2d2d2d] border border-[#ffffff03] p-2">
+                        className="rounded-[12px] bg-[#2d2d2d] border border-[#ffffff03] p-2"
+                        onClick={()=>markTaskDone(task.id)}
+                        >
                           <Check  className="h-4 w-4"/>
                         </button>
                         {/* <button title="Save to Favs">
@@ -675,7 +699,7 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
           setOpenMoreMenu(null);
         }}
       >
-        <FaEdit className="text-[#84AFFF]" /> Edit Task
+        <FaEdit className="" /> Edit Task
       </button>
       <button
         className="flex items-center gap-2 px-3 py-2 rounded text-sm text-[#ffffff72] hover:text-[#ffffff] hover:bg-[#23262F]"
@@ -684,7 +708,7 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
           setOpenMoreMenu(null);
         }}
       >
-        <FaStar className="text-yellow-400" /> Save to Favorites
+        <FaStar className="" /> Save to Favorites
       </button>
       <button
         className="flex items-center gap-2 px-3 py-2 rounded text-sm text-[#ffffff72] hover:text-[#ffffff] hover:bg-[#23262F]"
@@ -693,7 +717,7 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
           setOpenMoreMenu(null);
         }}
       >
-        <FaFlag className="text-[#FDD868]" /> Change Priority
+        <FaFlag className="" /> Change Priority
       </button>
       <button
         className="flex items-center gap-2 px-3 py-2 rounded text-sm text-red-400 hover:bg-[#23262F]"
@@ -746,7 +770,7 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
 
       {/* Bottom Bar for Creating Task */}
       <div className="p-4 flex flex-col gap-2">
-  <div className="flex gap-2 items-center">
+  <div className="flex gap-2 items-center bg-[#212121] p-2 rounded-[8px]">
     <input
       className="flex-1 bg-[#212121] rounded-[10px] px-3 py-2 text-white"
       placeholder="Create a new Task / Reminder"
@@ -757,7 +781,7 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
     />
 
     {/* Tag Button & Modal */}
-    <div className="relative">
+    {/* <div className="relative">
       <button
         className="flex items-center gap-2 bg-[#3474FF12] rounded-[10px] px-3 py-2 text-sm text-[#84AFFF]"
         onClick={() => setOpenModal(openModal === 'tag' ? null : 'tag')}
@@ -824,24 +848,16 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
           Add
         </button>
         </div>
-          {/* <div className="flex justify-end gap-2 mt-2">
-            <button
-              className="text-xs text-gray-400"
-              onClick={() => setShowTagModal(false)}
-            >
-              Close
-            </button>
-           
-          </div> */}
+          
         </div>
         </>
       )}
-    </div>
+    </div> */}
 
     {/* Due Date Button & Modal */}
     <div className="relative">
       <button
-        className="flex items-center gap-2 bg-[#212121] rounded-[10px] px-3 py-2 text-sm text-[#ffffff72]"
+        className="flex items-center gap-2 bg-[#fafafa10] rounded-[10px] px-3 py-1 text-sm text-[#ffffff]"
         onClick={() => setOpenModal(openModal === 'due' ? null : 'due')}
         type="button"
       >
@@ -883,7 +899,7 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
     {/* Priority Button & Modal */}
     <div className="relative">
       <button
-        className={`flex items-center gap-2 bg-[#111111] rounded-[10px] px-3 py-2 text-xs text-white
+        className={`flex items-center gap-2 bg-[#111111] rounded-[10px] px-3 py-1 text-xs text-white
             ${
                 newTask.priority === "HIGH"
       ? "bg-[#f03d3d12]"
@@ -955,11 +971,11 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
     </div>
 
     <button
-      className="bg-[#5389FF] rounded-[10px] p-[7px] ml-2"
+      className=" rounded-full p-[3px] ml-2 border-2 border-[#fafafa60] hover:border-[#fafafa] text-[#fafafa60] hover:text-[#fafafa]"
       onClick={handleCreateTask}
       title="Add Task"
     >
-      <Plus className="font-[100] text-black "/>
+      <Plus className="font-[100]  w-5 h-5"/>
     </button>
   </div>
 </div>

@@ -74,7 +74,11 @@ const SmartSummary = () => {
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
 const [checkedItems, setCheckedItems] = useState<{ [id: number]: boolean }>({});
+const [selectedFilter, setSelectedFilter] = useState('All');
 
+const handleFilterChange = (filter: string) => {
+  setSelectedFilter(filter);
+};
 const handleCheckboxChange = (id: number) => {
     setCheckedItems((prev) => ({
       ...prev,
@@ -131,7 +135,7 @@ const handleCheckboxChange = (id: number) => {
   }, [dropdownOpen]);
 
   return (
-    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden w-[40vw] min-w-[340px] bg-[#111111] text-white rounded-2xl py-2 flex flex-col shadow-lg border border-[#23242a]"
+    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[500px] bg-[#111111] text-white rounded-2xl py-2 flex flex-col shadow-lg border border-[#23242a]"
     >
       {/* Header */}
       <div className="flex items-center justify-between pb-2 px-2 border-b">
@@ -190,16 +194,42 @@ const handleCheckboxChange = (id: number) => {
       className="flex flex-nowrap justify-end overflow-x-auto scrollbar-hide gap-2 text-xs px-0"
       style={{ WebkitOverflowScrolling: "touch" }}
     >
-      <button className="flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 hover:text-white text-[#fafafa60] hover:bg-[#fafafa10] rounded-lg leading-1">
+      <button className={`flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 hover:text-white text-[#fafafa60] hover:bg-[#fafafa10] rounded-lg leading-1
+      ${
+              selectedFilter === 'All'
+                ? 'text-[#fafafa] bg-[#fafafa10]'
+                : 'text-[#fafafa60] hover:text-[#fafafa] hover:bg-[#fafafa10]'
+            }`}
+       onClick={() => handleFilterChange('All')}>
         All
       </button>
-      <button className="flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 hover:text-white text-[#fafafa60] hover:bg-[#fafafa10] rounded-lg leading-1 ">
+      <button className={`flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 hover:text-white text-[#fafafa60] hover:bg-[#fafafa10] rounded-lg leading-1 
+      ${
+              selectedFilter === 'Alpha'
+                ? 'text-[#fafafa] bg-[#fafafa10]'
+                : 'text-[#fafafa60] hover:text-[#fafafa] hover:bg-[#fafafa10]'
+            }`}
+       onClick={() => handleFilterChange('Alpha')}>
+
         Alpha
       </button>
-      <button className="flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 hover:text-white text-[#fafafa60] hover:bg-[#fafafa10] rounded-lg leading-1 ">
+      <button className={`flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 hover:text-white text-[#fafafa60] hover:bg-[#fafafa10] rounded-lg leading-1 
+      ${
+              selectedFilter === 'Todo'
+                ? 'text-[#fafafa] bg-[#fafafa10]'
+                : 'text-[#fafafa60] hover:text-[#fafafa] hover:bg-[#fafafa10]'
+            }`}
+       onClick={() => handleFilterChange('Todo')}>
+
         To-dos
       </button>
-      <button className="flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 hover:text-white text-[#fafafa60] hover:bg-[#fafafa10] rounded-lg leading-1 ">
+      <button className={`flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 hover:text-white text-[#fafafa60] hover:bg-[#fafafa10] rounded-lg leading-1 
+      ${
+              selectedFilter === '@'
+                ? 'text-[#fafafa] bg-[#fafafa10]'
+                : 'text-[#fafafa60] hover:text-[#fafafa] hover:bg-[#fafafa10]'
+            }`}
+       onClick={() => handleFilterChange('@')}>
         @
       </button>
       {/* <button className="flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 text-white rounded-lg ">
@@ -242,7 +272,8 @@ const handleCheckboxChange = (id: number) => {
       </div>
 
       {/* Alpha Section */}
-      <div className=" rounded-xl mb-2 px-2 mt-4 ">
+      {selectedFilter === 'All' || selectedFilter === 'Alpha' ? (
+    <div className=" rounded-xl mb-2 px-2 mt-4 ">
         <div className="flex justify-between items-center gap-2 mb-2">
             <span className="text-xs text-[#fafafa] leading-none">Alpha</span>
             <span className="text-xs font-[300] text-[#fafafa60] leading-none">2 MIN AGO</span>
@@ -255,10 +286,12 @@ const handleCheckboxChange = (id: number) => {
             <li>Trading: No alpha shared; sentiment negative.</li>
         </ul>
         </div>
-      </div>
+      </div>):null}
 
 
       {/* To-dos / Requests */}
+      {selectedFilter === 'All' || selectedFilter === 'Todo' ? (
+
       <div className="mb-2 px-2 mt-4 ">
       <div className="flex items-center justify-between gap-2 mb-2">
         
@@ -314,9 +347,11 @@ const handleCheckboxChange = (id: number) => {
     </div>
        
       </div>
-    
+      ):null}
+
       {/* Mentions*/}
-      <div className="mb-2 px-2 mt-4 ">
+      {selectedFilter === 'All' || selectedFilter === '@' ?       (
+        <div className="mb-2 px-2 mt-4 ">
       <div className="flex items-center justify-between gap-2 mb-2">
         
             <span className="text-xs text-[#fafafa] leading-none">@Mentions</span>
@@ -375,7 +410,7 @@ const handleCheckboxChange = (id: number) => {
         </div> */}
     </div>
        
-      </div>
+      </div>):null}
 
       {/* Smart Activity */}
       {/* <div className="flex items-center gap-2 mb-2 px-2 ">

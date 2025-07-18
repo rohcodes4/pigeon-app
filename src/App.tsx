@@ -12,6 +12,8 @@ import NotFound from "./pages/NotFound";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import SmartTasks from "./pages/SmartTasks";
+import Bookmarks from "./pages/Bookmarks";
+import Contacts from "./pages/Contacts";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +28,8 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/smart-tasks" element={<SmartTasks />} />
+              <Route path="/bookmarks" element={<Bookmarks />} />
+              <Route path="/contacts" element={<Contacts />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />

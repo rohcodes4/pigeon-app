@@ -25,8 +25,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
   const navMap: { [key: string]: string } = {
     "/": "AI",
     "/smart-tasks": "Tasks",
-    "/favourite": "Favourite",
-    "/users": "Users",
+    "/bookmarks": "Bookmarks",
+    "/contacts": "contacts",
     "/help": "Help",
     // add more as needed
   };
@@ -105,24 +105,24 @@ useEffect(() => {
         {/* Favourite */}
         <button
           className={`relative p-2 rounded-lg flex items-center justify-center transition-colors
-            ${activeNav === "Favourite" ? "bg-[#212121]" : "hover:bg-[#212121]"}`}
-          onClick={() => setActiveNav("Favourite")}
+            ${activeNav === "Bookmarks" ? "bg-[#212121]" : "hover:bg-[#212121]"}`}
+          onClick={() => {setActiveNav("Bookmarks");navigate('/bookmarks')}}
         >
-          {activeNav === "Favourite" && (
+          {activeNav === "Bookmarks" && (
             <span className="absolute left-[-13px] h-full top-0 bottom-2 w-1 rounded bg-[#3474ff]" />
           )}
-          <img src={Favourite} alt="Favourite" className={`${activeNav === "Favourite" ?"opacity-1":"opacity-[0.5]"} w-6 h-6`} />
+          <img src={Favourite} alt="Bookmarks" className={`${activeNav === "Bookmarks" ?"opacity-1":"opacity-[0.5]"} w-6 h-6`} />
         </button>
         {/* Users */}
         <button
           className={`relative p-2 rounded-lg flex items-center justify-center transition-colors
-            ${activeNav === "Users" ? "bg-[#212121]" : "hover:bg-[#212121]"}`}
-          onClick={() => setActiveNav("Users")}
+            ${activeNav === "Contacts" ? "bg-[#212121]" : "hover:bg-[#212121]"}`}
+          onClick={() => {setActiveNav("Contacts"); navigate('/contacts')}}
         >
-          {activeNav === "Users" && (
+          {activeNav === "Contacts" && (
             <span className="absolute left-[-13px] h-full top-0 bottom-2 w-1 rounded bg-[#3474ff]" />
           )}
-          <Users className={`${activeNav === "Users" ?"opacity-1":"opacity-[0.5]"} w-6 h-6`} />
+          <Users className={`${activeNav === "Contacts" ?"opacity-1":"opacity-[0.5]"} w-6 h-6`} />
         </button>
         {/* Help */}
         <button
