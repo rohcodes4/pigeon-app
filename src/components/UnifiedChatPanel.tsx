@@ -22,6 +22,7 @@ import pinIcon from "@/assets/images/pinIcon.png";
 import replyIcon from "@/assets/images/replyIcon.png";
 import taskIcon from "@/assets/images/taskIcon.png";
 import smartIcon from "@/assets/images/sidebar/Chat.png";
+import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
 
 // Dummy data generation
 const platforms = ["Discord", "Telegram"] as const;
@@ -40,6 +41,8 @@ const messages = [
   "Big news coming soon.",
   "Don't miss the presale event!",
 ];
+
+const servers =[ "POW'S GEM CALLS","CRYPTOCAT","BOTMASTER"]
 
 function randomFrom<T>(arr: readonly T[]) {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -68,11 +71,13 @@ function gravatarUrl(seed: string) {
   return `https://www.gravatar.com/avatar/${btoa(seed)}?d=identicon&s=80`;
 }
 
+
 // Generate 30 dummy messages, oldest first
 const dummyMessages = Array.from({ length: 30 }, (_, i) => {
   const date = randomDate(5);
   const platform = randomFrom(platforms);
   const channel = randomFrom(channels);
+  const server = randomFrom(servers);
   const name = randomFrom(names);
   const message = randomFrom(messages);
   const messageTags = tags.filter(() => Math.random() < 0.3);
@@ -93,6 +98,7 @@ const dummyMessages = Array.from({ length: 30 }, (_, i) => {
     avatar: gravatarUrl(name + platform),
     platform,
     channel,
+    server,
     date,
     message,
     tags: messageTags,
@@ -133,6 +139,7 @@ const UnifiedChatPanel: React.FC = () => {
         avatar: gravatarUrl("You" + (replyTo ? replyTo.platform : "Discord")), // match platform for avatar
         platform: replyTo ? replyTo.platform : "Discord", // use replyTo's platform if replying
         channel: replyTo ? replyTo.channel : "#general", // use replyTo's channel if replying
+        server:replyTo? replyTo.channel:'Server',
         date: now,
         message: inputRef.current.value,
         tags: [],
@@ -274,22 +281,22 @@ const UnifiedChatPanel: React.FC = () => {
                     <span className="text-[#ffffff72] font-[300]">
                       {msg.name}
                     </span>
-                    <img
-                      src={platformIcon(msg.platform)}
-                      alt={msg.platform}
-                      className="w-4 h-4 rounded-full"
-                    />
+                    <div className={`flex justify-center pl-2 items-center rounded-[4px] ${msg.platform==="Telegram"?'bg-[#3474ff]':'bg-[#7b5cfa]'}`}>
+                    {msg.platform==="Telegram"?<FaTelegramPlane className="text-[#ffffff] w-3 h-3"/>:<FaDiscord className="text-[#ffffff] w-3 h-3"/>}
+
                     {msg.channel && (
                       <span
-                        className={`text-xs ${
+                        className={`text-xs text-white${
                           msg.platform === "Discord"
-                            ? "text-[#7b5cfa]"
-                            : "text-[#3474ff]"
+                            ? ""
+                            : ""
                         } rounded px-2 py-0.5`}
                       >
-                        {msg.channel}
+                        {msg.server}
                       </span>
                     )}
+                    </div>
+                    <span className="text-xs text-[#fafafa99]">{msg.channel}</span>
                     <span className="text-xs text-[#ffffff32]">
                       {formatTime(msg.date)}
                     </span>
@@ -403,6 +410,7 @@ const UnifiedChatPanel: React.FC = () => {
         )}
         <div className="flex">
           <div className="flex grow items-center bg-[#212121] rounded-[10px] px-4 py-2 shadow-lg">
+            <Plus className="text-black bg-[#fafafa60] rounded-full mr-2 w-[18px] h-[18px]"/>
             <input
               ref={inputRef}
               type="text"

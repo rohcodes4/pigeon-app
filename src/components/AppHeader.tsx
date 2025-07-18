@@ -8,9 +8,21 @@ import eye from"@/assets/images/eye.png";
 import { SearchBarWithFilter } from "./SearchBarWithFIlter";
 type AppHeaderProps = {
   title?: string;
+  setIsNotificationPanel?: (value: boolean) => void;
+  isNotificationPanel?: boolean;
+  isPinnedOpen: boolean;
+  onOpenPinnedPanel?: (value: boolean) => void;
+  setIsPinnedOpen?: (value: boolean) => void;
 };
 
-export const AppHeader: React.FC<AppHeaderProps> = ({title}) => {
+export const AppHeader: React.FC<AppHeaderProps> = ({
+  title,
+  setIsNotificationPanel,
+  isNotificationPanel,
+  onOpenPinnedPanel,
+  setIsPinnedOpen,
+  isPinnedOpen
+}) => {
   const { user, signOut } = useAuth();
   const [dropdown, setDropdown] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,14 +57,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({title}) => {
           </button>
         )}
       </div>
-      <div className="p-2 border rounded-[10px] border-[#ffffff09] inline-flex items-center justify-center">
+      <div className="p-2 border rounded-[10px] border-[#ffffff09] inline-flex items-center justify-center cursor-pointer">
   <Filter className="h-4 w-4 fill-[#84afff] text-[#84afff]" />
 </div>
-<div className="p-2 border rounded-[10px] border-[#ffffff09] inline-flex items-center justify-center">
-  <Pin className="h-4 w-4 fill-[#84afff] text-[#84afff]" />
+<div className="p-2 border rounded-[10px] border-[#ffffff09] inline-flex items-center justify-center cursor-pointer">
+  <Pin className="h-4 w-4 fill-[#84afff] text-[#84afff]"onClick={() => setIsPinnedOpen(!isPinnedOpen)} />
 </div>
-<div className="p-2 border rounded-[10px] border-[#ffffff09] inline-flex items-center justify-center">
-  <Bell className="h-4 w-4 fill-[#84afff] text-[#84afff]" />
+<div className="p-2 border rounded-[10px] border-[#ffffff09] inline-flex items-center justify-center cursor-pointer">
+  <Bell className="h-4 w-4 fill-[#84afff] text-[#84afff]" onClick={()=>setIsNotificationPanel(!isNotificationPanel)}/>
 </div>
       
        

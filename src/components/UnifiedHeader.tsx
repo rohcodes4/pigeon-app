@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Filter, Settings, Plus, CheckCheck } from "lucide-react";
+import { Search, Filter, Settings, Plus, CheckCheck, PinOff } from "lucide-react";
 import aiIMG from "@/assets/images/aiBlue.png";
 
 type UnifiedHeaderProps = {
@@ -24,6 +24,12 @@ const UnifiedHeader:React.FC<UnifiedHeaderProps> = ({
         <span className="p-1.5 rounded-[6px] text-[11px] text-[#84afff] bg-[#3474ff12]">All Channels</span>
         <span className="p-1.5 rounded-[6px] text-[11px] text-[#bfd6ff] bg-[#3474ff]">Telegram</span>
         <span className="p-1.5 rounded-[6px] text-[11px] text-[#d7d5ff] bg-[#7b5cfa]">Discord</span>
+        <div className="p-2 flex items-center justify-center bg-[#fafafa10] rounded-[6px]">
+  <PinOff
+    className="text-[#fafafa60] fill-[#fafafa60] w-4 h-4"
+    aria-label="Unpin"
+  />
+</div>
       </div>
 
       {/* Center: Search bar */}

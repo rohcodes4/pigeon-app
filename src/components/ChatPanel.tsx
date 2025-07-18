@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
-import { ChevronLeft, ChevronRight, Eye, Filter, MoreVertical, Search, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Eye, Filter, GripVertical, MoreHorizontal, MoreVertical, Plus, Search, VolumeX, X } from "lucide-react";
 import { Pin, PinOff } from "lucide-react";
 import aiIMG from "@/assets/images/aiBlue.png";
 import discord from "@/assets/images/discord.png";
 import telegram from "@/assets/images/telegram.png";
+import { FaBars, FaDiscord, FaTelegram, FaTelegramPlane } from "react-icons/fa";
 // Helper to generate a random gravatar
 const gravatarUrl = (seed: string) =>
   `https://www.gravatar.com/avatar/${btoa(seed)}?d=identicon&s=80`;
@@ -34,7 +35,7 @@ const ALL_CHANNELS = [
   // ...add more as needed
 ];
 
-const TOP_ITEMS = ["Inbox", "Mentions", "Unread", "Telegram", "Discord"];
+const TOP_ITEMS = ["All", "Unread", "Filtered Streams", "Telegram", "Discord"];
 const INITIAL_BOTTOM_ITEMS = ["Alpha", "Airdrop", "Launch", "Sponsored"];
 
 function randomFrom<T>(arr: readonly T[]) {
@@ -171,8 +172,12 @@ export const ChatPanel: React.FC = () => {
   const [channelSearch, setChannelSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [selectedChannels, setSelectedChannels] = useState([]);
+  const [isFilteredStreamsOpen, setIsFilteredStreamsOpen] = useState(true);
+const [isChannelsOpen, setIsChannelsOpen] = useState(true);
+const [searchMore, setSearchMore] = useState(true);
+const [filterFull, setFilterFull] = useState(true);
     const hideScrollbar = "scrollbar-hide";
-
+    
     const handleCancel = () => {
       setShowFilterPopup(false);
       setChannelSearch("");
@@ -237,6 +242,68 @@ export const ChatPanel: React.FC = () => {
         // Add more filters if needed
         return filtered;
       };
+
+      const filteredStreams = getFilteredChats().slice(0,3)// Assuming this returns a subset of `chats`
+    const channels = chats; // Use the same `chats` array for channels
+
+    if(filterFull){
+      return(
+        <aside className="h-[calc(100vh-73px)] w-[350px] p-3 pl-0 flex flex-col border-r border-[#23272f] bg-[#111111]">
+           {/* Header */}
+      <div className="flex justify-between items-center mb-2 pb-3 border-b">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={()=>setFilterFull(false)}>
+          <ChevronLeft className="text-white w-4 h-4" />
+          <span className="text-white">Filters</span>
+        </div>
+        <Plus className="text-white w-4 h-4" />
+      </div>
+
+      {/* Built-in Filters */}
+      <div className="px-2 mb-4">
+        <span className="text-[#ffffff80] text-sm">Built-in Filters</span>
+        <div className="mt-2">
+          {TOP_ITEMS.map((filter) => (
+            <div key={filter} className="flex justify-between items-center p-2 hover:bg-[#2d2d2d] rounded-[10px] cursor-pointer">
+              <span className="text-white">{filter}</span>
+              <GripVertical className="text-white w-4 h-4" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Filtered Streams */}
+      <div className="px-2 mb-4">
+        <span className="text-[#ffffff80] text-sm">Filtered Streams</span>
+        <div className="mt-2">
+          {["Shitcoin Alpha", "NFT Updates", "General Banter", "Custom Filter", "Custom Filter"].map((stream, index) => (
+            <div key={index} className="flex justify-between items-center p-2 hover:bg-[#2d2d2d] rounded cursor-pointer">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#3474ff] text-white text-xs">
+                  {stream.split(" ").map(word => word[0]).join("")}
+                </span>
+                <span className="text-white">{stream}</span>
+              </div>
+              <MoreHorizontal className="text-white w-4 h-4" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Smart Labels */}
+      <div className="px-2 mb-4">
+        <span className="text-[#ffffff80] text-sm">Smart Labels</span>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {["zkSync", "Jameson", "Shitcoin 1", "Contract", "Filters 1", "Filters 1"].map((label, index) => (
+            <div key={index} className="flex items-center gap-1 text-white text-xs px-2 py-1 rounded-full cursor-pointer">
+              {label} <span className="text-[#ffffff80] text-lg">×</span>
+            </div>
+          ))}
+        </div>
+      </div>
+</aside>
+      )
+    }
+
     return(
   <aside className="h-[calc(100vh-73px)] w-[350px] p-3 pl-0 flex flex-col border-r border-[#23272f] bg-[#111111]">
     <Button variant="ghost" onClick={()=>setIsFocus(!isFocus)} className={`ml-3 bg-[#171717] rounded-[8px] ${isFocus?"text-[#5389ff]":"text-[#FFFFFF32]"} p-0 `}>
@@ -266,12 +333,272 @@ export const ChatPanel: React.FC = () => {
       <div className="mt-4 flex-1">
 <div className="relative">
   <button
-    onClick={() => setShowFilterPopup((open) => !open)}
+    onClick={() => setSearchMore((open) => !open)}
     className="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#23262F]"
   >
     <MoreVertical className="h-full w-4 text-[#5389ff]" />
   </button>
-  {showFilterPopup && (
+  {searchMore && 
+  <>
+   <div
+      className="fixed inset-0 z-40"
+      onClick={() => setSearchMore(false)}
+      style={{ background: "transparent" }}
+    />
+
+   <div className="bg-[#171717] rounded-lg p-4 shadow-lg w-72 absolute right-[40px] -top-[15px] z-50 rounded-[10px]">
+      <div className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
+      onClick={()=>{setSearchMore(false);setFilterFull(true)}}>
+        <Filter className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
+        <span className="text-white">Filters</span>
+      </div>
+      <div className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
+      onClick={()=>setSearchMore(false)}>
+
+        <Check className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
+        <span className="text-white">Read All</span>
+      </div>
+      <div className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
+      onClick={()=>setSearchMore(false)}>
+
+        <VolumeX className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
+        <span className="text-white">Mute all Channels</span>
+      </div>
+    </div>
+    
+    </>}
+</div>      </div>
+      </div>
+      {/* Top Row  */}
+        <div className=" pl-3  relative flex items-center mt-6">
+        {topArrows.canScrollLeft && (
+          <button
+            className="absolute left-0 z-10  p-1 rounded-full shadow"
+            onClick={() => scroll(topRowRef, "left", topArrows.checkScroll)}
+            aria-label="Scroll left"
+          >
+            <ChevronLeft className="w-5 h-5 text-white" />
+          </button>
+        )}
+        <div
+          ref={topRowRef}
+          className={`flex gap-2 overflow-x-auto no-scrollbar mx-0`}
+          style={{ scrollBehavior: "smooth" }}
+        >
+          {TOP_ITEMS.map((item) => (
+            <div
+            key={item}
+            onClick={() => setActiveTopItem(item)}
+            className={`px-4 py-2 rounded-full whitespace-nowrap cursor-pointer hover:text-white text-[13px] transition ${
+              activeTopItem === item ? "text-white bg-[#3474ff60]" : "text-[#FFFFFF48]"
+            }`}
+            >
+              {item}
+            </div>
+          ))}
+        </div>
+        {topArrows.canScrollRight && (
+          <button
+            className="absolute right-0 z-10  p-1 rounded-full shadow"
+            onClick={() => scroll(topRowRef, "right", topArrows.checkScroll)}
+            aria-label="Scroll right"
+          >
+            <ChevronRight className="w-5 h-5 text-white" />
+          </button>
+        )}
+      </div>
+      {/* Bottom row */}
+      <div className="pl-3 relative flex items-center mt-4">
+        {bottomArrows.canScrollLeft && (
+          <button
+            className="absolute left-0 z-10  p-1 rounded-full shadow"
+            onClick={() => scroll(bottomRowRef, "left", bottomArrows.checkScroll)}
+            aria-label="Scroll left"
+          >
+            <ChevronLeft className="w-5 h-5 text-white" />
+          </button>
+        )}
+        <div
+          ref={bottomRowRef}
+          className={`flex gap-2 overflow-x-auto no-scrollbar`}
+          style={{ scrollBehavior: "smooth" }}
+        >
+          {filters.map((item) => (
+            <div
+              key={item}
+              className="flex items-center px-2 py-1 text-[#84afff] text-[13px] border-2 border-[#3474ff24] bg-[#212121] rounded-full whitespace-nowrap"
+            >
+              <span>{item}</span>
+              <button
+                className="ml-2"
+                onClick={() => removeItem(item)}
+                aria-label={`Remove ${item}`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+        {bottomArrows.canScrollRight && (
+          <button
+            className="absolute right-0 z-10 p-1 shadow bg-[#00000020]"
+            onClick={() => scroll(bottomRowRef, "right", bottomArrows.checkScroll)}
+            aria-label="Scroll right"
+          >
+            <ChevronRight className="w-5 h-5 text-white" />
+          </button>
+        )}
+      </div>
+      {/* Hide scrollbar utility (Tailwind plugin or custom CSS) */}
+      <style>
+        {`
+          .no-scrollbar::-webkit-scrollbar {
+            display: none;
+          }
+          .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+      //       .selected-chat::before {
+      //   content: "";
+      //   position: absolute;
+      //   left: -12px;
+      //   top: 12px;
+      //   bottom: 12px;
+      //   width: 4px;
+      //   border-top-right-radius: 4px;
+      //   border-bottom-right-radius: 4px;
+      //   background: #3474ff;
+      //   display: block;
+      // }
+      //       .unread-chat::before {
+      //   content: "";
+      //   position: absolute;
+      //   left: -16px;
+      //   top: 50%;
+      //   transform: translateY(-50%);
+      //   bottom: 12px;
+      //   width: 8px;
+      //   height:8px;
+      //   border-radius: 100%;
+      //   background: #3474ff;
+      //   display: block;
+      // }
+        `}
+      </style>    
+    
+    {/* Chat List */}
+    <div className="pl-3 h-min flex-1 overflow-y-scroll overflow-x-visible mt-2 no-scrollbar">   
+         <button      
+       className={`w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ${
+        selectedId === "all-channels"
+          ? "bg-[#212121] selected-chat"
+          : "hover:bg-[#212121] focus:bg-[#212121]"
+      }`}
+      onClick={() => setSelectedId("all-channels")}
+    >
+      {/* Avatar */}
+      <img
+        src={aiIMG}
+        className="w-10 h-10 rounded-full object-cover"
+      />
+      {/* Chat Info */}
+      <div className="flex-1 text-left">
+        <div className="flex justify-between items-center">
+          <span className="text-[#fafafa] font-200 flex justify-between items-center w-full">
+            <div className="flex items-center gap-1 font-[200]">
+            <FaDiscord className="text-[#7B5CFA]"/>
+            <FaTelegramPlane className="text-[#3474FF]"/>
+            All Channels
+            </div>
+            <div className="text-[#fafafa60] text-xs">
+              16:36
+            </div>
+          </span>
+          
+        </div>
+        <div className="flex items-center gap-2">
+          {/* You can add more badges here if needed */}
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-[#fafafa] font-[200] truncate max-w-[170px]">
+          Snapshot just passed for zk grant round. Team says ZK L2 launch in August.
+          </span>
+        </div>
+      </div>
+    </button>
+  {/* {getFilteredChats().map((chat) => (
+    <button
+      key={chat.id}
+      className={
+        `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
+        (selectedId === chat.id
+          ? "bg-[#212121] selected-chat "
+          : "hover:bg-[#212121] focus:bg-[#212121] ") +
+        (selectedId !== chat.id && !chat.read ? "unread-chat " : "")
+      }
+      onClick={() => setSelectedId(chat.id)}
+    >
+      <div className="relative">
+  <img
+    src={chat.avatar}
+    alt={chat.name}
+    className="w-10 h-10 rounded-full object-cover"
+  />
+  <img
+    src={chat.platform === "Discord" ? discord : telegram}
+    className={`
+      absolute -bottom-2 -right-1
+      ${chat.platform === "Discord" ? "bg-[#7b5cfa]" : "bg-[#3474ff]"}
+      rounded-[4px] w-5 h-5 p-1 border-2 border-[#111111]
+    `}
+    alt={chat.platform}
+  />
+</div>
+      <div className="flex-1 text-left">
+        <div className="flex justify-between items-center">
+          <span className="text-[#ffffff48] font-200 flex items-center gap-1">
+{chat.platform === "Discord" ? <FaDiscord className="text-[#7b5cfa]"/> : <FaTelegramPlane className="text-[#3474ff]"/>}
+            {chat.name}
+          </span>
+          
+        </div>
+        <div className="flex items-center gap-2">
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-[#ffffff32] font-100">
+            {chat.lastMessage.length > 50
+              ? chat.lastMessage.slice(0, 50) + "..."
+              : chat.lastMessage}
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-col items-center gap-1">
+            {chat.pinned && (
+              <Pin className="w-3 h-3 text-[#84afff] fill-[#84afff] ml-1" />
+            )}
+            <span className="text-xs text-gray-400">
+              {formatChatTime(chat.time)}
+            </span>
+          </div>
+    </button>
+  ))} */}
+
+{/* Filtered Streams Section */}
+<div className="pl-3 mt-4">
+  <div
+    className="flex justify-between items-center cursor-pointer"
+    onClick={() => setIsFilteredStreamsOpen(!isFilteredStreamsOpen)}
+  >
+    <span className="text-white font-medium">Filtered Streams</span>
+    <div className="flex">
+    <Plus className="hover:text-white text-[#fafafa60] w-5 h-5" onClick={()=>setShowFilterPopup(!showFilterPopup)}/>
+    {isFilteredStreamsOpen ? (
+      <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5" />
+    ) : (
+      <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
+    )}
+      {showFilterPopup && (
   <>
     {/* Backdrop for outside click */}
     <div
@@ -280,7 +607,7 @@ export const ChatPanel: React.FC = () => {
       style={{ background: "transparent" }}
     />
     {/* Popup */}
-    <div className="absolute left-0 top-full mt-2 z-50 w-[400px] bg-[#161717] border border-[#fafafa10] rounded-xl shadow-lg p-5">
+    <div className="absolute left-[20%] top-[20%] mt-2 z-50 w-[400px] bg-[#161717] border border-[#fafafa10] rounded-xl shadow-lg p-5">
       {/* --- Popup content below --- */}
       <div className="text-white text-base font-[200] mb-1">Create Filtered Streams</div>
       <div className="text-xs text-[#ffffff80] mb-3">Give your stream a descriptive name so you can find it later.</div>
@@ -409,222 +736,156 @@ export const ChatPanel: React.FC = () => {
     </div>
   </>
 )}
-</div>      </div>
-      </div>
-      {/* Top Row  */}
-        <div className=" pl-3  relative flex items-center mt-6">
-        {topArrows.canScrollLeft && (
-          <button
-            className="absolute left-0 z-10  p-1 rounded-full shadow"
-            onClick={() => scroll(topRowRef, "left", topArrows.checkScroll)}
-            aria-label="Scroll left"
-          >
-            <ChevronLeft className="w-5 h-5 text-white" />
-          </button>
-        )}
-        <div
-          ref={topRowRef}
-          className={`flex gap-2 overflow-x-auto no-scrollbar mx-0`}
-          style={{ scrollBehavior: "smooth" }}
-        >
-          {TOP_ITEMS.map((item) => (
-            <div
-            key={item}
-            onClick={() => setActiveTopItem(item)}
-            className={`px-2 py-1 rounded-full whitespace-nowrap cursor-pointer hover:text-white text-[13px] transition ${
-              activeTopItem === item ? "text-white" : "text-[#FFFFFF48]"
-            }`}
-            >
-              {item}
-            </div>
-          ))}
-        </div>
-        {topArrows.canScrollRight && (
-          <button
-            className="absolute right-0 z-10  p-1 rounded-full shadow"
-            onClick={() => scroll(topRowRef, "right", topArrows.checkScroll)}
-            aria-label="Scroll right"
-          >
-            <ChevronRight className="w-5 h-5 text-white" />
-          </button>
-        )}
-      </div>
-      {/* Bottom row */}
-      <div className="pl-3 relative flex items-center mt-4">
-        {bottomArrows.canScrollLeft && (
-          <button
-            className="absolute left-0 z-10  p-1 rounded-full shadow"
-            onClick={() => scroll(bottomRowRef, "left", bottomArrows.checkScroll)}
-            aria-label="Scroll left"
-          >
-            <ChevronLeft className="w-5 h-5 text-white" />
-          </button>
-        )}
-        <div
-          ref={bottomRowRef}
-          className={`flex gap-2 overflow-x-auto no-scrollbar`}
-          style={{ scrollBehavior: "smooth" }}
-        >
-          {filters.map((item) => (
-            <div
-              key={item}
-              className="flex items-center px-2 py-1 text-[#84afff] text-[13px] border-2 border-[#3474ff24] bg-[#212121] rounded-full whitespace-nowrap"
-            >
-              <span>{item}</span>
-              <button
-                className="ml-2"
-                onClick={() => removeItem(item)}
-                aria-label={`Remove ${item}`}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-        </div>
-        {bottomArrows.canScrollRight && (
-          <button
-            className="absolute right-0 z-10 p-1 shadow bg-[#00000020]"
-            onClick={() => scroll(bottomRowRef, "right", bottomArrows.checkScroll)}
-            aria-label="Scroll right"
-          >
-            <ChevronRight className="w-5 h-5 text-white" />
-          </button>
-        )}
-      </div>
-      {/* Hide scrollbar utility (Tailwind plugin or custom CSS) */}
-      <style>
-        {`
-          .no-scrollbar::-webkit-scrollbar {
-            display: none;
+    </div>
+  </div>
+  {isFilteredStreamsOpen && (
+    <div className="mt-2">
+      {filteredStreams.map((chat) => (
+        <button
+          key={chat.id}
+          className={
+            `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
+            (selectedId === chat.id
+              ? "bg-[#212121] selected-chat "
+              : "hover:bg-[#212121] focus:bg-[#212121] ") +
+            (selectedId !== chat.id && !chat.read ? "unread-chat " : "")
           }
-          .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-          }
-            .selected-chat::before {
-        content: "";
-        position: absolute;
-        left: -12px;
-        top: 12px;
-        bottom: 12px;
-        width: 4px;
-        border-top-right-radius: 4px;
-        border-bottom-right-radius: 4px;
-        background: #3474ff;
-        display: block;
-      }
-            .unread-chat::before {
-        content: "";
-        position: absolute;
-        left: -16px;
-        top: 50%;
-        transform: translateY(-50%);
-        bottom: 12px;
-        width: 8px;
-        height:8px;
-        border-radius: 100%;
-        background: #3474ff;
-        display: block;
-      }
-        `}
-      </style>    
-    
-    {/* Chat List */}
-    <div className="pl-3 h-min flex-1 overflow-y-scroll overflow-x-visible mt-2 no-scrollbar">   
-         <button      
-       className={`w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ${
-        selectedId === "all-channels"
-          ? "bg-[#212121] selected-chat"
-          : "hover:bg-[#212121] focus:bg-[#212121]"
-      }`}
-      onClick={() => setSelectedId("all-channels")}
-    >
-      {/* Avatar */}
-      <img
-        src={aiIMG}
-        className="w-10 h-10 rounded-full object-cover"
-      />
-      {/* Chat Info */}
-      <div className="flex-1 text-left">
-        <div className="flex justify-between items-center">
-          <span className="text-[#84afff] font-200">
-            All Channels
-          </span>
-          
-        </div>
-        <div className="flex items-center gap-2">
-          {/* You can add more badges here if needed */}
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-[#ffffff72] font-100">
-          Snapshot just passed for zk grant round. Team says ZK L2 launch in August.
-          </span>
-        </div>
-      </div>
-    </button>
-  {getFilteredChats().map((chat) => (
-    <button
-      key={chat.id}
-      className={
-        `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
-        (selectedId === chat.id
-          ? "bg-[#212121] selected-chat "
-          : "hover:bg-[#212121] focus:bg-[#212121] ") +
-        (selectedId !== chat.id && !chat.read ? "unread-chat " : "")
-      }
-      onClick={() => setSelectedId(chat.id)}
-    >
-      {/* Avatar */}
-      <div className="relative">
-  <img
-    src={chat.avatar}
-    alt={chat.name}
-    className="w-10 h-10 rounded-full object-cover"
-  />
-  <img
-    src={chat.platform === "Discord" ? discord : telegram}
-    className={`
-      absolute -bottom-1 -right-1
-      ${chat.platform === "Discord" ? "bg-[#7b5cfa]" : "bg-[#3474ff]"}
-      rounded-full w-5 h-5 p-1 border-2 border-[#111111]
-    `}
-    alt={chat.platform}
-  />
-</div>
-      {/* Chat Info */}
-      <div className="flex-1 text-left">
-        <div className="flex justify-between items-center">
-          <span className="text-[#ffffff48] font-200">
-            {chat.type === "DM" && (
-              <span className="text-xs px-2 py-0.5 rounded bg-[#23272f] text-[#84afff] mr-1">
-                {chat.type}
+          onClick={() => setSelectedId(chat.id)}
+        >
+          {/* Avatar */}
+          <div className="relative">
+            <img
+              src={chat.avatar}
+              alt={chat.name}
+              className="w-10 h-10 rounded-full object-cover"
+            />
+            {/* <img
+              src={chat.platform === "Discord" ? discord : telegram}
+              className={`
+                absolute -bottom-2 -right-1
+                ${chat.platform === "Discord" ? "bg-[#7b5cfa]" : "bg-[#3474ff]"}
+                rounded-[4px] w-5 h-5 p-1 border-2 border-[#111111]
+              `}
+              alt={chat.platform}
+            /> */}
+          </div>
+          {/* Chat Info */}
+          <div className="flex-1 text-left">
+            <div className="flex justify-between items-center">
+              <span className="text-[#ffffff48] font-200 flex items-center gap-1">
+                {/* {chat.platform === "Discord" ? <FaDiscord className="text-[#7b5cfa]"/> : <FaTelegramPlane className="text-[#3474ff]"/>} */}
+                {chat.name}
               </span>
-            )}
-            {chat.name}
-          </span>
-          
-        </div>
-        <div className="flex items-center gap-2">
-          {/* You can add more badges here if needed */}
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-[#ffffff32] font-100">
-            {chat.lastMessage.length > 50
-              ? chat.lastMessage.slice(0, 50) + "..."
-              : chat.lastMessage}
-          </span>
-        </div>
-      </div>
-      <div className="flex flex-col items-center gap-1">
-            {chat.pinned && (
-              <Pin className="w-3 h-3 text-[#84afff] fill-[#84afff] ml-1" />
-            )}
-            <span className="text-xs text-gray-400">
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-[#ffffff32] font-100">
+                {chat.lastMessage.length > 50
+                  ? chat.lastMessage.slice(0, 50) + "..."
+                  : chat.lastMessage}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            
+          <span className="self-end text-xs text-gray-400">
               {formatChatTime(chat.time)}
             </span>
+            <div className="flex items-center gap-1">
+            {chat.pinned && (
+              <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
+            )}
+            {!chat.read && (
+              <div className={`rounded-full w-5 h-5 text-xs flex items-center justify-center text-center bg-[#fafafa60] text-black`}>
+  7
+</div>            )}
+            </div>
           </div>
-    </button>
-  ))}
+        </button>
+      ))}
+    </div>
+  )}
+</div>
+
+{/* Channels Section */}
+<div className="pl-3 mt-4">
+  <div
+    className="flex justify-between items-center cursor-pointer"
+    onClick={() => setIsChannelsOpen(!isChannelsOpen)}
+  >
+    <span className="text-white font-medium">Channels</span>
+    {isChannelsOpen ? (
+      <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5 " />
+    ) : (
+      <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
+    )}
+  </div>
+  {isChannelsOpen && (
+    <div className="mt-2">
+      {channels.map((chat) => (
+        <button
+          key={chat.id}
+          className={
+            `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
+            (selectedId === chat.id
+              ? "bg-[#212121] selected-chat "
+              : "hover:bg-[#212121] focus:bg-[#212121] ") +
+            (selectedId !== chat.id && !chat.read ? "unread-chat " : "")
+          }
+          onClick={() => setSelectedId(chat.id)}
+        >
+          {/* Avatar */}
+          <div className="relative">
+            <img
+              src={chat.avatar}
+              alt={chat.name}
+              className="w-10 h-10 rounded-full object-cover"
+            />
+            <img
+              src={chat.platform === "Discord" ? discord : telegram}
+              className={`
+                absolute -bottom-2 -right-1
+                ${chat.platform === "Discord" ? "bg-[#7b5cfa]" : "bg-[#3474ff]"}
+                rounded-[4px] w-5 h-5 p-1 border-2 border-[#111111]
+              `}
+              alt={chat.platform}
+            />
+          </div>
+          {/* Chat Info */}
+          <div className="flex-1 text-left">
+            <div className="flex justify-between items-center">
+              <span className="text-[#ffffff48] font-200 flex items-center gap-1">
+                {chat.platform === "Discord" ? <FaDiscord className="text-[#7b5cfa]"/> : <FaTelegramPlane className="text-[#3474ff]"/>}
+                {chat.name}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-[#ffffff32] font-100">
+                {chat.lastMessage.length > 50
+                  ? chat.lastMessage.slice(0, 50) + "..."
+                  : chat.lastMessage}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            
+            <span className="self-end text-xs text-gray-400">
+              {formatChatTime(chat.time)}
+            </span>
+            <div className="flex items-center gap-1">
+            {chat.pinned && (
+              <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
+            )}
+            {!chat.read && (
+              <div className={`rounded-full w-5 h-5 text-xs flex items-center justify-center text-center ${chat.platform==="Telegram"?'bg-[#3474ff]':'bg-[#7b5cfa]'}`}>
+  7
+</div>            )}
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
+  )}
+</div>
 </div>
   </aside>
 )};

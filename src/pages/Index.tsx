@@ -27,6 +27,8 @@ import ChatPanel from "@/components/ChatPanel";
 import UnifiedHeader from "@/components/UnifiedHeader";
 import UnifiedChatPanel from "@/components/UnifiedChatPanel";
 import SmartSummary from "@/components/SmartSummary";
+import NotificationsPanel from "@/components/NotificationsPanel";
+import PinnedPanel from "@/components/PinnedPanel";
 
 const Index = ({title}) => {
   const { user, loading, signOut } = useAuth();
@@ -41,7 +43,14 @@ const Index = ({title}) => {
   const [aiChats, setAiChats] = useState(fakeChatsAI);
   const [alphaChats, setAlphaChats] = useState(fakeChatsAlpha);
   const [isSmartSummary, setIsSmartSummary] = useState(false);
-  
+  const [isNotificationPanel, setIsNotificationPanel] = useState(false);
+  const [openPanel, setOpenPanel] = useState<null | "smartSummary" | "notification" | "pinned">(null);
+
+  const handleOpenSmartSummary = () => setOpenPanel("smartSummary");
+const handleOpenNotificationPanel = () => setOpenPanel("notification");
+const handleOpenPinnedPanel = () => setOpenPanel("pinned");
+const handleClosePanel = () => setOpenPanel(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleAISummary = (id, tab) => {
@@ -171,17 +180,27 @@ const Index = ({title}) => {
   return (
     <Layout>
       <div className="flex-1 flex flex-col min-h-screen">
-      <AppHeader title={title}/>
+      <AppHeader title={title}  isNotificationPanel={openPanel === "notification"}
+  setIsNotificationPanel={(open) => setOpenPanel(open ? "notification" : null)}
+  // onOpenPinnedPanel={() => setOpenPanel("pinned")}
+  isPinnedOpen={openPanel === "pinned"}
+  setIsPinnedOpen={(open) => {setOpenPanel(open ? "pinned" : null)}}/>      
       <main className="h-[calc(100vh-72px)] flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-hidden">
         <ChatPanel/>
       
       <div className="w-full h-[calc(100vh-72px)] overflow-hidden">
     
-      <UnifiedHeader title="Unified Inbox" smartText="Summarize" isReadAll={true} isSmartSummary={isSmartSummary} setIsSmartSummary={setIsSmartSummary}/>      
+      <UnifiedHeader title="Unified Inbox"
+  smartText="Summarize"
+  isReadAll={true}
+  isSmartSummary={openPanel === "smartSummary"}
+  setIsSmartSummary={(open) => setOpenPanel(open ? "smartSummary" : null)}/>      
       <UnifiedChatPanel/>
     
     </div>
-    {isSmartSummary && <SmartSummary/>}
+    {openPanel === "smartSummary" && <SmartSummary />}
+    {openPanel === "notification" && <NotificationsPanel />}
+    {openPanel === "pinned" && <PinnedPanel />}
       </main>
     </div>
     </Layout>

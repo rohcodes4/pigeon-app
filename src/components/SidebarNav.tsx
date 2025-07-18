@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ArrowUpCircle, LogOut, Settings, User, Sun, Moon, Circle, Users } from "lucide-react";
 import logo from "@/assets/images/sidebarLogo.png";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 
 interface SidebarNavProps {
@@ -212,8 +213,8 @@ useEffect(() => {
                   <ArrowUpCircle className="w-4 h-4" />
                   Upgrade
                 </button>
-                <button className="p-2 flex items-center gap-2 text-xs text-[#ffffff48] hover:text-red-600 transition">
-                  <LogOut className="w-4 h-4" />
+                <button className="p-2 flex items-center gap-2 text-xs text-red-600 transition">
+                  <LogOut onClick={async ()=>await supabase.auth.signOut()} className="w-4 h-4" />
                   Logout
                 </button>
               </div>

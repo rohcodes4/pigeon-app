@@ -36,12 +36,12 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       description: "Connect your Discord and Telegram accounts",
       icon: <Users className="w-6 h-6" />,
     },
-    {
-      id: "select",
-      title: "Select Chats",
-      description: "Choose which chats to sync",
-      icon: <MessageCircle className="w-6 h-6" />,
-    },
+    // {
+    //   id: "select",
+    //   title: "Select Chats",
+    //   description: "Choose which chats to sync",
+    //   icon: <MessageCircle className="w-6 h-6" />,
+    // },
     {
       id: "sync",
       title: "Sync & Complete",
@@ -167,9 +167,15 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       case 0:
         return accountsConnected;
       case 1:
-        return chatsSelected;
+        return true;
         case 2:
           return true;
+      // case 0:
+      //   return accountsConnected;
+      // case 1:
+      //   return chatsSelected;
+      //   case 2:
+      //     return true;
       default:
         return false;
     }
@@ -177,36 +183,58 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
   const renderStepContent = () => {
     switch (currentStep) {
-      case 0:
-        return <ConnectAccounts 
-        onAccountsConnected={handleAccountsConnected} 
-        onContinue={nextStep}
-        telegramConnected={telegramConnected}
-        setTelegramConnected={setTelegramConnected}
-        discordConnected={discordConnected}
-        setDiscordConnected={setDiscordConnected}  />;
-      case 1:
-        return <ChatSelection 
-        onChatsSelected={handleChatsSelected}  
-        onContinue={nextStep}
-        telegramConnected={telegramConnected}
-        setTelegramConnected={setTelegramConnected}
-        discordConnected={discordConnected}
-        setDiscordConnected={setDiscordConnected}
-        />;
-        case 2:
+        case 0:
+          return <ConnectAccounts 
+            onAccountsConnected={handleAccountsConnected} 
+            onContinue={nextStep}
+            telegramConnected={telegramConnected}
+            setTelegramConnected={setTelegramConnected}
+            discordConnected={discordConnected}
+            setDiscordConnected={setDiscordConnected}
+          />;
+        case 1:
           return (
             <ChatSyncing
               onComplete={onComplete}
-              chatsSelected={chatsSelected}
-              approvedChats={approvedChats}
+              chatsSelected={true} // or remove if not needed
+              approvedChats={[]}   // or remove if not needed
               restartOnboarding={restartOnboarding}
               telegramConnected={telegramConnected}
-        setTelegramConnected={setTelegramConnected}
-        discordConnected={discordConnected}
-        setDiscordConnected={setDiscordConnected}
+              setTelegramConnected={setTelegramConnected}
+              discordConnected={discordConnected}
+              setDiscordConnected={setDiscordConnected}
             />
           );
+        // case 0:
+      //   return <ConnectAccounts 
+      //   onAccountsConnected={handleAccountsConnected} 
+      //   onContinue={nextStep}
+      //   telegramConnected={telegramConnected}
+      //   setTelegramConnected={setTelegramConnected}
+      //   discordConnected={discordConnected}
+      //   setDiscordConnected={setDiscordConnected}  />;
+      // case 1:
+      //   return <ChatSelection 
+      //   onChatsSelected={handleChatsSelected}  
+      //   onContinue={nextStep}
+      //   telegramConnected={telegramConnected}
+      //   setTelegramConnected={setTelegramConnected}
+      //   discordConnected={discordConnected}
+      //   setDiscordConnected={setDiscordConnected}
+      //   />;
+      //   case 2:
+      //     return (
+      //       <ChatSyncing
+      //         onComplete={onComplete}
+      //         chatsSelected={chatsSelected}
+      //         approvedChats={approvedChats}
+      //         restartOnboarding={restartOnboarding}
+      //         telegramConnected={telegramConnected}
+      //   setTelegramConnected={setTelegramConnected}
+      //   discordConnected={discordConnected}
+      //   setDiscordConnected={setDiscordConnected}
+      //       />
+      //     );
 //       case 2:
 //         return (
 //           <div className="space-y-8">

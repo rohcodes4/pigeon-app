@@ -6,6 +6,7 @@ import aiBlue from "@/assets/images/aiBlue.png";
 import smartTodo from "@/assets/images/smartTodo.png";
 import CustomCheckbox from "./CustomCheckbox";
 import LinkPreview from "./LinkPreview";
+import { CalendarCog, CalendarCogIcon, ThumbsUp, Heart, MessageCircle } from "lucide-react";
 
 const TIME_OPTIONS = [
   { label: "5 min", value: "5m" },
@@ -21,7 +22,7 @@ const todos = [
       id: 1,
       label: "To-do",
       desc: "$GOR entered Proof-of-Cope meta...",
-      tag: "#PORTALCOIN | $PORTAL",
+      tag: "#PORTALCOIN ",
       bot: "#BOT",
       icon: smartTodo,
       platform: 'telegram'
@@ -30,7 +31,7 @@ const todos = [
       id: 2,
       label: "Reminder",
       desc: "Updates: Monad mainnet live",
-      tag: "ALPHA GUILD | #GENERAL",
+      tag: "ALPHA GUILD ",
       bot: "",
       icon: smartTodo,
       platform: 'discord'
@@ -130,19 +131,20 @@ const handleCheckboxChange = (id: number) => {
   }, [dropdownOpen]);
 
   return (
-    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden w-[40vw] min-w-[340px] bg-[#111111] text-white rounded-2xl p-2 flex flex-col gap-4 shadow-lg border border-[#23242a]"
+    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden w-[40vw] min-w-[340px] bg-[#111111] text-white rounded-2xl py-2 flex flex-col shadow-lg border border-[#23242a]"
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between pb-2 px-2 border-b">
         <span className="font-[200] text-[#ffffff72]">Smart Summary</span>
         <div className="flex items-center gap-2">
           {/* Dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
-              className="flex items-center bg-[#23242a] px-2 py-1 rounded-lg text-xs font-medium"
+              className="flex items-center justify-evenly gap-1 bg-[#23242a] px-2 py-1 rounded-lg text-xs font-medium"
               onClick={() => setDropdownOpen((open) => !open)}
             >
-              {selectedTime.label} <FaChevronDown className="ml-1 text-xs" />
+                    <CalendarCog className="h-4 w-4 "/>
+                    {selectedTime.label} <FaChevronDown className="ml-1 text-xs" />
             </button>
             {dropdownOpen && (
               <div className="absolute right-0 mt-1 w-24 bg-[#23242a] border border-[#333] rounded-lg shadow-lg z-10">
@@ -170,7 +172,7 @@ const handleCheckboxChange = (id: number) => {
       </div>
      
       {/* Tabs */}
-      <div className="flex items-center gap-2 text-xs mb-2">
+      <div className="flex items-center justify-end gap-2 text-xs py-3 px-2 border-b ">
         <div className="flex flex-nowrap overflow-x-auto relative"
         >
        {showLeftArrow && <button
@@ -185,10 +187,22 @@ const handleCheckboxChange = (id: number) => {
 </button>}
     <div
       ref={tabScrollRef}
-      className="flex flex-nowrap overflow-x-auto scrollbar-hide gap-2 text-xs px-0"
+      className="flex flex-nowrap justify-end overflow-x-auto scrollbar-hide gap-2 text-xs px-0"
       style={{ WebkitOverflowScrolling: "touch" }}
     >
-      <button className="flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 text-white rounded-lg ">
+      <button className="flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 hover:text-white text-[#fafafa60] hover:bg-[#fafafa10] rounded-lg leading-1">
+        All
+      </button>
+      <button className="flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 hover:text-white text-[#fafafa60] hover:bg-[#fafafa10] rounded-lg leading-1 ">
+        Alpha
+      </button>
+      <button className="flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 hover:text-white text-[#fafafa60] hover:bg-[#fafafa10] rounded-lg leading-1 ">
+        To-dos
+      </button>
+      <button className="flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 hover:text-white text-[#fafafa60] hover:bg-[#fafafa10] rounded-lg leading-1 ">
+        @
+      </button>
+      {/* <button className="flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 text-white rounded-lg ">
         Smart Digest
       </button>
       <button className="flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 hover:text-white rounded-lg">
@@ -211,8 +225,7 @@ const handleCheckboxChange = (id: number) => {
       </button>
       <button className="flex-shrink-0 flex items-center whitespace-nowrap gap-1 px-2 py-1 hover:text-white rounded-lg">
         💬 <span className="text-[#ffffff48] ">Mentions</span>
-      </button>
-      {/* Add more tabs if needed */}
+      </button> */}
     </div>
    {showRightArrow && <button
   className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-1 shadow"
@@ -228,15 +241,14 @@ const handleCheckboxChange = (id: number) => {
         </div>
       </div>
 
-      {/* Digest Section */}
-      <div className=" rounded-xl mb-2">
-        <div className="flex items-center gap-2 mb-2">
-            <img className="h-4 w-4 object-contain" src={alphaImage} alt="Alpha" />
-            <span className="text-xs text-[#84afff] leading-none">Alpha</span>
-            <span className="text-xs font-[300] text-[#ffffff32] leading-none">2 MIN AGO</span>
+      {/* Alpha Section */}
+      <div className=" rounded-xl mb-2 px-2 mt-4 ">
+        <div className="flex justify-between items-center gap-2 mb-2">
+            <span className="text-xs text-[#fafafa] leading-none">Alpha</span>
+            <span className="text-xs font-[300] text-[#fafafa60] leading-none">2 MIN AGO</span>
         </div>
-        <div className="bg-[#171717] px-6 py-2 rounded-[16px]">
-        <ul className=" list-disc list-outside text-sm text-[#ffffff72] space-y-1 [--tw-prose-bullets:#fdcb35] marker:text-[#fdcb35]">
+        <div className="bg-[#171717] px-8 py-4 rounded-[16px]">
+        <ul className=" list-disc list-outside text-sm text-[#fafafa] space-y-1 [--tw-prose-bullets:#84afff] marker:text-[#84afff]">
             <li>Frustration over delays: Users upset about 5–6 week silence on V2 and lack of communication.</li>
             <li>Market sentiment: Bearish tone; some fear potential Binance delisting.</li>
             <li>Requests: Community pushing for V2 timeline and AMAs/Discord setup.</li>
@@ -247,43 +259,51 @@ const handleCheckboxChange = (id: number) => {
 
 
       {/* To-dos / Requests */}
-      <div className="mb-2">
-      <div className="flex items-center gap-2 mb-2">
+      <div className="mb-2 px-2 mt-4 ">
+      <div className="flex items-center justify-between gap-2 mb-2">
         
-            <img className="h-4 w-4 object-contain" src={todoIcon} alt="Alpha" />
-            <span className="text-xs text-[#84afff] leading-none">To-dos / Requests</span>
-            <span className="text-xs font-[300] text-[#ffffff32] leading-none">2 MIN AGO</span>
+            <span className="text-xs text-[#fafafa] leading-none">To-dos / Requests</span>
+            <span className="text-xs font-[300] text-[#fafafa60] leading-none">2 MIN AGO</span>
         </div>
         <div className="bg-[#171717] px-2 py-2 rounded-[16px]" >
 
         {todos.map((todo) => (
-      <div className="flex items-start gap-2 mb-2" key={todo.id}>
-        <CustomCheckbox
-          checked={!!checkedItems[todo.id]}
-          onChange={() => handleCheckboxChange(todo.id)}
-        />
-        <div className="flex-1 bg-[#212121] rounded-[8px] p-2">
-          <div className="flex items-center gap-2">
-            <span className="bg-[#212121] border-[#ffffff03] border-2 shadow-xl text-blue-300 text-xs px-2 py-0.5 rounded-[6px] font-medium flex items-center gap-1">
-              <img src={todo.icon} className="h-4 w-4" />
-              {todo.label}
-              {todo.label=="Reminder" && <span className="bg-[#23242a] text-xs text-gray-400 px-2 py-0.5 rounded flex items-center gap-1"><FaClock className="text-gray-400" /> 3d</span>}
-            </span>
-            <button className="ml-auto p-1 bg-[#2d2d2d] border-2 border-[#ffffff03] rounded-[6px] hover:text-white text-[#ffffff72] ">
-              <FaPlus />
-            </button>
-            <button className="p-1 bg-[#2d2d2d] border-2 border-[#ffffff03] rounded-[6px] hover:text-white text-[#ffffff72]">
-              <FaEllipsisH />
-            </button>
-          </div>
-          <div className="text-sm text-[#ffffff72] truncate mt-1">{todo.desc}</div>
-          <span className={`text-xs ${todo.platform=="telegram"?'text-[#3474ff]':'text-[#7b5cfa]'} flex gap-1 items-center mt-1`}>
-            {todo.platform=="telegram"?<FaTelegramPlane />:<FaDiscord/>}
-            {todo.tag}
-            {todo.bot && <span className="text-xs text-[#ffffff48]">{todo.bot}</span>}
-          </span>
-        </div>
-      </div>
+   <div className="flex  items-start gap-0 mb-2 bg-[#222327] p-2 rounded-[6px] border border-[#ffffff09]" key={todo.id}>
+   <div className="flex-shrink-0 w-8 flex items-center justify-center">
+   <CustomCheckbox
+   checked={!!checkedItems[todo.id]}
+   onChange={()=>{}}
+  //  onChange={() => handleCheckboxChange(todo)}
+   className="mt-2"
+   />
+   </div>
+   <div className=" grow bg-[#222327] rounded-[8px] px-2">
+     <div className="flex items-center gap-2">
+       <span className="bg-[#fafafa10] border-[#ffffff03] border-2 shadow-xl text-blue-300 text-xs px-1 py-0.5 rounded-[6px] font-medium flex items-center gap-1">
+         <img src={todo.icon} className="h-4 w-4" />
+         {todo.label}
+         {/* {todo.label=="Reminder" && <span className="bg-[#23242a] text-xs text-gray-400 px-2 py-0.5 rounded flex items-center gap-1"></span>} */}
+       </span>
+       {/* <button className="ml-auto p-1 bg-[#2d2d2d] border-2 border-[#ffffff03] rounded-[6px] hover:text-white text-[#ffffff72] ">
+         <FaPlus />
+       </button>
+       <button className="p-1 bg-[#2d2d2d] border-2 border-[#ffffff03] rounded-[6px] hover:text-white text-[#ffffff72]">
+         <FaEllipsisH />
+       </button> */}
+     </div>
+     <div className="text-sm text-[#fafafa] break-words w-full">{todo.desc}</div>
+     <span className={`text-xs ${todo.platform=="telegram"?'text-[#3474ff]':'text-[#7b5cfa]'} flex gap-1 items-center mt-1`}>
+       {todo.platform=="telegram"?<FaTelegramPlane />:<FaDiscord/>}
+       {todo.tag.split('|')[0]}
+       {todo.bot && <span className="text-xs text-[#ffffff48]">{todo.bot}</span>}
+       <span className="text-[#FAFAFA60]">03/02/25, 18:49</span>
+     </span>
+   </div>
+   <div className="flex flex-col gap-0">
+       <span className="bg-[#F03D3D12] grow rounded-[6px] px-2 py-1 text-[#F68989]">High</span>
+       <span className="bg-[#fafafa10] rounded-[6px] text-center grow flex items-center justify-center gap-1 text-[12px]"><CalendarCogIcon className="w-3 h-3"/> 3d</span>
+   </div>
+   </div>
     ))}
       <div className="flex items-center justify-between mt-2">
           <button   
@@ -294,16 +314,78 @@ const handleCheckboxChange = (id: number) => {
     </div>
        
       </div>
+    
+      {/* Mentions*/}
+      <div className="mb-2 px-2 mt-4 ">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        
+            <span className="text-xs text-[#fafafa] leading-none">@Mentions</span>
+            <span className="text-xs font-[300] text-[#fafafa60] leading-none">2 MIN AGO</span>
+        </div>
+        <div className="bg-[#171717] px-2 py-2 rounded-[16px]" >
+
+        {todos.map((todo) => (
+      <div className="flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 bg-[#212121]">
+      {/* Avatar */}
+      <img
+        src="https://www.gravatar.com/avatar/example?s=80"
+        alt="James Steven"
+        className="w-10 h-10 rounded-full object-cover"
+      />
+      {/* Message Content */}
+      <div className="flex-1">
+        <div className="flex items-center justify-start gap-2">
+          <span className="text-[#ffffff] font-[300] text-sm">James Steven</span>
+          <span className="text-xs text-[#fafafa99]">#general</span>
+          <span className="text-xs text-[#fafafa99]">03/02/25, 18:49</span>
+        </div>
+        <div className="flex items-center gap-0 mt-1 bg-[#3474ff] w-max rounded-[6px]">
+          <FaTelegramPlane className="text-[#ffffff] w-3 h-3 ml-1" />
+          <span className="text-xs text-white  rounded pr-2 pl-1 py-0.5">
+            Alpha Guild
+          </span>
+        </div>
+        <div className="mt-2 text-sm text-[#e0e0e0]">
+          <span className="text-[#84afff]">@everyone</span> Stealth claim just
+          opened. Zero tax, no presale. Contract verified 2 mins ago.
+        </div>
+        {/* Reactions */}
+        <div className="flex gap-3 mt-2">
+          <span className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]">
+            <ThumbsUp className="w-4 h-4" />
+            38
+          </span>
+          <span className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]">
+            <Heart className="w-4 h-4" />
+            21
+          </span>
+          <span className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]">
+            <MessageCircle className="w-4 h-4" />
+            16
+          </span>
+        </div>
+      </div>
+    </div>
+    ))}
+      {/* <div className="flex items-center justify-between mt-2">
+          <button   
+            onClick={handleSelectAll}
+            className="w-[50%] text-xs text-gray-400 hover:text-white">Select All</button>
+          <button className="w-[50%] bg-[#3474ff12] text-[#84afff] hover:text-[#ffffff] hover:bg-[#3474ff72] text-xs px-4 py-2 rounded-[8px]">Add Selected</button>
+        </div> */}
+    </div>
+       
+      </div>
 
       {/* Smart Activity */}
-      <div className="flex items-center gap-2 mb-2">
+      {/* <div className="flex items-center gap-2 mb-2 px-2 ">
         
         <img className="h-4 w-4 object-contain" src={todoIcon} alt="Alpha" />
         <span className="text-xs text-[#84afff] leading-none">Smart Activity</span>
         <span className="text-xs font-[300] text-[#ffffff32] leading-none">2 MIN AGO</span>
     </div>
     {smartActivities.map((activity, idx) => (
-  <div key={idx} className="mb-4">
+  <div key={idx} className="mb-4 px-2 ">
     
     <div className="bg-[#23242a] rounded-xl p-4 flex gap-2">
       <img
@@ -327,19 +409,12 @@ const handleCheckboxChange = (id: number) => {
         <div className="text-sm text-[#ffffff72] mb-2">
           {activity.content}
         </div>
-        {/* Embedded card */}
         <LinkPreview url={activity.url} />
-        {/* <div className="bg-[#181A20] rounded-lg p-3 border border-[#23242a]">
-          <div className="font-semibold text-gray-100 mb-1 text-xs">Lorem Ipsum dolor sit amet</div>
-          <div className="text-xs text-gray-400 mb-2">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec sollicitudin dolor libero, quis ...
-          </div>
-          <div className="bg-[#23242a] h-16 rounded-lg" />
-        </div> */}
+      
       </div>
     </div>
   </div>
-))}
+))} */}
       {/* <div className="bg-[#23242a] rounded-xl p-4 flex gap-2">
       <img
   src={`https://api.dicebear.com/7.x/bottts/svg?seed=${Math.random().toString(36).substring(2, 10)}`}
