@@ -78,7 +78,8 @@ const TASK_SECTIONS = [
       tag: "#PORTALCOIN | $PORTAL",
       bot: "#BOT",
       icon: smartTodo,
-      platform: 'telegram'
+      platform: 'telegram',
+      type: 'todo'
     },
     {
       id: 2,
@@ -87,7 +88,9 @@ const TASK_SECTIONS = [
       tag: "ALPHA GUILD | #GENERAL",
       bot: "",
       icon: smartTodo,
-      platform: 'discord'
+      platform: 'discord',
+      type: 'reminder'
+
     },
     // ...more filtered items
   ];
@@ -100,7 +103,9 @@ const TASK_SECTIONS = [
       tag: "#ETH | #STAKING",
       bot: "#FAVBOT",
       icon: smartTodo,
-      platform: 'telegram'
+      platform: 'telegram',
+      type: 'todo'
+
     },
     // ...more favorite items
   ];
@@ -113,7 +118,8 @@ const TASK_SECTIONS = [
       tag: "#ANALYTICS | #REVIEW",
       bot: "",
       icon: smartTodo,
-      platform: 'discord'
+      platform: 'discord',
+      type: 'reminder'
     },
     {
       id: 202,
@@ -122,7 +128,8 @@ const TASK_SECTIONS = [
       tag: "#ANALYTICS | #REVIEW",
       bot: "",
       icon: smartTodo,
-      platform: 'discord'
+      platform: 'discord',
+      type: 'reminder'
     },
     // ...more backlog items
   ];
@@ -435,7 +442,14 @@ const handleCheckboxChange = (task) => {
           </div>
           {openTab === index && (
             <div className="px-2 py-2 rounded-[16px]" >
-              {todo[index].map((todo) => (
+              {todo[index].filter((todo) => {
+      if (selectedTab === 'all' || selectedTab === 'mentions') {
+        return true;
+      }
+      return todo.type.toLowerCase() === selectedTab;
+    }).map((todo) => {
+                
+                return(
 <div className="flex  items-start gap-0 mb-2 bg-[#222327] p-2 rounded-[6px] border border-[#ffffff09]" key={todo.id}>
 <div className="flex-shrink-0 w-8 flex items-center justify-center">
 <CustomCheckbox
@@ -471,7 +485,9 @@ className="mt-2"
     <span className="bg-[#fafafa10] rounded-[6px] text-center grow flex items-center justify-center gap-1 text-[12px]"><CalendarCogIcon className="w-3 h-3"/> 3d</span>
 </div>
 </div>
-))}
+)}
+
+)}
             </div>
           )}
         </div>

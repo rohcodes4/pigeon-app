@@ -39,62 +39,70 @@ const TIME_OPTIONS = [
 //     // ...more items
 //   ];
 
-  const filteredTodos = [
-    {
-      id: 1,
-      label: "To-do",
-      desc: "$GOR entered Proof-of-Cope meta...",
-      tag: "#PORTALCOIN | $PORTAL",
-      bot: "#BOT",
-      icon: smartTodo,
-      platform: 'telegram'
-    },
-    {
-      id: 2,
-      label: "Reminder",
-      desc: "Updates: Monad mainnet live",
-      tag: "ALPHA GUILD | #GENERAL",
-      bot: "",
-      icon: smartTodo,
-      platform: 'discord'
-    },
-    // ...more filtered items
-  ];
-  
-  const favoriteTodos = [
-    {
-      id: 101,
-      label: "To-do",
-      desc: "Check $ETH staking rewards",
-      tag: "#ETH | #STAKING",
-      bot: "#FAVBOT",
-      icon: smartTodo,
-      platform: 'telegram'
-    },
-    // ...more favorite items
-  ];
-  
-  const backlogTodos = [
-    {
-      id: 201,
-      label: "Reminder",
-      desc: "Review last week's analytics Review last week's analytics Review last week's analytics Review last week's analytics",
-      tag: "#ANALYTICS | #REVIEW",
-      bot: "",
-      icon: smartTodo,
-      platform: 'discord'
-    },
-    {
-      id: 202,
-      label: "Reminder",
-      desc: "Review last week's analytics",
-      tag: "#ANALYTICS | #REVIEW",
-      bot: "",
-      icon: smartTodo,
-      platform: 'discord'
-    },
-    // ...more backlog items
-  ];
+const filteredTodos = [
+  {
+    id: 1,
+    label: "To-do",
+    desc: "$GOR entered Proof-of-Cope meta...",
+    tag: "#PORTALCOIN | $PORTAL",
+    bot: "#BOT",
+    icon: smartTodo,
+    platform: 'telegram',
+    type: 'todo'
+  },
+  {
+    id: 2,
+    label: "Reminder",
+    desc: "Updates: Monad mainnet live",
+    tag: "ALPHA GUILD | #GENERAL",
+    bot: "",
+    icon: smartTodo,
+    platform: 'discord',
+    type: 'reminder'
+
+  },
+  // ...more filtered items
+];
+
+const favoriteTodos = [
+  {
+    id: 101,
+    label: "To-do",
+    desc: "Check $ETH staking rewards",
+    tag: "#ETH | #STAKING",
+    bot: "#FAVBOT",
+    icon: smartTodo,
+    platform: 'telegram',
+    type: 'todo'
+
+  },
+  // ...more favorite items
+];
+
+const backlogTodos = [
+  {
+    id: 201,
+    label: "Reminder",
+    desc: "Review last week's analytics Review last week's analytics Review last week's analytics Review last week's analytics",
+    tag: "#ANALYTICS | #REVIEW",
+    bot: "",
+    icon: smartTodo,
+    platform: 'discord',
+    type: 'reminder'
+  },
+  {
+    id: 202,
+    label: "Reminder",
+    desc: "Review last week's analytics",
+    tag: "#ANALYTICS | #REVIEW",
+    bot: "",
+    icon: smartTodo,
+    platform: 'discord',
+    type: 'reminder'
+  },
+  // ...more backlog items
+];
+
 
   const smartActivities = [
     {
@@ -137,6 +145,7 @@ const [selectedTab, setSelectedTab] = useState<'all' | 'todo' | 'reminder' | 'me
 const [openTab, setOpenTab] = useState<number | null>(0);
 const [selectedTasks, setSelectedTasks] = useState([]);
 const dropdownRef2 = useRef<HTMLDivElement>(null);
+
 useEffect(() => {
   function handleClickOutside(event: MouseEvent) {
     if (dropdownRef2.current && !dropdownRef2.current.contains(event.target as Node)) {
@@ -400,7 +409,12 @@ const handleCheckboxChange = (task) => {
 
 <div className=" px-2 py-2 rounded-[16px]" >
 
-{filteredTodos.map((todo) => (
+{filteredTodos.filter((todo) => {
+      if (selectedTab === 'all' || selectedTab === 'mentions') {
+        return true;
+      }
+      return todo.type.toLowerCase() === selectedTab;
+    }).map((todo) => (
 <div className="flex  items-start gap-0 mb-2 bg-[#222327] p-2 rounded-[6px] border border-[#ffffff09]" key={todo.id}>
 <div className="flex-shrink-0 w-8 flex items-center justify-center">
 <CustomCheckbox
@@ -446,6 +460,7 @@ className="mt-2"
     </div>
         )}       
       </div>
+
       <div className="mb-2 px-2">
       <div className="flex justify-between items-center gap-2 mb-2 cursor-pointer"
           onClick={() => setOpenTab(openTab === 1 ? null : 1)}
@@ -460,7 +475,12 @@ className="mt-2"
 
 <div className=" px-2 py-2 rounded-[16px]" >
 
-{favoriteTodos.map((todo) => (
+{favoriteTodos.filter((todo) => {
+      if (selectedTab === 'all' || selectedTab === 'mentions') {
+        return true;
+      }
+      return todo.type.toLowerCase() === selectedTab;
+    }).map((todo) => (
 <div className="flex  items-start gap-0 mb-2 bg-[#222327] p-2 rounded-[6px] border border-[#ffffff09]" key={todo.id}>
 <div className="flex-shrink-0 w-8 flex items-center justify-center">
 <CustomCheckbox
@@ -520,7 +540,12 @@ className="mt-2"
 
         <div className=" px-2 py-2 rounded-[16px]" >
 
-        {backlogTodos.map((todo) => (
+        {backlogTodos.filter((todo) => {
+      if (selectedTab === 'all' || selectedTab === 'mentions') {
+        return true;
+      }
+      return todo.type.toLowerCase() === selectedTab;
+    }).map((todo) => (
       <div className="flex  items-start gap-0 mb-2 bg-[#222327] p-2 rounded-[6px] border border-[#ffffff09]" key={todo.id}>
        <div className="flex-shrink-0 w-8 flex items-center justify-center">
     <CustomCheckbox
@@ -569,7 +594,7 @@ className="mt-2"
       </div>
       <div className="flex w-full px-2">
       <button
-  onClick={() => {handleSelectAll(filteredTodos);handleSelectAll(favoriteTodos);handleSelectAll(backlogTodos)}}
+  onClick={() => {handleSelectAll([...filteredTodos,...favoriteTodos,...backlogTodos])}}
   className="w-[50%] text-xs text-gray-400 hover:text-white"
 >
   Select All
