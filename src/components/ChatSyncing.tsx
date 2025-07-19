@@ -36,7 +36,7 @@ export const ChatSyncing = ({ onComplete, restartOnboarding, chatsSelected, appr
   const discordChats = approvedChats.filter((chat) => chat.platform === "discord");
   const telegramChats = approvedChats.filter((chat) => chat.platform === "telegram");
 
-  const [syncProgress, setSyncProgress] = useState({ discord: 0, telegram: 0 });
+  const [syncProgress, setSyncProgress] = useState({ discord: 4, telegram: 7 });
   const [syncComplete, setSyncComplete] = useState(false);
 
 //   const [telegramConnected, setTelegramConnected] = useState(false);

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Eye, Filter, GripVertical, MoreHorizontal, MoreVertical, Plus, Search, VolumeX, X } from "lucide-react";
 import { Pin, PinOff } from "lucide-react";
-import aiIMG from "@/assets/images/aiBlue.png";
+import aiAll from "@/assets/images/aiAll.png";
 import discord from "@/assets/images/discord.png";
 import telegram from "@/assets/images/telegram.png";
 import { FaBars, FaDiscord, FaTelegram, FaTelegramPlane } from "react-icons/fa";
@@ -499,7 +499,7 @@ const [filterFull, setFilterFull] = useState(false);
     >
       {/* Avatar */}
       <img
-        src={aiIMG}
+        src={aiAll}
         className="w-10 h-10 rounded-full object-cover"
       />
       {/* Chat Info */}
@@ -634,10 +634,36 @@ const [filterFull, setFilterFull] = useState(false);
     </button>
   )}
       </div>
-      {channelSearch && (
+      { (
   <div className="max-h-32 overflow-y-auto mb-2">
     {searchResults.length === 0 ? (
-      <div className="text-xs text-[#ffffff80] px-3 py-2">No results found.</div>
+      // <div className="text-xs text-[#ffffff80] px-3 py-2">No results found.</div>
+      searchResults.slice(0,3).map((ch, idx) => (
+        <div
+          key={ch.name + idx}
+          className="flex items-center gap-2 hover:bg-[#ffffff10] rounded-[10px] px-3 py-2 mb-1 cursor-pointer"
+          onClick={() => {
+            if (!selectedChannels.some(sel => sel.name === ch.name)) {
+              setSelectedChannels([...selectedChannels, ch]);
+            }
+          }}
+        >
+          {/* Platform icons */}
+          <span className="flex gap-1">
+  {ch.platform === "Telegram" && (
+    <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#3474ff]">
+      <img src={telegram} className="w-4 h-4" alt="Telegram" />
+    </span>
+  )}
+  {ch.platform === "Discord" && (
+    <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#7B5CFA]">
+      <img src={discord} className="w-4 h-4" alt="Discord" />
+    </span>
+  )}
+</span>
+          <span className="text-white text-sm">{ch.name}</span>
+        </div>
+      ))
     ) : (
       searchResults.map((ch, idx) => (
         <div

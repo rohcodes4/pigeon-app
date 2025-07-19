@@ -14,7 +14,7 @@ import {
   FaExchangeAlt,
   FaPlus,
 } from "react-icons/fa";
-import { BellOff, Check, CheckCheck, ChevronDown, ChevronUp, MessageCircleMoreIcon, MoreHorizontal, Plus } from "lucide-react";
+import { BellOff, CalendarCogIcon, Check, CheckCheck, ChevronDown, ChevronUp, MessageCircleMoreIcon, MoreHorizontal, Plus } from "lucide-react";
 import todoIcon2 from "@/assets/images/todoIcon2.png";
 import reminderIcon from "@/assets/images/reminderIcon.png";
 import { FaCalendarAlt, FaTag, FaFlag } from "react-icons/fa";
@@ -71,9 +71,9 @@ const platformIcon = (platform: string) =>
 const INITIAL_TASKS = [
   {
     id: 1,
-    name: "Explore Uniswap V3 liquidity pool update",
+    name: "Explore Uniswap V3 liquidity pool update Explore Uniswap V3 liquidity pool update Explore Uniswap V3 liquidity pool update ",
     tags: [ "Sponsored", "Viral"],
-    due: "Due in 5 Days",
+    due: "5d",
     description: "",
     platform: "discord",
     channel: "PORTFOLIO/IN",
@@ -86,7 +86,7 @@ const INITIAL_TASKS = [
     id: 2,
     name: "BABAYAGA whitelist event",
     tags: [ "Sponsored", "Viral"],
-    due: "Due in 3 Days",
+    due: "3d",
     description: "",
     platform: "discord",
     channel: "POW/S GIM CALLS",
@@ -99,7 +99,7 @@ const INITIAL_TASKS = [
     id: 3,
     name: "SETH airdrop registration in Telegram group",
     tags: [ "Sponsored", "Viral"],
-    due: "Due in 3 Days",
+    due: "3",
     description: "",
     platform: "telegram",
     channel: "MICHAEL SABLE",
@@ -112,7 +112,7 @@ const INITIAL_TASKS = [
     id: 4,
     name: "Participate in BABAYAGA whitelist event!",
     tags: [ "Sponsored", "Viral"],
-    due: "Due in 3 Days",
+    due: "3",
     description: "",
     platform: "discord",
     channel: "ALPHA GUILD",
@@ -125,7 +125,7 @@ const INITIAL_TASKS = [
     id: 5,
     name: "Join new DeFi project launch",
     tags: [ "Community"],
-    due: "Due in 5 Days",
+    due: "5d",
     description: "",
     platform: "telegram",
     channel: "DeFi Announcements",
@@ -138,7 +138,7 @@ const INITIAL_TASKS = [
     id: 6,
     name: "Review weekly analytics",
     tags: [],
-    due: "Due in 2 Days",
+    due: "2d",
     description: "",
     platform: "discord",
     channel: "Analytics",
@@ -179,18 +179,18 @@ function formatDueText(due) {
   
     const now = new Date();
     const diffMs = dueDate.getTime() - now.getTime();
-    if (diffMs <= 0) return "Due now";
+    if (diffMs <= 0) return "Now";
   
     const diffMins = Math.floor(diffMs / (1000 * 60));
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
   
     if (diffDays > 0) {
-      return `Due in ${diffDays} Day${diffDays > 1 ? "s" : ""}`;
+      return `${diffDays}d`;
     } else if (diffHours > 0) {
-      return `Due in ${diffHours} hr${diffHours > 1 ? "s" : ""}`;
+      return `${diffHours}hr`;
     } else {
-      return `Due in ${diffMins} min${diffMins > 1 ? "s" : ""}`;
+      return `${diffMins}min`;
     }
   }
 
@@ -420,12 +420,12 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
   return (
     <div className="bg-[#171717] text-white flex flex-col h-[calc(100vh-121px)] overflow-y-scroll">
       {/* Filters and Task Count */}
-      <div className="flex items-center justify-between gap-4 p-4 border-b border-gray-700">
-        <div className="flex gap-4 items-center">
-        <div className="border-r border-r-[#ffffff32] pr-4">
+      <div className=" flex items-center justify-between gap-4 p-4 border-b border-gray-700">
+        <div className="flex gap-4 items-center text-sm">
+        <div className="border-r border-r-[#ffffff32] 2xl:pr-4 pr-0">
                 <p className="uppercase text-[#ffffff32] font-[200] mb-1">Source</p>
           <select
-            className="bg-[#2d2d2d] rounded-[8px] pl-1 pr-3 py-3 mr-3 text-[#ffffff72]"
+            className="bg-[#2d2d2d] text-xs rounded-[8px] pl-1 pr-3 py-3 mr-3 text-[#ffffff72]"
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value)}
           >
@@ -436,7 +436,7 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
           </div>
 
           {/* Priority as radio flex buttons */}
-          <div className="border-r border-r-[#ffffff32] pr-4">
+          <div className="border-r border-r-[#ffffff32] 2xl:pr-4 pr-2 text-xs ">
           <p className="uppercase text-[#ffffff32] font-[200] mb-1">Priority</p>
 
           <div className="flex gap-1 ">
@@ -467,10 +467,10 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
           </div>
           </div>
           <div>
-          <p className="uppercase text-[#ffffff32] font-[200] mb-1">Due</p>
+          <p className="text-xs  uppercase text-[#ffffff32] font-[200] mb-1">Due</p>
 
           <select
-            className="bg-[#2d2d2d] rounded-[8px] pl-1 pr-3 py-3 mr-3 text-[#ffffff72]"
+            className="text-xs  bg-[#2d2d2d] rounded-[8px] pl-1 pr-3 py-3 mr-3 text-[#ffffff72]"
             value={timeFilter}
             onChange={(e) => setTimeFilter(e.target.value)}
           >
@@ -483,11 +483,11 @@ const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
           </select>
           </div>
         </div>
-        <div className="text-sm text-[#ffffff48] uppercase self-end flex gap-2">
+        <div className="text-xs 2xl:text-sm text-[#ffffff48] uppercase self-end flex gap-2 max-2xl:flex-col">
           <Button variant="ghost" onClick={selectAllTasks}>
 Select All
             </Button>
-          <Button variant="default" className="bg-[#3474FF60] hover:text-[#3474FF] text-[#B8D1Ff]"
+          <Button variant="default" className="text-xs 2xl:text-sm bg-[#3474FF60] hover:text-[#3474FF] text-[#B8D1Ff]"
           onClick={markSelectedAsDone}>
 Mark as Done
             </Button>
@@ -578,7 +578,7 @@ Mark as Done
                   .map((task) => (
                     <div
                       key={task.id}
-                      className="flex gap-5 items-center hover:bg-[#212121] rounded-[16px] p-3 hover:bg-[#2A2D36] transition group"
+                      className="relative flex gap-5 items-center hover:bg-[#212121] rounded-[16px] p-3 hover:bg-[#2A2D36] transition group"
                       onMouseEnter={() => setHoveredTask(task.id)}
                       onMouseLeave={() => setHoveredTask(null)}
                     >
@@ -586,10 +586,10 @@ Mark as Done
                         checked={selectedTasks.includes(task.id)}
                         onChange={() => toggleTaskSelection(task.id)}
                       />
-                      <div className="flex-1 flex flex-col">
+                      <div className="flex-1 grow flex flex-col">
                         <div className="flex gap-2 items-center mb-2">
-                      <span className="flex gap-1 items-center bg-[#212121] text-[#84AFFF] px-2 py-1 rounded-[6px]"><img className="h-4 w-4" src={task.type=="todo"?todoIcon2:reminderIcon}/>{task.type=="todo"?"To-do":"Reminder"}</span>
-                      <span className="bg-[#212121] text-[#ffffff72] px-2 py-1 rounded-[6px]">{formatDueText(task.due)}</span>
+                      <span className="h-6 flex-shrink-0 flex gap-1 items-center bg-[#fafafa10] text-[#84AFFF] px-2 py-1 rounded-[6px]"><img className="h-4 w-4" src={task.type=="todo"?todoIcon2:reminderIcon}/>{task.type=="todo"?"To-do":"Reminder"}</span>
+                      <span className="h-6 flex-shrink-0 flex gap-1 items-center bg-[#fafafa10] text-[#ffffff72] px-2 py-1 rounded-[6px]"><CalendarCogIcon className="w-4 h-4"/>{formatDueText(task.due)}</span>
                         <span className="text-[#ffffff72]">{task.name}</span>
                         </div>
                         <div className={`text-xs text-white flex gap-2 items-center mb-1 w-max rounded-[4px] px-2 py-0.5 ${task.platform=="telegram"?"bg-[#3474ff]":"bg-[#7B5CFA]"}`}>
@@ -602,7 +602,37 @@ Mark as Done
                         </div>
                         <div className="flex gap-2 mt-1">
   {/* Priority tag (first tag) */}
-  {task.priority && (
+  {/* {task.priority && (
+    <span
+      className={`
+        text-xs rounded-[6px] px-2.5 py-1.5 font-semibold
+        ${
+          task.priority === "HIGH"
+            ? "bg-[#f03d3d12] text-[#F68989]"
+            : task.priority === "MEDIUM"
+            ? "bg-[#FCBF0412] text-[#FDD868]"
+            : task.priority === "LOW"
+            ? "bg-[#00ff0012] text-[#7CF6A6]"
+            : "bg-[#353945] text-[#A5B4FC]"
+        }
+      `}
+    >
+      {task.priority}
+    </span> 
+  )}*/}
+  {/* Other tags */}
+  {/* {task.tags.map((tag) => (
+    <span
+      key={tag}
+      className="bg-[#7B5CFA24] text-xs text-[#BBB3FF] rounded-[6px] px-2.5 py-1.5"
+    >
+      {tag}
+    </span>
+  ))} */}
+</div>
+                      </div>
+                      <div className="self-start">
+                      {task.priority && (
     <span
       className={`
         text-xs rounded-[6px] px-2.5 py-1.5 font-semibold
@@ -620,25 +650,15 @@ Mark as Done
       {task.priority}
     </span>
   )}
-  {/* Other tags */}
-  {task.tags.map((tag) => (
-    <span
-      key={tag}
-      className="bg-[#7B5CFA24] text-xs text-[#BBB3FF] rounded-[6px] px-2.5 py-1.5"
-    >
-      {tag}
-    </span>
-  ))}
-</div>
-                      </div>
+                        </div>
                       {/* Hover actions */}
                       <div
-                        className={`relative flex gap-3 ml-4 opacity-0 group-hover:opacity-100 transition ${
+                        className={`rounded-[8px] bg-[#242429] absolute right-4 -top-4 flex gap-0 ml-4 opacity-0 group-hover:opacity-100 transition ${
                           hoveredTask === task.id ? "opacity-100" : ""
                         }`}
                       >
                         <button title="Edit"
-                        className="rounded-[12px] bg-[#2d2d2d] border border-[#ffffff03] p-2"
+                        className="hover:text-[#84afff] border border-[#ffffff03] p-2"
                         onClick={()=>markTaskDone(task.id)}
                         >
                           <Check  className="h-4 w-4"/>
@@ -658,18 +678,18 @@ Mark as Done
                           <option>LOW</option>
                         </select> */}
                         <button title="Mute"
-                        className="rounded-[12px] bg-[#2d2d2d] border border-[#ffffff03] p-2">
+                        className="hover:text-[#84afff] border border-[#ffffff03] p-2">
 
                         <BellOff className="h-4 w-4"/>
                         </button>
                         <button title="chat"
-                        className="rounded-[12px] bg-[#2d2d2d] border border-[#ffffff03] p-2">
+                        className="hover:text-[#84afff] border border-[#ffffff03] p-2">
 
                         <MessageCircleMoreIcon className="h-4 w-4"/>
                         </button>
                         <button
   title="more"
-  className="relative rounded-[12px] bg-[#2d2d2d] border border-[#ffffff03] p-2"
+  className="relative hover:text-[#84afff] border border-[#ffffff03] p-2"
   onClick={(e) => {
     e.stopPropagation();
     setOpenMoreMenu(openMoreMenu === task.id ? null : task.id);

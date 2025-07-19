@@ -21,7 +21,6 @@ const UnifiedHeader:React.FC<UnifiedHeaderProps> = ({
     isPinnable,
     isContact=false
 }) => {
-  console.log(isContact)
   return (
     <header className="flex items-center justify-between px-6 py-1 border-b border-[#23272f] rounded-tl-[12px]">
       {/* Left: Title and subtitle */}

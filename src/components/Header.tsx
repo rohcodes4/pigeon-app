@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
-import logo from "@/assets/images/logo.png";
+import logo from "@/assets/images/sidebarLogo.png";
 
 export const Header = () => {
   const { user, signIn, signUp, signOut } = useAuth();

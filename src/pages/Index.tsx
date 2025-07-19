@@ -33,7 +33,7 @@ import PinnedPanel from "@/components/PinnedPanel";
 const Index = () => {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
-  const [isOnboarded, setIsOnboarded] = useState(true);
+  const [isOnboarded, setIsOnboarded] = useState(false);
   const [activeTab, setActiveTab] = useState("ai");
   const [isConnected, setIsConnected] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");

@@ -151,7 +151,7 @@ const PinnedPanel = () => {
   };
 
   return (
-    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]">
+    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]">
       <div className="text-[#84AFFF] flex items-center gap-2 p-4">
         <Pin className="w-4 h-4 fill-[#84AFFF]" />
         <span className="">Pinned Messages</span>

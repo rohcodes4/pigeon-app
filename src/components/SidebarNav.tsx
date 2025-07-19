@@ -76,8 +76,12 @@ useEffect(() => {
     setActiveNav(navMap[activePage] || "AI");
   }, [activePage]);
 
+  const logOut= async ()=>{
+    console.log('attempting logout...')
+    await supabase.auth.signOut()
+  }
   return(
-  <aside className="h-screen w-16 flex flex-col items-center py-[18px]">
+  <aside className="h-screen w-16 flex flex-col items-center py-[18px] min-w-16">
           <img src={logo} alt="AI" className="w-9 h-9 mb-4" />
     <nav className="flex flex-col gap-4 flex-1">
         {/* AI */}
@@ -213,8 +217,8 @@ useEffect(() => {
                   <ArrowUpCircle className="w-4 h-4" />
                   Upgrade
                 </button>
-                <button className="p-2 flex items-center gap-2 text-xs text-red-600 transition">
-                  <LogOut onClick={async ()=>await supabase.auth.signOut()} className="w-4 h-4" />
+                <button className="p-2 flex items-center gap-2 text-xs text-red-600 transition"  onClick={logOut}>
+                  <LogOut className="w-4 h-4" />
                   Logout
                 </button>
               </div>
