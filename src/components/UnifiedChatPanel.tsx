@@ -169,6 +169,12 @@ const UnifiedChatPanel: React.FC = () => {
     }
   }, [openMenuId]);
 
+  Object.entries(groupedByDate).map(([date, msgs]) => {
+    msgs.map((msg)=>{
+      console.log(msg.id)
+      console.log(msg.server)
+    })
+  })
   return (
     <div className="relative h-[calc(100vh-136px)] flex flex-col">
       {/* Message List  */}
@@ -284,7 +290,7 @@ const UnifiedChatPanel: React.FC = () => {
                     <div className={`flex justify-center pl-2 items-center rounded-[4px] ${msg.platform==="Telegram"?'bg-[#3474ff]':'bg-[#7b5cfa]'}`}>
                     {msg.platform==="Telegram"?<FaTelegramPlane className="text-[#ffffff] w-3 h-3"/>:<FaDiscord className="text-[#ffffff] w-3 h-3"/>}
 
-                    {msg.channel && (
+                    {msg.server && (
                       <span
                         className={`text-xs text-white${
                           msg.platform === "Discord"
