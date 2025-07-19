@@ -15,6 +15,8 @@ import { ArrowUpCircle, LogOut, Settings, User, Sun, Moon, Circle, Users } from 
 import logo from "@/assets/images/sidebarLogo.png";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserSettings } from "@/hooks/useUserSettings";
+import { useTheme } from "@/hooks/useTheme";
 
 
 interface SidebarNavProps {
@@ -30,9 +32,26 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
     "/help": "Help",
     // add more as needed
   };
+  const { settings, updateSettings, loading } = useUserSettings();
+  const { setTheme: setGlobalTheme } = useTheme(); // Destructure setTheme from useTheme
+
+  useEffect(() => {
+    if (!loading) {
+      console.log("Current theme:", settings.theme);
+      setTheme(settings.theme)
+    }
+  }, [loading, settings.theme]);
+
   const [showProfile, setShowProfile] = useState(false);
-  const [theme, setTheme] = useState("default");
+  const [theme, setTheme] = useState(settings.theme || "default");
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
+  const [user, setUser] = useState(authUser);
+  const handleThemeChange = (newTheme: string) => {
+    updateSettings({ theme: newTheme });
+    setTheme(newTheme);
+    setGlobalTheme(newTheme as Theme); // Call setTheme from useTheme
+  };
 
   // const { user } = useAuth();
   // console.log(user)
@@ -65,11 +84,18 @@ useEffect(() => {
 
   const themeIndex = themes.findIndex((t) => t.value === theme);
 
-  const user = {
-    name: "Jane Doe",
-    email: "jane.doe@email.com",
-    avatar: User,
-  };
+  // const user = {
+  //   name: "Jane Doe",
+  //   email: "jane.doe@email.com",
+  //   avatar: User,
+  // };
+
+  useEffect(() => {
+    if (authUser) {
+      setUser({ ...authUser, name: "Jane Doe" });
+    }
+  }, [authUser]);
+
   const [activeNav, setActiveNav] = useState(navMap[activePage] || "AI");
 
   useEffect(() => {
@@ -159,7 +185,7 @@ useEffect(() => {
           ref={profileRef}
         >
           <img
-            src={gravatarUrl(user.name)}
+            src={gravatarUrl(user?.name)}
             alt="Profile"
             className="w-8 h-8 rounded-full border-2 border-[#23272f] cursor-pointer"
           onClick={() => setShowProfile((prev) => !prev)}
@@ -169,9 +195,9 @@ useEffect(() => {
             <div       ref={popoverRef}
             className="absolute bottom-12 -right-100 z-50 bg-[#212121] rounded-xl shadow-2xl p-4 min-w-[240px] flex flex-col gap-3">              {/* Name */}
               <div className="flex items-center gap-3">
-              <img src={gravatarUrl(user.name)} alt="Profile" className="w-8 h-8 rounded-full" />
+              <img src={gravatarUrl(user?.name)} alt="Profile" className="w-8 h-8 rounded-full" />
               <div className="flex flex-col items-start">
-              <span className="text-[#ffffff72] text-[15px] font-[300]">{user.name}</span>
+              <span className="text-[#ffffff72] text-[15px] font-[300]">{user?.name}</span>
                 <span className="text-[12px] text-[#ffffff48]">{user.email}</span>
               </div>
               </div>
@@ -194,7 +220,7 @@ useEffect(() => {
     {themes.map((t, idx) => (
       <button
         key={t.value}
-        onClick={() => setTheme(t.value)}
+        onClick={() => handleThemeChange(t.value)}
         className={`w-7 h-7 flex items-center justify-center rounded-full transition-colors duration-300 relative mx-1 text-white ${
           theme === t.value ? "opacity-1" : "opacity-[0.2]"
         }`}

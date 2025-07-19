@@ -1,7 +1,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
-type Theme = "light" | "dark" | "system";
+type Theme = "light" | "dark" | "default";
 
 interface ThemeContextType {
   theme: Theme;
@@ -26,7 +26,7 @@ interface ThemeProviderProps {
 export const ThemeProvider = ({ children }: ThemeProviderProps) => {
   const [theme, setThemeState] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem("chatpilot-theme") as Theme;
-    return savedTheme || "system";
+    return savedTheme || "default";
   });
 
   const [actualTheme, setActualTheme] = useState<"light" | "dark">("light");
@@ -37,7 +37,7 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
     const updateTheme = () => {
       let resolvedTheme: "light" | "dark" = "light";
       
-      if (theme === "system") {
+      if (theme === "default") {
         resolvedTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
       } else {
         resolvedTheme = theme;
@@ -51,7 +51,7 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
 
     updateTheme();
 
-    if (theme === "system") {
+    if (theme === "default") {
       const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
       mediaQuery.addEventListener("change", updateTheme);
       return () => mediaQuery.removeEventListener("change", updateTheme);

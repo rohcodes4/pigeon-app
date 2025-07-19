@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FaCog, FaChevronDown, FaStar, FaCheckCircle, FaClock, FaPlus, FaEllipsisH, FaChevronRight, FaChevronLeft, FaDiscord, FaTelegram, FaTelegramPlane } from "react-icons/fa";
+import { FaCog, FaChevronDown, FaStar, FaCheckCircle, FaClock, FaPlus, FaEllipsisH, FaChevronRight, FaChevronLeft, FaDiscord, FaTelegram, FaTelegramPlane, FaEdit, FaFlag, FaTrash } from "react-icons/fa";
 import alphaImage from "@/assets/images/alphaFeatured.png";
 import todoIcon from "@/assets/images/todoIcon.png";
 import aiBlue from "@/assets/images/aiBlue.png";
 import smartTodo from "@/assets/images/smartTodo.png";
 import CustomCheckbox from "./CustomCheckbox";
 import LinkPreview from "./LinkPreview";
-import { CalendarCogIcon, ChevronDown, ChevronUp } from "lucide-react";
+import { BellOff, CalendarCogIcon, Check, ChevronDown, ChevronUp, MessageCircleMoreIcon, MoreHorizontal } from "lucide-react";
 
 const TIME_OPTIONS = [
   { label: "5 min", value: "5m" },
@@ -177,6 +177,21 @@ const [selectedTab, setSelectedTab] = useState<'all' | 'todo' | 'reminder' | 'me
 const [openTab, setOpenTab] = useState<number | null>(0);
 const [selectedTasks, setSelectedTasks] = useState([]);
 const dropdownRef2 = useRef<HTMLDivElement>(null);
+const [hoveredTask, setHoveredTask] = useState<number | null>(1);
+const [openMoreMenu, setOpenMoreMenu] = useState<number | null>(null);
+const [tasks, setTasks] = useState(todo);
+
+
+const markTaskDone = (id: number) => {
+  setTasks((prev) =>
+    prev.map((t:any) => (t?.id === id ? { ...t, status: "done" } : t))
+  );
+};
+
+
+const deleteTask = (id: number) => {
+  setTasks((prev) => prev.filter((t:any) => t?.id !== id));
+};
 
 useEffect(() => {
   function handleClickOutside(event: MouseEvent) {
@@ -450,7 +465,9 @@ const handleCheckboxChange = (task) => {
     }).map((todo) => {
                 
                 return(
-<div className="flex  items-start gap-0 mb-2 bg-[#222327] p-2 rounded-[6px] border border-[#ffffff09]" key={todo.id}>
+<div className="flex relative items-start gap-0 mb-2 bg-[#222327] p-2 rounded-[6px] border border-[#ffffff09]" key={todo.id}
+onMouseEnter={() => setHoveredTask(todo.id)}
+onMouseLeave={() => setHoveredTask(null)}>
 <div className="flex-shrink-0 w-8 flex items-center justify-center">
 <CustomCheckbox
 checked={!!checkedItems[todo.id]}
@@ -484,6 +501,136 @@ className="mt-2"
     <span className="bg-[#F03D3D12] grow rounded-[6px] px-2 py-1 text-[#F68989]">High</span>
     <span className="bg-[#fafafa10] rounded-[6px] text-center grow flex items-center justify-center gap-1 text-[12px]"><CalendarCogIcon className="w-3 h-3"/> 3d</span>
 </div>
+
+
+<div
+                        className={`shadow-lg rounded-[8px] bg-[#242429] absolute right-4 -top-4 flex gap-0 ml-4 opacity-0 group-hover:opacity-100 transition ${
+                          hoveredTask === todo.id ? "opacity-100" : ""
+                        }`}
+                      >
+                        <button title="Edit"
+                        className="hover:text-[#84afff] border border-[#ffffff03] p-2"
+                        onClick={()=>markTaskDone(todo.id)}
+                        >
+                          <Check  className="h-4 w-4"/>
+                        </button>
+                        {/* <button title="Save to Favs">
+                          <FaStar />
+                        </button>
+                        <select
+                          className="bg-[#353945] text-xs rounded px-1 py-0.5"
+                          value={task.priority}
+                          onChange={(e) =>
+                            changePriority(task.id, e.target.value)
+                          }
+                        >
+                          <option>HIGH</option>
+                          <option>MEDIUM</option>
+                          <option>LOW</option>
+                        </select> */}
+                        <button title="Mute"
+                        className="hover:text-[#84afff] border border-[#ffffff03] p-2">
+
+                        <BellOff className="h-4 w-4"/>
+                        </button>
+                        <button title="chat"
+                        className="hover:text-[#84afff] border border-[#ffffff03] p-2">
+
+                        <MessageCircleMoreIcon className="h-4 w-4"/>
+                        </button>
+                        <button
+  title="more"
+  className="relative hover:text-[#84afff] border border-[#ffffff03] p-2"
+  onClick={(e) => {
+    e.stopPropagation();
+    setOpenMoreMenu(openMoreMenu === todo.id ? null : todo.id);
+  }}
+>
+  <MoreHorizontal className="h-4 w-4" />
+</button>
+                        {openMoreMenu === todo.id && (
+  <>
+    {/* Backdrop for outside click */}
+    <div
+      className="fixed inset-0 z-40"
+      onClick={() => setOpenMoreMenu(null)}
+      style={{ background: "transparent" }}
+    />
+    <div
+      className="absolute z-50 min-w-[180px] bg-[#111111] rounded-[10px] shadow-lg p-2 flex flex-col gap-1"
+      style={{
+        right: '-0', // adjust as needed to position to the left of the button
+        top: '36px',    // adjust as needed to position below the button
+      }}
+    >
+      <button
+        className="flex items-center gap-2 px-3 py-2 rounded text-sm text-[#ffffff72] hover:text-[#ffffff] hover:bg-[#23262F]"
+        onClick={() => {
+          // handle edit
+          setOpenMoreMenu(null);
+        }}
+      >
+        <FaEdit className="" /> Edit Task
+      </button>
+      <button
+        className="flex items-center gap-2 px-3 py-2 rounded text-sm text-[#ffffff72] hover:text-[#ffffff] hover:bg-[#23262F]"
+        onClick={() => {
+          // handle save to favorites
+          setOpenMoreMenu(null);
+        }}
+      >
+        <FaStar className="" /> Save to Favorites
+      </button>
+      <button
+        className="flex items-center gap-2 px-3 py-2 rounded text-sm text-[#ffffff72] hover:text-[#ffffff] hover:bg-[#23262F]"
+        onClick={() => {
+          // handle change priority
+          setOpenMoreMenu(null);
+        }}
+      >
+        <FaFlag className="" /> Change Priority
+      </button>
+      <button
+        className="flex items-center gap-2 px-3 py-2 rounded text-sm text-red-400 hover:bg-[#23262F]"
+        onClick={() => {
+          // handle delete
+          deleteTask(todo.id);
+          setOpenMoreMenu(null);
+        }}
+      >
+        <FaTrash /> Delete Task
+      </button>
+    </div>
+  </>
+)}
+                        {/* <button title="Delete" onClick={() => deleteTask(task.id)}>
+                          <FaTrash />
+                        </button> */}
+                        {/* {section.status !== "done" && (
+                          <>
+                            <button
+                              title="Mark as Done"
+                              onClick={() => markTaskDone(task.id)}
+                            >
+                              <FaCheck />
+                            </button>
+                            <select
+                              title="Move to"
+                              className="bg-[#353945] text-xs rounded px-1 py-0.5"
+                              value={task.status}
+                              onChange={(e) => moveTask(task.id, e.target.value)}
+                            >
+                              {TASK_SECTIONS.filter(
+                                (s) => s.status !== task.status
+                              ).map((s) => (
+                                <option key={s.status} value={s.status}>
+                                  Move to {s.title}
+                                </option>
+                              ))}
+                            </select>
+                          </>
+                        )} */}
+                      </div>
 </div>
 )}
 
