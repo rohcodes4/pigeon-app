@@ -1,12 +1,12 @@
-import Layout from '@/components/Layout'
-import React from 'react'
+import Layout from "@/components/Layout";
+import React from "react";
 
 const UnifiedInbox = () => {
   return (
-    <Layout title="Unified AI Inbox">
-<p>Chatbox</p>
-</Layout>
-  )
-}
+    <Layout>
+      <p>Chatbox</p>
+    </Layout>
+  );
+};
 
-export default UnifiedInbox
+export default UnifiedInbox;
