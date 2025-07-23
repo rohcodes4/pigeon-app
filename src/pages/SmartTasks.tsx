@@ -1,10 +1,16 @@
-
 import React, { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge  } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageCircle, Settings, Search, CheckSquare, Bell, LogOut } from "lucide-react";
+import {
+  MessageCircle,
+  Settings,
+  Search,
+  CheckSquare,
+  Bell,
+  LogOut,
+} from "lucide-react";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { UnifiedInbox } from "@/components/UnifiedInbox";
 import { DashboardSettings } from "@/components/DashboardSettings";
@@ -21,7 +27,7 @@ import { AppChatList } from "@/components/AppChatList";
 import { ChatHeader } from "@/components/ChatHeader";
 import { ChatWindow } from "@/components/ChatWindow";
 import { ChatInput } from "@/components/ChatInput";
-import AIimg from '@/assets/images/authAI.png';
+import AIimg from "@/assets/images/authAI.png";
 import { AppHeader } from "@/components/AppHeader";
 import ChatPanel from "@/components/ChatPanel";
 import UnifiedHeader from "@/components/UnifiedHeader";
@@ -41,8 +47,10 @@ const SmartTasks = () => {
   const [filters, setFilters] = useState({});
   const [selectedId, setSelectedId] = useState(null);
   const [isSmartTask, setIsSmartTask] = useState(false);
-  const [openPanel, setOpenPanel] = useState<null | "smartTask" | "notification" | "pinned" | "search">(null);
-  
+  const [openPanel, setOpenPanel] = useState<
+    null | "smartTask" | "notification" | "pinned" | "search"
+  >(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -54,7 +62,9 @@ const SmartTasks = () => {
   useEffect(() => {
     if (user) {
       // Check if user has completed onboarding
-      const onboardingComplete = localStorage.getItem(`chatpilot_onboarded_${user.id}`);
+      const onboardingComplete = localStorage.getItem(
+        `chatpilot_onboarded_${user.id}`
+      );
       if (onboardingComplete) {
         setIsOnboarded(true);
         setIsConnected(true);
@@ -88,31 +98,43 @@ const SmartTasks = () => {
   return (
     <Layout>
       <div className="flex-1 flex flex-col min-h-screen">
-      <AppHeader isNotificationPanel={openPanel === "notification"}
-  setIsNotificationPanel={(open) => setOpenPanel(open ? "notification" : null)}
-  // onOpenPinnedPanel={() => setOpenPanel("pinned")}
-  isPinnedOpen={openPanel === "pinned"}
-  setIsPinnedOpen={(open) => {setOpenPanel(open ? "pinned" : null)}}
-  isSearchOpen={openPanel === "search"}
-  setIsSearchOpen={(open) => {setOpenPanel(open ? "search" : null)}}
-  />      
-      <main className="flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
-        <ChatPanel/>      
-      <div className="w-full">
-      <UnifiedHeader title="Tasks Center" smartText="Smart Tasks" isReadAll={false} isSmartSummary={openPanel === "smartTask"}
-  setIsSmartSummary={(open) => setOpenPanel(open ? "smartTask" : null)}
-  
-  />         
-      {/* <UnifiedChatPanel/> */}
-      <TasksPanel/>
-    </div>
-    
-    {openPanel === "smartTask" && <SmartTask />}
-    {openPanel === "notification" && <NotificationsPanel />}
-    {openPanel === "pinned" && <PinnedPanel />}
-    {openPanel === "search" && <SearchPanel />}
-      </main>
-    </div>
+        <AppHeader
+          isNotificationPanel={openPanel === "notification"}
+          setIsNotificationPanel={(open) =>
+            setOpenPanel(open ? "notification" : null)
+          }
+          // onOpenPinnedPanel={() => setOpenPanel("pinned")}
+          isPinnedOpen={openPanel === "pinned"}
+          setIsPinnedOpen={(open) => {
+            setOpenPanel(open ? "pinned" : null);
+          }}
+          isSearchOpen={openPanel === "search"}
+          setIsSearchOpen={(open) => {
+            setOpenPanel(open ? "search" : null);
+          }}
+        />
+        <main className="flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
+          <ChatPanel />
+          <div className="w-full">
+            <UnifiedHeader
+              title="Tasks Center"
+              smartText="Smart Tasks"
+              isReadAll={false}
+              isSmartSummary={openPanel === "smartTask"}
+              setIsSmartSummary={(open) =>
+                setOpenPanel(open ? "smartTask" : null)
+              }
+            />
+            {/* <UnifiedChatPanel/> */}
+            <TasksPanel />
+          </div>
+
+          {openPanel === "smartTask" && <SmartTask />}
+          {openPanel === "notification" && <NotificationsPanel />}
+          {openPanel === "pinned" && <PinnedPanel />}
+          {openPanel === "search" && <SearchPanel />}
+        </main>
+      </div>
     </Layout>
   );
 };

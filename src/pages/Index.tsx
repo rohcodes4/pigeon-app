@@ -1,10 +1,16 @@
-
 import React, { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge  } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageCircle, Settings, Search, CheckSquare, Bell, LogOut } from "lucide-react";
+import {
+  MessageCircle,
+  Settings,
+  Search,
+  CheckSquare,
+  Bell,
+  LogOut,
+} from "lucide-react";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { UnifiedInbox } from "@/components/UnifiedInbox";
 import { DashboardSettings } from "@/components/DashboardSettings";
@@ -21,7 +27,7 @@ import { AppChatList } from "@/components/AppChatList";
 import { ChatHeader } from "@/components/ChatHeader";
 import { ChatWindow } from "@/components/ChatWindow";
 import { ChatInput } from "@/components/ChatInput";
-import AIimg from '@/assets/images/authAI.png';
+import AIimg from "@/assets/images/authAI.png";
 import { AppHeader } from "@/components/AppHeader";
 import ChatPanel from "@/components/ChatPanel";
 import UnifiedHeader from "@/components/UnifiedHeader";
@@ -44,12 +50,14 @@ const Index = () => {
   const [alphaChats, setAlphaChats] = useState(fakeChatsAlpha);
   const [isSmartSummary, setIsSmartSummary] = useState(false);
   const [isNotificationPanel, setIsNotificationPanel] = useState(false);
-  const [openPanel, setOpenPanel] = useState<null | "smartSummary" | "notification" | "pinned" | "search">(null);
+  const [openPanel, setOpenPanel] = useState<
+    null | "smartSummary" | "notification" | "pinned" | "search"
+  >(null);
 
   const handleOpenSmartSummary = () => setOpenPanel("smartSummary");
-const handleOpenNotificationPanel = () => setOpenPanel("notification");
-const handleOpenPinnedPanel = () => setOpenPanel("pinned");
-const handleClosePanel = () => setOpenPanel(null);
+  const handleOpenNotificationPanel = () => setOpenPanel("notification");
+  const handleOpenPinnedPanel = () => setOpenPanel("pinned");
+  const handleClosePanel = () => setOpenPanel(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -122,7 +130,9 @@ const handleClosePanel = () => setOpenPanel(null);
   useEffect(() => {
     if (user) {
       // Check if user has completed onboarding
-      const onboardingComplete = localStorage.getItem(`chatpilot_onboarded_${user.id}`);
+      const onboardingComplete = localStorage.getItem(
+        `chatpilot_onboarded_${user.id}`
+      );
       if (onboardingComplete) {
         setIsOnboarded(true);
         setIsConnected(true);
@@ -143,7 +153,8 @@ const handleClosePanel = () => setOpenPanel(null);
       setIsConnected(true);
       toast({
         title: "Welcome to ChatPilot!",
-        description: "Your dashboard is ready. Start managing your conversations.",
+        description:
+          "Your dashboard is ready. Start managing your conversations.",
       });
     }
   };
@@ -180,41 +191,48 @@ const handleClosePanel = () => setOpenPanel(null);
   return (
     <Layout>
       <div className="flex-1 flex flex-col min-h-screen">
-      <AppHeader isNotificationPanel={openPanel === "notification"}
-  setIsNotificationPanel={(open) => setOpenPanel(open ? "notification" : null)}
-  // onOpenPinnedPanel={() => setOpenPanel("pinned")}
-  isPinnedOpen={openPanel === "pinned"}
-  setIsPinnedOpen={(open) => {setOpenPanel(open ? "pinned" : null)}}
-  isSearchOpen={openPanel === "search"}
-  setIsSearchOpen={(open) => {setOpenPanel(open ? "search" : null)}}
+        <AppHeader
+          isNotificationPanel={openPanel === "notification"}
+          setIsNotificationPanel={(open) =>
+            setOpenPanel(open ? "notification" : null)
+          }
+          // onOpenPinnedPanel={() => setOpenPanel("pinned")}
+          isPinnedOpen={openPanel === "pinned"}
+          setIsPinnedOpen={(open) => {
+            setOpenPanel(open ? "pinned" : null);
+          }}
+          isSearchOpen={openPanel === "search"}
+          setIsSearchOpen={(open) => {
+            setOpenPanel(open ? "search" : null);
+          }}
+        />
+        <main className="h-[calc(100vh-72px)] flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-hidden">
+          <ChatPanel />
 
-  />      
-      <main className="h-[calc(100vh-72px)] flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-hidden">
-        <ChatPanel/>
-      
-      <div className="w-full h-[calc(100vh-72px)] overflow-hidden">
-    
-      <UnifiedHeader title="Unified Inbox"
-  smartText="Summarize"
-  isReadAll={true}
-  isSmartSummary={openPanel === "smartSummary"}
-  setIsSmartSummary={(open) => setOpenPanel(open ? "smartSummary" : null)}
-  isPinnable={true}/>      
-      <UnifiedChatPanel/>
-    
-    </div>
-    {openPanel === "smartSummary" && <SmartSummary />}
-    {openPanel === "notification" && <NotificationsPanel />}
-    {openPanel === "pinned" && <PinnedPanel />}
-    {openPanel === "search" && <SearchPanel />}
-      </main>
-    </div>
+          <div className="w-full h-[calc(100vh-72px)] overflow-hidden">
+            <UnifiedHeader
+              title="Unified Inbox"
+              smartText="Summarize"
+              isReadAll={true}
+              isSmartSummary={openPanel === "smartSummary"}
+              setIsSmartSummary={(open) =>
+                setOpenPanel(open ? "smartSummary" : null)
+              }
+              isPinnable={true}
+            />
+            <UnifiedChatPanel />
+          </div>
+          {openPanel === "smartSummary" && <SmartSummary />}
+          {openPanel === "notification" && <NotificationsPanel />}
+          {openPanel === "pinned" && <PinnedPanel />}
+          {openPanel === "search" && <SearchPanel />}
+        </main>
+      </div>
     </Layout>
   );
 };
 
 export default Index;
-
 
 export const fakeChats = [
   {
