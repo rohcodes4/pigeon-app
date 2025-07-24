@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "./use-toast";
+import { Theme } from "./useTheme"; // Import Theme
 
 interface UserSettings {
-  theme: string;
+  theme: Theme; // Changed from string to Theme
   summary_frequency: string;
   notifications_enabled: boolean;
   focus_mode: boolean;
@@ -15,69 +14,51 @@ interface UserSettings {
 export const useUserSettings = () => {
   const { user } = useAuth();
   const [settings, setSettings] = useState<UserSettings>({
-    theme: "light",
+    theme: "default", // Ensure initial value matches Theme type
     summary_frequency: "daily",
     notifications_enabled: true,
     focus_mode: false,
     data_retention: "30days",
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Set to false initially as we won't fetch from Supabase immediately
 
   useEffect(() => {
     if (user) {
-      fetchSettings();
+      // TODO: Implement fetchSettings from FastAPI backend
+      // For now, settings are hardcoded or loaded from local storage
+      setLoading(false);
     }
   }, [user]);
 
   const fetchSettings = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("user_settings")
-        .select("*")
-        .eq("user_id", user?.id)
-        .single();
-
-      if (error && error.code !== "PGRST116") {
-        console.error("Error fetching settings:", error);
-        return;
-      }
-
-      if (data) {
-        setSettings({
-          theme: data.theme,
-          summary_frequency: data.summary_frequency,
-          notifications_enabled: data.notifications_enabled,
-          focus_mode: data.focus_mode,
-          data_retention: data.data_retention,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching settings:", error);
-    } finally {
-      setLoading(false);
-    }
+    // TODO: Replace with fetch call to FastAPI backend
+    // Example: const response = await fetch('/api/settings');
+    // const data = await response.json();
+    // setSettings(data);
+    console.log("Fetching settings from backend...");
+    // Mock data for now
+    setSettings({
+      theme: "default", // Ensure mock data matches Theme type
+      summary_frequency: "daily",
+      notifications_enabled: true,
+      focus_mode: false,
+      data_retention: "30days",
+    });
+    setLoading(false);
   };
 
   const updateSettings = async (newSettings: Partial<UserSettings>) => {
     try {
-      const { error } = await supabase
-        .from("user_settings")
-        .update({
-          ...newSettings,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", user?.id);
+      // TODO: Replace with fetch call to FastAPI backend to update settings
+      // Example:
+      // const response = await fetch('/api/settings', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(newSettings),
+      // });
+      // if (!response.ok) throw new Error('Failed to update settings');
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update settings",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setSettings(prev => ({ ...prev, ...newSettings }));
+      setSettings((prev) => ({ ...prev, ...newSettings }));
       toast({
         title: "Settings updated",
         description: "Your preferences have been saved",

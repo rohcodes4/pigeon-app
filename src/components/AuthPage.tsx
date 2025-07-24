@@ -2,12 +2,10 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import AIimg from "@/assets/images/aiBlue.png";
-// import AIimg from '@/assets/images/sidebarLogo.png';
 import {
   EyeIcon,
   UserIcon,
@@ -21,6 +19,8 @@ import discord from "@/assets/images/discord.png";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
 export const AuthPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -33,7 +33,7 @@ export const AuthPage = () => {
   const params = new URLSearchParams(location.search);
   const initialMode = params.get("mode") === "signup" ? false : true; // false = sign up, true = sign in
   const [isSignIn, setIsSignIn] = useState(initialMode);
-  const { user, loading } = useAuth();
+  const { user, loading, checkAuth } = useAuth(); // Destructure checkAuth
 
   useEffect(() => {
     if (!loading && user) {
@@ -47,33 +47,65 @@ export const AuthPage = () => {
 
     try {
       if (isSignIn) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: username, //to be changed to email in prod
-          password,
+        // Handle Sign In with FastAPI backend
+        const response = await fetch(`${BACKEND_URL}/auth/login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            username: username,
+            password: password,
+          }).toString(),
         });
 
-        if (error) throw error;
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || "Authentication failed");
+        }
+
+        const data = await response.json(); // Parse the response to get the token
+        localStorage.setItem("access_token", data.access_token); // Store the token
 
         toast({
           title: "Welcome back!",
           description: "You have been signed in successfully.",
         });
-        navigate("/");
+        await checkAuth();
       } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
+        // Handle Sign Up with FastAPI backend
+        const response = await fetch(`${BACKEND_URL}/auth/signup`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
           },
+          body: new URLSearchParams({
+            username: username,
+            email: email,
+            password: password,
+          }).toString(),
         });
 
-        if (error) throw error;
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || "Registration failed");
+        }
+
+        // After successful signup, you might want to log the user in immediately
+        // For now, let's just make sure the user can sign in after registration
+        const data = await response.json(); // Get any potential data from signup response
+        // If signup also returns a token (unlikely for pure signup, but good to handle), store it.
+        if (data.access_token) {
+          localStorage.setItem("access_token", data.access_token);
+        }
 
         toast({
           title: "Account created!",
-          description: "Please check your email to verify your account.",
+          description:
+            "Please check your email to verify your account (if applicable). You can now sign in.",
         });
+        setIsSignIn(true);
+        await checkAuth();
       }
     } catch (error: any) {
       toast({
@@ -204,9 +236,6 @@ export const AuthPage = () => {
               {isLoading ? "Loading..." : isSignIn ? "Sign In" : "Sign Up"}
             </Button>
           </form>
-          {/* <div className="flex items-center justify-center">
-          <p className="text-center text-[13px] text-[#ffffff48] mt-4 bg-red-200 w-max px-4"> Or continue with</p>
-          </div> */}
 
           <div className="relative flex items-center justify-center my-4">
             <div className="absolute left-0 right-0 h-px bg-white opacity-20"></div>
@@ -251,57 +280,3 @@ export const AuthPage = () => {
     </div>
   );
 };
-//   return (
-//     <div className="min-h-screen bg-gradient-to-br">
-//       <Header />
-
-//       <div className="container mx-auto p-6 flex items-center justify-center min-h-[calc(100vh-80px)]">
-//         <Card className="w-full max-w-md border-0">
-//           <CardHeader>
-//             <CardTitle className="text-2xl text-center">
-//               {isSignIn ? "Sign In" : "Sign Up"}
-//             </CardTitle>
-//           </CardHeader>
-//           <CardContent>
-//             <form onSubmit={handleAuth} className="space-y-4">
-//               <div>
-//                 <Input
-//                   type="email"
-//                   placeholder="Email"
-//                   value={email}
-//                   onChange={(e) => setEmail(e.target.value)}
-//                   required
-//                   className="border-0 bg-gradient-to-br"
-//                 />
-//               </div>
-//               <div>
-//                 <Input
-//                   type="password"
-//                   placeholder="Password"
-//                   value={password}
-//                   onChange={(e) => setPassword(e.target.value)}
-//                   required
-//                   className="border-0 bg-gradient-to-br"
-
-//                 />
-//               </div>
-//               <Button type="submit" className="w-full" disabled={isLoading}>
-//                 {isLoading ? "Loading..." : isSignIn ? "Sign In" : "Sign Up"}
-//               </Button>
-//             </form>
-
-//             <div className="mt-4 text-center">
-//               <Button
-//                 variant="link"
-//                 onClick={() => setIsSignIn(!isSignIn)}
-//                 className="text-sm"
-//               >
-//                 {isSignIn ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-//               </Button>
-//             </div>
-//           </CardContent>
-//         </Card>
-//       </div>
-//     </div>
-//   );
-// };

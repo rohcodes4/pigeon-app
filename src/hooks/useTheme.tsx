@@ -1,7 +1,12 @@
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-
-type Theme = "light" | "dark" | "default";
+export type Theme = "light" | "dark" | "default"; // Export Theme
 
 interface ThemeContextType {
   theme: Theme;
@@ -33,18 +38,21 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
 
   useEffect(() => {
     const root = window.document.documentElement;
-    
+
     const updateTheme = () => {
       let resolvedTheme: "light" | "dark" = "light";
-      
+
       if (theme === "default") {
-        resolvedTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        resolvedTheme = window.matchMedia("(prefers-color-scheme: dark)")
+          .matches
+          ? "dark"
+          : "light";
       } else {
         resolvedTheme = theme;
       }
-      
+
       setActualTheme(resolvedTheme);
-      
+
       root.classList.remove("light", "dark");
       root.classList.add(resolvedTheme);
     };
