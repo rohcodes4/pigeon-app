@@ -209,36 +209,78 @@ export const ConnectAccounts = ({
 
     setLoading((prev) => ({ ...prev, discord: true }));
 
-    // TODO: Implement actual Discord OAuth flow with backend
-    toast({
-      title: "Discord Integration Pending",
-      description: "Discord connection is not yet implemented on the backend.",
-      variant: "default",
-    });
-
-    setTimeout(() => {
-      setDiscordConnected(true);
-      setLoading((prev) => ({ ...prev, discord: false }));
-
-      const existingData = JSON.parse(
-        localStorage.getItem(`chatpilot_accounts_${user.id}`) || "{}"
-      );
-      localStorage.setItem(
-        `chatpilot_accounts_${user.id}`,
-        JSON.stringify({
-          ...existingData,
-          discord: true,
-        })
-      );
-
-      toast({
-        title: "Discord Connected (Mock)",
-        description:
-          "Discord connection is currently mocked for demonstration.",
+    try {
+      // Start Discord OAuth flow
+      const response = await fetch(`${BACKEND_URL}/auth/discord/start`, {
+        method: "POST",
       });
 
-      onAccountsConnected();
-    }, 2000);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to start Discord OAuth");
+      }
+
+      const data = await response.json();
+
+      // Open Discord OAuth in a popup window
+      const popup = window.open(
+        data.oauth_url,
+        "discord_oauth",
+        "width=500,height=600,scrollbars=yes,resizable=yes"
+      );
+
+      if (!popup) {
+        throw new Error("Popup blocked. Please allow popups for this site.");
+      }
+
+      // Listen for the OAuth callback
+      const checkOAuthResult = () => {
+        try {
+          // Check if popup is closed
+          if (popup.closed) {
+            // OAuth completed, check if Discord is now connected
+            setTimeout(() => {
+              setDiscordConnected(true);
+              setLoading((prev) => ({ ...prev, discord: false }));
+
+              // Persist Discord connection in localStorage
+              const existingData = JSON.parse(
+                localStorage.getItem(`chatpilot_accounts_${user.id}`) || "{}"
+              );
+              localStorage.setItem(
+                `chatpilot_accounts_${user.id}`,
+                JSON.stringify({
+                  ...existingData,
+                  discord: true,
+                })
+              );
+
+              toast({
+                title: "Discord Connected",
+                description: "Successfully connected to your Discord account.",
+              });
+
+              checkAllConnected();
+            }, 1000);
+            return;
+          }
+
+          // Check again in 1 second
+          setTimeout(checkOAuthResult, 1000);
+        } catch (error) {
+          console.error("Error checking OAuth result:", error);
+        }
+      };
+
+      checkOAuthResult();
+    } catch (error: any) {
+      toast({
+        title: "Discord Connection Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      setLoading((prev) => ({ ...prev, discord: false }));
+    }
   };
 
   const canContinue = telegramConnected || discordConnected;
