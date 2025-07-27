@@ -80,8 +80,14 @@ export const ConnectAccounts = ({
     if (telegramQrToken && showTelegramQrModal) {
       const interval = setInterval(async () => {
         try {
+          const token = localStorage.getItem("access_token");
           const response = await fetch(
-            `${BACKEND_URL}/auth/qr/${telegramQrToken}`
+            `${BACKEND_URL}/auth/qr/${telegramQrToken}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
           );
           let data = null;
           let isError = false;
