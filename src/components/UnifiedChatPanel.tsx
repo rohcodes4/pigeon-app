@@ -68,7 +68,16 @@ function formatTime(date: Date) {
 }
 
 function gravatarUrl(seed: string) {
-  return `https://www.gravatar.com/avatar/${btoa(seed)}?d=identicon&s=80`;
+  try {
+    // Handle Unicode characters safely
+    const safeSeed = seed.replace(/[^\x00-\x7F]/g, ""); // Remove non-ASCII characters
+    if (!safeSeed)
+      return `https://www.gravatar.com/avatar/default?d=identicon&s=80`;
+    return `https://www.gravatar.com/avatar/${btoa(safeSeed)}?d=identicon&s=80`;
+  } catch (error) {
+    // Fallback to default avatar
+    return `https://www.gravatar.com/avatar/default?d=identicon&s=80`;
+  }
 }
 
 // Generate 30 dummy messages, oldest first
@@ -119,12 +128,22 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   selectedChat,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [replyTo, setReplyTo] = React.useState<
     null | (typeof dummyMessages)[0]
   >(null);
   const [messages, setMessages] = React.useState(dummyMessages);
   const [openMenuId, setOpenMenuId] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState(false);
+
+  // Auto-scroll to bottom when messages change
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  React.useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const groupedByDate: { [date: string]: typeof messages } =
     React.useMemo(() => {
@@ -182,6 +201,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           replyTo: null as any,
         }));
 
+        // Sort messages by date (oldest first) so newest appear at bottom
+        transformedMessages.sort((a, b) => a.date.getTime() - b.date.getTime());
         setMessages(transformedMessages);
       } catch (error) {
         console.error("Error fetching messages:", error);
@@ -510,6 +531,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
             </React.Fragment>
           ))
         )}
+        {/* Scroll target for auto-scroll */}
+        <div ref={messagesEndRef} />
       </div>
       <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-t from-[#181A20] via-[#181A20ee] to-transparent">
         {/* Replying to box */}
