@@ -53,6 +53,9 @@ const Index = () => {
   const [openPanel, setOpenPanel] = useState<
     null | "smartSummary" | "notification" | "pinned" | "search"
   >(null);
+  const [chats, setChats] = useState([]); // State to store fetched chats
+  const [chatsLoading, setChatsLoading] = useState(true); // Loading state for chats
+  const [selectedChat, setSelectedChat] = useState(null); // State for selected chat
 
   const handleOpenSmartSummary = () => setOpenPanel("smartSummary");
   const handleOpenNotificationPanel = () => setOpenPanel("notification");
@@ -103,6 +106,12 @@ const Index = () => {
 
   const handleSelect = (id) => setSelectedId(id);
 
+  // Handle chat selection
+  const handleChatSelect = (chat) => {
+    setSelectedChat(chat);
+    console.log("Selected chat:", chat);
+  };
+
   const getSortedChats = (chats) => [
     ...chats.filter((c) => c.isPinned),
     ...chats.filter((c) => !c.isPinned),
@@ -146,6 +155,45 @@ const Index = () => {
     }
   }, [activeTab]);
 
+  // Fetch chats from backend
+  useEffect(() => {
+    const fetchChats = async () => {
+      if (!user) {
+        setChatsLoading(false);
+        return;
+      }
+      setChatsLoading(true);
+      try {
+        const token = localStorage.getItem("access_token");
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/ui/chats`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        // Assuming data.chats is the array of chat objects
+        setChats(data.chats || []);
+      } catch (error) {
+        console.error("Failed to fetch chats:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load chats.",
+          variant: "destructive",
+        });
+        setChats([]);
+      } finally {
+        setChatsLoading(false);
+      }
+    };
+    fetchChats();
+  }, [user]);
+
   const handleOnboardingComplete = () => {
     if (user) {
       localStorage.setItem(`chatpilot_onboarded_${user.id}`, "true");
@@ -167,7 +215,7 @@ const Index = () => {
     });
   };
 
-  if (loading) {
+  if (loading || chatsLoading) {
     return (
       <div className="min-h-screen bg-[#171717] flex items-center justify-center">
         <div className="text-center">
@@ -207,8 +255,11 @@ const Index = () => {
           }}
         />
         <main className="h-[calc(100vh-72px)] flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-hidden">
-          <ChatPanel />
-
+          <ChatPanel
+            chats={chats}
+            onChatSelect={handleChatSelect}
+            selectedChat={selectedChat}
+          />
           <div className="w-full h-[calc(100vh-72px)] overflow-hidden">
             <UnifiedHeader
               title="Unified Inbox"
@@ -220,7 +271,7 @@ const Index = () => {
               }
               isPinnable={true}
             />
-            <UnifiedChatPanel />
+            <UnifiedChatPanel selectedChat={selectedChat} />
           </div>
           {openPanel === "smartSummary" && <SmartSummary />}
           {openPanel === "notification" && <NotificationsPanel />}

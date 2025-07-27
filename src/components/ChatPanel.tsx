@@ -21,8 +21,18 @@ import discord from "@/assets/images/discord.png";
 import telegram from "@/assets/images/telegram.png";
 import { FaBars, FaDiscord, FaTelegram, FaTelegramPlane } from "react-icons/fa";
 // Helper to generate a random gravatar
-const gravatarUrl = (seed: string) =>
-  `https://www.gravatar.com/avatar/${btoa(seed)}?d=identicon&s=80`;
+const gravatarUrl = (seed: string) => {
+  try {
+    // Handle Unicode characters safely
+    const safeSeed = seed.replace(/[^\x00-\x7F]/g, ""); // Remove non-ASCII characters
+    if (!safeSeed)
+      return `https://www.gravatar.com/avatar/default?d=identicon&s=80`;
+    return `https://www.gravatar.com/avatar/${btoa(safeSeed)}?d=identicon&s=80`;
+  } catch (error) {
+    // Fallback to default avatar
+    return `https://www.gravatar.com/avatar/default?d=identicon&s=80`;
+  }
+};
 
 // Helper to generate random chat data
 const chatTypes = ["Group", "DM", "Server"] as const;
@@ -108,13 +118,23 @@ const sortedChats = [
 
 function formatChatTime(dateString: string) {
   const now = new Date();
-  const chatDate = new Date();
-  // If dateString is just a time, set the date to today
-  const [hour, minute] = dateString.split(":");
-  chatDate.setHours(Number(hour), Number(minute), 0, 0);
+  const chatDate = new Date(dateString); // Parse directly as a Date object
 
-  // If the chatDate is in the future (due to randomTime), set to yesterday
-  if (chatDate > now) chatDate.setDate(chatDate.getDate() - 1);
+  // Handle invalid dates
+  if (isNaN(chatDate.getTime())) {
+    console.log("Invalid date string:", dateString);
+    return "now";
+  }
+
+  // Debug: Log the dates to see what's happening
+  console.log("formatChatTime:", {
+    dateString,
+    chatDateISO: chatDate.toISOString(),
+    chatDateLocal: chatDate.toLocaleString(),
+    nowISO: now.toISOString(),
+    nowLocal: now.toLocaleString(),
+    diffHours: (now.getTime() - chatDate.getTime()) / (1000 * 60 * 60),
+  });
 
   const diffMs = now.getTime() - chatDate.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -171,7 +191,17 @@ function useScrollArrows(ref: React.RefObject<HTMLDivElement>) {
   return { canScrollLeft, canScrollRight, checkScroll };
 }
 
-export const ChatPanel: React.FC = () => {
+interface ChatPanelProps {
+  chats: any[]; // Define the chats prop
+  onChatSelect?: (chat: any) => void; // Chat selection handler
+  selectedChat?: any; // Currently selected chat
+}
+
+export const ChatPanel: React.FC<ChatPanelProps> = ({
+  chats,
+  onChatSelect,
+  selectedChat,
+}) => {
   const [isFocus, setIsFocus] = useState(false);
   const [filters, setFilters] = useState(INITIAL_BOTTOM_ITEMS);
   const SCROLL_AMOUNT = 100; // px
@@ -208,12 +238,20 @@ export const ChatPanel: React.FC = () => {
       setSearchResults([]);
       return;
     }
+    // Add null checks to prevent errors
+    if (!chats || !Array.isArray(chats)) {
+      setSearchResults([]);
+      return;
+    }
     setSearchResults(
-      chats.filter((ch) =>
-        ch.name.toLowerCase().includes(channelSearch.toLowerCase())
+      chats.filter(
+        (ch) =>
+          ch &&
+          ch.name &&
+          ch.name.toLowerCase().includes(channelSearch.toLowerCase())
       )
     );
-  }, [channelSearch]);
+  }, [channelSearch, chats]); // Add chats to dependency array
 
   const scroll = (
     ref: React.RefObject<HTMLDivElement>,
@@ -235,10 +273,23 @@ export const ChatPanel: React.FC = () => {
     setTimeout(bottomArrows.checkScroll, 300);
   };
 
+  // Sort all chats by time descending (latest first)
+  const chatsSortedByTime = [...(chats || [])].sort((a, b) => {
+    // Add null checks for timestamp
+    const aTime = a?.timestamp ? new Date(a.timestamp).getTime() : 0;
+    const bTime = b?.timestamp ? new Date(b.timestamp).getTime() : 0;
+    return bTime - aTime;
+  });
+  const sortedChats = [
+    ...chatsSortedByTime.filter((chat) => chat?.isPinned),
+    ...chatsSortedByTime.filter((chat) => !chat?.isPinned),
+  ];
+
   const getFilteredChats = () => {
     let filtered = sortedChats;
 
-    if (activeTopItem === "Inbox") {
+    if (activeTopItem === "All") {
+      // Changed from "Inbox" to "All" to match TOP_ITEMS
       filtered = sortedChats;
     }
     if (activeTopItem === "Telegram") {
@@ -253,7 +304,7 @@ export const ChatPanel: React.FC = () => {
 
     if (filters.length > 0) {
       filtered = filtered.filter((chat) =>
-        filters.every((tag) => chat.tags.includes(tag))
+        filters.every((tag) => chat.tags?.includes(tag))
       );
     }
     // Add more filters if needed
@@ -261,7 +312,7 @@ export const ChatPanel: React.FC = () => {
   };
 
   const filteredStreams = getFilteredChats().slice(0, 3); // Assuming this returns a subset of `chats`
-  const channels = chats; // Use the same `chats` array for channels
+  const channels = chats || []; // Use the same `chats` array for channels
 
   if (filterFull) {
     return (
@@ -299,6 +350,7 @@ export const ChatPanel: React.FC = () => {
           <span className="text-[#ffffff80] text-sm">Filtered Streams</span>
           <div className="mt-2">
             {[
+              // This is dummy data, should be fetched if needed
               "Shitcoin Alpha",
               "NFT Updates",
               "General Banter",
@@ -329,6 +381,7 @@ export const ChatPanel: React.FC = () => {
           <span className="text-[#ffffff80] text-sm">Smart Labels</span>
           <div className="mt-2 flex flex-wrap gap-2">
             {[
+              // This is dummy data, should be fetched if needed
               "zkSync",
               "Jameson",
               "Shitcoin 1",
@@ -611,8 +664,7 @@ export const ChatPanel: React.FC = () => {
       absolute -bottom-2 -right-1
       ${chat.platform === "Discord" ? "bg-[#7b5cfa]" : "bg-[#3474ff]"}
       rounded-[4px] w-5 h-5 p-1 border-2 border-[#111111]
-    `}
-    alt={chat.platform}
+    `}n    alt={chat.platform}
   />
 </div>
       <div className="flex-1 text-left">
@@ -706,94 +758,55 @@ export const ChatPanel: React.FC = () => {
                     </div>
                     {
                       <div className="max-h-32 overflow-y-auto mb-2">
-                        {searchResults.length === 0
-                          ? // <div className="text-xs text-[#ffffff80] px-3 py-2">No results found.</div>
-                            searchResults.slice(0, 3).map((ch, idx) => (
-                              <div
-                                key={ch.name + idx}
-                                className="flex items-center gap-2 hover:bg-[#ffffff10] rounded-[10px] px-3 py-2 mb-1 cursor-pointer"
-                                onClick={() => {
-                                  if (
-                                    !selectedChannels.some(
-                                      (sel) => sel.name === ch.name
-                                    )
-                                  ) {
-                                    setSelectedChannels([
-                                      ...selectedChannels,
-                                      ch,
-                                    ]);
-                                  }
-                                }}
-                              >
-                                {/* Platform icons */}
-                                <span className="flex gap-1">
-                                  {ch.platform === "Telegram" && (
-                                    <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#3474ff]">
-                                      <img
-                                        src={telegram}
-                                        className="w-4 h-4"
-                                        alt="Telegram"
-                                      />
-                                    </span>
-                                  )}
-                                  {ch.platform === "Discord" && (
-                                    <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#7B5CFA]">
-                                      <img
-                                        src={discord}
-                                        className="w-4 h-4"
-                                        alt="Discord"
-                                      />
-                                    </span>
-                                  )}
-                                </span>
-                                <span className="text-white text-sm">
-                                  {ch.name}
-                                </span>
-                              </div>
-                            ))
-                          : searchResults.map((ch, idx) => (
-                              <div
-                                key={ch.name + idx}
-                                className="flex items-center gap-2 hover:bg-[#ffffff10] rounded-[10px] px-3 py-2 mb-1 cursor-pointer"
-                                onClick={() => {
-                                  if (
-                                    !selectedChannels.some(
-                                      (sel) => sel.name === ch.name
-                                    )
-                                  ) {
-                                    setSelectedChannels([
-                                      ...selectedChannels,
-                                      ch,
-                                    ]);
-                                  }
-                                }}
-                              >
-                                {/* Platform icons */}
-                                <span className="flex gap-1">
-                                  {ch.platform === "Telegram" && (
-                                    <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#3474ff]">
-                                      <img
-                                        src={telegram}
-                                        className="w-4 h-4"
-                                        alt="Telegram"
-                                      />
-                                    </span>
-                                  )}
-                                  {ch.platform === "Discord" && (
-                                    <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#7B5CFA]">
-                                      <img
-                                        src={discord}
-                                        className="w-4 h-4"
-                                        alt="Discord"
-                                      />
-                                    </span>
-                                  )}
-                                </span>
-                                <span className="text-white text-sm">
-                                  {ch.name}
-                                </span>
-                              </div>
-                            ))}
+                        {searchResults.length === 0 ? (
+                          <div className="text-xs text-[#ffffff80] px-3 py-2">
+                            No results found.
+                          </div>
+                        ) : (
+                          searchResults.map((ch, idx) => (
+                            <div
+                              key={ch.name + idx}
+                              className="flex items-center gap-2 hover:bg-[#ffffff10] rounded-[10px] px-3 py-2 mb-1 cursor-pointer"
+                              onClick={() => {
+                                if (
+                                  !selectedChannels.some(
+                                    (sel) => sel.name === ch.name
+                                  )
+                                ) {
+                                  setSelectedChannels([
+                                    ...selectedChannels,
+                                    ch,
+                                  ]);
+                                }
+                              }}
+                            >
+                              {/* Platform icons */}
+                              <span className="flex gap-1">
+                                {ch.platform === "Telegram" && (
+                                  <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#3474ff]">
+                                    <img
+                                      src={telegram}
+                                      className="w-4 h-4"
+                                      alt="Telegram"
+                                    />
+                                  </span>
+                                )}
+                                {ch.platform === "Discord" && (
+                                  <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#7B5CFA]">
+                                    <img
+                                      src={discord}
+                                      className="w-4 h-4"
+                                      alt="Discord"
+                                    />
+                                  </span>
+                                )}
+                              </span>
+                              <span className="text-white text-sm">
+                                {ch.name}
+                              </span>
+                            </div>
+                          ))
+                        )}
                       </div>
                     }
 
@@ -895,7 +908,12 @@ export const ChatPanel: React.FC = () => {
                       : "hover:bg-[#212121] focus:bg-[#212121] ") +
                     (selectedId !== chat.id && !chat.read ? "unread-chat " : "")
                   }
-                  onClick={() => setSelectedId(chat.id)}
+                  onClick={() => {
+                    setSelectedId(chat.id);
+                    if (onChatSelect) {
+                      onChatSelect(chat);
+                    }
+                  }}
                 >
                   {/* Avatar */}
                   <div className="relative">
@@ -924,7 +942,7 @@ export const ChatPanel: React.FC = () => {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-[#ffffff32] font-100">
-                        {chat.lastMessage.length > 50
+                        {chat.lastMessage?.length > 50 // Use optional chaining for lastMessage
                           ? chat.lastMessage.slice(0, 50) + "..."
                           : chat.lastMessage}
                       </span>
@@ -968,7 +986,7 @@ export const ChatPanel: React.FC = () => {
           </div>
           {isChannelsOpen && (
             <div className="mt-2">
-              {channels.map((chat) => (
+              {chats.map((chat) => (
                 <button
                   key={chat.id}
                   className={
@@ -978,14 +996,47 @@ export const ChatPanel: React.FC = () => {
                       : "hover:bg-[#212121] focus:bg-[#212121] ") +
                     (selectedId !== chat.id && !chat.read ? "unread-chat " : "")
                   }
-                  onClick={() => setSelectedId(chat.id)}
+                  onClick={() => {
+                    setSelectedId(chat.id);
+                    if (onChatSelect) {
+                      onChatSelect(chat);
+                    }
+                  }}
                 >
                   {/* Avatar */}
                   <div className="relative">
                     <img
-                      src={chat.avatar}
-                      alt={chat.name}
+                      src={chat.photo_url || gravatarUrl(chat.name || "User")}
+                      alt={chat.name || "User"}
                       className="w-10 h-10 rounded-full object-cover"
+                      onError={(e) => {
+                        // Only fallback to gravatar if it's not already a data URL
+                        if (!e.currentTarget.src.startsWith("data:")) {
+                          console.log(
+                            `Photo failed to load for ${chat.name}:`,
+                            chat.photo_url
+                          );
+                          e.currentTarget.src = gravatarUrl(
+                            chat.name || "User"
+                          );
+                        } else {
+                          // For data URLs that fail, try removing and re-adding to trigger reload
+                          console.log(
+                            `Data URL failed for ${
+                              chat.name
+                            }, URL: ${e.currentTarget.src.substring(0, 100)}...`
+                          );
+                          e.currentTarget.src = gravatarUrl(
+                            chat.name || "User"
+                          );
+                        }
+                      }}
+                      onLoad={() => {
+                        console.log(
+                          `Photo loaded successfully for ${chat.name}:`,
+                          chat.photo_url
+                        );
+                      }}
                     />
                     <img
                       src={chat.platform === "Discord" ? discord : telegram}
@@ -1011,7 +1062,7 @@ export const ChatPanel: React.FC = () => {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-[#ffffff32] font-100">
-                        {chat.lastMessage.length > 50
+                        {chat.lastMessage?.length > 50 // Use optional chaining for lastMessage
                           ? chat.lastMessage.slice(0, 50) + "..."
                           : chat.lastMessage}
                       </span>
@@ -1019,13 +1070,13 @@ export const ChatPanel: React.FC = () => {
                   </div>
                   <div className="flex flex-col items-center gap-1">
                     <span className="self-end text-xs text-gray-400">
-                      {formatChatTime(chat.time)}
+                      {formatChatTime(chat.timestamp)}
                     </span>
                     <div className="flex items-center gap-1">
                       {chat.pinned && (
                         <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
                       )}
-                      {!chat.read && (
+                      {!chat.read && chat.unread && chat.unread > 0 && (
                         <div
                           className={`rounded-full w-5 h-5 text-xs flex items-center justify-center text-center ${
                             chat.platform === "Telegram"
@@ -1033,7 +1084,7 @@ export const ChatPanel: React.FC = () => {
                               : "bg-[#7b5cfa]"
                           }`}
                         >
-                          7
+                          {chat.unread}
                         </div>
                       )}
                     </div>
