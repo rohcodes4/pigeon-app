@@ -251,7 +251,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     <div className="relative h-[calc(100vh-136px)] flex flex-col">
       {/* Selected Chat Info */}
       {selectedChat && (
-        <div className="px-6 py-4 border-b border-[#23272f]">
+        <div className="px-6 py-4 border-b border-[#23272f] flex-shrink-0">
           <div className="flex items-center gap-3">
             <img
               src={
@@ -272,7 +272,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       )}
 
       {/* Message List  */}
-      <div className=" overflow-y-auto px-6 flex flex-col gap-4">
+      <div className="flex-1 overflow-y-auto px-6 flex flex-col gap-4">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="text-center">
@@ -511,7 +511,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           ))
         )}
       </div>
-      <div className=" bottom-12 left-0 w-full px-6 py-4 bg-gradient-to-t from-[#181A20] via-[#181A20ee] to-transparent">
+      <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-t from-[#181A20] via-[#181A20ee] to-transparent">
         {/* Replying to box */}
         {replyTo && (
           <div className="flex items-center mb-2 px-4 py-2 rounded-[10px] bg-[#111111] text-xs text-[#84afff]">
