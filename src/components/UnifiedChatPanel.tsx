@@ -276,7 +276,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           <div className="flex items-center gap-3">
             <img
               src={
-                selectedChat.photo_url ||
+                // selectedChat.photo_url ||
                 gravatarUrl(selectedChat.name || "User")
               }
               alt={selectedChat.name || "User"}
