@@ -50,6 +50,9 @@ const SmartTasks = () => {
   const [openPanel, setOpenPanel] = useState<
     null | "smartTask" | "notification" | "pinned" | "search"
   >(null);
+  const [chats, setChats] = useState([]); // State to store fetched chats
+  const [chatsLoading, setChatsLoading] = useState(true); // Loading state for chats
+  const [selectedChat, setSelectedChat] = useState(null); // State for selected chat
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -78,7 +81,50 @@ const SmartTasks = () => {
     }
   }, [activeTab]);
 
-  if (loading) {
+  // Fetch chats from backend
+  useEffect(() => {
+    const fetchChats = async () => {
+      if (!user) {
+        setChatsLoading(false);
+        return;
+      }
+      setChatsLoading(true);
+      try {
+        const token = localStorage.getItem("access_token");
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/ui/chats`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        // Assuming data.chats is the array of chat objects
+        setChats(data.chats || []);
+      } catch (error) {
+        console.error("Failed to fetch chats:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load chats.",
+          variant: "destructive",
+        });
+        setChats([]);
+      } finally {
+        setChatsLoading(false);
+      }
+    };
+    fetchChats();
+  }, [user]);
+
+  const handleChatSelect = (chat) => {
+    setSelectedChat(chat);
+  };
+
+  if (loading || chatsLoading) {
     return (
       <div className="min-h-screen bg-[#171717] flex items-center justify-center">
         <div className="text-center">
@@ -114,7 +160,11 @@ const SmartTasks = () => {
           }}
         />
         <main className="flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
-          <ChatPanel />
+          <ChatPanel
+            chats={chats}
+            onChatSelect={handleChatSelect}
+            selectedChat={selectedChat}
+          />
           <div className="w-full">
             <UnifiedHeader
               title="Tasks Center"

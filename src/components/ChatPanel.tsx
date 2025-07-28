@@ -192,13 +192,13 @@ function useScrollArrows(ref: React.RefObject<HTMLDivElement>) {
 }
 
 interface ChatPanelProps {
-  chats: any[]; // Define the chats prop
+  chats?: any[]; // Define the chats prop
   onChatSelect?: (chat: any) => void; // Chat selection handler
   selectedChat?: any; // Currently selected chat
 }
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({
-  chats,
+  chats = [],
   onChatSelect,
   selectedChat,
 }) => {
