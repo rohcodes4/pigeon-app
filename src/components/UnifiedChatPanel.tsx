@@ -211,7 +211,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
         setLoading(false);
       }
     },
-    [selectedChat]
+    [selectedChat?.name] // Only depend on the name, not the entire object
   );
 
   const handleSend = () => {
@@ -260,7 +260,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     } else {
       setMessages(dummyMessages); // Show dummy messages when no chat is selected
     }
-  }, [selectedChat, fetchMessages]);
+  }, [selectedChat?.id, fetchMessages]);
 
   Object.entries(groupedByDate).map(([date, msgs]) => {
     msgs.map((msg) => {
