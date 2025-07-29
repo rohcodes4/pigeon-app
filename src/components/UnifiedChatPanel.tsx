@@ -3,6 +3,7 @@ import discord from "@/assets/images/discordColor.png";
 import telegram from "@/assets/images/telegramColor.png";
 import discordWhite from "@/assets/images/discord.png";
 import telegramWhite from "@/assets/images/telegram.png";
+import aiAll from "@/assets/images/aiAll.png";
 import {
   ThumbsUp,
   MessageCircle,
@@ -121,18 +122,23 @@ const platformIcon = (platform: string) =>
   platform === "Discord" ? discord : telegram;
 
 interface UnifiedChatPanelProps {
-  selectedChat?: any;
+  selectedChat?: any | string;
 }
 
 const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
-  selectedChat,
+  selectedChat = "all-channels",
 }) => {
+  // Flag to toggle between real data and dummy data for design inspiration
+  const USE_DUMMY_DATA = false; // Set to true to use dummy data, false for real data
+
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [replyTo, setReplyTo] = React.useState<
     null | (typeof dummyMessages)[0]
   >(null);
-  const [messages, setMessages] = React.useState(dummyMessages);
+  const [messages, setMessages] = React.useState(
+    USE_DUMMY_DATA ? dummyMessages : []
+  );
   const [openMenuId, setOpenMenuId] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState(false);
 
@@ -158,48 +164,100 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
 
   // Function to fetch messages for a selected chat
   const fetchMessages = React.useCallback(
-    async (chatId: number) => {
+    async (chatId: number | string) => {
       if (!chatId) return;
+
+      // If using dummy data, don't fetch from API
+      if (USE_DUMMY_DATA) {
+        setMessages(dummyMessages);
+        return;
+      }
 
       setLoading(true);
       try {
         const token = localStorage.getItem("access_token");
-        const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/chats/${chatId}/messages`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
+
+        // Determine the endpoint based on whether it's "all-channels" or a specific chat
+        const endpoint =
+          chatId === "all-channels"
+            ? `${import.meta.env.VITE_BACKEND_URL}/chats/all/messages`
+            : `${import.meta.env.VITE_BACKEND_URL}/chats/${chatId}/messages`;
+        console.log("ENDPOINTTTTTTTT ~ UnifiedChatPanel ~ endpoint:", endpoint);
+
+        const response = await fetch(endpoint, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log("Fetched messages:", data);
+
+        // Debug: Log the first message's chat object to see what we're getting
+        if (data.length > 0) {
+          console.log("First message chat object:", data[0].chat);
+        }
 
         // Transform the messages to match our component's expected format
-        const transformedMessages = data.map((msg: any, index: number) => ({
-          id: index + 1,
-          name: msg.sender?.first_name || msg.sender?.username || "Unknown",
-          avatar: gravatarUrl(
-            (msg.sender?.first_name || msg.sender?.username || "Unknown") +
-              "Telegram"
-          ),
-          platform: "Telegram" as const,
-          channel: selectedChat?.name || "Chat",
-          server: selectedChat?.name || "Chat",
-          date: new Date(msg.timestamp),
-          message: msg.raw_text || "",
-          tags: [],
-          reactions: [],
-          hasLink: (msg.raw_text || "").includes("http"),
-          link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
-          replyTo: null as any,
-        }));
+        const transformedMessages = data.map((msg: any, index: number) => {
+          // Extract chat name and determine channel from the message data
+          let chatName = "Unknown";
+          let channelName = null; // Default to null (no channel)
+
+          if (chatId === "all-channels" && msg.chat) {
+            // For "all-channels", extract chat name based on the chat type
+            // For Telegram, always set channel to null since we don't have topic/channel data
+            // Discord channels will be handled separately when we add Discord support
+            if (msg.chat._ === "Channel") {
+              // For Telegram channels, use title or username as chat name
+              chatName = msg.chat.title || msg.chat.username || "Unknown";
+              channelName = null; // No channel display for Telegram
+            } else if (msg.chat._ === "Chat") {
+              // For Telegram groups, use title or username as chat name, no channel
+              chatName = msg.chat.title || msg.chat.username || "Unknown";
+              channelName = null; // No channel for groups
+            } else if (msg.chat._ === "User") {
+              // For users/bots (direct messages), use first_name or username as chat name, no channel
+              chatName = msg.chat.first_name || msg.chat.username || "Unknown";
+              channelName = null; // No channel for direct messages
+            } else {
+              // Fallback
+              chatName =
+                msg.chat.title ||
+                msg.chat.username ||
+                msg.chat.first_name ||
+                "Unknown";
+              channelName = null;
+            }
+          } else {
+            // For specific chats, use the selected chat name
+            chatName = selectedChat?.name || "Chat";
+            channelName = null; // No channel for specific chat view
+          }
+
+          return {
+            id: index + 1,
+            name: msg.sender?.first_name || msg.sender?.username || "Unknown",
+            avatar: gravatarUrl(
+              (msg.sender?.first_name || msg.sender?.username || "Unknown") +
+                "Telegram"
+            ),
+            platform: "Telegram" as const,
+            channel: channelName, // Will be null for DMs and groups, channel name for channels
+            server: chatName, // Always the chat/group/channel name
+            date: new Date(msg.timestamp),
+            message: msg.raw_text || "",
+            tags: [],
+            reactions: [],
+            hasLink: (msg.raw_text || "").includes("http"),
+            link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
+            replyTo: null as any,
+          };
+        });
 
         // Sort messages by date (oldest first) so newest appear at bottom
         transformedMessages.sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -253,21 +311,23 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     }
   }, [openMenuId]);
 
-  // Fetch messages when selectedChat changes
+  // Fetch messages when selectedChat changes or on initial mount
   React.useEffect(() => {
-    if (selectedChat?.id) {
-      fetchMessages(selectedChat.id);
+    if (!USE_DUMMY_DATA) {
+      if (selectedChat?.id) {
+        fetchMessages(selectedChat.id);
+      } else if (selectedChat === "all-channels") {
+        // Handle "All Channels" selection
+        fetchMessages("all-channels");
+      } else {
+        setMessages([]); // Show empty when no chat is selected
+      }
     } else {
-      setMessages(dummyMessages); // Show dummy messages when no chat is selected
+      // Use dummy data when flag is enabled
+      setMessages(dummyMessages);
     }
-  }, [selectedChat?.id, fetchMessages]);
+  }, [selectedChat?.id, selectedChat, fetchMessages, USE_DUMMY_DATA]);
 
-  Object.entries(groupedByDate).map(([date, msgs]) => {
-    msgs.map((msg) => {
-      console.log(msg.id);
-      console.log(msg.server);
-    });
-  });
   return (
     <div className="relative h-[calc(100vh-136px)] flex flex-col">
       {/* Selected Chat Info */}
@@ -276,16 +336,30 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           <div className="flex items-center gap-3">
             <img
               src={
-                // selectedChat.photo_url ||
-                gravatarUrl(selectedChat.name || "User")
+                selectedChat === "all-channels"
+                  ? aiAll // Use the AI all icon for "All Channels"
+                  : selectedChat.photo_url ||
+                    gravatarUrl(selectedChat.name || "User")
               }
-              alt={selectedChat.name || "User"}
+              alt={
+                selectedChat === "all-channels"
+                  ? "All Channels"
+                  : selectedChat.name || "User"
+              }
               className="w-10 h-10 rounded-full object-cover"
             />
             <div>
-              <h3 className="text-white font-medium">{selectedChat.name}</h3>
+              <h3 className="text-white font-medium">
+                {selectedChat === "all-channels"
+                  ? "All Channels"
+                  : selectedChat.name}
+              </h3>
               <p className="text-sm text-[#ffffff72]">
-                {selectedChat.platform} • {selectedChat.unread || 0} unread
+                {selectedChat === "all-channels"
+                  ? "Telegram & Discord • Unified view"
+                  : `${selectedChat.platform} • ${
+                      selectedChat.unread || 0
+                    } unread`}
               </p>
             </div>
           </div>

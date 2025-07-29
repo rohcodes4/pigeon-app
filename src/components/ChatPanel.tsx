@@ -126,16 +126,6 @@ function formatChatTime(dateString: string) {
     return "now";
   }
 
-  // Debug: Log the dates to see what's happening
-  console.log("formatChatTime:", {
-    dateString,
-    chatDateISO: chatDate.toISOString(),
-    chatDateLocal: chatDate.toLocaleString(),
-    nowISO: now.toISOString(),
-    nowLocal: now.toLocaleString(),
-    diffHours: (now.getTime() - chatDate.getTime()) / (1000 * 60 * 60),
-  });
-
   const diffMs = now.getTime() - chatDate.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   const diffWeeks = Math.floor(diffDays / 7);
@@ -613,7 +603,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               ? "bg-[#212121] selected-chat"
               : "hover:bg-[#212121] focus:bg-[#212121]"
           }`}
-          onClick={() => setSelectedId("all-channels")}
+          onClick={() => {
+            setSelectedId("all-channels");
+            if (onChatSelect) {
+              onChatSelect("all-channels");
+            }
+          }}
         >
           {/* Avatar */}
           <img src={aiAll} className="w-10 h-10 rounded-full object-cover" />
@@ -626,7 +621,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   <FaTelegramPlane className="text-[#3474FF]" />
                   All Channels
                 </div>
-                <div className="text-[#fafafa60] text-xs">16:36</div>
+                <div className="text-[#fafafa60] text-xs">
+                  {chats.length > 0 && chats[0]?.timestamp
+                    ? formatChatTime(chats[0].timestamp)
+                    : "now"}
+                </div>
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -634,8 +633,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-[#fafafa] font-[200] truncate max-w-[170px]">
-                Snapshot just passed for zk grant round. Team says ZK L2 launch
-                in August.
+                {chats.length > 0 && chats[0]?.lastMessage
+                  ? chats[0].lastMessage.length > 50
+                    ? chats[0].lastMessage.slice(0, 50) + "..."
+                    : chats[0].lastMessage
+                  : "No messages yet"}
               </span>
             </div>
           </div>
@@ -1031,12 +1033,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                           );
                         }
                       }}
-                      onLoad={() => {
-                        console.log(
-                          `Photo loaded successfully for ${chat.name}:`,
-                          chat.photo_url
-                        );
-                      }}
+                      onLoad={() => {}}
                     />
                     <img
                       src={chat.platform === "Discord" ? discord : telegram}

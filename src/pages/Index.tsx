@@ -55,7 +55,7 @@ const Index = () => {
   >(null);
   const [chats, setChats] = useState([]); // State to store fetched chats
   const [chatsLoading, setChatsLoading] = useState(true); // Loading state for chats
-  const [selectedChat, setSelectedChat] = useState(null); // State for selected chat
+  const [selectedChat, setSelectedChat] = useState("all-channels"); // State for selected chat
 
   const handleOpenSmartSummary = () => setOpenPanel("smartSummary");
   const handleOpenNotificationPanel = () => setOpenPanel("notification");
