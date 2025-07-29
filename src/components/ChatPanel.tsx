@@ -611,7 +611,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           }}
         >
           {/* Avatar */}
-          <img src={aiAll} className="w-10 h-10 rounded-full object-cover" />
+          <img
+            src={aiAll}
+            className="w-10 h-10 rounded-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
           {/* Chat Info */}
           <div className="flex-1 text-left">
             <div className="flex justify-between items-center">
@@ -923,6 +928,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                       src={chat.avatar}
                       alt={chat.name}
                       className="w-10 h-10 rounded-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                     {/* <img
               src={chat.platform === "Discord" ? discord : telegram}
@@ -944,8 +951,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-[#ffffff32] font-100">
-                        {chat.lastMessage?.length > 50 // Use optional chaining for lastMessage
-                          ? chat.lastMessage.slice(0, 50) + "..."
+                        {chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
+                          ? chat.lastMessage.slice(0, 23) + "..."
                           : chat.lastMessage}
                       </span>
                     </div>
@@ -1008,32 +1015,36 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   {/* Avatar */}
                   <div className="relative">
                     <img
-                      src={chat.photo_url || gravatarUrl(chat.name || "User")}
+                      src={gravatarUrl(chat.name || "User")}
                       alt={chat.name || "User"}
                       className="w-10 h-10 rounded-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                       onError={(e) => {
-                        // Only fallback to gravatar if it's not already a data URL
-                        if (!e.currentTarget.src.startsWith("data:")) {
-                          console.log(
-                            `Photo failed to load for ${chat.name}:`,
-                            chat.photo_url
-                          );
-                          e.currentTarget.src = gravatarUrl(
-                            chat.name || "User"
-                          );
-                        } else {
-                          // For data URLs that fail, try removing and re-adding to trigger reload
-                          console.log(
-                            `Data URL failed for ${
-                              chat.name
-                            }, URL: ${e.currentTarget.src.substring(0, 100)}...`
-                          );
-                          e.currentTarget.src = gravatarUrl(
-                            chat.name || "User"
-                          );
+                        console.log(`Gravatar failed to load for ${chat.name}`);
+                      }}
+                      onLoad={(e) => {
+                        // Only try to load real photo after gravatar loads and after a delay
+                        if (chat.photo_url) {
+                          setTimeout(() => {
+                            const img = new Image();
+                            img.onload = () => {
+                              const target = e.target as HTMLImageElement;
+                              if (target) {
+                                target.src = chat.photo_url;
+                              }
+                            };
+                            img.onerror = () => {
+                              // Keep gravatar if photo fails
+                              console.log(
+                                `Photo failed to load for ${chat.name}:`,
+                                chat.photo_url
+                              );
+                            };
+                            img.src = chat.photo_url;
+                          }, 100); // 100ms delay to prevent blocking
                         }
                       }}
-                      onLoad={() => {}}
                     />
                     <img
                       src={chat.platform === "Discord" ? discord : telegram}
@@ -1059,8 +1070,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-[#ffffff32] font-100">
-                        {chat.lastMessage?.length > 50 // Use optional chaining for lastMessage
-                          ? chat.lastMessage.slice(0, 50) + "..."
+                        {chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
+                          ? chat.lastMessage.slice(0, 23) + "..."
                           : chat.lastMessage}
                       </span>
                     </div>

@@ -120,8 +120,35 @@ const SmartTasks = () => {
     fetchChats();
   }, [user]);
 
-  const handleChatSelect = (chat) => {
+  const handleChatSelect = async (chat) => {
     setSelectedChat(chat);
+
+    // Mark the chat as read when selected
+    if (chat && chat.id) {
+      try {
+        const token = localStorage.getItem("access_token");
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/chats/${chat.id}/read`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: "read=true",
+          }
+        );
+
+        if (response.ok) {
+          // Update the chat's read status in the local state
+          setChats((prevChats) =>
+            prevChats.map((c) => (c.id === chat.id ? { ...c, read: true } : c))
+          );
+        }
+      } catch (error) {
+        console.error("Failed to mark chat as read:", error);
+      }
+    }
   };
 
   if (loading || chatsLoading) {

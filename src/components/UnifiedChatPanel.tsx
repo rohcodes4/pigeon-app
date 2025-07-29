@@ -242,10 +242,9 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           return {
             id: index + 1,
             name: msg.sender?.first_name || msg.sender?.username || "Unknown",
-            avatar: gravatarUrl(
-              (msg.sender?.first_name || msg.sender?.username || "Unknown") +
-                "Telegram"
-            ),
+            avatar: `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
+              msg.sender?.id
+            }`,
             platform: "Telegram" as const,
             channel: channelName, // Will be null for DMs and groups, channel name for channels
             server: chatName, // Always the chat/group/channel name
@@ -316,6 +315,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     if (!USE_DUMMY_DATA) {
       if (selectedChat?.id) {
         fetchMessages(selectedChat.id);
+        // Mark chat as read when messages are loaded
+        markChatAsRead(selectedChat.id);
       } else if (selectedChat === "all-channels") {
         // Handle "All Channels" selection
         fetchMessages("all-channels");
@@ -328,6 +329,30 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     }
   }, [selectedChat?.id, selectedChat, fetchMessages, USE_DUMMY_DATA]);
 
+  // Function to mark chat as read
+  const markChatAsRead = async (chatId) => {
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/chats/${chatId}/read`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: "read=true",
+        }
+      );
+
+      if (response.ok) {
+        console.log(`Chat ${chatId} marked as read`);
+      }
+    } catch (error) {
+      console.error("Failed to mark chat as read:", error);
+    }
+  };
+
   return (
     <div className="relative h-[calc(100vh-136px)] flex flex-col">
       {/* Selected Chat Info */}
@@ -338,8 +363,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
               src={
                 selectedChat === "all-channels"
                   ? aiAll // Use the AI all icon for "All Channels"
-                  : selectedChat.photo_url ||
-                    gravatarUrl(selectedChat.name || "User")
+                  : gravatarUrl(selectedChat.name || "User")
               }
               alt={
                 selectedChat === "all-channels"
@@ -347,6 +371,30 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                   : selectedChat.name || "User"
               }
               className="w-10 h-10 rounded-full object-cover"
+              loading="lazy"
+              decoding="async"
+              onLoad={(e) => {
+                // Only try to load real photo after gravatar loads and after a delay
+                if (selectedChat !== "all-channels" && selectedChat.photo_url) {
+                  setTimeout(() => {
+                    const img = new Image();
+                    img.onload = () => {
+                      const target = e.target as HTMLImageElement;
+                      if (target) {
+                        target.src = selectedChat.photo_url;
+                      }
+                    };
+                    img.onerror = () => {
+                      // Keep gravatar if photo fails
+                      console.log(
+                        `Photo failed to load for ${selectedChat.name}:`,
+                        selectedChat.photo_url
+                      );
+                    };
+                    img.src = selectedChat.photo_url;
+                  }, 100); // 100ms delay to prevent blocking
+                }
+              }}
             />
             <div>
               <h3 className="text-white font-medium">
@@ -391,9 +439,36 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                 >
                   {/* Avatar */}
                   <img
-                    src={msg.avatar}
+                    src={gravatarUrl(msg.name + "Telegram")}
                     alt={msg.name}
                     className="w-10 h-10 rounded-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                    onLoad={(e) => {
+                      // Only try to load real photo after gravatar loads and after a delay
+                      if (
+                        msg.avatar &&
+                        msg.avatar.includes("/contact_photo/")
+                      ) {
+                        setTimeout(() => {
+                          const img = new Image();
+                          img.onload = () => {
+                            const target = e.target as HTMLImageElement;
+                            if (target) {
+                              target.src = msg.avatar;
+                            }
+                          };
+                          img.onerror = () => {
+                            // Keep gravatar if photo fails
+                            console.log(
+                              `Message avatar failed to load for ${msg.name}:`,
+                              msg.avatar
+                            );
+                          };
+                          img.src = msg.avatar;
+                        }, 100); // 100ms delay to prevent blocking
+                      }
+                    }}
                   />
                   {/* Message Content */}
                   <div className="flex-1 relative">
