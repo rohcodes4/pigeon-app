@@ -106,6 +106,8 @@ const Index = () => {
 
   const handleSelect = (id) => setSelectedId(id);
 
+  
+
   // Handle chat selection
   const handleChatSelect = async (chat) => {
     setSelectedChat(chat);
@@ -300,7 +302,11 @@ const Index = () => {
             />
             <UnifiedChatPanel selectedChat={selectedChat} />
           </div>
-          {openPanel === "smartSummary" && <SmartSummary />}
+        {openPanel === "smartSummary" && (
+  <SmartSummary 
+    selectedChat={selectedChat}
+  />
+)}
           {openPanel === "notification" && <NotificationsPanel />}
           {openPanel === "pinned" && <PinnedPanel />}
           {openPanel === "search" && <SearchPanel />}
