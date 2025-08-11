@@ -45,7 +45,6 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
 
   useEffect(() => {
     if (!loading) {
-      console.log("Current theme:", settings.theme);
       setTheme(settings.theme);
     }
   }, [loading, settings.theme]);
@@ -54,7 +53,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
   const [theme, setTheme] = useState(settings.theme || "default");
   const navigate = useNavigate();
   const { user: authUser, signOut } = useAuth(); // Destructure signOut from useAuth
-  const [user, setUser] = useState(authUser);
+
   const handleThemeChange = (newTheme: Theme) => {
     // Use Theme type
     updateSettings({ theme: newTheme });
@@ -64,8 +63,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
 
   // const { user } = useAuth();
   // console.log(user)
-  const themes = [
-    { value: "default", icon: <Circle className="w-5 h-5" /> }, // Use a half-moon icon if available, else Circle
+  const themes: { value: Theme; icon: React.ReactNode }[] = [
+    { value: "default", icon: <Circle className="w-5 h-5" /> },
     { value: "light", icon: <Sun className="w-5 h-5" /> },
     { value: "dark", icon: <Moon className="w-5 h-5" /> },
   ];
@@ -99,11 +98,30 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
   //   avatar: User,
   // };
 
-  useEffect(() => {
-    if (authUser) {
-      setUser({ ...authUser, name: "Jane Doe" });
+  // Helper function to get user display name
+  const getUserDisplayName = (user: any) => {
+    if (user?.full_name) {
+      return user.full_name;
     }
-  }, [authUser]);
+    if (user?.username) {
+      return user.username;
+    }
+    if (user?.email) {
+      return user.email.split("@")[0]; // Show username part of email
+    }
+    return "User";
+  };
+
+  // Helper function to get user avatar
+  const getUserAvatar = (user: any) => {
+    if (user?.username) {
+      return gravatarUrl(user.username);
+    }
+    if (user?.email) {
+      return gravatarUrl(user.email);
+    }
+    return gravatarUrl("user");
+  };
 
   const [activeNav, setActiveNav] = useState(navMap[activePage] || "AI");
 
@@ -112,11 +130,10 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
   }, [activePage]);
 
   const logOut = async () => {
-    console.log("attempting logout...");
     await signOut(); // Call signOut from useAuth
   };
   return (
-    <aside className="h-screen w-16 flex flex-col items-center py-[18px] min-w-16">
+    <aside className="h-screen w-16 flex flex-col items-center py-[18px] min-w-16 overflow-hidden">
       <img src={logo} alt="AI" className="w-9 h-9 mb-4" />
       <nav className="flex flex-col gap-4 flex-1">
         {/* AI */}
@@ -199,7 +216,10 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
         <button
           className={`relative p-2 rounded-lg flex items-center justify-center transition-colors
             ${activeNav === "Help" ? "bg-[#212121]" : "hover:bg-[#212121]"}`}
-          onClick={() => setActiveNav("Help")}
+          onClick={() => {
+            setActiveNav("Help");
+            navigate("/help");
+          }}
         >
           {activeNav === "Help" && (
             <span className="absolute left-[-13px] h-full top-0 bottom-2 w-1 rounded bg-[#3474ff]" />
@@ -231,33 +251,63 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
           onMouseEnter={() => setShowProfile(true)}
           ref={profileRef}
         >
-          <img
-            src={gravatarUrl(user?.name)}
-            alt="Profile"
-            className="w-8 h-8 rounded-full border-2 border-[#23272f] cursor-pointer"
-            onClick={() => setShowProfile((prev) => !prev)}
-          />
+          {authUser ? (
+            <img
+              src={getUserAvatar(authUser)}
+              alt="Profile"
+              className="w-8 h-8 rounded-full border-2 border-[#23272f] cursor-pointer"
+              onClick={() => setShowProfile((prev) => !prev)}
+            />
+          ) : (
+            <div
+              className="w-8 h-8 rounded-full border-2 border-[#23272f] cursor-pointer bg-[#212121] flex items-center justify-center"
+              onClick={() => setShowProfile((prev) => !prev)}
+            >
+              <User className="w-4 h-4 text-[#ffffff72]" />
+            </div>
+          )}
           {showProfile && (
             <div
               ref={popoverRef}
-              className="absolute bottom-12 -right-100 z-50 bg-[#212121] rounded-xl shadow-2xl p-4 min-w-[240px] flex flex-col gap-3"
+              className="fixed bottom-20 -right-100 bg-[#212121] rounded-xl shadow-2xl p-4 min-w-[240px] flex flex-col gap-3"
+              style={{
+                zIndex: 9999,
+              }}
             >
               {" "}
               {/* Name */}
               <div className="flex items-center gap-3">
-                <img
-                  src={gravatarUrl(user?.name)}
-                  alt="Profile"
-                  className="w-8 h-8 rounded-full"
-                />
-                <div className="flex flex-col items-start">
-                  <span className="text-[#ffffff72] text-[15px] font-[300]">
-                    {user?.name}
-                  </span>
-                  <span className="text-[12px] text-[#ffffff48]">
-                    {user.email}
-                  </span>
-                </div>
+                {authUser ? (
+                  <>
+                    <img
+                      src={getUserAvatar(authUser)}
+                      alt="Profile"
+                      className="w-8 h-8 rounded-full"
+                    />
+                    <div className="flex flex-col items-start">
+                      <span className="text-[#ffffff72] text-[15px] font-[300]">
+                        {getUserDisplayName(authUser)}
+                      </span>
+                      <span className="text-[12px] text-[#ffffff48]">
+                        {authUser?.email || "No email"}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-8 h-8 rounded-full bg-[#212121] flex items-center justify-center">
+                      <User className="w-4 h-4 text-[#ffffff72]" />
+                    </div>
+                    <div className="flex flex-col items-start">
+                      <span className="text-[#ffffff72] text-[15px] font-[300]">
+                        Guest
+                      </span>
+                      <span className="text-[12px] text-[#ffffff48]">
+                        Not signed in
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
               {/* Email */}
               {/* Theme Selection */}
@@ -301,13 +351,23 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
                   <ArrowUpCircle className="w-4 h-4" />
                   Upgrade
                 </button>
-                <button
-                  className="p-2 flex items-center gap-2 text-xs text-red-600 transition"
-                  onClick={logOut}
-                >
-                  <LogOut className="w-4 h-4" />
-                  Logout
-                </button>
+                {authUser ? (
+                  <button
+                    className="p-2 flex items-center gap-2 text-xs text-red-600 transition"
+                    onClick={logOut}
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
+                ) : (
+                  <button
+                    className="p-2 flex items-center gap-2 text-xs text-[#5389FF] transition"
+                    onClick={() => navigate("/auth")}
+                  >
+                    <User className="w-4 h-4" />
+                    Sign In
+                  </button>
+                )}
               </div>
             </div>
           )}

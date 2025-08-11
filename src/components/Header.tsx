@@ -56,11 +56,11 @@ export const Header = () => {
   return (
     <header className="w-full bg-[#00000012] backdrop-blur-sm px-6 py-4">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
-        <Link to="/" className="flex items-center">
+        {/* <Link to="/" className="flex items-center"> */}
           <div className="w-9 h-9 rounded-full flex items-center justify-center">
             <img src={logo} className="w-9 h-9 text-white" />
           </div>
-        </Link>
+        {/* </Link> */}
 
         {user ? (
           <div className="flex items-center gap-2 relative bg-[#212121] p-2 pl-3 rounded-[12px]">
