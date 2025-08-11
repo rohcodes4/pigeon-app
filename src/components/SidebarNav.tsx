@@ -390,14 +390,17 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
               </div>
               {/* Actions */}
               <div className="flex flex-col gap-2 mt-2">
-                <button className="p-2 flex items-center gap-2 text-xs text-[#ffffff72] hover:text-[#5389FF] transition">
+                <button
+                  className="p-2 flex items-center gap-2 text-xs text-[#ffffff72] hover:text-[#5389FF] transition"
+                  onClick={() => navigate("/settings")}
+                >
                   <Settings className="w-4 h-4" />
                   Settings
                 </button>
-                <button className="p-2 flex items-center gap-2 text-xs text-[#ffffff72] hover:text-[#5389FF] transition">
+                {/* <button className="p-2 flex items-center gap-2 text-xs text-[#ffffff72] hover:text-[#5389FF] transition">
                   <ArrowUpCircle className="w-4 h-4" />
                   Upgrade
-                </button>
+                </button> */}
                 {authUser ? (
                   <button
                     className="p-2 flex items-center gap-2 text-xs text-red-600 transition"
