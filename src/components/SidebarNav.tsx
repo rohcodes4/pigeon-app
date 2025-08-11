@@ -358,12 +358,11 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
               </div>
               {/* Email */}
               {/* Theme Selection */}
-              <div className="flex flex gap-6 items-center mt-2">
+              {/* <div className="flex flex gap-6 items-center mt-2">
                 <span className="text-xs text-[#ffffff72] flex items-center h-9">
                   Theme
                 </span>
                 <div className="relative w-full h-9 bg-[#171717] rounded-[1000px] flex items-center justify-between px-2 py-6">
-                  {/* Sliding highlight: slightly larger than icon, centered */}
                   <span
                     className="absolute top-1.5 left-2 w-9 h-9 rounded-full transition-transform duration-300"
                     style={{
@@ -372,7 +371,6 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
                       zIndex: 1,
                     }}
                   />
-                  {/* Theme buttons */}
                   {themes.map((t, idx) => (
                     <button
                       key={t.value}
@@ -387,7 +385,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
                     </button>
                   ))}
                 </div>
-              </div>
+              </div> */}
               {/* Actions */}
               <div className="flex flex-col gap-2 mt-2">
                 <button

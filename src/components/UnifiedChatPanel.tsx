@@ -133,6 +133,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [replyTo, setReplyTo] = React.useState<
     null | (typeof dummyMessages)[0]
   >(null);
@@ -141,6 +142,9 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   );
   const [openMenuId, setOpenMenuId] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState(false);
+  const [loadingMore, setLoadingMore] = React.useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = React.useState(true);
+  const [shouldAutoScroll, setShouldAutoScroll] = React.useState(true);
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = () => {
@@ -148,8 +152,10 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   };
 
   React.useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (shouldAutoScroll) {
+      scrollToBottom();
+    }
+  }, [messages, shouldAutoScroll]);
 
   const groupedByDate: { [date: string]: typeof messages } =
     React.useMemo(() => {
@@ -164,7 +170,11 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
 
   // Function to fetch messages for a selected chat
   const fetchMessages = React.useCallback(
-    async (chatId: number | string) => {
+    async (
+      chatId: number | string,
+      beforeTimestamp?: string,
+      append = false
+    ) => {
       if (!chatId) return;
 
       // If using dummy data, don't fetch from API
@@ -173,15 +183,31 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
         return;
       }
 
-      setLoading(true);
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+        setHasMoreMessages(true); // Reset pagination state for new chat
+      }
+
       try {
         const token = localStorage.getItem("access_token");
 
         // Determine the endpoint based on whether it's "all-channels" or a specific chat
-        const endpoint =
+        let endpoint =
           chatId === "all-channels"
             ? `${import.meta.env.VITE_BACKEND_URL}/chats/all/messages`
             : `${import.meta.env.VITE_BACKEND_URL}/chats/${chatId}/messages`;
+
+        // Add pagination parameter if loading older messages
+        const params = new URLSearchParams();
+        if (beforeTimestamp) {
+          params.append("before", beforeTimestamp);
+        }
+        if (params.toString()) {
+          endpoint += `?${params.toString()}`;
+        }
+
         console.log("ENDPOINTTTTTTTT ~ UnifiedChatPanel ~ endpoint:", endpoint);
 
         const response = await fetch(endpoint, {
@@ -260,15 +286,67 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
 
         // Sort messages by date (oldest first) so newest appear at bottom
         transformedMessages.sort((a, b) => a.date.getTime() - b.date.getTime());
-        setMessages(transformedMessages);
+
+        // Check if we got fewer messages than requested (indicating we've reached the end)
+        if (data.length < 50) {
+          // Backend default limit is 50
+          setHasMoreMessages(false);
+        }
+
+        if (append) {
+          // Prepend older messages to the existing list
+          setShouldAutoScroll(false); // Don't auto-scroll when loading more
+          setMessages((prevMessages) => [
+            ...transformedMessages,
+            ...prevMessages,
+          ]);
+        } else {
+          // Replace messages for new chat
+          setShouldAutoScroll(true); // Enable auto-scroll for new chat
+          setMessages(transformedMessages);
+        }
       } catch (error) {
         console.error("Error fetching messages:", error);
-        setMessages([]); // Set empty array on error
+        if (!append) {
+          setMessages([]); // Set empty array on error only if not appending
+        }
       } finally {
         setLoading(false);
+        setLoadingMore(false);
       }
     },
     [selectedChat?.name] // Only depend on the name, not the entire object
+  );
+
+  // Function to load more messages when scrolling to top
+  const loadMoreMessages = React.useCallback(() => {
+    if (loadingMore || !hasMoreMessages || messages.length === 0) return;
+
+    // Get the timestamp of the oldest message
+    const oldestMessage = messages[0];
+    if (!oldestMessage) return;
+
+    const beforeTimestamp = oldestMessage.date.toISOString();
+
+    if (selectedChat?.id) {
+      fetchMessages(selectedChat.id, beforeTimestamp, true);
+    } else if (selectedChat === "all-channels") {
+      fetchMessages("all-channels", beforeTimestamp, true);
+    }
+  }, [loadingMore, hasMoreMessages, messages, selectedChat, fetchMessages]);
+
+  // Scroll event handler for infinite loading
+  const handleScroll = React.useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const container = e.currentTarget;
+      const scrollTop = container.scrollTop;
+      const threshold = 100; // Load more when within 100px of top
+
+      if (scrollTop <= threshold && hasMoreMessages && !loadingMore) {
+        loadMoreMessages();
+      }
+    },
+    [hasMoreMessages, loadingMore, loadMoreMessages]
   );
 
   const handleSend = () => {
@@ -299,6 +377,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       setMessages([...messages, newMsg]);
       inputRef.current.value = "";
       setReplyTo(null); // Clear reply after sending
+      setShouldAutoScroll(true); // Enable auto-scroll when sending new message
     }
   };
 
@@ -415,7 +494,32 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       )}
 
       {/* Message List  */}
-      <div className="flex-1 overflow-y-auto px-6 flex flex-col gap-4">
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto px-6 flex flex-col gap-4"
+        onScroll={handleScroll}
+      >
+        {/* Loading indicator for loading more messages at top */}
+        {loadingMore && (
+          <div className="flex items-center justify-center py-4">
+            <div className="text-center">
+              <div className="w-6 h-6 border-2 border-[#3474ff] border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+              <p className="text-[#ffffff72] text-sm">
+                Loading more messages...
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* No more messages indicator */}
+        {!hasMoreMessages && messages.length > 0 && !loading && (
+          <div className="flex items-center justify-center py-4">
+            <div className="text-center">
+              <p className="text-[#ffffff32] text-xs">No more messages</p>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="text-center">
