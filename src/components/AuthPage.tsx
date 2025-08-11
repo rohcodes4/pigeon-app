@@ -108,7 +108,7 @@ export const AuthPage = () => {
         toast({
           title: "Account created!",
           description:
-            "Please check your email to verify your account (if applicable). You can now sign in.",
+            "You can now sign in.",
         });
         setIsSignIn(true);
         await checkAuth();

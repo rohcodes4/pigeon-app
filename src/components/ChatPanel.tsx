@@ -212,6 +212,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [isChannelsOpen, setIsChannelsOpen] = useState(true);
   const [searchMore, setSearchMore] = useState(false);
   const [filterFull, setFilterFull] = useState(false);
+  const [streamsExpanded, setStreamsExpanded] = useState(false);
+  const [channelsExpanded, setChannelsExpanded] = useState(false);
+  const [streamsLimit, setStreamsLimit] = useState(5);
+  const [channelsLimit, setChannelsLimit] = useState(10);
   const hideScrollbar = "scrollbar-hide";
 
   const handleCancel = () => {
@@ -245,6 +249,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     );
   }, [channelSearch, displayChats]); // Add displayChats to dependency array
 
+  // Reset limits when search term or filters change
+  useEffect(() => {
+    setStreamsLimit(5);
+    setChannelsLimit(10);
+  }, [searchTerm, filters]);
+
   const scroll = (
     ref: React.RefObject<HTMLDivElement>,
     dir: "left" | "right",
@@ -263,6 +273,16 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const removeItem = (item: string) => {
     setFilters((prev) => prev.filter((i) => i !== item));
     setTimeout(bottomArrows.checkScroll, 300);
+  };
+
+  const addFilter = (item: string) => {
+    if (!filters.includes(item)) {
+      setFilters((prev) => [...prev, item]);
+      // Reset limits when filters change
+      setStreamsLimit(5);
+      setChannelsLimit(10);
+      setTimeout(bottomArrows.checkScroll, 300);
+    }
   };
 
   // Sort all chats by time descending (latest first)
@@ -330,16 +350,100 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     return filtered;
   };
 
+  // Separate filtering for filtered streams vs channels
+  const getFilteredStreams = () => {
+    let filtered = sortedDisplayChats;
+
+    // Apply search term filter
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(
+        (chat) =>
+          chat.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          chat.lastMessage?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply top item filters
+    if (activeTopItem === "Telegram") {
+      filtered = filtered.filter((chat) => chat.platform === "Telegram");
+    }
+    if (activeTopItem === "Discord") {
+      filtered = filtered.filter((chat) => chat.platform === "Discord");
+    }
+    if (activeTopItem === "Unread") {
+      filtered = filtered.filter((chat) => !chat.read);
+    }
+
+    // Apply tag filters
+    if (filters.length > 0) {
+      filtered = filtered.filter((chat) =>
+        filters.every((tag) => chat.tags?.includes(tag))
+      );
+    }
+
+    return filtered;
+  };
+
+  const getFilteredChannels = () => {
+    let filtered = sortedDisplayChats;
+
+    // Apply search term filter
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(
+        (chat) =>
+          chat.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          chat.lastMessage?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply top item filters
+    if (activeTopItem === "Telegram") {
+      filtered = filtered.filter((chat) => chat.platform === "Telegram");
+    }
+    if (activeTopItem === "Discord") {
+      filtered = filtered.filter((chat) => chat.platform === "Discord");
+    }
+    if (activeTopItem === "Unread") {
+      filtered = filtered.filter((chat) => !chat.read);
+    }
+
+    // Apply tag filters
+    if (filters.length > 0) {
+      filtered = filtered.filter((chat) =>
+        filters.every((tag) => chat.tags?.includes(tag))
+      );
+    }
+
+    return filtered;
+  };
+
   // Memoize filtered results to avoid unnecessary recalculations
   const allFilteredChats = useMemo(
     () => getFilteredChats(),
     [sortedDisplayChats, searchTerm, activeTopItem, filters]
   );
 
-  const filteredStreams = searchTerm.trim()
-    ? allFilteredChats
-    : allFilteredChats.slice(0, 3); // Show all when searching, limit to 3 otherwise
-  const channels = allFilteredChats; // Apply the same filtering to channels
+  const filteredStreams = useMemo(
+    () => getFilteredStreams(),
+    [sortedDisplayChats, searchTerm, activeTopItem, filters]
+  );
+
+  const channels = useMemo(
+    () => getFilteredChannels(),
+    [sortedDisplayChats, searchTerm, activeTopItem, filters]
+  );
+
+  // Show more streams when searching or when filters are applied
+  const displayStreams =
+    searchTerm.trim() || filters.length > 0
+      ? filteredStreams
+      : filteredStreams.slice(0, streamsLimit); // Use dynamic limit
+
+  // Show more channels when searching or when filters are applied
+  const displayChannels =
+    searchTerm.trim() || filters.length > 0
+      ? channels
+      : channels.slice(0, channelsLimit); // Use dynamic limit
 
   if (filterFull) {
     return (
@@ -631,6 +735,25 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       // }
         `}
       </style>
+
+      {/* Available Filter Tags */}
+      <div className="pl-3 mt-4">
+        <div className="flex flex-wrap gap-2">
+          {INITIAL_BOTTOM_ITEMS.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => addFilter(tag)}
+              className={`px-3 py-1 text-xs rounded-full cursor-pointer transition ${
+                filters.includes(tag)
+                  ? "bg-[#3474ff] text-white"
+                  : "bg-[#212121] text-[#ffffff80] hover:bg-[#2d2d2d] hover:text-white"
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Chat List */}
       <div className="pl-3 h-min flex-1 overflow-y-scroll overflow-x-visible mt-2 no-scrollbar">
@@ -942,12 +1065,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           </div>
           {isFilteredStreamsOpen && (
             <div className="mt-2">
-              {filteredStreams.length === 0 && searchTerm.trim() ? (
+              {displayStreams.length === 0 && searchTerm.trim() ? (
                 <div className="text-[#ffffff48] text-sm px-4 py-3">
                   No channels found for "{searchTerm}"
                 </div>
               ) : (
-                filteredStreams.map((chat) => (
+                displayStreams.map((chat) => (
                   <button
                     key={chat.id}
                     className={
@@ -1051,142 +1174,202 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   </button>
                 ))
               )}
+
+              {/* Show More button when there are more streams */}
+              {!searchTerm.trim() &&
+                filters.length === 0 &&
+                streamsLimit < filteredStreams.length && (
+                  <button
+                    className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
+                    onClick={() =>
+                      setStreamsLimit((prev) =>
+                        Math.min(prev + 20, filteredStreams.length)
+                      )
+                    }
+                  >
+                    Show {Math.min(20, filteredStreams.length - streamsLimit)}{" "}
+                    more...
+                  </button>
+                )}
+
+              {/* Show Less button when streams are expanded */}
+              {!searchTerm.trim() &&
+                filters.length === 0 &&
+                streamsLimit > 5 && (
+                  <button
+                    className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
+                    onClick={() => setStreamsLimit(5)}
+                  >
+                    Show Less
+                  </button>
+                )}
             </div>
           )}
         </div>
 
-        {/* Channels Section */}
-        <div className="pl-3 mt-4">
-          <div
-            className="flex justify-between items-center cursor-pointer"
-            onClick={() => setIsChannelsOpen(!isChannelsOpen)}
-          >
-            <span className="text-white font-medium">Channels</span>
-            {isChannelsOpen ? (
-              <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5 " />
-            ) : (
-              <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
-            )}
-          </div>
-          {isChannelsOpen && (
-            <div className="mt-2">
-              {channels.length === 0 && searchTerm.trim() ? (
-                <div className="text-[#ffffff48] text-sm px-4 py-3">
-                  No channels found for "{searchTerm}"
-                </div>
+        {/* Channels Section - Only show when no filters/search */}
+        {!searchTerm.trim() && filters.length === 0 && (
+          <div className="pl-3 mt-4">
+            <div
+              className="flex justify-between items-center cursor-pointer"
+              onClick={() => setIsChannelsOpen(!isChannelsOpen)}
+            >
+              <span className="text-white font-medium">Channels</span>
+              {isChannelsOpen ? (
+                <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5 " />
               ) : (
-                channels.map((chat) => (
-                  <button
-                    key={chat.id}
-                    className={
-                      `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
-                      (selectedId === chat.id
-                        ? "bg-[#212121] selected-chat "
-                        : "hover:bg-[#212121] focus:bg-[#212121] ") +
-                      (selectedId !== chat.id && !chat.read
-                        ? "unread-chat "
-                        : "")
-                    }
-                    onClick={() => {
-                      setSelectedId(chat.id);
-                      if (onChatSelect) {
-                        onChatSelect(chat);
+                <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
+              )}
+            </div>
+            {isChannelsOpen && (
+              <div className="mt-2">
+                {displayChannels.length === 0 && searchTerm.trim() ? (
+                  <div className="text-[#ffffff48] text-sm px-4 py-3">
+                    No channels found for "{searchTerm}"
+                  </div>
+                ) : (
+                  displayChannels.map((chat) => (
+                    <button
+                      key={chat.id}
+                      className={
+                        `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
+                        (selectedId === chat.id
+                          ? "bg-[#212121] selected-chat "
+                          : "hover:bg-[#212121] focus:bg-[#212121] ") +
+                        (selectedId !== chat.id && !chat.read
+                          ? "unread-chat "
+                          : "")
                       }
-                    }}
-                  >
-                    {/* Avatar */}
-                    <div className="relative">
-                      <img
-                        src={gravatarUrl(chat.name || "User")}
-                        alt={chat.name || "User"}
-                        className="w-10 h-10 rounded-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                        onError={(e) => {
-                          console.log(
-                            `Gravatar failed to load for ${chat.name}`
-                          );
-                        }}
-                        onLoad={(e) => {
-                          // Only try to load real photo after gravatar loads and after a delay
-                          if (chat.photo_url) {
-                            setTimeout(() => {
-                              const img = new Image();
-                              img.onload = () => {
-                                const target = e.target as HTMLImageElement;
-                                if (target) {
-                                  target.src = chat.photo_url;
-                                }
-                              };
-                              img.onerror = () => {
-                                // Keep gravatar if photo fails
-                                console.log(
-                                  `Photo failed to load for ${chat.name}:`,
-                                  chat.photo_url
-                                );
-                              };
-                              img.src = chat.photo_url;
-                            }, 100); // 100ms delay to prevent blocking
-                          }
-                        }}
-                      />
-                      <img
-                        src={chat.platform === "Discord" ? discord : telegram}
-                        className={`
+                      onClick={() => {
+                        setSelectedId(chat.id);
+                        if (onChatSelect) {
+                          onChatSelect(chat);
+                        }
+                      }}
+                    >
+                      {/* Avatar */}
+                      <div className="relative">
+                        <img
+                          src={gravatarUrl(chat.name || "User")}
+                          alt={chat.name || "User"}
+                          className="w-10 h-10 rounded-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                          onError={(e) => {
+                            console.log(
+                              `Gravatar failed to load for ${chat.name}`
+                            );
+                          }}
+                          onLoad={(e) => {
+                            // Only try to load real photo after gravatar loads and after a delay
+                            if (chat.photo_url) {
+                              setTimeout(() => {
+                                const img = new Image();
+                                img.onload = () => {
+                                  const target = e.target as HTMLImageElement;
+                                  if (target) {
+                                    target.src = chat.photo_url;
+                                  }
+                                };
+                                img.onerror = () => {
+                                  // Keep gravatar if photo fails
+                                  console.log(
+                                    `Photo failed to load for ${chat.name}:`,
+                                    chat.photo_url
+                                  );
+                                };
+                                img.src = chat.photo_url;
+                              }, 100); // 100ms delay to prevent blocking
+                            }
+                          }}
+                        />
+                        <img
+                          src={chat.platform === "Discord" ? discord : telegram}
+                          className={`
                 absolute -bottom-2 -right-1
                 ${chat.platform === "Discord" ? "bg-[#7b5cfa]" : "bg-[#3474ff]"}
                 rounded-[4px] w-5 h-5 p-1 border-2 border-[#111111]
               `}
-                        alt={chat.platform}
-                      />
-                    </div>
-                    {/* Chat Info */}
-                    <div className="flex-1 text-left">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[#ffffff48] font-200 flex items-center gap-1">
-                          {chat.platform === "Discord" ? (
-                            <FaDiscord className="text-[#7b5cfa]" />
-                          ) : (
-                            <FaTelegramPlane className="text-[#3474ff]" />
+                          alt={chat.platform}
+                        />
+                      </div>
+                      {/* Chat Info */}
+                      <div className="flex-1 text-left">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#ffffff48] font-200 flex items-center gap-1">
+                            {chat.platform === "Discord" ? (
+                              <FaDiscord className="text-[#7b5cfa]" />
+                            ) : (
+                              <FaTelegramPlane className="text-[#3474ff]" />
+                            )}
+                            {chat.name}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-[#ffffff32] font-100">
+                            {chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
+                              ? chat.lastMessage.slice(0, 23) + "..."
+                              : chat.lastMessage}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="self-end text-xs text-gray-400">
+                          {formatChatTime(chat.timestamp)}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {chat.pinned && (
+                            <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
                           )}
-                          {chat.name}
-                        </span>
+                          {!chat.read && chat.unread && chat.unread > 0 && (
+                            <div
+                              className={`rounded-full w-5 h-5 text-xs flex items-center justify-center text-center ${
+                                chat.platform === "Telegram"
+                                  ? "bg-[#3474ff]"
+                                  : "bg-[#7b5cfa]"
+                              }`}
+                            >
+                              {chat.unread}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-[#ffffff32] font-100">
-                          {chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
-                            ? chat.lastMessage.slice(0, 23) + "..."
-                            : chat.lastMessage}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="self-end text-xs text-gray-400">
-                        {formatChatTime(chat.timestamp)}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        {chat.pinned && (
-                          <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
-                        )}
-                        {!chat.read && chat.unread && chat.unread > 0 && (
-                          <div
-                            className={`rounded-full w-5 h-5 text-xs flex items-center justify-center text-center ${
-                              chat.platform === "Telegram"
-                                ? "bg-[#3474ff]"
-                                : "bg-[#7b5cfa]"
-                            }`}
-                          >
-                            {chat.unread}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
-        </div>
+                    </button>
+                  ))
+                )}
+
+                {/* Show More button for channels */}
+                {!searchTerm.trim() &&
+                  filters.length === 0 &&
+                  channelsLimit < channels.length && (
+                    <button
+                      className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
+                      onClick={() =>
+                        setChannelsLimit((prev) =>
+                          Math.min(prev + 20, channels.length)
+                        )
+                      }
+                    >
+                      Show {Math.min(20, channels.length - channelsLimit)} more
+                      channels...
+                    </button>
+                  )}
+
+                {/* Show Less button when channels are expanded */}
+                {!searchTerm.trim() &&
+                  filters.length === 0 &&
+                  channelsLimit > 10 && (
+                    <button
+                      className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
+                      onClick={() => setChannelsLimit(10)}
+                    >
+                      Show Less
+                    </button>
+                  )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </aside>
   );
