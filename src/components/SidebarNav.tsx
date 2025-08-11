@@ -51,6 +51,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
 
   const [showProfile, setShowProfile] = useState(false);
   const [theme, setTheme] = useState(settings.theme || "default");
+  const [discordConnected, setDiscordConnected] = useState(false);
+  const [telegramConnected, setTelegramConnected] = useState(false);
   const navigate = useNavigate();
   const { user: authUser, signOut } = useAuth(); // Destructure signOut from useAuth
 
@@ -128,6 +130,24 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
   useEffect(() => {
     setActiveNav(navMap[activePage] || "AI");
   }, [activePage]);
+
+  // Check connection status from localStorage
+  useEffect(() => {
+    if (authUser) {
+      const onboardingData = localStorage.getItem(
+        `chatpilot_accounts_${authUser.id}`
+      );
+      if (onboardingData) {
+        try {
+          const data = JSON.parse(onboardingData);
+          setDiscordConnected(data.discord || false);
+          setTelegramConnected(data.telegram || false);
+        } catch (error) {
+          console.error("Error parsing connection data:", error);
+        }
+      }
+    }
+  }, [authUser]);
 
   const logOut = async () => {
     await signOut(); // Call signOut from useAuth
@@ -235,14 +255,41 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
       </nav>
       <div className="flex flex-col items-center gap-6 mt-auto mb-4">
         {/* Discord Icon with Connected Badge */}
-        <div className="relative bg-[#7B5CFA] rounded-[10px] p-2">
+        <div className="relative bg-[#7B5CFA] rounded-[10px] p-2 group">
           <img src={Discord} alt="Discord" className="w-4 h-4 rounded" />
-          <span className="absolute -bottom-0.5 -right-0.5 block w-2 h-2 bg-green-500  rounded-full"></span>
+          <span
+            className={`absolute -bottom-0.5 -right-0.5 block w-2 h-2 rounded-full ${
+              discordConnected ? "bg-green-500" : "bg-gray-500"
+            }`}
+          ></span>
+
+          {/* Tooltip */}
+          <div
+            className="fixed left-14 opacity-0 group-hover:opacity-100 transition-opacity bg-[#111111] text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none border border-[#333]"
+            style={{ zIndex: 99999 }}
+          >
+            {discordConnected ? "Discord Connected" : "Discord Not Connected"}
+          </div>
         </div>
+
         {/* Telegram Icon with Connected Badge */}
-        <div className="relative bg-[#3474FF] rounded-[10px] p-2">
+        <div className="relative bg-[#3474FF] rounded-[10px] p-2 group">
           <img src={Telegram} alt="Telegram" className="w-4 h-4 rounded" />
-          <span className="absolute -bottom-0.5 -right-0.5 block w-2 h-2 bg-green-500  rounded-full"></span>
+          <span
+            className={`absolute -bottom-0.5 -right-0.5 block w-2 h-2 rounded-full ${
+              telegramConnected ? "bg-green-500" : "bg-gray-500"
+            }`}
+          ></span>
+
+          {/* Tooltip */}
+          <div
+            className="fixed left-14 opacity-0 group-hover:opacity-100 transition-opacity bg-[#111111] text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none border border-[#333]"
+            style={{ zIndex: 99999 }}
+          >
+            {telegramConnected
+              ? "Telegram Connected"
+              : "Telegram Not Connected"}
+          </div>
         </div>
         <hr className="h-0.5 w-full bg-[#ffffff12]" />
         {/* Profile Icon with Popover */}
