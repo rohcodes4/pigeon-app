@@ -160,8 +160,65 @@ const SmartSummary = ({ selectedChat }: SmartSummaryProps) => {
   const [showRightArrow, setShowRightArrow] = useState(false);
   const [checkedItems, setCheckedItems] = useState<{ [id: number]: boolean }>({});
   const [selectedFilter, setSelectedFilter] = useState('All');
+  const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
+
+  const handleTaskSelection = (taskId) => {
+    setSelectedTaskIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleMarkSelectedComplete = async () => {
+    if (selectedTaskIds.size === 0) return;
+    
+    try {
+      // Get only the tasks that are not already completed
+      const tasksToComplete = [...selectedTaskIds].filter(taskId => {
+        const task = tasks.find(t => t.id === taskId);
+        return task && task.status !== "done";
+      });
+
+      if (tasksToComplete.length === 0) {
+        setSelectedTaskIds(new Set());
+        return;
+      }
+
+      // Toggle all selected incomplete tasks
+      await Promise.all(tasksToComplete.map(taskId => toggleTask(taskId)));
+      
+      // Update local state
+      setTasks(prevTasks => 
+        prevTasks.map(task => 
+          tasksToComplete.includes(task.id)
+            ? { ...task, status: "done" }
+            : task
+        )
+      );
+      
+      // Clear selection
+      setSelectedTaskIds(new Set());
+    } catch (error) {
+      console.error("Failed to mark selected tasks complete:", error);
+    }
+  };
+
+  const handleSelectAllTasks = () => {
+    if (selectedTaskIds.size === tasks.length) {
+      // Deselect all
+      setSelectedTaskIds(new Set());
+    } else {
+      // Select all
+      setSelectedTaskIds(new Set(tasks.map(task => task.id)));
+    }
+  }
 
   const handleFilterChange = (filter: string) => {
     setSelectedFilter(filter);
@@ -204,17 +261,31 @@ const SmartSummary = ({ selectedChat }: SmartSummaryProps) => {
     } else {
       const allChecked: { [id: string]: boolean } = {};
       tasks.forEach(task => {
-        allChecked[task._id] = true;
+        allChecked[task.id] = true;
       });
       setCheckedItems(allChecked);
     }
   };
 
-  const handleTaskToggle = async (taskId: string) => {
+  const handleTaskToggle = async (taskId) => {
     try {
       await toggleTask(taskId);
-      // Refresh tasks
-      handleFetchTasks();
+      
+      // Update the local task state immediately
+      setTasks(prevTasks => 
+        prevTasks.map(task => 
+          task.id === taskId 
+            ? { ...task, status: task.status === "done" ? "open" : "done" }
+            : task
+        )
+      );
+      
+      // Remove from selected tasks if it was selected
+      setSelectedTaskIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
     } catch (error) {
       console.error("Failed to toggle task:", error);
     }
@@ -259,11 +330,11 @@ const SmartSummary = ({ selectedChat }: SmartSummaryProps) => {
   };
   
   // Auto-fetch tasks when Todo filter is selected
-useEffect(() => {
-  if ((selectedFilter === 'Todo' || selectedFilter === 'All') && tasks.length === 0 && !tasksLoading) {
-    handleFetchTasks();
-  }
-}, [selectedFilter]);
+  useEffect(() => {
+    if ((selectedFilter === 'Todo' || selectedFilter === 'All') && tasks.length === 0 && !tasksLoading) {
+      handleFetchTasks();
+    }
+  }, [selectedFilter]);
   
   // Add this useEffect to auto-generate summary when chat is selected
   useEffect(() => {
@@ -452,145 +523,171 @@ useEffect(() => {
         </div>
       ) : null}
 
-
       {/* To-dos / Requests */}
       {selectedFilter === 'All' || selectedFilter === 'Todo' ? (
-
-      <div className="mb-2 px-2 mt-4 ">
-      <div className="flex items-center justify-between gap-2 mb-2">
-        
+        <div className="mb-2 px-2 mt-4">
+          <div className="flex items-center justify-between gap-2 mb-2">
             <span className="text-xs text-[#fafafa] leading-none">To-dos / Requests</span>
             <span className="text-xs font-[300] text-[#fafafa60] leading-none">
               {tasks.length > 0 ? "JUST NOW" : "2 MIN AGO"}
             </span>
-        </div>
-        <div className="bg-[#171717] px-2 py-2 rounded-[16px]" >
-
-        {tasksLoading ? (
-          <div className="flex items-center justify-center py-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400"></div>
-            <span className="ml-2 text-sm text-[#fafafa60]">Loading tasks...</span>
           </div>
-        ) : tasks.length > 0 ? (
-          tasks.map((task) => (
-            <div className="flex items-start gap-0 mb-2 bg-[#222327] p-2 rounded-[6px] border border-[#ffffff09]" key={task._id}>
-              <div className="flex-shrink-0 w-8 flex items-center justify-center">
-                <CustomCheckbox
-                  checked={task.status === "done"}
-                  onChange={() => handleTaskToggle(task._id)}
-                  className="mt-2"
-                />
+          <div className="bg-[#171717] px-2 py-2 rounded-[16px]">
+            {tasksLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400"></div>
+                <span className="ml-2 text-sm text-[#fafafa60]">Loading tasks...</span>
               </div>
-              <div className="grow bg-[#222327] rounded-[8px] px-2">
-                <div className="flex items-center gap-2">
-                  <span className={`bg-[#fafafa10] border-[#ffffff03] border-2 shadow-xl text-xs px-1 py-0.5 rounded-[6px] font-medium flex items-center gap-1 ${
-                    task.priority === 'high' ? 'text-red-300' : 
-                    task.priority === 'medium' ? 'text-yellow-300' : 'text-blue-300'
-                  }`}>
-                    <img src={smartTodo} className="h-4 w-4" />
-                    {task.status === "done" ? "Completed" : "To-do"}
-                  </span>
+            ) : tasks.length === 0 ? (
+              <div className="text-sm text-[#fafafa60] text-center py-4">
+                No tasks available
+              </div>
+            ) : (
+              <>
+                {tasks.map((task) => (
+                  <div 
+                    className={`flex items-start gap-0 mb-2 bg-[#222327] p-2 rounded-[6px] border border-[#ffffff09] transition-opacity ${
+                      task.status === "done" ? "opacity-60" : ""
+                    }`} 
+                    key={task.id}
+                  >
+                    <div className="flex-shrink-0 w-8 flex items-center justify-center">
+                      <CustomCheckbox
+                        checked={selectedTaskIds.has(task.id)}
+                        onChange={() => handleTaskSelection(task.id)}
+                        className="mt-2"
+                      />
+                    </div>
+                    <div className="grow bg-[#222327] rounded-[8px] px-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`bg-[#fafafa10] border-[#ffffff03] border-2 shadow-xl text-xs px-1 py-0.5 rounded-[6px] font-medium flex items-center gap-1 ${
+                          task.status === "done" ? 'text-green-300' : 
+                          task.priority === 'HIGH' ? 'text-red-300' : 
+                          task.priority === 'MEDIUM' ? 'text-yellow-300' : 'text-blue-300'
+                        }`}>
+                          <img src={smartTodo} className="h-4 w-4" />
+                          {task.status === "done" ? "Completed" : "To-do"}
+                        </span>
+                      </div>
+                      <div className={`text-sm break-words w-full ${
+                        task.status === "done" ? "text-[#fafafa60] line-through" : "text-[#fafafa]"
+                      }`}>
+                        {task.text}
+                      </div>
+                      <span className="text-xs text-[#fafafa60] flex gap-1 items-center mt-1">
+                        {task.chat_title && <span>{task.chat_title}</span>}
+                        <span>{new Date(task.created_at).toLocaleDateString()}</span>
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className={`rounded-[6px] px-2 py-1 text-xs ${
+                        task.priority === 'HIGH' ? 'bg-[#F03D3D12] text-[#F68989]' :
+                        task.priority === 'MEDIUM' ? 'bg-[#FFA50012] text-[#FFB347]' :
+                        'bg-[#00FF0012] text-[#90EE90]'
+                      }`}>
+                        {task.priority || 'Low'}
+                      </span>
+                      <span className="bg-[#fafafa10] rounded-[6px] text-center flex items-center justify-center gap-1 text-[12px] px-1 py-1">
+                        <CalendarCogIcon className="w-3 h-3"/> 
+                        {Math.ceil((Date.now() - new Date(task.created_at).getTime()) / (1000 * 60 * 60 * 24))}d
+                      </span>
+                      {/* Individual task toggle button */}
+                      <button
+                        onClick={() => handleTaskToggle(task.id)}
+                        className={`text-xs px-2 py-1 rounded-[6px] transition ${
+                          task.status === "done" 
+                            ? "bg-[#28a74512] text-[#28a745] hover:bg-[#28a74522]" 
+                            : "bg-[#3474ff12] text-[#84afff] hover:bg-[#3474ff22]"
+                        }`}
+                        title={task.status === "done" ? "Mark as incomplete" : "Mark as complete"}
+                      >
+                        {task.status === "done" ? "Undo" : "Done"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Bulk action buttons */}
+                <div className="flex items-center justify-between mt-3 pt-2 border-t border-[#ffffff09]">
+                  <button   
+                    onClick={handleSelectAllTasks}
+                    className="text-xs text-gray-400 hover:text-white px-3 py-2 rounded-[6px] hover:bg-[#ffffff06]"
+                  >
+                    {selectedTaskIds.size === tasks.length ? "Deselect All" : "Select All"}
+                  </button>
+                  <div className="flex gap-2">
+                    <span className="text-xs text-[#fafafa60] px-2 py-2">
+                      {selectedTaskIds.size} selected
+                    </span>
+                    <button 
+                      onClick={handleMarkSelectedComplete}
+                      disabled={selectedTaskIds.size === 0}
+                      className="bg-[#3474ff12] text-[#84afff] hover:text-[#ffffff] hover:bg-[#3474ff72] disabled:opacity-50 disabled:cursor-not-allowed text-xs px-4 py-2 rounded-[8px] transition"
+                    >
+                      Mark Complete
+                    </button>
+                  </div>
                 </div>
-                <div className="text-sm text-[#fafafa] break-words w-full">{task.text}</div>
-                <span className="text-xs text-[#fafafa60] flex gap-1 items-center mt-1">
-                  {task.chat_title && <span>{task.chat_title}</span>}
-                  <span>{new Date(task.created_at).toLocaleDateString()}</span>
-                </span>
-              </div>
-              <div className="flex flex-col gap-0">
-                <span className={`grow rounded-[6px] px-2 py-1 text-xs ${
-                  task.priority === 'high' ? 'bg-[#F03D3D12] text-[#F68989]' :
-                  task.priority === 'medium' ? 'bg-[#FFA50012] text-[#FFB347]' :
-                  'bg-[#00FF0012] text-[#90EE90]'
-                }`}>
-                  {task.priority || 'Low'}
-                </span>
-                <span className="bg-[#fafafa10] rounded-[6px] text-center grow flex items-center justify-center gap-1 text-[12px]">
-                  <CalendarCogIcon className="w-3 h-3"/> 
-                  {Math.ceil((Date.now() - new Date(task.created_at).getTime()) / (1000 * 60 * 60 * 24))}d
-                </span>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="text-sm text-[#fafafa60] p-4 text-center">
-            No tasks found
+              </>
+            )}
           </div>
-        )}
-
-{/* Only show the buttons if there are tasks */}
-{tasks.length > 0 && (
-  <div className="flex items-center justify-between mt-2">
-    <button   
-      onClick={handleSelectAll}
-      className="w-[50%] text-xs text-gray-400 hover:text-white"
-    >
-      {tasks.every(task => task.status === "done") ? "Mark All Incomplete" : "Mark All Complete"}
-    </button>
-    <button className="w-[50%] bg-[#3474ff12] text-[#84afff] hover:text-[#ffffff] hover:bg-[#3474ff72] text-xs px-4 py-2 rounded-[8px]">Add Selected</button>
-  </div>
-)}
-    </div>
-       
-      </div>
-      ):null}
+        </div>
+      ) : null}
 
       {/* Mentions*/}
-      {selectedFilter === 'All' || selectedFilter === '@' ?       (
+      {selectedFilter === 'All' || selectedFilter === '@' ? (
         <div className="mb-2 px-2 mt-4 ">
-      <div className="flex items-center justify-between gap-2 mb-2">
-        
+          <div className="flex items-center justify-between gap-2 mb-2">
             <span className="text-xs text-[#fafafa] leading-none">@Mentions</span>
             <span className="text-xs font-[300] text-[#fafafa60] leading-none">2 MIN AGO</span>
+          </div>
+          <div className="bg-[#171717] px-2 py-2 rounded-[16px]" >
+            {todos.map((todo) => (
+              <div className="flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 bg-[#212121]" key={todo.id}>
+                {/* Avatar */}
+                <img
+                  src="https://www.gravatar.com/avatar/example?s=80"
+                  alt="James Steven"
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+                {/* Message Content */}
+                <div className="flex-1">
+                  <div className="flex items-center justify-start gap-2">
+                    <span className="text-[#ffffff] font-[300] text-sm">James Steven</span>
+                    <span className="text-xs text-[#fafafa99]">#general</span>
+                    <span className="text-xs text-[#fafafa99]">03/02/25, 18:49</span>
+                  </div>
+                  <div className="flex items-center gap-0 mt-1 bg-[#3474ff] w-max rounded-[6px]">
+                    <FaTelegramPlane className="text-[#ffffff] w-3 h-3 ml-1" />
+                    <span className="text-xs text-white  rounded pr-2 pl-1 py-0.5">
+                      Alpha Guild
+                    </span>
+                  </div>
+                  <div className="mt-2 text-sm text-[#e0e0e0]">
+                    <span className="text-[#84afff]">@everyone</span> Stealth claim just
+                    opened. Zero tax, no presale. Contract verified 2 mins ago.
+                  </div>
+                  {/* Reactions */}
+                  <div className="flex gap-3 mt-2">
+                    <span className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]">
+                      <ThumbsUp className="w-4 h-4" />
+                      38
+                    </span>
+                    <span className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]">
+                      <Heart className="w-4 h-4" />
+                      21
+                    </span>
+                    <span className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]">
+                      <MessageCircle className="w-4 h-4" />
+                      16
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="bg-[#171717] px-2 py-2 rounded-[16px]" >
-
-        {todos.map((todo) => (
-      <div className="flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 bg-[#212121]" key={todo.id}>
-      {/* Avatar */}
-      <img
-        src="https://www.gravatar.com/avatar/example?s=80"
-        alt="James Steven"
-        className="w-10 h-10 rounded-full object-cover"
-      />
-      {/* Message Content */}
-      <div className="flex-1">
-        <div className="flex items-center justify-start gap-2">
-          <span className="text-[#ffffff] font-[300] text-sm">James Steven</span>
-          <span className="text-xs text-[#fafafa99]">#general</span>
-          <span className="text-xs text-[#fafafa99]">03/02/25, 18:49</span>
-        </div>
-        <div className="flex items-center gap-0 mt-1 bg-[#3474ff] w-max rounded-[6px]">
-          <FaTelegramPlane className="text-[#ffffff] w-3 h-3 ml-1" />
-          <span className="text-xs text-white  rounded pr-2 pl-1 py-0.5">
-            Alpha Guild
-          </span>
-        </div>
-        <div className="mt-2 text-sm text-[#e0e0e0]">
-          <span className="text-[#84afff]">@everyone</span> Stealth claim just
-          opened. Zero tax, no presale. Contract verified 2 mins ago.
-        </div>
-        {/* Reactions */}
-        <div className="flex gap-3 mt-2">
-          <span className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]">
-            <ThumbsUp className="w-4 h-4" />
-            38
-          </span>
-          <span className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]">
-            <Heart className="w-4 h-4" />
-            21
-          </span>
-          <span className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]">
-            <MessageCircle className="w-4 h-4" />
-            16
-          </span>
-        </div>
-      </div>
-    </div>
-    ))}
-    </div>
-       
-      </div>):null}
+      ) : null}
       
     </aside>
   );
