@@ -312,19 +312,19 @@ const Index = () => {
             />
             <UnifiedChatPanel selectedChat={selectedChat} />
           </div>
-          <div className="flex-shrink-0">
-            {openPanel === "smartSummary" && <SmartSummary />}
-            {openPanel === "notification" && <NotificationsPanel />}
-            {openPanel === "pinned" && <PinnedPanel />}
-            {openPanel === "search" && (
-              <SearchPanel
-                searchQuery={searchTerm}
-                selectedSource={selectedSource}
-                setSelectedSource={setSelectedSource}
-                selectedOptions={selectedOptions}
-              />
-            )}
-          </div>
+          {openPanel === "smartSummary" && (
+            <SmartSummary selectedChat={selectedChat} />
+          )}
+          {openPanel === "notification" && <NotificationsPanel />}
+          {openPanel === "pinned" && <PinnedPanel />}
+          {openPanel === "search" && (
+            <SearchPanel
+              searchQuery={searchTerm}
+              selectedSource={selectedSource}
+              setSelectedSource={setSelectedSource}
+              selectedOptions={selectedOptions}
+            />
+          )}
         </main>
       </div>
     </Layout>

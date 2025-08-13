@@ -217,17 +217,237 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [channelsExpanded, setChannelsExpanded] = useState(false);
   const [streamsLimit, setStreamsLimit] = useState(5);
   const [channelsLimit, setChannelsLimit] = useState(10);
+  const [smartFilters, setSmartFilters] = useState<any[]>([]);
+  const [editingFilter, setEditingFilter] = useState<any>(null);
+  const [showEditPopup, setShowEditPopup] = useState(false);
+  const [isLoadingFilters, setIsLoadingFilters] = useState(false);
+  const [filterError, setFilterError] = useState<string | null>(null);
   const hideScrollbar = "scrollbar-hide";
+
+  useEffect(() => {
+    const loadFilters = async () => {
+      try {
+        setIsLoadingFilters(true);
+        setFilterError(null);
+        const filters = await getSmartFilters();
+        setSmartFilters(filters);
+        console.log("Loaded smart filters:", filters);
+      } catch (error) {
+        console.error("Error loading filters:", error);
+        setFilterError(
+          error instanceof Error ? error.message : "Failed to load filters"
+        );
+      } finally {
+        setIsLoadingFilters(false);
+      }
+    };
+
+    loadFilters();
+  }, []);
+
+  // Update your handleSave function to actually create the filter:
+  const handleSave = async () => {
+    const filterNameInput = document.querySelector(
+      'input[placeholder="Filter Name"]'
+    ) as HTMLInputElement;
+    const keywordInput = document.querySelector(
+      'input[placeholder="Keyword"]'
+    ) as HTMLInputElement;
+
+    if (!filterNameInput?.value.trim()) {
+      alert("Please enter a filter name");
+      return;
+    }
+
+    try {
+      const newFilter = await createSmartFilter({
+        name: filterNameInput.value,
+        channels: selectedChannels.map((ch) => ch.id), // Assuming channels have id property
+        keywords: keywordInput?.value ? [keywordInput.value] : [],
+      });
+
+      // Add the new filter to the list
+      setSmartFilters((prev) => [...prev, newFilter]);
+
+      // Close popup and reset form
+      setShowFilterPopup(false);
+      setSelectedChannels([]);
+      setChannelSearch("");
+
+      console.log("Filter created successfully:", newFilter);
+    } catch (error) {
+      console.error("Error creating filter:", error);
+      alert("Failed to create filter. Please try again.");
+    }
+  };
+
+  const updateSmartFilter = async (
+    filterId: string,
+    filterData: {
+      name?: string;
+      channels?: number[];
+      keywords?: string[];
+    }
+  ) => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const token = localStorage.getItem("access_token");
+
+    const formData = new FormData();
+    if (filterData.name) formData.append("name", filterData.name);
+    if (filterData.channels)
+      formData.append("channels", filterData.channels.join(","));
+    if (filterData.keywords)
+      formData.append("keywords", filterData.keywords.join("\n"));
+
+    const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update filter: ${response.status}`);
+    }
+
+    return response.json();
+  };
+
+  const handleEdit = (filter: any) => {
+    setEditingFilter(filter);
+    setShowEditPopup(true);
+  };
+
+  const handleDelete = async (filterId: string) => {
+    if (!confirm("Are you sure you want to delete this filter?")) {
+      return;
+    }
+
+    try {
+      await deleteSmartFilter(filterId);
+      setSmartFilters((prev) => prev.filter((f) => f.id !== filterId));
+      console.log("Filter deleted successfully");
+    } catch (error) {
+      console.error("Error deleting filter:", error);
+      alert("Failed to delete filter. Please try again.");
+    }
+  };
+
+  const handleEditSave = async () => {
+    const filterNameInput = document.querySelector(
+      'input[placeholder="Edit Filter Name"]'
+    ) as HTMLInputElement;
+    const keywordInput = document.querySelector(
+      'input[placeholder="Edit Keywords"]'
+    ) as HTMLInputElement;
+
+    if (!filterNameInput?.value.trim()) {
+      alert("Please enter a filter name");
+      return;
+    }
+
+    try {
+      const updatedFilter = await updateSmartFilter(editingFilter.id, {
+        name: filterNameInput.value,
+        channels: selectedChannels.map((ch) => ch.id),
+        keywords: keywordInput?.value
+          ? keywordInput.value.split(",").map((k) => k.trim())
+          : editingFilter.keywords,
+      });
+
+      // Update the filter in the list
+      setSmartFilters((prev) =>
+        prev.map((f) => (f.id === editingFilter.id ? updatedFilter : f))
+      );
+
+      // Close popup and reset form
+      setShowEditPopup(false);
+      setEditingFilter(null);
+      setSelectedChannels([]);
+
+      console.log("Filter updated successfully:", updatedFilter);
+    } catch (error) {
+      console.error("Error updating filter:", error);
+      alert("Failed to update filter. Please try again.");
+    }
+  };
+
+  const handleEditCancel = () => {
+    setShowEditPopup(false);
+    setEditingFilter(null);
+    setSelectedChannels([]);
+  };
+
+  const deleteSmartFilter = async (filterId: string) => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const token = localStorage.getItem("access_token");
+
+    const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete filter: ${response.status}`);
+    }
+
+    return response.json();
+  };
+
+  const createSmartFilter = async (filterData: {
+    name: string;
+    channels: number[];
+    keywords: string[];
+  }) => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const token = localStorage.getItem("access_token");
+
+    const formData = new FormData();
+    formData.append("name", filterData.name);
+    formData.append("channels", filterData.channels.join(","));
+    formData.append("keywords", filterData.keywords.join("\n"));
+
+    const response = await fetch(`${BACKEND_URL}/filters`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to create filter: ${response.status}`);
+    }
+
+    return response.json();
+  };
+
+  // API function to get all smart filters
+  const getSmartFilters = async () => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const token = localStorage.getItem("access_token");
+
+    const response = await fetch(`${BACKEND_URL}/filters`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch filters: ${response.status}`);
+    }
+
+    return response.json();
+  };
 
   const handleCancel = () => {
     setShowFilterPopup(false);
     setChannelSearch("");
     setSelectedChannels([]);
-  };
-
-  const handleSave = () => {
-    // Do something with selectedChannels
-    setShowFilterPopup(false);
   };
 
   useEffect(() => {
@@ -476,35 +696,82 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             ))}
           </div>
         </div>
-
         {/* Filtered Streams */}
         <div className="px-2 mb-4">
           <span className="text-[#ffffff80] text-sm">Filtered Streams</span>
           <div className="mt-2">
-            {[
-              // This is dummy data, should be fetched if needed
-              "Shitcoin Alpha",
-              "NFT Updates",
-              "General Banter",
-              "Custom Filter",
-              "Custom Filter",
-            ].map((stream, index) => (
-              <div
-                key={index}
-                className="flex justify-between items-center p-2 hover:bg-[#2d2d2d] rounded cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#3474ff] text-white text-xs">
-                    {stream
-                      .split(" ")
-                      .map((word) => word[0])
-                      .join("")}
-                  </span>
-                  <span className="text-white">{stream}</span>
-                </div>
-                <MoreHorizontal className="text-white w-4 h-4" />
+            {isLoadingFilters ? (
+              <div className="text-[#ffffff80] text-sm p-2">
+                Loading filters...
               </div>
-            ))}
+            ) : filterError ? (
+              <div className="text-red-400 text-sm p-2">
+                Error: {filterError}
+              </div>
+            ) : smartFilters.length === 0 ? (
+              <div className="text-[#ffffff80] text-sm p-2">
+                No filtered streams yet
+              </div>
+            ) : (
+              smartFilters.map((filter) => (
+                <div
+                  key={filter.id}
+                  className="flex justify-between items-center p-2 hover:bg-[#2d2d2d] rounded cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#3474ff] text-white text-xs">
+                      {filter.name
+                        .split(" ")
+                        .map((word) => word[0])
+                        .join("")
+                        .slice(0, 2)}
+                    </span>
+                    <span className="text-white">{filter.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {/* Edit button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(filter);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[#3474ff] rounded text-white"
+                      title="Edit filter"
+                    >
+                      <svg
+                        className="w-3 h-3"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                      </svg>
+                    </button>
+                    {/* Delete button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(filter.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-600 rounded text-white"
+                      title="Delete filter"
+                    >
+                      <svg
+                        className="w-3 h-3"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </button>
+                    {/* <MoreHorizontal className="text-white w-4 h-4" /> */}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -1029,13 +1296,50 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     )}
                     {/* Filter row */}
                     <div className="grid grid-cols-2 gap-2 mb-4">
-                      <select className="bg-[#fafafa10] rounded-[8px] px-3 py-2 text-sm text-white w-full">
-                        <option value="contains">Contains</option>
-                        <option value="not_contains">Does Not Contain</option>
-                        <option value="equals">Equals</option>
-                        <option value="not_equals">Does Not Equal</option>
-                        <option value="starts_with">Starts With</option>
-                        <option value="ends_with">Ends With</option>
+                      <select
+                        className="bg-[#fafafa10] rounded-[8px] px-3 py-2 text-sm text-white w-full appearance-none border-none outline-none"
+                        style={{
+                          colorScheme: "dark",
+                          backgroundColor: "rgba(250, 250, 250, 0.06)",
+                          color: "white",
+                        }}
+                      >
+                        <option
+                          value="contains"
+                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
+                        >
+                          Contains
+                        </option>
+                        <option
+                          value="not_contains"
+                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
+                        >
+                          Does Not Contain
+                        </option>
+                        <option
+                          value="equals"
+                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
+                        >
+                          Equals
+                        </option>
+                        <option
+                          value="not_equals"
+                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
+                        >
+                          Does Not Equal
+                        </option>
+                        <option
+                          value="starts_with"
+                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
+                        >
+                          Starts With
+                        </option>
+                        <option
+                          value="ends_with"
+                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
+                        >
+                          Ends With
+                        </option>
                       </select>
                       <div className="flex bg-[#fafafa10] rounded-[8px] overflow-hidden w-full">
                         <input
@@ -1065,148 +1369,148 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   </div>
                 </>
               )}
+              {showEditPopup && editingFilter && (
+                <>
+                  {/* Backdrop for outside click */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={handleEditCancel}
+                    style={{ background: "transparent" }}
+                  />
+                  {/* Edit Popup */}
+                  <div className="absolute left-[20%] top-[20%] mt-2 z-50 w-[400px] bg-[#161717] border border-[#fafafa10] rounded-xl shadow-lg p-5">
+                    <div className="text-white text-base font-[200] mb-1">
+                      Edit Filter: {editingFilter.name}
+                    </div>
+                    <div className="text-xs text-[#ffffff80] mb-3">
+                      Update your filter settings below.
+                    </div>
+                    <input
+                      className="w-full bg-[#fafafa10] rounded-[8px] px-3 py-2 mb-3 text-sm text-white outline-none"
+                      placeholder="Edit Filter Name"
+                      defaultValue={editingFilter.name}
+                    />
+                    <input
+                      className="w-full bg-[#fafafa10] rounded-[8px] px-3 py-2 mb-3 text-sm text-white outline-none"
+                      placeholder="Edit Keywords"
+                      defaultValue={editingFilter.keywords?.join(", ") || ""}
+                    />
+
+                    {/* Actions */}
+                    <div className="flex justify-between">
+                      <button
+                        className="text-[#ffffff80] px-4 py-2 rounded hover:bg-[#23262F]"
+                        onClick={handleEditCancel}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className="bg-[#2563eb] text-white px-8 py-2 rounded hover:bg-[#1d4ed8]"
+                        onClick={handleEditSave}
+                      >
+                        Update
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
           {isFilteredStreamsOpen && (
             <div className="mt-2">
-              {displayStreams.length === 0 && searchTerm.trim() ? (
-                <div className="text-[#ffffff48] text-sm px-4 py-3">
-                  No channels found for "{searchTerm}"
+              {isLoadingFilters ? (
+                <div className="text-[#ffffff80] text-sm px-4 py-2">
+                  Loading filters...
+                </div>
+              ) : filterError ? (
+                <div className="text-red-400 text-sm px-4 py-2">
+                  Error: {filterError}
+                </div>
+              ) : smartFilters.length === 0 ? (
+                <div className="text-[#ffffff80] text-sm px-4 py-2">
+                  No filtered streams yet
                 </div>
               ) : (
-                displayStreams.map((chat) => (
-                  <button
-                    key={chat.id}
-                    className={
-                      `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
-                      (selectedId === chat.id
-                        ? "bg-[#212121] selected-chat "
-                        : "hover:bg-[#212121] focus:bg-[#212121] ") +
-                      (selectedId !== chat.id && !chat.read
-                        ? "unread-chat "
-                        : "")
-                    }
-                    onClick={() => {
-                      setSelectedId(chat.id);
-                      if (onChatSelect) {
-                        onChatSelect(chat);
-                      }
-                    }}
-                  >
-                    {/* Avatar */}
-                    <div className="relative">
-                      <img
-                        src={gravatarUrl(chat.name || "User")}
-                        alt={chat.name}
-                        className="w-10 h-10 rounded-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                        onLoad={(e) => {
-                          // Only try to load real photo after gravatar loads and after a delay
-                          if (chat.photo_url) {
-                            setTimeout(() => {
-                              const img = new Image();
-                              img.onload = () => {
-                                const target = e.target as HTMLImageElement;
-                                if (target) {
-                                  target.src = chat.photo_url;
-                                }
-                              };
-                              img.onerror = () => {
-                                // Keep gravatar if photo fails
-                                console.log(
-                                  `Photo failed to load for ${chat.name}:`,
-                                  chat.photo_url
-                                );
-                              };
-                              img.src = chat.photo_url;
-                            }, 100); // 100ms delay to prevent blocking
-                          }
+                smartFilters.slice(0, 3).map((filter) => (
+                  <div key={filter.id} className="relative group">
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] hover:bg-[#212121] focus:bg-[#212121]"
+                      onClick={() => {
+                        setSelectedId(filter.id);
+                        if (onChatSelect) {
+                          onChatSelect(filter);
+                        }
+                      }}
+                    >
+                      <div className="w-10 h-10 flex items-center justify-center rounded-full bg-[#3474ff] text-white text-xs">
+                        {filter.name
+                          .split(" ")
+                          .map((word: string) => word[0])
+                          .join("")
+                          .slice(0, 2)}
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#ffffff48] font-200">
+                            {filter.name}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-[#ffffff32] font-100">
+                            {filter.keywords?.slice(0, 2).join(", ")}
+                            {filter.keywords?.length > 2 && "..."}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="self-end text-xs text-gray-400">
+                          now
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* Edit/Delete buttons - show on hover */}
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(filter);
                         }}
-                      />
-                      <img
-                        src={chat.platform === "Discord" ? discord : telegram}
-                        className={`
-                           absolute -bottom-2 -right-1
-                           ${
-                             chat.platform === "Discord"
-                               ? "bg-[#7b5cfa]"
-                               : "bg-[#3474ff]"
-                           }
-                           rounded-[4px] w-5 h-5 p-1 border-2 border-[#111111]
-                         `}
-                        alt={chat.platform}
-                      />
+                        className="p-1 bg-[#3474ff] rounded hover:bg-[#2563eb] text-white"
+                        title="Edit filter"
+                      >
+                        <svg
+                          className="w-3 h-3"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(filter.id);
+                        }}
+                        className="p-1 bg-red-600 rounded hover:bg-red-700 text-white"
+                        title="Delete filter"
+                      >
+                        <svg
+                          className="w-3 h-3"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
                     </div>
-                    {/* Chat Info */}
-                    <div className="flex-1 text-left">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[#ffffff48] font-200 flex items-center gap-1">
-                          {chat.platform === "Discord" ? (
-                            <FaDiscord className="text-[#7b5cfa]" />
-                          ) : (
-                            <FaTelegramPlane className="text-[#3474ff]" />
-                          )}
-                          {chat.name}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-[#ffffff32] font-100">
-                          {chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
-                            ? chat.lastMessage.slice(0, 23) + "..."
-                            : chat.lastMessage}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="self-end text-xs text-gray-400">
-                        {formatChatTime(chat.time)}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        {chat.pinned && (
-                          <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
-                        )}
-                        {!chat.read && (
-                          <div
-                            className={`rounded-full w-5 h-5 text-xs flex items-center justify-center text-center bg-[#fafafa60] text-black`}
-                          >
-                            7
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </button>
+                  </div>
                 ))
               )}
-
-              {/* Show More button when there are more streams */}
-              {!searchTerm.trim() &&
-                filters.length === 0 &&
-                streamsLimit < filteredStreams.length && (
-                  <button
-                    className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
-                    onClick={() =>
-                      setStreamsLimit((prev) =>
-                        Math.min(prev + 20, filteredStreams.length)
-                      )
-                    }
-                  >
-                    Show {Math.min(20, filteredStreams.length - streamsLimit)}{" "}
-                    more...
-                  </button>
-                )}
-
-              {/* Show Less button when streams are expanded */}
-              {!searchTerm.trim() &&
-                filters.length === 0 &&
-                streamsLimit > 5 && (
-                  <button
-                    className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
-                    onClick={() => setStreamsLimit(5)}
-                  >
-                    Show Less
-                  </button>
-                )}
             </div>
           )}
         </div>
@@ -1253,12 +1557,16 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     >
                       {/* Avatar */}
                       <div className="relative">
-                        <ChatAvatar name={chat.name} avatar={chat.photo_url}/>
+                        <ChatAvatar name={chat.name} avatar={chat.photo_url} />
                         <img
                           src={chat.platform === "Discord" ? discord : telegram}
                           className={`
                             absolute -bottom-2 -right-1
-                            ${chat.platform === "Discord" ? "bg-[#7b5cfa]" : "bg-[#3474ff]"}
+                            ${
+                              chat.platform === "Discord"
+                                ? "bg-[#7b5cfa]"
+                                : "bg-[#3474ff]"
+                            }
                             rounded-[4px] w-5 h-5 p-1 border-2 border-[#111111]
                           `}
                           alt={chat.platform}

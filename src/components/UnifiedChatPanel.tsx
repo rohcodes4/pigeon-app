@@ -182,6 +182,60 @@ const getFileType = (file) => {
       return groups;
     }, [messages]);
 
+    const createBookmark = async (messageId: string, type: 'bookmark' | 'pin' = 'bookmark') => {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const token = localStorage.getItem("access_token");
+
+  const formData = new FormData();
+  formData.append('message_id', messageId);
+  formData.append('type', type);
+
+  const response = await fetch(`${BACKEND_URL}/bookmarks`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to ${type} message: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+// 2. Add these state variables inside your component (around line 150):
+const [bookmarkLoading, setBookmarkLoading] = React.useState<{[key: number]: boolean}>({});
+
+const handleBookmark = async (msg: any, type: 'bookmark' | 'pin' = 'bookmark') => {
+  // For API data, use the original message ID from the database
+  const messageId = msg.originalId || msg.id; // Use originalId if available, fallback to current id
+  
+  if (!messageId) {
+    alert('Cannot bookmark this message - no message ID available');
+    return;
+  }
+
+  try {
+    setBookmarkLoading(prev => ({ ...prev, [msg.id]: true }));
+    
+    await createBookmark(messageId.toString(), type);
+    
+    const actionText = type === 'pin' ? 'pinned' : 'bookmarked';
+    console.log(`Message ${actionText} successfully`);
+    
+    // Optional: Show success feedback
+    // You could add a toast notification here
+    
+  } catch (error) {
+    console.error(`Error ${type}ing message:`, error);
+    alert(`Failed to ${type} message. Please try again.`);
+  } finally {
+    setBookmarkLoading(prev => ({ ...prev, [msg.id]: false }));
+  }
+};
+
   // Function to fetch messages for a selected chat
   const fetchMessages = React.useCallback(
     async (
@@ -281,6 +335,7 @@ const getFileType = (file) => {
 
           return {
             id: index + 1,
+             originalId: msg.id,
             name: msg.sender?.first_name || msg.sender?.username || "Unknown",
             avatar: `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
               msg.sender?.id
