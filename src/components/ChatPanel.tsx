@@ -259,10 +259,16 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       return;
     }
 
+    console.log("Creating filter with:", {
+      name: filterNameInput.value,
+      selectedChannels,
+      keyword: keywordInput?.value,
+    });
+
     try {
       const newFilter = await createSmartFilter({
         name: filterNameInput.value,
-        channels: selectedChannels.map((ch) => ch.id), // Assuming channels have id property
+        channels: selectedChannels.map((ch) => ch.id || ch._id), // Support both id and _id properties
         keywords: keywordInput?.value ? [keywordInput.value] : [],
       });
 
@@ -275,6 +281,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       setChannelSearch("");
 
       console.log("Filter created successfully:", newFilter);
+      alert("Filter created successfully!");
     } catch (error) {
       console.error("Error creating filter:", error);
       alert("Failed to create filter. Please try again.");
@@ -833,7 +840,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             </button>
           )}
         </div>
-        {/* Advanced Filters, (rather redundant so leaving out for now unless absolutely necessary) */}
+        {/* Advanced Filters */}
         <div className="mt-4 flex-1">
           <div className="relative">
             <button

@@ -155,15 +155,15 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   };
 
   const [showAttachMenu, setShowAttachMenu] = React.useState(false);
-const attachRef = React.useRef(null);
-const [uploadedFiles, setUploadedFiles] = React.useState([]);
-const fileInputRef = React.useRef(null);
+  const attachRef = React.useRef(null);
+  const [uploadedFiles, setUploadedFiles] = React.useState([]);
+  const fileInputRef = React.useRef(null);
 
-const getFileType = (file) => {
-  if (file.type.startsWith("image/")) return "image";
-  if (file.type.startsWith("video/")) return "video";
-  return "doc";
-};
+  const getFileType = (file) => {
+    if (file.type.startsWith("image/")) return "image";
+    if (file.type.startsWith("video/")) return "video";
+    return "doc";
+  };
 
   React.useEffect(() => {
     if (shouldAutoScroll) {
@@ -182,59 +182,66 @@ const getFileType = (file) => {
       return groups;
     }, [messages]);
 
-    const createBookmark = async (messageId: string, type: 'bookmark' | 'pin' = 'bookmark') => {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  const token = localStorage.getItem("access_token");
+  const createBookmark = async (
+    messageId: string,
+    type: "bookmark" | "pin" = "bookmark"
+  ) => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const token = localStorage.getItem("access_token");
 
-  const formData = new FormData();
-  formData.append('message_id', messageId);
-  formData.append('type', type);
+    const formData = new FormData();
+    formData.append("message_id", messageId);
+    formData.append("type", type);
 
-  const response = await fetch(`${BACKEND_URL}/bookmarks`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`
-    },
-    body: formData
-  });
+    const response = await fetch(`${BACKEND_URL}/bookmarks`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
 
-  if (!response.ok) {
-    throw new Error(`Failed to ${type} message: ${response.status}`);
-  }
+    if (!response.ok) {
+      throw new Error(`Failed to ${type} message: ${response.status}`);
+    }
 
-  return response.json();
-};
+    return response.json();
+  };
 
-// 2. Add these state variables inside your component (around line 150):
-const [bookmarkLoading, setBookmarkLoading] = React.useState<{[key: number]: boolean}>({});
+  // 2. Add these state variables inside your component (around line 150):
+  const [bookmarkLoading, setBookmarkLoading] = React.useState<{
+    [key: number]: boolean;
+  }>({});
 
-const handleBookmark = async (msg: any, type: 'bookmark' | 'pin' = 'bookmark') => {
-  // For API data, use the original message ID from the database
-  const messageId = msg.originalId || msg.id; // Use originalId if available, fallback to current id
-  
-  if (!messageId) {
-    alert('Cannot bookmark this message - no message ID available');
-    return;
-  }
+  const handleBookmark = async (
+    msg: any,
+    type: "bookmark" | "pin" = "bookmark"
+  ) => {
+    // For API data, use the original message ID from the database
+    const messageId = msg.originalId || msg.id; // Use originalId if available, fallback to current id
 
-  try {
-    setBookmarkLoading(prev => ({ ...prev, [msg.id]: true }));
-    
-    await createBookmark(messageId.toString(), type);
-    
-    const actionText = type === 'pin' ? 'pinned' : 'bookmarked';
-    console.log(`Message ${actionText} successfully`);
-    
-    // Optional: Show success feedback
-    // You could add a toast notification here
-    
-  } catch (error) {
-    console.error(`Error ${type}ing message:`, error);
-    alert(`Failed to ${type} message. Please try again.`);
-  } finally {
-    setBookmarkLoading(prev => ({ ...prev, [msg.id]: false }));
-  }
-};
+    if (!messageId) {
+      alert("Cannot bookmark this message - no message ID available");
+      return;
+    }
+
+    try {
+      setBookmarkLoading((prev) => ({ ...prev, [msg.id]: true }));
+
+      await createBookmark(messageId.toString(), type);
+
+      const actionText = type === "pin" ? "pinned" : "bookmarked";
+      console.log(`Message ${actionText} successfully`);
+
+      // Optional: Show success feedback
+      // You could add a toast notification here
+    } catch (error) {
+      console.error(`Error ${type}ing message:`, error);
+      alert(`Failed to ${type} message. Please try again.`);
+    } finally {
+      setBookmarkLoading((prev) => ({ ...prev, [msg.id]: false }));
+    }
+  };
 
   // Function to fetch messages for a selected chat
   const fetchMessages = React.useCallback(
@@ -261,11 +268,22 @@ const handleBookmark = async (msg: any, type: 'bookmark' | 'pin' = 'bookmark') =
       try {
         const token = localStorage.getItem("access_token");
 
-        // Determine the endpoint based on whether it's "all-channels" or a specific chat
-        let endpoint =
-          chatId === "all-channels"
-            ? `${import.meta.env.VITE_BACKEND_URL}/chats/all/messages`
-            : `${import.meta.env.VITE_BACKEND_URL}/chats/${chatId}/messages`;
+        // Determine the endpoint based on the type of chat selection
+        let endpoint: string;
+
+        if (chatId === "all-channels") {
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/all/messages`;
+        } else if (typeof chatId === "object" && chatId && "id" in chatId) {
+          // This is a smart filter object
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
+            (chatId as any).id
+          }/messages`;
+        } else {
+          // This is a regular chat ID
+          endpoint = `${
+            import.meta.env.VITE_BACKEND_URL
+          }/chats/${chatId}/messages`;
+        }
 
         // Add pagination parameter if loading older messages
         const params = new URLSearchParams();
@@ -335,11 +353,15 @@ const handleBookmark = async (msg: any, type: 'bookmark' | 'pin' = 'bookmark') =
 
           return {
             id: index + 1,
-             originalId: msg.id,
+            originalId: msg.id,
             name: msg.sender?.first_name || msg.sender?.username || "Unknown",
-            avatar: `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
-              msg.sender?.id
-            }`,
+            avatar: msg.sender?.id
+              ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
+                  msg.sender.id
+                }`
+              : gravatarUrl(
+                  msg.sender?.first_name || msg.sender?.username || "Unknown"
+                ),
             platform: "Telegram" as const,
             channel: channelName, // Will be null for DMs and groups, channel name for channels
             server: chatName, // Always the chat/group/channel name
@@ -398,7 +420,14 @@ const handleBookmark = async (msg: any, type: 'bookmark' | 'pin' = 'bookmark') =
     const beforeTimestamp = oldestMessage.date.toISOString();
 
     if (selectedChat?.id) {
-      fetchMessages(selectedChat.id, beforeTimestamp, true);
+      // Check if this is a smart filter or regular chat
+      if (selectedChat.name && selectedChat.keywords !== undefined) {
+        // This is a smart filter
+        fetchMessages(selectedChat, beforeTimestamp, true);
+      } else {
+        // This is a regular chat
+        fetchMessages(selectedChat.id, beforeTimestamp, true);
+      }
     } else if (selectedChat === "all-channels") {
       fetchMessages("all-channels", beforeTimestamp, true);
     }
@@ -462,9 +491,16 @@ const handleBookmark = async (msg: any, type: 'bookmark' | 'pin' = 'bookmark') =
   React.useEffect(() => {
     if (!USE_DUMMY_DATA) {
       if (selectedChat?.id) {
-        fetchMessages(selectedChat.id);
-        // Mark chat as read when messages are loaded
-        markChatAsRead(selectedChat.id);
+        // Check if this is a smart filter (has name, keywords properties) or a regular chat
+        if (selectedChat.name && selectedChat.keywords !== undefined) {
+          // This is a smart filter
+          fetchMessages(selectedChat);
+        } else {
+          // This is a regular chat
+          fetchMessages(selectedChat.id);
+          // Mark chat as read when messages are loaded
+          markChatAsRead(selectedChat.id);
+        }
       } else if (selectedChat === "all-channels") {
         // Handle "All Channels" selection
         fetchMessages("all-channels");
@@ -507,28 +543,40 @@ const handleBookmark = async (msg: any, type: 'bookmark' | 'pin' = 'bookmark') =
       {selectedChat && (
         <div className="px-6 py-4 border-b border-[#23272f] flex-shrink-0">
           <div className="flex items-center gap-3">
-            <img
-              src={
-                selectedChat === "all-channels"
-                  ? aiAll // Use the AI all icon for "All Channels"
-                  : selectedChat.photo_url 
-              }
-              onError={(e) => {
-                // On error (image fail to load), fallback to gravatar url
-                const target = e.currentTarget;
-                target.onerror = null; // Prevent infinite loop in case gravatar also fails
-                target.src = gravatarUrl(selectedChat.name || "User");
-              }}
-              alt={
-                selectedChat === "all-channels"
-                  ? "All Channels"
-                  : selectedChat.name || "User"
-              }
-              className="w-10 h-10 rounded-full object-cover"
-              loading="lazy"
-              decoding="async"
-              
-            />
+            {selectedChat === "all-channels" ? (
+              <img
+                src={aiAll}
+                alt="All Channels"
+                className="w-10 h-10 rounded-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+            ) : selectedChat.keywords !== undefined ? (
+              // Smart filter avatar
+              <div className="w-10 h-10 flex items-center justify-center rounded-full bg-[#3474ff] text-white text-xs font-bold">
+                {selectedChat.name
+                  ?.split(" ")
+                  .map((word: string) => word[0])
+                  .join("")
+                  .slice(0, 2)
+                  .toUpperCase()}
+              </div>
+            ) : (
+              // Regular chat avatar
+              <img
+                src={selectedChat.photo_url}
+                onError={(e) => {
+                  // On error (image fail to load), fallback to gravatar url
+                  const target = e.currentTarget;
+                  target.onerror = null; // Prevent infinite loop in case gravatar also fails
+                  target.src = gravatarUrl(selectedChat.name || "User");
+                }}
+                alt={selectedChat.name || "User"}
+                className="w-10 h-10 rounded-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+            )}
             <div>
               <h3 className="text-white font-medium">
                 {selectedChat === "all-channels"
@@ -538,6 +586,12 @@ const handleBookmark = async (msg: any, type: 'bookmark' | 'pin' = 'bookmark') =
               <p className="text-sm text-[#ffffff72]">
                 {selectedChat === "all-channels"
                   ? "Telegram & Discord • Unified view"
+                  : selectedChat.keywords !== undefined
+                  ? `Smart Filter • ${selectedChat.keywords
+                      ?.slice(0, 2)
+                      .join(", ")}${
+                      selectedChat.keywords?.length > 2 ? "..." : ""
+                    }`
                   : `${selectedChat.platform} • ${
                       selectedChat.unread || 0
                     } unread`}
@@ -595,9 +649,7 @@ const handleBookmark = async (msg: any, type: 'bookmark' | 'pin' = 'bookmark') =
                   className="flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 group hover:bg-[#212121]"
                   onMouseLeave={() => setOpenMenuId(null)}
                 >
-
-
-<ChatAvatar name={msg.name} avatar={msg.avatar}/>
+                  <ChatAvatar name={msg.name} avatar={msg.avatar} />
 
                   <div className="flex-1 relative">
                     <div className="absolute right-0 top-0 flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
@@ -754,19 +806,18 @@ const handleBookmark = async (msg: any, type: 'bookmark' | 'pin' = 'bookmark') =
                       </div>
                     )}
                     <div className="mt-1 text-sm text-[#e0e0e] break-words break-all whitespace-pre-wrap max-w-full">
-  {msg.message}
-  {msg.hasLink && msg.link && (
-    <a
-      href={msg.link}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block mt-2 text-blue-500 hover:underline break-words"
-    >
-      {msg.link}
-    </a>
-  )}
-</div>
-
+                      {msg.message}
+                      {msg.hasLink && msg.link && (
+                        <a
+                          href={msg.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block mt-2 text-blue-500 hover:underline break-words"
+                        >
+                          {msg.link}
+                        </a>
+                      )}
+                    </div>
 
                     {/* Reactions */}
                     {
@@ -811,40 +862,50 @@ const handleBookmark = async (msg: any, type: 'bookmark' | 'pin' = 'bookmark') =
       <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-t from-[#181A20] via-[#181A20ee] to-transparent">
         {/* Replying to box */}
         {uploadedFiles.length > 0 && (
-  <div className="mb-2 flex flex-wrap gap-2">
-    {uploadedFiles.map((uf, idx) => (
-      <div
-        key={idx}
-        className="flex items-center gap-2 bg-[#2d2d2d] px-3 py-2 rounded-[10px] text-white relative"
-      >
-        {/* Icon / Preview */}
-        {uf.type === "image" ? (
-          <img src={uf.preview} alt={uf?.file?.name} className="w-8 h-8 rounded object-cover" />
-        ) : uf.type === "video" ? (
-          <span className="w-8 h-8 flex items-center justify-center bg-[#444] rounded">🎥</span>
-        ) : (
-          <span className="w-8 h-8 flex items-center justify-center bg-[#444] rounded">📄</span>
+          <div className="mb-2 flex flex-wrap gap-2">
+            {uploadedFiles.map((uf, idx) => (
+              <div
+                key={idx}
+                className="flex items-center gap-2 bg-[#2d2d2d] px-3 py-2 rounded-[10px] text-white relative"
+              >
+                {/* Icon / Preview */}
+                {uf.type === "image" ? (
+                  <img
+                    src={uf.preview}
+                    alt={uf?.file?.name}
+                    className="w-8 h-8 rounded object-cover"
+                  />
+                ) : uf.type === "video" ? (
+                  <span className="w-8 h-8 flex items-center justify-center bg-[#444] rounded">
+                    🎥
+                  </span>
+                ) : (
+                  <span className="w-8 h-8 flex items-center justify-center bg-[#444] rounded">
+                    📄
+                  </span>
+                )}
+
+                {/* Name */}
+                <span className="text-xs max-w-[150px] truncate">
+                  {uf?.file?.name}
+                </span>
+
+                {/* Loader */}
+                {uf.status === "uploading" && (
+                  <div className="w-4 h-4 border-2 border-[#84afff] border-t-transparent rounded-full animate-spin"></div>
+                )}
+
+                {/* Remove */}
+                <X
+                  className="w-4 h-4 text-gray-400 hover:text-red-400 cursor-pointer"
+                  onClick={() =>
+                    setUploadedFiles((prev) => prev.filter((_, i) => i !== idx))
+                  }
+                />
+              </div>
+            ))}
+          </div>
         )}
-
-        {/* Name */}
-        <span className="text-xs max-w-[150px] truncate">{uf?.file?.name}</span>
-
-        {/* Loader */}
-        {uf.status === "uploading" && (
-          <div className="w-4 h-4 border-2 border-[#84afff] border-t-transparent rounded-full animate-spin"></div>
-        )}
-
-        {/* Remove */}
-        <X
-          className="w-4 h-4 text-gray-400 hover:text-red-400 cursor-pointer"
-          onClick={() =>
-            setUploadedFiles(prev => prev.filter((_, i) => i !== idx))
-          }
-        />
-      </div>
-    ))}
-  </div>
-)}
 
         {replyTo && (
           <div className="flex items-center mb-2 px-4 py-2 rounded-[10px] bg-[#111111] text-xs text-[#84afff]">
@@ -889,68 +950,69 @@ const handleBookmark = async (msg: any, type: 'bookmark' | 'pin' = 'bookmark') =
         )}
         <div className="flex">
           <div className="flex grow items-center bg-[#212121] rounded-[10px] px-4 py-2 shadow-lg">
-          <div ref={attachRef} className="relative">
-      <Plus
-        className="text-black bg-[#fafafa60] rounded-full mr-2 w-[18px] h-[18px] cursor-pointer"
-        onClick={() => setShowAttachMenu(prev => !prev)}
-      />
+            <div ref={attachRef} className="relative">
+              <Plus
+                className="text-black bg-[#fafafa60] rounded-full mr-2 w-[18px] h-[18px] cursor-pointer"
+                onClick={() => setShowAttachMenu((prev) => !prev)}
+              />
 
-      {/* Popup menu */}
-      {showAttachMenu && (
-        <div
-          className="absolute bottom-[130%] left-0 mb-2 px-3 py-2 bg-[#2d2d2d] text-white text-sm rounded-lg shadow-lg border border-[#ffffff14] z-50"
-        >
-          {/* Actual file input, hidden */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            style={{ display: "none" }}
-            multiple
-            onChange={(e) => {
-              const files = Array.from(e.target.files || []).map(file => ({
-                file,
-                type: getFileType(file),
-                preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
-                status: "uploading",
-              }));
-            
-              setUploadedFiles(prev => [...prev, ...files]);
-              setShowAttachMenu(false);
-            
-              // Simulate upload completion after 2s for demo
-              setTimeout(() => {
-                setUploadedFiles(prev =>
-                  prev.map(f =>
-                    files.includes(f) ? { ...f, status: "done" } : f
-                  )
-                );
-              }, 2000);
-            }}
-            
-          />
-          {/* Triggers file picker */}
-          <p
-            className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            Attach File
-          </p>
-          <p
-            className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            Send Image
-          </p>
-          <p
-            className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            Send Video
-          </p>
-          {/* More menu options as needed */}
-        </div>
-      )}
-    </div>
+              {/* Popup menu */}
+              {showAttachMenu && (
+                <div className="absolute bottom-[130%] left-0 mb-2 px-3 py-2 bg-[#2d2d2d] text-white text-sm rounded-lg shadow-lg border border-[#ffffff14] z-50">
+                  {/* Actual file input, hidden */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    style={{ display: "none" }}
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []).map(
+                        (file) => ({
+                          file,
+                          type: getFileType(file),
+                          preview: file.type.startsWith("image/")
+                            ? URL.createObjectURL(file)
+                            : null,
+                          status: "uploading",
+                        })
+                      );
+
+                      setUploadedFiles((prev) => [...prev, ...files]);
+                      setShowAttachMenu(false);
+
+                      // Simulate upload completion after 2s for demo
+                      setTimeout(() => {
+                        setUploadedFiles((prev) =>
+                          prev.map((f) =>
+                            files.includes(f) ? { ...f, status: "done" } : f
+                          )
+                        );
+                      }, 2000);
+                    }}
+                  />
+                  {/* Triggers file picker */}
+                  <p
+                    className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Attach File
+                  </p>
+                  <p
+                    className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Send Image
+                  </p>
+                  <p
+                    className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Send Video
+                  </p>
+                  {/* More menu options as needed */}
+                </div>
+              )}
+            </div>
             <input
               ref={inputRef}
               type="text"
