@@ -24,6 +24,8 @@ import replyIcon from "@/assets/images/replyIcon.png";
 import taskIcon from "@/assets/images/taskIcon.png";
 import smartIcon from "@/assets/images/sidebar/Chat.png";
 import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
+import ChatAvatar from "./ChatAvatar";
+import { useAuth } from "@/hooks/useAuth";
 
 // Dummy data generation
 const platforms = ["Discord", "Telegram"] as const;
@@ -130,6 +132,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
 }) => {
   // Flag to toggle between real data and dummy data for design inspiration
   const USE_DUMMY_DATA = false; // Set to true to use dummy data, false for real data
+  const { user } = useAuth();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -150,6 +153,17 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  const [showAttachMenu, setShowAttachMenu] = React.useState(false);
+const attachRef = React.useRef(null);
+const [uploadedFiles, setUploadedFiles] = React.useState([]);
+const fileInputRef = React.useRef(null);
+
+const getFileType = (file) => {
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type.startsWith("video/")) return "video";
+  return "doc";
+};
 
   React.useEffect(() => {
     if (shouldAutoScroll) {
@@ -354,7 +368,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       const now = new Date();
       const newMsg = {
         id: messages.length + 1,
-        name: "You", // or your user logic
+        name: user.username, // or your user logic
         avatar: gravatarUrl("You" + (replyTo ? replyTo.platform : "Discord")), // match platform for avatar
         platform: replyTo ? replyTo.platform : "Discord", // use replyTo's platform if replying
         channel: replyTo ? replyTo.channel : "#general", // use replyTo's channel if replying
@@ -433,7 +447,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   };
 
   return (
-    <div className="relative h-[calc(100vh-136px)] flex flex-col">
+    <div className="relative h-[calc(100vh-136px)] flex flex-col flex-shrink-0 min-w-0">
       {/* Selected Chat Info */}
       {selectedChat && (
         <div className="px-6 py-4 border-b border-[#23272f] flex-shrink-0">
@@ -442,8 +456,14 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
               src={
                 selectedChat === "all-channels"
                   ? aiAll // Use the AI all icon for "All Channels"
-                  : gravatarUrl(selectedChat.name || "User")
+                  : selectedChat.photo_url 
               }
+              onError={(e) => {
+                // On error (image fail to load), fallback to gravatar url
+                const target = e.currentTarget;
+                target.onerror = null; // Prevent infinite loop in case gravatar also fails
+                target.src = gravatarUrl(selectedChat.name || "User");
+              }}
               alt={
                 selectedChat === "all-channels"
                   ? "All Channels"
@@ -452,28 +472,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
               className="w-10 h-10 rounded-full object-cover"
               loading="lazy"
               decoding="async"
-              onLoad={(e) => {
-                // Only try to load real photo after gravatar loads and after a delay
-                if (selectedChat !== "all-channels" && selectedChat.photo_url) {
-                  setTimeout(() => {
-                    const img = new Image();
-                    img.onload = () => {
-                      const target = e.target as HTMLImageElement;
-                      if (target) {
-                        target.src = selectedChat.photo_url;
-                      }
-                    };
-                    img.onerror = () => {
-                      // Keep gravatar if photo fails
-                      console.log(
-                        `Photo failed to load for ${selectedChat.name}:`,
-                        selectedChat.photo_url
-                      );
-                    };
-                    img.src = selectedChat.photo_url;
-                  }, 100); // 100ms delay to prevent blocking
-                }
-              }}
+              
             />
             <div>
               <h3 className="text-white font-medium">
@@ -541,40 +540,10 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                   className="flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 group hover:bg-[#212121]"
                   onMouseLeave={() => setOpenMenuId(null)}
                 >
-                  {/* Avatar */}
-                  <img
-                    src={gravatarUrl(msg.name + "Telegram")}
-                    alt={msg.name}
-                    className="w-10 h-10 rounded-full object-cover"
-                    loading="lazy"
-                    decoding="async"
-                    onLoad={(e) => {
-                      // Only try to load real photo after gravatar loads and after a delay
-                      if (
-                        msg.avatar &&
-                        msg.avatar.includes("/contact_photo/")
-                      ) {
-                        setTimeout(() => {
-                          const img = new Image();
-                          img.onload = () => {
-                            const target = e.target as HTMLImageElement;
-                            if (target) {
-                              target.src = msg.avatar;
-                            }
-                          };
-                          img.onerror = () => {
-                            // Keep gravatar if photo fails
-                            console.log(
-                              `Message avatar failed to load for ${msg.name}:`,
-                              msg.avatar
-                            );
-                          };
-                          img.src = msg.avatar;
-                        }, 100); // 100ms delay to prevent blocking
-                      }
-                    }}
-                  />
-                  {/* Message Content */}
+
+
+<ChatAvatar name={msg.name} avatar={msg.avatar}/>
+
                   <div className="flex-1 relative">
                     <div className="absolute right-0 top-0 flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
                       <button
@@ -682,7 +651,6 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                           </div>
                         )}
                       </button>
-                      {/* Add more buttons as needed */}
                     </div>
                     <div className="flex items-center justify-start gap-2">
                       <span className="text-[#ffffff72] font-[300]">
@@ -718,7 +686,6 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                         {formatTime(msg.date)}
                       </span>
                     </div>
-                    {/* Reply context UI */}
                     {msg.replyTo && (
                       <div className="text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1">
                         Replying to{" "}
@@ -731,21 +698,20 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                         </span>
                       </div>
                     )}
-                    <div className="mt-1 text-sm text-[#e0e0e0]">
-                      {msg.message}
-                      {/* Link preview */}
-                      {msg.hasLink && msg.link && (
-                        <a
-                          href={msg.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block mt-2 p-2 bg-[#23272f] rounded text-[#84afff] text-xs hover:underline"
-                        >
-                          <Link2 className="inline w-3 h-3 mr-1" />
-                          {msg.link}
-                        </a>
-                      )}
-                    </div>
+                    <div className="mt-1 text-sm text-[#e0e0e] break-words break-all whitespace-pre-wrap max-w-full">
+  {msg.message}
+  {msg.hasLink && msg.link && (
+    <a
+      href={msg.link}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block mt-2 text-blue-500 hover:underline break-words"
+    >
+      {msg.link}
+    </a>
+  )}
+</div>
+
 
                     {/* Reactions */}
                     {
@@ -789,6 +755,42 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       </div>
       <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-t from-[#181A20] via-[#181A20ee] to-transparent">
         {/* Replying to box */}
+        {uploadedFiles.length > 0 && (
+  <div className="mb-2 flex flex-wrap gap-2">
+    {uploadedFiles.map((uf, idx) => (
+      <div
+        key={idx}
+        className="flex items-center gap-2 bg-[#2d2d2d] px-3 py-2 rounded-[10px] text-white relative"
+      >
+        {/* Icon / Preview */}
+        {uf.type === "image" ? (
+          <img src={uf.preview} alt={uf?.file?.name} className="w-8 h-8 rounded object-cover" />
+        ) : uf.type === "video" ? (
+          <span className="w-8 h-8 flex items-center justify-center bg-[#444] rounded">🎥</span>
+        ) : (
+          <span className="w-8 h-8 flex items-center justify-center bg-[#444] rounded">📄</span>
+        )}
+
+        {/* Name */}
+        <span className="text-xs max-w-[150px] truncate">{uf?.file?.name}</span>
+
+        {/* Loader */}
+        {uf.status === "uploading" && (
+          <div className="w-4 h-4 border-2 border-[#84afff] border-t-transparent rounded-full animate-spin"></div>
+        )}
+
+        {/* Remove */}
+        <X
+          className="w-4 h-4 text-gray-400 hover:text-red-400 cursor-pointer"
+          onClick={() =>
+            setUploadedFiles(prev => prev.filter((_, i) => i !== idx))
+          }
+        />
+      </div>
+    ))}
+  </div>
+)}
+
         {replyTo && (
           <div className="flex items-center mb-2 px-4 py-2 rounded-[10px] bg-[#111111] text-xs text-[#84afff]">
             <div className="grow flex flex-col">
@@ -832,7 +834,68 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
         )}
         <div className="flex">
           <div className="flex grow items-center bg-[#212121] rounded-[10px] px-4 py-2 shadow-lg">
-            <Plus className="text-black bg-[#fafafa60] rounded-full mr-2 w-[18px] h-[18px]" />
+          <div ref={attachRef} className="relative">
+      <Plus
+        className="text-black bg-[#fafafa60] rounded-full mr-2 w-[18px] h-[18px] cursor-pointer"
+        onClick={() => setShowAttachMenu(prev => !prev)}
+      />
+
+      {/* Popup menu */}
+      {showAttachMenu && (
+        <div
+          className="absolute bottom-[130%] left-0 mb-2 px-3 py-2 bg-[#2d2d2d] text-white text-sm rounded-lg shadow-lg border border-[#ffffff14] z-50"
+        >
+          {/* Actual file input, hidden */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            style={{ display: "none" }}
+            multiple
+            onChange={(e) => {
+              const files = Array.from(e.target.files || []).map(file => ({
+                file,
+                type: getFileType(file),
+                preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
+                status: "uploading",
+              }));
+            
+              setUploadedFiles(prev => [...prev, ...files]);
+              setShowAttachMenu(false);
+            
+              // Simulate upload completion after 2s for demo
+              setTimeout(() => {
+                setUploadedFiles(prev =>
+                  prev.map(f =>
+                    files.includes(f) ? { ...f, status: "done" } : f
+                  )
+                );
+              }, 2000);
+            }}
+            
+          />
+          {/* Triggers file picker */}
+          <p
+            className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Attach File
+          </p>
+          <p
+            className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Send Image
+          </p>
+          <p
+            className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Send Video
+          </p>
+          {/* More menu options as needed */}
+        </div>
+      )}
+    </div>
             <input
               ref={inputRef}
               type="text"

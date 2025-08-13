@@ -14,14 +14,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
 
   return (
-    <div className="flex h-screen bg-[#171717] overflow-hidden relative">
-      {/* Sidebar: fixed height, no scroll */}
-      <div className="relative z-10">
-        <SidebarNav activePage={location.pathname} />
-      </div>
-      {/* Right side: scrollable content */}
-      <div className="flex-1 overflow-y-auto relative z-0">{children}</div>
-    </div>
+    <div className="flex min-h-screen max-w-screen bg-[#171717]">
+    {/* Sidebar: full height, fixed width */}
+    <SidebarNav activePage={location.pathname}/>
+{children}
+    {/* Right side: header at top, content below */}
+    {/* <div className="flex-1 flex flex-col min-h-screen">
+      <AppHeader title={title}/>
+      <main className="flex-1 p-6 overflow-y-auto">
+        {children}
+      </main>
+    </div> */}
+  </div>
   );
 };
 

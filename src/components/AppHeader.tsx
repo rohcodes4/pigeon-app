@@ -11,6 +11,10 @@ type AppHeaderProps = {
   onOpenPinnedPanel?: (value: boolean) => void;
   setIsPinnedOpen?: (value: boolean) => void;
   setIsSearchOpen?: (value: boolean) => void;
+  searchTerm: string;
+  setSearchTerm: (value: string) => void;
+  selectedOptions: string[];
+  setSelectedOptions: (value: string[]) => void;
 };
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -22,29 +26,47 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   isPinnedOpen,
   isSearchOpen,
   setIsSearchOpen,
+  searchTerm,
+  setSearchTerm,
+  selectedOptions,
+  setSelectedOptions
   
 }) => {
   const { user, signOut } = useAuth();
   const [dropdown, setDropdown] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [searchOptions, setSearchOptions] = useState<string[]>([]);
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
-  const [searchHistory, setSearchHistory] = useState<string[]>(["filter: Shitcoin Alpha", "Test Search text"]);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  // const [searchHistory, setSearchHistory] = useState<string[]>(["filter: Shitcoin Alpha", "Test Search text"]);
   const searchRef = useRef<HTMLDivElement>(null);
-
+  const [selectedSource, setSelectedSource] = useState("All sources");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  
   // useEffect(()=>{
   //   if(searchTerm.length>0){
   //     setIsSearchOpen(!isSearchOpen)
   //   }
   // },[searchTerm])
+  // const options = [
+  //   "from: a user",
+  //   "mentions: a user or channel",
+  //   "from: a channel or user",
+  //   "filter: a channel or user",
+  //   "to-do: a task or reminder",
+  //   "favourite: a message or task"
+  // ];
+
   const options = [
-    "from: a user",
-    "mentions: a user or channel",
-    "from: a channel or user",
-    "filter: a channel or user",
-    "to-do: a task or reminder",
-    "favourite: a message or task"
+    { value: "from_user", filters: ["user"], label: "From: a user" },
+    { value: "from_group", filters: ["group"], label: "From: a group" },
+    { value: "from_channel", filters: ["channel"], label: "From: a channel" },
+    { value: "mentions_user_channel", filters: ["user", "channel"], label: "Mentions" },
+    { value: "filter_channel_or_user", filters: ["user", "channel"], label: "Filter: a channel or user" },
+    { value: "todo_task", filters: ["todo_task"], label: "To-do: a task or reminder" },
+    { value: "favourite_message_or_task", filters: ["favourite_message_or_task"], label: "Favourite: a message or task" }
   ];
+  
+  
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -59,14 +81,33 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     };
   }, []);
 
-  const handleAddOption = (option: string) => {
-    if (!selectedOptions.includes(option)) {
-      setSelectedOptions([...selectedOptions, option]);
+  // const handleAddOption = (option: string) => {
+  //   if (!selectedOptions.includes(option)) {
+  //     setSelectedOptions([...selectedOptions, option]);
+  //   }
+  // };
+
+  // const handleToggleOption = (option: string) => {
+  //   if (selectedOptions.includes(option)) {
+  //     setSelectedOptions(selectedOptions.filter(o => o !== option));
+  //   } else {
+  //     setSelectedOptions([...selectedOptions, option]);
+  //   }
+  // };
+
+  const handleToggleOption = (value: string) => {
+    if (selectedOptions.includes(value)) {
+      setSelectedOptions(selectedOptions.filter(o => o !== value));
+    } else {
+      setSelectedOptions([...selectedOptions, value]);
     }
   };
+  
+  
+  
 
   const handleAddToSearch = (historyItem: string) => {
-    setSearchTerm(historyItem);
+    setSearchTerm(historyItem);    
     setDropdown(false);
   };
 
@@ -119,16 +160,33 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           <div ref={searchRef} className="absolute top-full mt-2 bg-[#212121] rounded-lg shadow-lg w-64 p-4 z-40">
             <div className="">
               <span className="text-[#ffffff80] text-sm">Search Options</span>
-              {options.map(option => (
-                <div
-                  key={option}
-                  className={`flex items-center justify-between p-2 rounded cursor-pointer ${selectedOptions.includes(option) ? 'bg-[#5389ff]' : 'hover:bg-[#2d2d2d]'}`}
-                  onClick={() => handleAddOption(option)}
-                >
-                  <span className="text-white">{option}</span>
-                  <Plus className="text-white w-4 h-4" />
-                </div>
-              ))}
+              {options.map(({ value, label }) => {
+  const isSelected = selectedOptions.includes(value);
+  return (
+    <div
+      key={value}
+      className={`mb-1 flex items-center justify-between p-2 rounded cursor-pointer ${
+        isSelected ? "bg-[#5389ff]" : "hover:bg-[#2d2d2d]"
+      }`}
+      onClick={() => handleToggleOption(value)}
+    >
+      <span className="text-white">{label}</span>
+      {isSelected ? (
+        <X
+          className="text-white w-4 h-4 cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedOptions(selectedOptions.filter(o => o !== value));
+          }}
+        />
+      ) : (
+        <Plus className="text-white w-4 h-4" />
+      )}
+    </div>
+  );
+})}
+
+
             </div>
           {searchHistory.length>0 &&  <div className="mt-4">
               <span className="text-[#ffffff80] text-sm">History</span>
