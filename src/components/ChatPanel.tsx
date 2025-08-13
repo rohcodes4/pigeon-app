@@ -834,54 +834,52 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           )}
         </div>
         {/* Advanced Filters, (rather redundant so leaving out for now unless absolutely necessary) */}
-        {/* 
-          <div className="mt-4 flex-1">
-            <div className="relative">
-              <button
-                onClick={() => setSearchMore((open) => !open)}
-                className="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#23262F]"
-              >
-                <MoreVertical className="h-full w-4 text-[#5389ff]" />
-              </button>
-              {searchMore && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setSearchMore(false)}
-                    style={{ background: "transparent" }}
-                  />
+        <div className="mt-4 flex-1">
+          <div className="relative">
+            <button
+              onClick={() => setSearchMore((open) => !open)}
+              className="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#23262F]"
+            >
+              <MoreVertical className="h-full w-4 text-[#5389ff]" />
+            </button>
+            {searchMore && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setSearchMore(false)}
+                  style={{ background: "transparent" }}
+                />
 
-                  <div className="bg-[#171717] rounded-lg p-4 shadow-lg w-72 absolute right-[40px] -top-[15px] z-50 rounded-[10px]">
-                    <div
-                      className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
-                      onClick={() => {
-                        setSearchMore(false);
-                        setFilterFull(true);
-                      }}
-                    >
-                      <Filter className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
-                      <span className="text-white">Filters</span>
-                    </div>
-                    <div
-                      className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
-                      onClick={() => setSearchMore(false)}
-                    >
-                      <Check className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
-                      <span className="text-white">Read All</span>
-                    </div>
-                    <div
-                      className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
-                      onClick={() => setSearchMore(false)}
-                    >
-                      <VolumeX className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
-                      <span className="text-white">Mute all Channels</span>
-                    </div>
+                <div className="bg-[#171717] rounded-lg p-4 shadow-lg w-72 absolute right-[40px] -top-[15px] z-50 rounded-[10px]">
+                  <div
+                    className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
+                    onClick={() => {
+                      setSearchMore(false);
+                      setFilterFull(true);
+                    }}
+                  >
+                    <Filter className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
+                    <span className="text-white">Filters</span>
                   </div>
-                </>
-              )}
-            </div> 
+                  <div
+                    className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
+                    onClick={() => setSearchMore(false)}
+                  >
+                    <Check className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
+                    <span className="text-white">Read All</span>
+                  </div>
+                  <div
+                    className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
+                    onClick={() => setSearchMore(false)}
+                  >
+                    <VolumeX className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
+                    <span className="text-white">Mute all Channels</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
-          */}
+        </div>
       </div>
       {/* Top Row  */}
       <div className=" pl-3  relative flex items-center mt-6">
