@@ -22,7 +22,7 @@ const UnifiedHeader:React.FC<UnifiedHeaderProps> = ({
     isContact=false
 }) => {
   return (
-    <header className="flex items-center justify-between px-6 py-1 border-b border-[#23272f] rounded-tl-[12px]">
+    <header className="flex flex-shrink-0 items-center justify-between px-6 py-1 border-b border-[#23272f] rounded-tl-[12px]">
       {/* Left: Title and subtitle */}
       <div className="flex gap-2 items-center">
         <h1 className="text-[15px] text-[#ffffff72]">{title}</h1>

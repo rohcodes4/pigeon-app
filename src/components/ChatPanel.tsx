@@ -20,6 +20,7 @@ import aiAll from "@/assets/images/aiAll.png";
 import discord from "@/assets/images/discord.png";
 import telegram from "@/assets/images/telegram.png";
 import { FaBars, FaDiscord, FaTelegram, FaTelegramPlane } from "react-icons/fa";
+import ChatAvatar from "./ChatAvatar";
 // Helper to generate a random gravatar
 const gravatarUrl = (seed: string) => {
   try {
@@ -306,7 +307,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   if (filterFull) {
     return (
-      <aside className="h-[calc(100vh-73px)] w-[350px] p-3 pl-0 flex flex-col border-r border-[#23272f] bg-[#111111]">
+      <aside className="h-[calc(100vh-73px)] w-[350px] p-3 pl-0 flex flex-col flex-shrink-0 border-r border-[#23272f] bg-[#111111]">
         {/* Header */}
         <div className="flex justify-between items-center mb-2 pb-3 border-b">
           <div
@@ -1014,7 +1015,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 >
                   {/* Avatar */}
                   <div className="relative">
-                    <img
+                    <ChatAvatar name={chat.name} avatar={chat.photo_url}/>
+                    {/* <img
                       src={gravatarUrl(chat.name || "User")}
                       alt={chat.name || "User"}
                       className="w-10 h-10 rounded-full object-cover"
@@ -1045,9 +1047,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                           }, 100); // 100ms delay to prevent blocking
                         }
                       }}
-                    />
+                    /> */}
                     <img
-                      src={chat.platform === "Discord" ? discord : telegram}
+                      src={chat.platform === "Telegram" ? telegram : discord}
                       className={`
                 absolute -bottom-2 -right-1
                 ${chat.platform === "Discord" ? "bg-[#7b5cfa]" : "bg-[#3474ff]"}
@@ -1060,10 +1062,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   <div className="flex-1 text-left">
                     <div className="flex justify-between items-center">
                       <span className="text-[#ffffff48] font-200 flex items-center gap-1">
-                        {chat.platform === "Discord" ? (
-                          <FaDiscord className="text-[#7b5cfa]" />
-                        ) : (
+                        {chat.platform === "Telegram" ? (
                           <FaTelegramPlane className="text-[#3474ff]" />
+                        ) : (
+                          <FaDiscord className="text-[#7b5cfa]" />
                         )}
                         {chat.name}
                       </span>

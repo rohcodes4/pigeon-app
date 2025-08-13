@@ -28,7 +28,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#171717]">
+    <div className="flex min-h-screen max-w-screen bg-[#171717]">
     {/* Sidebar: full height, fixed width */}
     <SidebarNav activePage={location.pathname}/>
 {children}
