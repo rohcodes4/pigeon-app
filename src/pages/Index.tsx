@@ -296,7 +296,7 @@ const Index = () => {
             selectedChat={selectedChat}
           />
           <div
-            className={`flex-shrink h-[calc(100vh-72px)] min-w-0 flex flex-col ${
+            className={`flex-shrink h-[calc(100vh-72px)] min-w-0 flex flex-col w-full ${
               openPanel !== null ? "max-w-[calc(100vw_-_914px)]" : ""
             }`}
           >
