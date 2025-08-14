@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react"; // Add useCallback
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   MessageCircle,
   Users,
@@ -55,6 +56,9 @@ export const ConnectAccounts = ({
   const [telegramQrToken, setTelegramQrToken] = useState<string | null>(null);
   const [pollingIntervalId, setPollingIntervalId] =
     useState<NodeJS.Timeout | null>(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [twoFactorPassword, setTwoFactorPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   const checkAllConnected = useCallback(() => {
     if (telegramConnected && discordConnected) {
@@ -126,6 +130,17 @@ export const ConnectAccounts = ({
               description: "Successfully connected to your Telegram account.",
             });
             checkAllConnected();
+          } else if (data && data.status === "password_required") {
+            // 2FA password is required
+            clearInterval(interval);
+            setPollingIntervalId(null);
+            setShowTelegramQrModal(false);
+            setShowPasswordModal(true);
+            toast({
+              title: "Two-Factor Authentication Required",
+              description:
+                "Please enter your Telegram password to complete the connection.",
+            });
           } else if (
             data &&
             (data.status === "error" || data.status === "invalid_token")
@@ -207,6 +222,73 @@ export const ConnectAccounts = ({
       });
     } finally {
       setLoading((prev) => ({ ...prev, telegram: false }));
+    }
+  };
+
+  const submitTelegramPassword = async () => {
+    if (!telegramQrToken || !twoFactorPassword.trim()) {
+      toast({
+        title: "Password Required",
+        description: "Please enter your Telegram password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const token = localStorage.getItem("access_token");
+      const formData = new FormData();
+      formData.append("password", twoFactorPassword);
+
+      const response = await fetch(
+        `${BACKEND_URL}/auth/qr/${telegramQrToken}/password`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.status === "success") {
+        setShowPasswordModal(false);
+        setTwoFactorPassword("");
+        setTelegramConnected(true);
+
+        // Persist Telegram connection in localStorage
+        if (user) {
+          const existingData = JSON.parse(
+            localStorage.getItem(`chatpilot_accounts_${user.id}`) || "{}"
+          );
+          localStorage.setItem(
+            `chatpilot_accounts_${user.id}`,
+            JSON.stringify({
+              ...existingData,
+              telegram: true,
+            })
+          );
+        }
+
+        toast({
+          title: "Telegram Connected",
+          description: "Successfully connected to your Telegram account.",
+        });
+        checkAllConnected();
+      } else {
+        throw new Error(data.detail || "Failed to verify password");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Authentication Failed",
+        description: error.message || "Invalid password. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -598,6 +680,54 @@ export const ConnectAccounts = ({
           </AlertDialogContent>
         </AlertDialog>
       )}
+
+      {/* 2FA Password Modal */}
+      <AlertDialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Two-Factor Authentication</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your Telegram account has two-factor authentication enabled.
+              Please enter your password to complete the connection.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-col gap-4 p-4">
+            <Input
+              type="password"
+              placeholder="Enter your Telegram password"
+              value={twoFactorPassword}
+              onChange={(e) => setTwoFactorPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !passwordLoading) {
+                  submitTelegramPassword();
+                }
+              }}
+              disabled={passwordLoading}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowPasswordModal(false);
+                setTwoFactorPassword("");
+                setLoading((prev) => ({ ...prev, telegram: false }));
+              }}
+              disabled={passwordLoading}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={submitTelegramPassword}
+              disabled={passwordLoading || !twoFactorPassword.trim()}
+            >
+              {passwordLoading && (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              )}
+              Connect
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -5,8 +5,6 @@ import discordWhite from "@/assets/images/discord.png";
 import telegramWhite from "@/assets/images/telegram.png";
 import aiAll from "@/assets/images/aiAll.png";
 import {
-  ThumbsUp,
-  MessageCircle,
   Link2,
   Send,
   X,
@@ -21,9 +19,31 @@ import {
 import moreIcon from "@/assets/images/moreIcon.png";
 import pinIcon from "@/assets/images/pinIcon.png";
 import replyIcon from "@/assets/images/replyIcon.png";
-import taskIcon from "@/assets/images/taskIcon.png";
+import taskIcon from "@/assets/images/sidebar/Chat.png";
 import smartIcon from "@/assets/images/sidebar/Chat.png";
 import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
+import ChatAvatar from "./ChatAvatar";
+import { useAuth } from "@/hooks/useAuth";
+import { sendReaction, getMessageById } from "@/utils/apiHelpers";
+
+// Types
+type ReactionChip = { icon: string; count: number };
+type MessageItem = {
+  id: any;
+  originalId: any;
+  name: string;
+  avatar: string;
+  platform: "Discord" | "Telegram";
+  channel: string | null;
+  server: string;
+  date: Date;
+  message: string;
+  tags: string[];
+  reactions: ReactionChip[];
+  hasLink: boolean;
+  link: string | null;
+  replyTo: any;
+};
 
 // Dummy data generation
 const platforms = ["Discord", "Telegram"] as const;
@@ -90,19 +110,14 @@ const dummyMessages = Array.from({ length: 30 }, (_, i) => {
   const name = randomFrom(names);
   const message = randomFrom(messages);
   const messageTags = tags.filter(() => Math.random() < 0.3);
-  const reactions = [
-    {
-      icon: <ThumbsUp className="w-4 h-4" />,
-      count: Math.floor(Math.random() * 10),
-    },
-    {
-      icon: <MessageCircle className="w-4 h-4" />,
-      count: Math.floor(Math.random() * 5),
-    },
-  ].filter(() => Math.random() < 0.7);
+  const reactions: ReactionChip[] = [
+    { icon: "👍", count: Math.floor(Math.random() * 10) },
+    { icon: "💬", count: Math.floor(Math.random() * 5) },
+  ].filter(() => Math.random() < 0.7) as ReactionChip[];
   const hasLink = message.includes("http");
   return {
     id: i + 1,
+    originalId: undefined, // Dummy messages don't have originalId
     name,
     avatar: gravatarUrl(name + platform),
     platform,
@@ -130,26 +145,44 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
 }) => {
   // Flag to toggle between real data and dummy data for design inspiration
   const USE_DUMMY_DATA = false; // Set to true to use dummy data, false for real data
+  const { user } = useAuth();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [replyTo, setReplyTo] = React.useState<
     null | (typeof dummyMessages)[0]
   >(null);
-  const [messages, setMessages] = React.useState(
-    USE_DUMMY_DATA ? dummyMessages : []
+  const [messages, setMessages] = React.useState<MessageItem[]>(
+    USE_DUMMY_DATA ? (dummyMessages as unknown as MessageItem[]) : []
   );
-  const [openMenuId, setOpenMenuId] = React.useState<number | null>(null);
+  const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
+  const [loadingMore, setLoadingMore] = React.useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = React.useState(true);
+  const [shouldAutoScroll, setShouldAutoScroll] = React.useState(true);
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const [showAttachMenu, setShowAttachMenu] = React.useState(false);
+  const attachRef = React.useRef(null);
+  const [uploadedFiles, setUploadedFiles] = React.useState([]);
+  const fileInputRef = React.useRef(null);
+
+  const getFileType = (file) => {
+    if (file.type.startsWith("image/")) return "image";
+    if (file.type.startsWith("video/")) return "video";
+    return "doc";
+  };
+
   React.useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (shouldAutoScroll) {
+      scrollToBottom();
+    }
+  }, [messages, shouldAutoScroll]);
 
   const groupedByDate: { [date: string]: typeof messages } =
     React.useMemo(() => {
@@ -162,9 +195,209 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       return groups;
     }, [messages]);
 
+  const createBookmark = async (
+    messageId: string,
+    type: "bookmark" | "pin" = "bookmark"
+  ) => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const token = localStorage.getItem("access_token");
+
+    const formData = new FormData();
+    formData.append("message_id", messageId);
+    formData.append("type", type);
+
+    const response = await fetch(`${BACKEND_URL}/bookmarks`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to ${type} message: ${response.status}`);
+    }
+
+    return response.json();
+  };
+
+  // 2. Add these state variables inside your component (around line 150):
+  const [bookmarkLoading, setBookmarkLoading] = React.useState<{
+    [key: string]: boolean;
+  }>({});
+
+  // Reaction state management
+  const [reactionLoading, setReactionLoading] = React.useState<{
+    [key: string]: boolean;
+  }>({});
+  const [showReactionPicker, setShowReactionPicker] = React.useState<{
+    [key: string]: boolean;
+  }>({});
+  // Local UI reactions (emoji counts) keyed by message id
+  const [localReactions, setLocalReactions] = React.useState<{
+    [messageId: string]: { [emoji: string]: number };
+  }>({});
+
+  // Common emoji reactions
+  const commonReactions = [
+    "👍",
+    "❤️",
+    "🔥",
+    "😮",
+    "😢",
+    "😡",
+    "🎉",
+    "🚀",
+    "💯",
+    "👏",
+  ];
+
+  const handleReaction = async (messageId: string, emoji: string) => {
+    try {
+      setReactionLoading((prev) => ({ ...prev, [messageId]: true }));
+
+      const isObjectId = /^[a-f\d]{24}$/i.test(messageId);
+      if (isObjectId) {
+        try {
+          const res = await sendReaction(messageId, emoji);
+          console.log(
+            `Reaction ${emoji} sent to backend for message ${messageId} (sent_to_telegram=${res?.sent_to_telegram})`
+          );
+          // If backend returns updated reactions snapshot, reflect it in UI immediately
+          const toChips = (results: any[]) =>
+            results
+              .map((r: any) => {
+                const emoticon =
+                  typeof r?.reaction?.emoticon === "string"
+                    ? r.reaction.emoticon
+                    : typeof r?.reaction === "string"
+                    ? r.reaction
+                    : null;
+                const normalized =
+                  emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
+                return normalized
+                  ? { icon: normalized, count: r?.count || 0 }
+                  : null;
+              })
+              .filter(Boolean) as Array<{ icon: string; count: number }>;
+
+          if (res && res.reactions) {
+            const updated = Array.isArray(res.reactions?.results)
+              ? toChips(res.reactions.results)
+              : [];
+            setMessages((prev) =>
+              prev.map((m) =>
+                String(m.originalId || m.id) === String(messageId)
+                  ? { ...m, reactions: updated }
+                  : m
+              )
+            );
+          } else {
+            // Fallback: refetch message by id to ensure we have the latest reactions
+            try {
+              const fresh = await getMessageById(messageId);
+              const reactionResults =
+                (fresh?.message?.reactions &&
+                  fresh.message.reactions.results) ||
+                [];
+              const parsed = Array.isArray(reactionResults)
+                ? toChips(reactionResults)
+                : [];
+              setMessages((prev) =>
+                prev.map((m) =>
+                  String(m.originalId || m.id) === String(messageId)
+                    ? { ...m, reactions: parsed }
+                    : m
+                )
+              );
+            } catch (e) {
+              // ignore
+            }
+          }
+        } catch (backendError) {
+          console.warn(
+            "Backend reaction failed, logging locally:",
+            backendError
+          );
+          console.log(
+            `Reaction ${emoji} logged locally for message ${messageId}`
+          );
+        }
+      } else {
+        // Dummy/local message
+        console.log(
+          `Reaction ${emoji} logged locally for dummy message ${messageId}`
+        );
+      }
+
+      // No local UI/storage update – rely on Telegram as source of truth
+
+      // Close reaction picker
+      setShowReactionPicker((prev) => ({ ...prev, [messageId]: false }));
+    } catch (error) {
+      console.error("Failed to send reaction:", error);
+    } finally {
+      setReactionLoading((prev) => ({ ...prev, [messageId]: false }));
+    }
+  };
+
+  const toggleReactionPicker = (messageId: string) => {
+    setShowReactionPicker((prev) => ({
+      ...prev,
+      [messageId]: !prev[messageId],
+    }));
+  };
+
+  // Close reaction picker when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest(".reaction-picker")) {
+        setShowReactionPicker({});
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleBookmark = async (
+    msg: any,
+    type: "bookmark" | "pin" = "bookmark"
+  ) => {
+    // For API data, use the original message ID from the database
+    const messageId = msg.originalId || msg.id; // Use originalId if available, fallback to current id
+
+    if (!messageId) {
+      alert("Cannot bookmark this message - no message ID available");
+      return;
+    }
+
+    try {
+      setBookmarkLoading((prev) => ({ ...prev, [msg.id]: true }));
+
+      await createBookmark(messageId.toString(), type);
+
+      const actionText = type === "pin" ? "pinned" : "bookmarked";
+      console.log(`Message ${actionText} successfully`);
+
+      // Optional: Show success feedback
+      // You could add a toast notification here
+    } catch (error) {
+      console.error(`Error ${type}ing message:`, error);
+      alert(`Failed to ${type} message. Please try again.`);
+    } finally {
+      setBookmarkLoading((prev) => ({ ...prev, [msg.id]: false }));
+    }
+  };
+
   // Function to fetch messages for a selected chat
   const fetchMessages = React.useCallback(
-    async (chatId: number | string) => {
+    async (
+      chatId: number | string,
+      beforeTimestamp?: string,
+      append = false
+    ) => {
       if (!chatId) return;
 
       // If using dummy data, don't fetch from API
@@ -173,15 +406,42 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
         return;
       }
 
-      setLoading(true);
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+        setHasMoreMessages(true); // Reset pagination state for new chat
+      }
+
       try {
         const token = localStorage.getItem("access_token");
 
-        // Determine the endpoint based on whether it's "all-channels" or a specific chat
-        const endpoint =
-          chatId === "all-channels"
-            ? `${import.meta.env.VITE_BACKEND_URL}/chats/all/messages`
-            : `${import.meta.env.VITE_BACKEND_URL}/chats/${chatId}/messages`;
+        // Determine the endpoint based on the type of chat selection
+        let endpoint: string;
+
+        if (chatId === "all-channels") {
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/all/messages`;
+        } else if (typeof chatId === "object" && chatId && "id" in chatId) {
+          // This is a smart filter object
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
+            (chatId as any).id
+          }/messages`;
+        } else {
+          // This is a regular chat ID
+          endpoint = `${
+            import.meta.env.VITE_BACKEND_URL
+          }/chats/${chatId}/messages`;
+        }
+
+        // Add pagination parameter if loading older messages
+        const params = new URLSearchParams();
+        if (beforeTimestamp) {
+          params.append("before", beforeTimestamp);
+        }
+        if (params.toString()) {
+          endpoint += `?${params.toString()}`;
+        }
+
         console.log("ENDPOINTTTTTTTT ~ UnifiedChatPanel ~ endpoint:", endpoint);
 
         const response = await fetch(endpoint, {
@@ -239,19 +499,45 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
             channelName = null; // No channel for specific chat view
           }
 
+          // Parse Telegram reactions from message payload if present
+          const reactionResults =
+            (msg?.message?.reactions && msg.message.reactions.results) || [];
+          const parsedReactions = Array.isArray(reactionResults)
+            ? (reactionResults
+                .map((r: any) => {
+                  const emoticon =
+                    typeof r?.reaction?.emoticon === "string"
+                      ? r.reaction.emoticon
+                      : typeof r?.reaction === "string"
+                      ? r.reaction
+                      : null;
+                  const normalized =
+                    emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
+                  return normalized
+                    ? { icon: normalized, count: r?.count || 0 }
+                    : null;
+                })
+                .filter(Boolean) as Array<{ icon: string; count: number }>)
+            : [];
+
           return {
-            id: index + 1,
+            id: msg.id || msg._id || String(index + 1),
+            originalId: msg.id || msg._id,
             name: msg.sender?.first_name || msg.sender?.username || "Unknown",
-            avatar: `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
-              msg.sender?.id
-            }`,
+            avatar: msg.sender?.id
+              ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
+                  msg.sender.id
+                }`
+              : gravatarUrl(
+                  msg.sender?.first_name || msg.sender?.username || "Unknown"
+                ),
             platform: "Telegram" as const,
             channel: channelName, // Will be null for DMs and groups, channel name for channels
             server: chatName, // Always the chat/group/channel name
             date: new Date(msg.timestamp),
             message: msg.raw_text || "",
             tags: [],
-            reactions: [],
+            reactions: parsedReactions,
             hasLink: (msg.raw_text || "").includes("http"),
             link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
             replyTo: null as any,
@@ -260,15 +546,74 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
 
         // Sort messages by date (oldest first) so newest appear at bottom
         transformedMessages.sort((a, b) => a.date.getTime() - b.date.getTime());
-        setMessages(transformedMessages);
+
+        // Check if we got fewer messages than requested (indicating we've reached the end)
+        if (data.length < 50) {
+          // Backend default limit is 50
+          setHasMoreMessages(false);
+        }
+
+        if (append) {
+          // Prepend older messages to the existing list
+          setShouldAutoScroll(false); // Don't auto-scroll when loading more
+          setMessages((prevMessages) => [
+            ...transformedMessages,
+            ...prevMessages,
+          ]);
+        } else {
+          // Replace messages for new chat
+          setShouldAutoScroll(true); // Enable auto-scroll for new chat
+          setMessages(transformedMessages);
+        }
       } catch (error) {
         console.error("Error fetching messages:", error);
-        setMessages([]); // Set empty array on error
+        if (!append) {
+          setMessages([]); // Set empty array on error only if not appending
+        }
       } finally {
         setLoading(false);
+        setLoadingMore(false);
       }
     },
     [selectedChat?.name] // Only depend on the name, not the entire object
+  );
+
+  // Function to load more messages when scrolling to top
+  const loadMoreMessages = React.useCallback(() => {
+    if (loadingMore || !hasMoreMessages || messages.length === 0) return;
+
+    // Get the timestamp of the oldest message
+    const oldestMessage = messages[0];
+    if (!oldestMessage) return;
+
+    const beforeTimestamp = oldestMessage.date.toISOString();
+
+    if (selectedChat?.id) {
+      // Check if this is a smart filter or regular chat
+      if (selectedChat.name && selectedChat.keywords !== undefined) {
+        // This is a smart filter
+        fetchMessages(selectedChat, beforeTimestamp, true);
+      } else {
+        // This is a regular chat
+        fetchMessages(selectedChat.id, beforeTimestamp, true);
+      }
+    } else if (selectedChat === "all-channels") {
+      fetchMessages("all-channels", beforeTimestamp, true);
+    }
+  }, [loadingMore, hasMoreMessages, messages, selectedChat, fetchMessages]);
+
+  // Scroll event handler for infinite loading
+  const handleScroll = React.useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const container = e.currentTarget;
+      const scrollTop = container.scrollTop;
+      const threshold = 100; // Load more when within 100px of top
+
+      if (scrollTop <= threshold && hasMoreMessages && !loadingMore) {
+        loadMoreMessages();
+      }
+    },
+    [hasMoreMessages, loadingMore, loadMoreMessages]
   );
 
   const handleSend = () => {
@@ -276,7 +621,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       const now = new Date();
       const newMsg = {
         id: messages.length + 1,
-        name: "You", // or your user logic
+        originalId: undefined, // New messages don't have originalId
+        name: user.username, // or your user logic
         avatar: gravatarUrl("You" + (replyTo ? replyTo.platform : "Discord")), // match platform for avatar
         platform: replyTo ? replyTo.platform : "Discord", // use replyTo's platform if replying
         channel: replyTo ? replyTo.channel : "#general", // use replyTo's channel if replying
@@ -299,6 +645,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       setMessages([...messages, newMsg]);
       inputRef.current.value = "";
       setReplyTo(null); // Clear reply after sending
+      setShouldAutoScroll(true); // Enable auto-scroll when sending new message
     }
   };
 
@@ -314,9 +661,16 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   React.useEffect(() => {
     if (!USE_DUMMY_DATA) {
       if (selectedChat?.id) {
-        fetchMessages(selectedChat.id);
-        // Mark chat as read when messages are loaded
-        markChatAsRead(selectedChat.id);
+        // Check if this is a smart filter (has name, keywords properties) or a regular chat
+        if (selectedChat.name && selectedChat.keywords !== undefined) {
+          // This is a smart filter
+          fetchMessages(selectedChat);
+        } else {
+          // This is a regular chat
+          fetchMessages(selectedChat.id);
+          // Mark chat as read when messages are loaded
+          markChatAsRead(selectedChat.id);
+        }
       } else if (selectedChat === "all-channels") {
         // Handle "All Channels" selection
         fetchMessages("all-channels");
@@ -354,48 +708,45 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   };
 
   return (
-    <div className="relative h-[calc(100vh-136px)] flex flex-col">
+    <div className="relative h-[calc(100vh-136px)] flex flex-col flex-shrink-0 min-w-0">
       {/* Selected Chat Info */}
       {selectedChat && (
         <div className="px-6 py-4 border-b border-[#23272f] flex-shrink-0">
           <div className="flex items-center gap-3">
-            <img
-              src={
-                selectedChat === "all-channels"
-                  ? aiAll // Use the AI all icon for "All Channels"
-                  : gravatarUrl(selectedChat.name || "User")
-              }
-              alt={
-                selectedChat === "all-channels"
-                  ? "All Channels"
-                  : selectedChat.name || "User"
-              }
-              className="w-10 h-10 rounded-full object-cover"
-              loading="lazy"
-              decoding="async"
-              onLoad={(e) => {
-                // Only try to load real photo after gravatar loads and after a delay
-                if (selectedChat !== "all-channels" && selectedChat.photo_url) {
-                  setTimeout(() => {
-                    const img = new Image();
-                    img.onload = () => {
-                      const target = e.target as HTMLImageElement;
-                      if (target) {
-                        target.src = selectedChat.photo_url;
-                      }
-                    };
-                    img.onerror = () => {
-                      // Keep gravatar if photo fails
-                      console.log(
-                        `Photo failed to load for ${selectedChat.name}:`,
-                        selectedChat.photo_url
-                      );
-                    };
-                    img.src = selectedChat.photo_url;
-                  }, 100); // 100ms delay to prevent blocking
-                }
-              }}
-            />
+            {selectedChat === "all-channels" ? (
+              <img
+                src={aiAll}
+                alt="All Channels"
+                className="w-10 h-10 rounded-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+            ) : selectedChat.keywords !== undefined ? (
+              // Smart filter avatar
+              <div className="w-10 h-10 flex items-center justify-center rounded-full bg-[#3474ff] text-white text-xs font-bold">
+                {selectedChat.name
+                  ?.split(" ")
+                  .map((word: string) => word[0])
+                  .join("")
+                  .slice(0, 2)
+                  .toUpperCase()}
+              </div>
+            ) : (
+              // Regular chat avatar
+              <img
+                src={selectedChat.photo_url}
+                onError={(e) => {
+                  // On error (image fail to load), fallback to gravatar url
+                  const target = e.currentTarget;
+                  target.onerror = null; // Prevent infinite loop in case gravatar also fails
+                  target.src = gravatarUrl(selectedChat.name || "User");
+                }}
+                alt={selectedChat.name || "User"}
+                className="w-10 h-10 rounded-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+            )}
             <div>
               <h3 className="text-white font-medium">
                 {selectedChat === "all-channels"
@@ -405,6 +756,12 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
               <p className="text-sm text-[#ffffff72]">
                 {selectedChat === "all-channels"
                   ? "Telegram & Discord • Unified view"
+                  : selectedChat.keywords !== undefined
+                  ? `Smart Filter • ${selectedChat.keywords
+                      ?.slice(0, 2)
+                      .join(", ")}${
+                      selectedChat.keywords?.length > 2 ? "..." : ""
+                    }`
                   : `${selectedChat.platform} • ${
                       selectedChat.unread || 0
                     } unread`}
@@ -415,7 +772,32 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       )}
 
       {/* Message List  */}
-      <div className="flex-1 overflow-y-auto px-6 flex flex-col gap-4">
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto px-6 flex flex-col gap-4"
+        onScroll={handleScroll}
+      >
+        {/* Loading indicator for loading more messages at top */}
+        {loadingMore && (
+          <div className="flex items-center justify-center py-4">
+            <div className="text-center">
+              <div className="w-6 h-6 border-2 border-[#3474ff] border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+              <p className="text-[#ffffff72] text-sm">
+                Loading more messages...
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* No more messages indicator */}
+        {!hasMoreMessages && messages.length > 0 && !loading && (
+          <div className="flex items-center justify-center py-4">
+            <div className="text-center">
+              <p className="text-[#ffffff32] text-xs">No more messages</p>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="text-center">
@@ -425,7 +807,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           </div>
         ) : (
           Object.entries(groupedByDate).map(([date, msgs]) => (
-            <React.Fragment key={date}>
+            // Note: If you see "data-lov-id" warnings, it's likely from a browser extension
+            <div key={date} className="date-group">
               <div className="flex items-center gap-2 my-4">
                 <hr className="flex-1 border-[#23272f]" />
                 <span className="text-xs text-[#ffffff32] px-2">{date}</span>
@@ -433,44 +816,12 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
               </div>
               {msgs.map((msg) => (
                 <div
-                  key={msg.id}
+                  key={String(msg.id)}
                   className="flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 group hover:bg-[#212121]"
                   onMouseLeave={() => setOpenMenuId(null)}
                 >
-                  {/* Avatar */}
-                  <img
-                    src={gravatarUrl(msg.name + "Telegram")}
-                    alt={msg.name}
-                    className="w-10 h-10 rounded-full object-cover"
-                    loading="lazy"
-                    decoding="async"
-                    onLoad={(e) => {
-                      // Only try to load real photo after gravatar loads and after a delay
-                      if (
-                        msg.avatar &&
-                        msg.avatar.includes("/contact_photo/")
-                      ) {
-                        setTimeout(() => {
-                          const img = new Image();
-                          img.onload = () => {
-                            const target = e.target as HTMLImageElement;
-                            if (target) {
-                              target.src = msg.avatar;
-                            }
-                          };
-                          img.onerror = () => {
-                            // Keep gravatar if photo fails
-                            console.log(
-                              `Message avatar failed to load for ${msg.name}:`,
-                              msg.avatar
-                            );
-                          };
-                          img.src = msg.avatar;
-                        }, 100); // 100ms delay to prevent blocking
-                      }
-                    }}
-                  />
-                  {/* Message Content */}
+                  <ChatAvatar name={msg.name} avatar={msg.avatar} />
+
                   <div className="flex-1 relative">
                     <div className="absolute right-0 top-0 flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
                       <button
@@ -529,7 +880,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                         title="More"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setOpenMenuId(openMenuId === msg.id ? null : msg.id);
+                          const mid = String(msg.id);
+                          setOpenMenuId(openMenuId === mid ? null : mid);
                         }}
                       >
                         <img
@@ -537,7 +889,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                           className="w-6 h-6 text-[#84afff]"
                         />
                         {/* Popup menu */}
-                        {openMenuId === msg.id && (
+                        {openMenuId === String(msg.id) && (
                           <div className="absolute right-0 bottom-[110%] mt-2 bg-[#111111] border border-[#ffffff12] rounded-[10px] shadow-lg z-50 flex flex-col p-2 min-w-max">
                             <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
                               <img src={smartIcon} className="w-6 h-6" />
@@ -578,7 +930,6 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                           </div>
                         )}
                       </button>
-                      {/* Add more buttons as needed */}
                     </div>
                     <div className="flex items-center justify-start gap-2">
                       <span className="text-[#ffffff72] font-[300]">
@@ -614,7 +965,6 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                         {formatTime(msg.date)}
                       </span>
                     </div>
-                    {/* Reply context UI */}
                     {msg.replyTo && (
                       <div className="text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1">
                         Replying to{" "}
@@ -627,17 +977,15 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                         </span>
                       </div>
                     )}
-                    <div className="mt-1 text-sm text-[#e0e0e0]">
+                    <div className="mt-1 text-sm text-[#e0e0e] break-words break-all whitespace-pre-wrap max-w-full">
                       {msg.message}
-                      {/* Link preview */}
                       {msg.hasLink && msg.link && (
                         <a
                           href={msg.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="block mt-2 p-2 bg-[#23272f] rounded text-[#84afff] text-xs hover:underline"
+                          className="block mt-2 text-blue-500 hover:underline break-words"
                         >
-                          <Link2 className="inline w-3 h-3 mr-1" />
                           {msg.link}
                         </a>
                       )}
@@ -646,18 +994,69 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                     {/* Reactions */}
                     {
                       <div className="flex gap-3 mt-2">
-                        {msg.reactions.map((r, i) => (
+                        {msg.reactions.map((r: any, i: number) => (
                           <span
                             key={i}
                             className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]"
                           >
                             {r.icon}
-                            {r.count}
+                            {typeof r.count === "number" ? r.count : ""}
                           </span>
                         ))}
-                        <span className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]">
-                          <SmilePlusIcon className="h-4 w-4" />
-                        </span>
+                        {/* No local reaction chips; Telegram is source of truth */}
+                        <div className="relative">
+                          <button
+                            onClick={() =>
+                              toggleReactionPicker(
+                                String(msg.originalId || msg.id)
+                              )
+                            }
+                            className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff] hover:bg-[#ffffff12] transition-all duration-200 cursor-pointer hover:scale-105 hover:bg-[#ffffff16]"
+                            disabled={
+                              reactionLoading[String(msg.originalId || msg.id)]
+                            }
+                            title="Add reaction"
+                          >
+                            <SmilePlusIcon className="h-4 w-4" />
+                            {reactionLoading[
+                              String(msg.originalId || msg.id)
+                            ] && (
+                              <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                            )}
+                          </button>
+
+                          {/* Reaction Picker */}
+                          {showReactionPicker[
+                            String(msg.originalId || msg.id)
+                          ] && (
+                            <div className="reaction-picker absolute top-1/2 left-full ml-2 bg-[#2d2d2d]/95 backdrop-blur-sm rounded-2xl p-2 shadow-2xl border border-[#555] z-10 transform -translate-y-1/2 min-w-[max-content]">
+                              {/* Arrow pointer pointing left */}
+                              <div className="absolute top-1/2 left-0 w-0 h-0 border-t-[8px] border-b-[8px] border-r-[8px] border-t-transparent border-b-transparent border-r-[#2d2d2d] transform -translate-y-1/2 -translate-x-1"></div>
+
+                              <div className="grid grid-cols-10 gap-0">
+                                {commonReactions.map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() =>
+                                      handleReaction(
+                                        String(msg.originalId || msg.id),
+                                        emoji
+                                      )
+                                    }
+                                    className="w-8 h-8 text-md hover:bg-[#444] rounded-xl transition-all duration-200 flex items-center justify-center hover:scale-110 active:scale-95 shadow-sm hover:shadow-md hover:bg-[#555]"
+                                    disabled={
+                                      reactionLoading[
+                                        String(msg.originalId || msg.id)
+                                      ]
+                                    }
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     }
 
@@ -677,7 +1076,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                   </div>
                 </div>
               ))}
-            </React.Fragment>
+            </div>
           ))
         )}
         {/* Scroll target for auto-scroll */}
@@ -685,6 +1084,52 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       </div>
       <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-t from-[#181A20] via-[#181A20ee] to-transparent">
         {/* Replying to box */}
+        {uploadedFiles.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {uploadedFiles.map((uf, idx) => (
+              <div
+                key={idx}
+                className="flex items-center gap-2 bg-[#2d2d2d] px-3 py-2 rounded-[10px] text-white relative"
+              >
+                {/* Icon / Preview */}
+                {uf.type === "image" ? (
+                  <img
+                    src={uf.preview}
+                    alt={uf?.file?.name}
+                    className="w-8 h-8 rounded object-cover"
+                  />
+                ) : uf.type === "video" ? (
+                  <span className="w-8 h-8 flex items-center justify-center bg-[#444] rounded">
+                    🎥
+                  </span>
+                ) : (
+                  <span className="w-8 h-8 flex items-center justify-center bg-[#444] rounded">
+                    📄
+                  </span>
+                )}
+
+                {/* Name */}
+                <span className="text-xs max-w-[150px] truncate">
+                  {uf?.file?.name}
+                </span>
+
+                {/* Loader */}
+                {uf.status === "uploading" && (
+                  <div className="w-4 h-4 border-2 border-[#84afff] border-t-transparent rounded-full animate-spin"></div>
+                )}
+
+                {/* Remove */}
+                <X
+                  className="w-4 h-4 text-gray-400 hover:text-red-400 cursor-pointer"
+                  onClick={() =>
+                    setUploadedFiles((prev) => prev.filter((_, i) => i !== idx))
+                  }
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
         {replyTo && (
           <div className="flex items-center mb-2 px-4 py-2 rounded-[10px] bg-[#111111] text-xs text-[#84afff]">
             <div className="grow flex flex-col">
@@ -728,7 +1173,69 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
         )}
         <div className="flex">
           <div className="flex grow items-center bg-[#212121] rounded-[10px] px-4 py-2 shadow-lg">
-            <Plus className="text-black bg-[#fafafa60] rounded-full mr-2 w-[18px] h-[18px]" />
+            <div ref={attachRef} className="relative">
+              <Plus
+                className="text-black bg-[#fafafa60] rounded-full mr-2 w-[18px] h-[18px] cursor-pointer"
+                onClick={() => setShowAttachMenu((prev) => !prev)}
+              />
+
+              {/* Popup menu */}
+              {showAttachMenu && (
+                <div className="absolute bottom-[130%] left-0 mb-2 px-3 py-2 bg-[#2d2d2d] text-white text-sm rounded-lg shadow-lg border border-[#ffffff14] z-50">
+                  {/* Actual file input, hidden */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    style={{ display: "none" }}
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []).map(
+                        (file) => ({
+                          file,
+                          type: getFileType(file),
+                          preview: file.type.startsWith("image/")
+                            ? URL.createObjectURL(file)
+                            : null,
+                          status: "uploading",
+                        })
+                      );
+
+                      setUploadedFiles((prev) => [...prev, ...files]);
+                      setShowAttachMenu(false);
+
+                      // Simulate upload completion after 2s for demo
+                      setTimeout(() => {
+                        setUploadedFiles((prev) =>
+                          prev.map((f) =>
+                            files.includes(f) ? { ...f, status: "done" } : f
+                          )
+                        );
+                      }, 2000);
+                    }}
+                  />
+                  {/* Triggers file picker */}
+                  <p
+                    className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Attach File
+                  </p>
+                  <p
+                    className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Send Image
+                  </p>
+                  <p
+                    className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Send Video
+                  </p>
+                  {/* More menu options as needed */}
+                </div>
+              )}
+            </div>
             <input
               ref={inputRef}
               type="text"

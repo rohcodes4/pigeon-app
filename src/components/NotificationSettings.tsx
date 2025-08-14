@@ -1,11 +1,15 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Bell, MessageCircle, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
 
 interface SyncedGroup {
   id: string;
@@ -25,7 +29,9 @@ interface NotificationPreference {
 export const NotificationSettings = () => {
   const { user } = useAuth();
   const [syncedGroups, setSyncedGroups] = useState<SyncedGroup[]>([]);
-  const [notifications, setNotifications] = useState<NotificationPreference[]>([]);
+  const [notifications, setNotifications] = useState<NotificationPreference[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,14 +43,29 @@ export const NotificationSettings = () => {
 
   const fetchSyncedGroups = async () => {
     try {
-      const { data, error } = await supabase
-        .from("synced_groups")
-        .select("*")
-        .eq("user_id", user?.id)
-        .eq("is_synced", true);
+      // Fetch chats from your backend API
+      const response = await fetch("/chats", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
+      });
 
-      if (error) throw error;
-      setSyncedGroups(data || []);
+      if (!response.ok) throw new Error("Failed to fetch chats");
+
+      const chats = await response.json();
+
+      // Transform the data to match the SyncedGroup interface
+      const syncedGroups: SyncedGroup[] = chats
+        .filter((chat: any) => chat.count > 0) // Only include chats with messages
+        .map((chat: any) => ({
+          id: chat.id.toString(),
+          group_id: chat.id.toString(),
+          group_name: chat.title || chat.username || `Chat ${chat.id}`,
+          platform: "telegram", // Since your backend is primarily Telegram
+          is_synced: true, // All fetched chats are considered synced
+        }));
+
+      setSyncedGroups(syncedGroups);
     } catch (error) {
       console.error("Error fetching synced groups:", error);
     } finally {
@@ -54,48 +75,76 @@ export const NotificationSettings = () => {
 
   const fetchNotifications = async () => {
     try {
-      const { data, error } = await supabase
-        .from("notification_preferences")
-        .select("*")
-        .eq("user_id", user?.id);
-
-      if (error) throw error;
-      setNotifications(data || []);
+      // For now, we'll use localStorage to store notification preferences
+      // This can be moved to your backend later
+      const stored = localStorage.getItem(
+        `notification_preferences_${user?.id}`
+      );
+      if (stored) {
+        setNotifications(JSON.parse(stored));
+      }
     } catch (error) {
       console.error("Error fetching notifications:", error);
     }
   };
 
-  const updateNotificationPreference = async (groupId: string, platform: string, notificationType: string) => {
+  const updateNotificationPreference = async (
+    groupId: string,
+    platform: string,
+    notificationType: string
+  ) => {
     try {
-      const { error } = await supabase
-        .from("notification_preferences")
-        .upsert({
-          user_id: user?.id,
-          platform,
-          group_id: groupId,
-          notification_type: notificationType,
-          updated_at: new Date().toISOString(),
-        });
+      // Update notification preferences in localStorage
+      const currentPrefs = [...notifications];
+      const existingIndex = currentPrefs.findIndex(
+        (n) => n.group_id === groupId && n.platform === platform
+      );
 
-      if (error) throw error;
-      fetchNotifications();
+      const newPref: NotificationPreference = {
+        id:
+          existingIndex >= 0
+            ? currentPrefs[existingIndex].id
+            : Date.now().toString(),
+        platform,
+        group_id: groupId,
+        notification_type: notificationType,
+      };
+
+      if (existingIndex >= 0) {
+        currentPrefs[existingIndex] = newPref;
+      } else {
+        currentPrefs.push(newPref);
+      }
+
+      setNotifications(currentPrefs);
+      localStorage.setItem(
+        `notification_preferences_${user?.id}`,
+        JSON.stringify(currentPrefs)
+      );
     } catch (error) {
       console.error("Error updating notification preference:", error);
     }
   };
 
   const getNotificationPreference = (groupId: string, platform: string) => {
-    const pref = notifications.find(n => n.group_id === groupId && n.platform === platform);
-    return pref?.notification_type || 'all';
+    const pref = notifications.find(
+      (n) => n.group_id === groupId && n.platform === platform
+    );
+    return pref?.notification_type || "all";
   };
 
   const getPlatformIcon = (platform: string) => {
-    return platform === 'discord' ? <Users className="w-4 h-4" /> : <MessageCircle className="w-4 h-4" />;
+    return platform === "discord" ? (
+      <Users className="w-4 h-4" />
+    ) : (
+      <MessageCircle className="w-4 h-4" />
+    );
   };
 
   const getPlatformColor = (platform: string) => {
-    return platform === 'discord' ? 'text-purple-600 dark:text-purple-400' : 'text-blue-600 dark:text-blue-400';
+    return platform === "discord"
+      ? "text-purple-600 dark:text-purple-400"
+      : "text-blue-600 dark:text-blue-400";
   };
 
   if (loading) {
@@ -119,7 +168,8 @@ export const NotificationSettings = () => {
         </CardHeader>
         <CardContent>
           <div className="text-center text-muted-foreground py-8">
-            No synced chats found. Connect your accounts and sync some chats first.
+            No synced chats found. Connect your accounts and sync some chats
+            first.
           </div>
         </CardContent>
       </Card>
@@ -136,9 +186,14 @@ export const NotificationSettings = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         {syncedGroups.map((group) => (
-          <div key={group.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg space-y-3 sm:space-y-0">
+          <div
+            key={group.id}
+            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg space-y-3 sm:space-y-0"
+          >
             <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800`}>
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800`}
+              >
                 <span className={getPlatformColor(group.platform)}>
                   {getPlatformIcon(group.platform)}
                 </span>
@@ -154,8 +209,17 @@ export const NotificationSettings = () => {
             </div>
             <div className="w-full sm:w-40">
               <Select
-                value={getNotificationPreference(group.group_id, group.platform)}
-                onValueChange={(value) => updateNotificationPreference(group.group_id, group.platform, value)}
+                value={getNotificationPreference(
+                  group.group_id,
+                  group.platform
+                )}
+                onValueChange={(value) =>
+                  updateNotificationPreference(
+                    group.group_id,
+                    group.platform,
+                    value
+                  )
+                }
               >
                 <SelectTrigger>
                   <SelectValue />

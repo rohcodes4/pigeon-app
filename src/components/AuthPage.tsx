@@ -35,6 +35,12 @@ export const AuthPage = () => {
   const [isSignIn, setIsSignIn] = useState(initialMode);
   const { user, loading, checkAuth } = useAuth(); // Destructure checkAuth
 
+  // Telegram QR modal state
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrCode, setQrCode] = useState("");
+  const [qrToken, setQrToken] = useState("");
+  const [qrPolling, setQrPolling] = useState(false);
+
   useEffect(() => {
     if (!loading && user) {
       navigate("/");
@@ -101,8 +107,7 @@ export const AuthPage = () => {
 
         toast({
           title: "Account created!",
-          description:
-            "Please check your email to verify your account (if applicable). You can now sign in.",
+          description: "You can now sign in.",
         });
         setIsSignIn(true);
         await checkAuth();
@@ -116,6 +121,237 @@ export const AuthPage = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // OAuth handlers
+  const handleOAuthPopup = (url: string, platform: string) => {
+    const popup = window.open(
+      url,
+      `${platform}_oauth`,
+      "width=500,height=600,scrollbars=yes,resizable=yes"
+    );
+
+    const handleMessage = async (event: MessageEvent) => {
+      // Allow messages from the backend (localhost:8000) to frontend (localhost:8080)
+      const allowedOrigins = [
+        window.location.origin, // Frontend origin (localhost:8080)
+        import.meta.env.VITE_BACKEND_URL || "http://localhost:8000", // Backend origin
+      ];
+
+      console.log("OAuth message received:", {
+        origin: event.origin,
+        allowedOrigins,
+        data: event.data,
+      });
+
+      if (!allowedOrigins.includes(event.origin)) {
+        console.log("Message origin not allowed:", event.origin);
+        return;
+      }
+
+      const { type, data, error } = event.data;
+
+      if (type === `${platform.toUpperCase()}_AUTH_SUCCESS`) {
+        console.log("OAuth success:", data);
+        console.log("Setting access_token:", data.access_token);
+        localStorage.setItem("access_token", data.access_token);
+
+        // Verify token was stored
+        const storedToken = localStorage.getItem("access_token");
+        console.log("Stored token:", storedToken ? "exists" : "missing");
+
+        toast({
+          title: "Welcome!",
+          description: `You have been signed in with ${platform}.`,
+        });
+
+        console.log("Calling checkAuth...");
+        await checkAuth();
+        console.log("checkAuth completed");
+
+        popup?.close();
+        window.removeEventListener("message", handleMessage);
+        clearInterval(checkClosed);
+        clearTimeout(timeout);
+      } else if (type === `${platform.toUpperCase()}_AUTH_ERROR`) {
+        console.log("OAuth error:", error);
+        toast({
+          title: "Authentication Error",
+          description: error || `Failed to sign in with ${platform}`,
+          variant: "destructive",
+        });
+        popup?.close();
+        window.removeEventListener("message", handleMessage);
+        clearInterval(checkClosed);
+        clearTimeout(timeout);
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+
+    // Check if popup is closed manually
+    const checkClosed = setInterval(() => {
+      if (popup?.closed) {
+        window.removeEventListener("message", handleMessage);
+        clearInterval(checkClosed);
+        clearTimeout(timeout);
+      }
+    }, 1000);
+
+    // Add timeout for OAuth flow (5 minutes)
+    const timeout = setTimeout(() => {
+      console.log("OAuth timeout reached");
+      popup?.close();
+      window.removeEventListener("message", handleMessage);
+      clearInterval(checkClosed);
+      toast({
+        title: "Authentication Timeout",
+        description: `${platform} authentication timed out. Please try again.`,
+        variant: "destructive",
+      });
+    }, 5 * 60 * 1000);
+  };
+
+  const handleGoogleAuth = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/auth/google/start`, {
+        method: "POST",
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        handleOAuthPopup(data.oauth_url, "google");
+      } else {
+        throw new Error(data.detail || "Failed to start Google authentication");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDiscordAuth = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/auth/discord/start`, {
+        method: "POST",
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        handleOAuthPopup(data.oauth_url, "discord");
+      } else {
+        throw new Error(
+          data.detail || "Failed to start Discord authentication"
+        );
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleTelegramAuth = async () => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(`${BACKEND_URL}/auth/qr`, {
+        method: "POST",
+        headers: token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : undefined,
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        setQrCode(data.qr);
+        setQrToken(data.token);
+        setShowQRModal(true);
+        startQRPolling(data.token);
+      } else {
+        throw new Error(
+          data.detail || "Failed to start Telegram authentication"
+        );
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const startQRPolling = async (qrToken: string) => {
+    setQrPolling(true);
+    const authToken = localStorage.getItem("access_token");
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/auth/qr/${qrToken}`, {
+          headers: authToken
+            ? {
+                Authorization: `Bearer ${authToken}`,
+              }
+            : undefined,
+        });
+        const data = await response.json();
+
+        if (response.ok && data.status === "success") {
+          clearInterval(pollInterval);
+          setQrPolling(false);
+          setShowQRModal(false);
+
+          localStorage.setItem("access_token", data.access_token);
+          toast({
+            title: "Welcome!",
+            description: "You have been signed in with Telegram.",
+          });
+          await checkAuth();
+        } else if (data.status === "invalid_token") {
+          clearInterval(pollInterval);
+          setQrPolling(false);
+          setShowQRModal(false);
+          toast({
+            title: "QR Code Expired",
+            description: "Please try again.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        // Continue polling on network errors
+        console.log("QR polling error:", error);
+      }
+    }, 2000); // Poll every 2 seconds
+
+    // Stop polling after 5 minutes
+    setTimeout(() => {
+      clearInterval(pollInterval);
+      setQrPolling(false);
+      if (showQRModal) {
+        setShowQRModal(false);
+        toast({
+          title: "QR Code Expired",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+      }
+    }, 5 * 60 * 1000);
+  };
+
+  const closeQRModal = () => {
+    setShowQRModal(false);
+    setQrPolling(false);
+    setQrCode("");
+    setQrToken("");
   };
 
   return (
@@ -245,7 +481,9 @@ export const AuthPage = () => {
           </div>
           <div className="flex items-center justify-center gap-4">
             <Button
+              type="button"
               variant="outline"
+              onClick={handleGoogleAuth}
               className="w-max bg-[#212121] text-white hover:bg-blue-700 rounded-[12px] grow"
             >
               <img
@@ -255,7 +493,9 @@ export const AuthPage = () => {
               />
             </Button>
             <Button
+              type="button"
               variant="outline"
+              onClick={handleTelegramAuth}
               className="w-max bg-[#212121] text-white hover:bg-blue-700 rounded-[12px] grow"
             >
               <img
@@ -265,7 +505,9 @@ export const AuthPage = () => {
               />
             </Button>
             <Button
+              type="button"
               variant="outline"
+              onClick={handleDiscordAuth}
               className="w-max bg-[#212121] text-white hover:bg-blue-700 rounded-[12px] grow"
             >
               <img
@@ -277,6 +519,56 @@ export const AuthPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Telegram QR Modal */}
+      {showQRModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-[#111111] rounded-2xl p-8 max-w-sm w-full mx-4">
+            <div className="text-center">
+              <h3 className="text-xl text-white mb-4">Scan QR Code</h3>
+              <p className="text-[#ffffff48] text-sm mb-6">
+                Open Telegram on your phone and scan this QR code to sign in
+              </p>
+
+              {qrCode && (
+                <div className="flex justify-center mb-6">
+                  <img
+                    src={`data:image/png;base64,${qrCode}`}
+                    alt="Telegram QR Code"
+                    className="w-48 h-48 bg-white rounded-lg p-2"
+                  />
+                </div>
+              )}
+
+              {qrPolling && (
+                <div className="mb-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#5389ff] mx-auto"></div>
+                  <p className="text-[#ffffff48] text-sm mt-2">
+                    Waiting for scan...
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={closeQRModal}
+                  variant="outline"
+                  className="flex-1 bg-[#212121] text-white border-[#333] hover:bg-[#333]"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => handleTelegramAuth()}
+                  variant="outline"
+                  className="flex-1 bg-[#212121] text-white border-[#333] hover:bg-[#333]"
+                >
+                  New QR
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

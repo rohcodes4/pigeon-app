@@ -1,12 +1,24 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Palette, Bell, Shield, MessageSquare, Users } from "lucide-react";
+import {
+  Settings,
+  Palette,
+  Bell,
+  Shield,
+  MessageSquare,
+  Users,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useTheme } from "@/hooks/useTheme";
@@ -17,8 +29,10 @@ import { NotificationSettings } from "./NotificationSettings";
 export const DashboardSettings = () => {
   const { settings, updateSettings, loading } = useUserSettings();
   const { theme, setTheme } = useTheme();
+  const [discordConnected, setDiscordConnected] = useState(false);
+  const [telegramConnected, setTelegramConnected] = useState(false);
 
-  const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
+  const handleThemeChange = (newTheme: "light" | "dark" | "default") => {
     setTheme(newTheme);
     toast({
       title: "Theme Updated",
@@ -54,27 +68,42 @@ export const DashboardSettings = () => {
         <CardContent>
           <Tabs defaultValue="appearance" className="w-full">
             <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto">
-              <TabsTrigger value="appearance" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+              <TabsTrigger
+                value="appearance"
+                className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3"
+              >
                 <Palette className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Appearance</span>
                 <span className="sm:hidden">Theme</span>
               </TabsTrigger>
-              <TabsTrigger value="accounts" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+              <TabsTrigger
+                value="accounts"
+                className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3"
+              >
                 <Users className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Accounts</span>
                 <span className="sm:hidden">Accounts</span>
               </TabsTrigger>
-              <TabsTrigger value="notifications" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+              <TabsTrigger
+                value="notifications"
+                className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3"
+              >
                 <Bell className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Notifications</span>
                 <span className="sm:hidden">Alerts</span>
               </TabsTrigger>
-              <TabsTrigger value="privacy" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+              <TabsTrigger
+                value="privacy"
+                className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3"
+              >
                 <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Privacy</span>
                 <span className="sm:hidden">Privacy</span>
               </TabsTrigger>
-              <TabsTrigger value="chats" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+              <TabsTrigger
+                value="chats"
+                className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3"
+              >
                 <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Chat Selection</span>
                 <span className="sm:hidden">Chats</span>
@@ -97,7 +126,7 @@ export const DashboardSettings = () => {
                     <SelectContent>
                       <SelectItem value="light">Light</SelectItem>
                       <SelectItem value="dark">Dark</SelectItem>
-                      <SelectItem value="system">System</SelectItem>
+                      <SelectItem value="default">Default</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -120,7 +149,9 @@ export const DashboardSettings = () => {
                     </div>
                     <Switch
                       checked={settings?.notifications_enabled || false}
-                      onCheckedChange={(checked) => handleSettingsUpdate("notifications_enabled", checked)}
+                      onCheckedChange={(checked) =>
+                        handleSettingsUpdate("notifications_enabled", checked)
+                      }
                     />
                   </div>
 
@@ -133,7 +164,9 @@ export const DashboardSettings = () => {
                     </div>
                     <Select
                       value={settings?.summary_frequency || "daily"}
-                      onValueChange={(value) => handleSettingsUpdate("summary_frequency", value)}
+                      onValueChange={(value) =>
+                        handleSettingsUpdate("summary_frequency", value)
+                      }
                     >
                       <SelectTrigger className="w-full sm:w-32">
                         <SelectValue />
@@ -148,7 +181,7 @@ export const DashboardSettings = () => {
                     </Select>
                   </div>
                 </div>
-                
+
                 <NotificationSettings />
               </div>
             </TabsContent>
@@ -164,7 +197,9 @@ export const DashboardSettings = () => {
                   </div>
                   <Switch
                     checked={settings?.focus_mode || false}
-                    onCheckedChange={(checked) => handleSettingsUpdate("focus_mode", checked)}
+                    onCheckedChange={(checked) =>
+                      handleSettingsUpdate("focus_mode", checked)
+                    }
                   />
                 </div>
 
@@ -177,7 +212,9 @@ export const DashboardSettings = () => {
                   </div>
                   <Select
                     value={settings?.data_retention || "1year"}
-                    onValueChange={(value) => handleSettingsUpdate("data_retention", value)}
+                    onValueChange={(value) =>
+                      handleSettingsUpdate("data_retention", value)
+                    }
                   >
                     <SelectTrigger className="w-full sm:w-32">
                       <SelectValue />
@@ -194,7 +231,12 @@ export const DashboardSettings = () => {
             </TabsContent>
 
             <TabsContent value="chats" className="space-y-4 mt-6">
-              <ChatSelection />
+              <ChatSelection
+                telegramConnected={telegramConnected}
+                setTelegramConnected={setTelegramConnected}
+                discordConnected={discordConnected}
+                setDiscordConnected={setDiscordConnected}
+              />
             </TabsContent>
           </Tabs>
         </CardContent>

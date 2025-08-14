@@ -1,231 +1,337 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Bell, Check, ChevronDown, ChevronRight, Heart, MoreHorizontal, Pin, PinOff, Plus, SmilePlus, VolumeX, X } from "lucide-react";
 import { FaTelegramPlane, FaDiscord } from "react-icons/fa";
 import discord from "@/assets/images/discord.png";
 import telegram from "@/assets/images/telegram.png";
 import smartIcon from "@/assets/images/sidebar/Chat.png";
 
-const NotificationPanel = () => {
-  const [openChannel, setOpenChannel] = useState('pow');
-  const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
+// API function to fetch notifications
+const fetchNotifications = async (limit: number = 20) => {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const token = localStorage.getItem("access_token");
 
-  const [channels, setChannels] = useState({
-    pow: [
-      {
-        id: 1,
-        name: "James Steven",
-        date: "17/07/25, 18:49",
-        message: "For the first time in MENA, Play It is a gaming platform...",
-        platform: "telegram",
-        reactions: { replies: 38, likes: 21, thumbsUp: 16 },
-      },
-      {
-        id: 2,
-        name: "Alice Johnson",
-        date: "17/07/25, 19:00",
-        message: "Join us for an exciting event this weekend!",
-        platform: "telegram",
-        reactions: { replies: 12, likes: 30, thumbsUp: 5 },
-      },
-      {
-        id: 3,
-        name: "Bob Smith",
-        date: "17/07/25, 20:15",
-        message: "New updates are coming soon. Stay tuned!",
-        platform: "telegram",
-        reactions: { replies: 20, likes: 18, thumbsUp: 10 },
-      },
-    ],
-    xt: [
-      {
-        id: 1,
-        name: "Michael Saylor",
-        date: "23/07/25, 18:49",
-        message: "$GOR entered Proof-of-Cope meta. 0 devs. 100% community raid...",
-        platform: "discord",
-        reactions: { replies: 38, likes: 21, thumbsUp: 16 },
-      },
-      {
-        id: 2,
-        name: "Sarah Connor",
-        date: "23/07/25, 19:30",
-        message: "Check out the latest market trends!",
-        platform: "discord",
-        reactions: { replies: 15, likes: 25, thumbsUp: 8 },
-      },
-      {
-        id: 3,
-        name: "John Doe",
-        date: "23/07/25, 20:45",
-        message: "We're hosting a live Q&A session tomorrow.",
-        platform: "discord",
-        reactions: { replies: 22, likes: 19, thumbsUp: 12 },
-      },
-    ],
-    // Add more channels here
-    alpha: [
-      {
-        id: 1,
-        name: "Alpha Bot",
-        date: "24/07/25, 10:00",
-        message: "Welcome to the Alpha channel!",
-        platform: "telegram",
-        reactions: { replies: 10, likes: 15, thumbsUp: 7 },
-      },
-      // More messages...
-    ],
-    beta: [
-      {
-        id: 1,
-        name: "Beta Tester",
-        date: "24/07/25, 11:30",
-        message: "Beta testing is now open for all users.",
-        platform: "discord",
-        reactions: { replies: 18, likes: 22, thumbsUp: 9 },
-      },
-      // More messages...
-    ],
-    gamma: [
-      {
-        id: 1,
-        name: "Gamma Group",
-        date: "24/07/25, 12:45",
-        message: "Join our group for exclusive content.",
-        platform: "telegram",
-        reactions: { replies: 25, likes: 30, thumbsUp: 14 },
-      },
-      // More messages...
-    ],
-    delta: [
-      {
-        id: 1,
-        name: "Delta Team",
-        date: "24/07/25, 14:00",
-        message: "Team meeting scheduled for tomorrow.",
-        platform: "discord",
-        reactions: { replies: 20, likes: 18, thumbsUp: 10 },
-      },
-      // More messages...
-    ],
+  const response = await fetch(`${BACKEND_URL}/notifications?limit=${limit}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
   });
 
-  const toggleChannel = (channel) => {
+  if (!response.ok) {
+    throw new Error(`Failed to fetch notifications: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+// API function to clear notifications
+const clearNotifications = async () => {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const token = localStorage.getItem("access_token");
+
+  const response = await fetch(`${BACKEND_URL}/notifications/clear`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to clear notifications: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+const NotificationPanel = () => {
+  const [openChannel, setOpenChannel] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [groupedNotifications, setGroupedNotifications] = useState<{[key: string]: any[]}>({});
+
+  // Load notifications on component mount
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await fetchNotifications(50);
+        setNotifications(data);
+        console.log('Loaded notifications:', data);
+        
+        // Group notifications by chat_id
+        const grouped = data.reduce((acc: {[key: string]: any[]}, notification: any) => {
+          const chatId = notification.chat_id?.toString() || 'general';
+          if (!acc[chatId]) {
+            acc[chatId] = [];
+          }
+          acc[chatId].push(notification);
+          return acc;
+        }, {});
+        
+        setGroupedNotifications(grouped);
+        
+        // Set first channel as open by default
+        const firstChannel = Object.keys(grouped)[0];
+        if (firstChannel) {
+          setOpenChannel(firstChannel);
+        }
+      } catch (error) {
+        console.error('Error loading notifications:', error);
+        setError(error instanceof Error ? error.message : 'Failed to load notifications');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadNotifications();
+  }, []);
+
+  const toggleChannel = (channel: string) => {
     setOpenChannel(openChannel === channel ? null : channel);
   };
 
-  const removeMessage = (channelKey, messageId) => {
-    setChannels((prevChannels) => ({
-      ...prevChannels,
-      [channelKey]: prevChannels[channelKey].filter((message) => message.id !== messageId),
-    }));
+  const removeNotification = async (notificationId: string) => {
+    try {
+      // Remove from local state immediately for better UX
+      setNotifications(prev => prev.filter(n => n._id !== notificationId));
+      
+      // Update grouped notifications
+      const newGrouped = {...groupedNotifications};
+      Object.keys(newGrouped).forEach(chatId => {
+        newGrouped[chatId] = newGrouped[chatId].filter(n => n._id !== notificationId);
+        if (newGrouped[chatId].length === 0) {
+          delete newGrouped[chatId];
+        }
+      });
+      setGroupedNotifications(newGrouped);
+      
+      // Here you could also call an API to delete the specific notification
+      console.log('Notification removed:', notificationId);
+    } catch (error) {
+      console.error('Error removing notification:', error);
+    }
   };
 
-  const renderChats = (chats, channelKey) => {
-    if(chats.length<=0) return;
-    return chats?.map((chat) => (
-      <div key={chat.id} className="relative flex items-start gap-2 mb-2 bg-[#212121] p-2 rounded-[10px] border border-[#ffffff09]">
-        <div className="absolute top-2 right-2 cursor-pointer" onClick={() => removeMessage(channelKey, chat.id)}>
+  const handleClearAllNotifications = async () => {
+    if (!confirm('Are you sure you want to clear all notifications?')) {
+      return;
+    }
+    
+    try {
+      await clearNotifications();
+      setNotifications([]);
+      setGroupedNotifications({});
+      setOpenChannel(null);
+      console.log('All notifications cleared');
+    } catch (error) {
+      console.error('Error clearing notifications:', error);
+      alert('Failed to clear notifications. Please try again.');
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const getChannelName = (chatId: string) => {
+    // You can customize this to show actual chat names
+    const notifications = groupedNotifications[chatId];
+    if (notifications && notifications.length > 0) {
+      // Try to get chat title from notification data
+      return notifications[0].chat_title || `Chat ${chatId}`;
+    }
+    return `Channel ${chatId}`;
+  };
+
+  const getPlatformFromChatId = (chatId: string) => {
+    // Simple heuristic - you might want to store this info in notifications
+    return Math.random() > 0.5 ? 'telegram' : 'discord';
+  };
+
+  const renderNotifications = (notifications: any[], channelKey: string) => {
+    if (!notifications || notifications.length <= 0) return null;
+    
+    return notifications.map((notification) => (
+      <div key={notification._id} className="relative flex items-start gap-2 mb-2 bg-[#212121] p-2 rounded-[10px] border border-[#ffffff09]">
+        <div className="absolute top-2 right-2 cursor-pointer" onClick={() => removeNotification(notification._id)}>
           <X className="w-4 h-4 text-[#fafafa60] hover:text-[#fafafa]" />
         </div>
         <div className="flex-shrink-0 w-8 flex items-center justify-center">
           <img
-            src={`https://www.gravatar.com/avatar/${Math.random() * 100}?d=identicon&s=80`}
+            src={`https://www.gravatar.com/avatar/${notification.message_id || 'default'}?d=identicon&s=80`}
             className="w-7 h-7 rounded-full object-cover"
           />
         </div>
         <div className="grow rounded-[8px] px-2">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-[#fafafa] font-medium">{chat.name}</span>
-            <span className="text-xs text-[#FAFAFA60]">{chat.date}</span>
+            <span className="text-sm text-[#fafafa] font-medium">
+              {notification.type === 'summary' ? 'Summary' : 'Notification'}
+            </span>
+            <span className="text-xs text-[#FAFAFA60]">
+              {formatDate(notification.created_at)}
+            </span>
+            {notification.importance && (
+              <span className="text-xs bg-[#3474ff] text-white px-2 py-0.5 rounded-full">
+                {(notification.importance * 100).toFixed(0)}%
+              </span>
+            )}
           </div>
-          <div className="text-sm text-[#fafafa] break-words w-full">{chat.message}</div>
+          <div className="text-sm text-[#fafafa] break-words w-full">
+            {notification.text}
+          </div>
           <div className="flex space-x-2 mt-2">
-            <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">🤍 {chat.reactions.replies}</span>
-            <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">🔥 {chat.reactions.likes}</span>
-            <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">😂 {chat.reactions.thumbsUp}</span>
-            <span className="text-xs rounded-full bg-[#ffffff16] px-1 py-1 flex items-center"><SmilePlus className="w-3 h-3" /></span>
+            <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">
+              💡 {notification.type}
+            </span>
+            {notification.chat_id && (
+              <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">
+                📱 Chat {notification.chat_id}
+              </span>
+            )}
+            <span className="text-xs rounded-full bg-[#ffffff16] px-1 py-1 flex items-center">
+              <SmilePlus className="w-3 h-3" />
+            </span>
           </div>
         </div>
       </div>
     ));
   };
 
+  if (isLoading) {
+    return (
+      <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]">
+        <div className="text-[#84AFFF] flex items-center gap-2 p-4">
+          <Bell className="w-4 h-4 fill-[#84AFFF]" />
+          <span>Notifications</span>
+        </div>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-[#fafafa60]">Loading notifications...</div>
+        </div>
+      </aside>
+    );
+  }
+
+  if (error) {
+    return (
+      <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]">
+        <div className="text-[#84AFFF] flex items-center gap-2 p-4">
+          <Bell className="w-4 h-4 fill-[#84AFFF]" />
+          <span>Notifications</span>
+        </div>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-red-400">Error: {error}</div>
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]">
-      <div className="text-[#84AFFF] flex items-center gap-2 p-4">
-        <Bell className="w-4 h-4 fill-[#84AFFF]" />
-        <span className="">Notifications</span>
-      </div>
-      {Object.keys(channels).map((channelKey) => (
-        <div key={channelKey} className="mb-2 px-4">
-          <div
-            className="flex justify-between items-center gap-2 mb-2 cursor-pointer"
-            
-          >
-            <div className="flex items-center gap-2" onClick={() => toggleChannel(channelKey)}>
-              {openChannel === channelKey ? <ChevronDown className="text-[#fafafa]" /> : <ChevronRight className="text-[#fafafa]" />}
-              <div className="relative mr-2">
-                <img
-                  src={`https://www.gravatar.com/avatar/${Math.random() * 100}?d=identicon&s=80`}
-                  className="w-10 h-10 rounded-full object-cover"
-                />
-                <img
-                  src={channels[channelKey][0]?.platform === "discord" ? discord : telegram}
-                  className={`
-                    absolute -bottom-2 -right-1
-                    ${channels[channelKey][0]?.platform === "discord" ? "bg-[#7b5cfa]" : "bg-[#3474ff]"}
-                    rounded-[4px] w-5 h-5 p-0.5 border-2 border-[#111111]
-                  `}
-                  alt={channels[channelKey][0]?.platform}
-                />
-              </div>
-              <span className="text-sm text-[#fafafa] leading-none">{channelKey.replace(/^\w/, (c) => c.toUpperCase())}</span>
-            </div>
-            <div className="flex gap-2">
-              <div className="bg-[#fafafa10] p-2 rounded-[6px]">
-                <Check className="w-3 h-3 fill-[#fafafa60]" />
-              </div>
-              <div className="bg-[#fafafa10] p-2 rounded-[6px]">
-                <PinOff className="w-3 h-3 fill-[#fafafa60]" />
-              </div>
-              <div className="bg-[#fafafa10] p-2 rounded-[6px] relative"  onClick={()=>{setOpenMenuId(openMenuId === channelKey ? null : channelKey);}}>
-                <MoreHorizontal className="w-3 h-3 fill-[#fafafa60] z-50" 
-                        
-                       />
-                {openMenuId === channelKey && (
-                        <div className="absolute right-0 top-[30px] mt-2 bg-[#111111] border border-[#ffffff12] rounded-[10px] shadow-lg z-50 flex flex-col p-2 min-w-max">
-                        <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
-                            <img src={smartIcon} className="w-6 h-6"/>
-                          Add to Smart Channels
-                        </button>
-                        <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
-                            <Heart className="w-6 h-6" stroke="currentColor" fill="currentColor"/>
-                          Save to Favorites
-                        </button>
-                        <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
-                        <Pin className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
-                          Pin Message
-                        </button>
-                        <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
-                        <Plus className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
-                          Add Tags
-                        </button>
-                        <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#f36363] hover:text-[#f36363] whitespace-nowrap">
-                        <VolumeX className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
-                          Mute Channel
-                        </button>
-                      </div>
-                      )}
-              </div>
-            </div>
-          </div>
-          {openChannel === channelKey && (
-            <div className="px-0 py-2 rounded-[16px]">
-              {renderChats(channels[channelKey], channelKey)}
-            </div>
-          )}
+      <div className="text-[#84AFFF] flex items-center justify-between gap-2 p-4">
+        <div className="flex items-center gap-2">
+          <Bell className="w-4 h-4 fill-[#84AFFF]" />
+          <span>Notifications ({notifications.length})</span>
         </div>
-      ))}
+        {notifications.length > 0 && (
+          <button
+            onClick={handleClearAllNotifications}
+            className="text-xs text-[#fafafa60] hover:text-[#fafafa] px-2 py-1 rounded bg-[#ffffff10] hover:bg-[#ffffff20]"
+          >
+            Clear All
+          </button>
+        )}
+      </div>
+      
+      {Object.keys(groupedNotifications).length === 0 ? (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-[#fafafa60] text-center">
+            <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <div>No notifications yet</div>
+          </div>
+        </div>
+      ) : (
+        Object.keys(groupedNotifications).map((channelKey) => (
+          <div key={channelKey} className="mb-2 px-4">
+            <div className="flex justify-between items-center gap-2 mb-2 cursor-pointer">
+              <div className="flex items-center gap-2" onClick={() => toggleChannel(channelKey)}>
+                {openChannel === channelKey ? <ChevronDown className="text-[#fafafa]" /> : <ChevronRight className="text-[#fafafa]" />}
+                <div className="relative mr-2">
+                  <img
+                    src={`https://www.gravatar.com/avatar/${channelKey}?d=identicon&s=80`}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <img
+                    src={getPlatformFromChatId(channelKey) === "discord" ? discord : telegram}
+                    className={`
+                      absolute -bottom-2 -right-1
+                      ${getPlatformFromChatId(channelKey) === "discord" ? "bg-[#7b5cfa]" : "bg-[#3474ff]"}
+                      rounded-[4px] w-5 h-5 p-0.5 border-2 border-[#111111]
+                    `}
+                    alt={getPlatformFromChatId(channelKey)}
+                  />
+                </div>
+                <span className="text-sm text-[#fafafa] leading-none">
+                  {getChannelName(channelKey)} ({groupedNotifications[channelKey].length})
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <div className="bg-[#fafafa10] p-2 rounded-[6px]">
+                  <Check className="w-3 h-3 fill-[#fafafa60]" />
+                </div>
+                <div className="bg-[#fafafa10] p-2 rounded-[6px]">
+                  <PinOff className="w-3 h-3 fill-[#fafafa60]" />
+                </div>
+                <div className="bg-[#fafafa10] p-2 rounded-[6px] relative" onClick={() => {setOpenMenuId(openMenuId === channelKey ? null : channelKey);}}>
+                  <MoreHorizontal className="w-3 h-3 fill-[#fafafa60] z-50" />
+                  {openMenuId === channelKey && (
+                    <div className="absolute right-0 top-[30px] mt-2 bg-[#111111] border border-[#ffffff12] rounded-[10px] shadow-lg z-50 flex flex-col p-2 min-w-max">
+                      <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                        <img src={smartIcon} className="w-6 h-6"/>
+                        Add to Smart Channels
+                      </button>
+                      <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                        <Heart className="w-6 h-6" stroke="currentColor" fill="currentColor"/>
+                        Save to Favorites
+                      </button>
+                      <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                        <Pin className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
+                        Pin Message
+                      </button>
+                      <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                        <Plus className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
+                        Add Tags
+                      </button>
+                      <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#f36363] hover:text-[#f36363] whitespace-nowrap">
+                        <VolumeX className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
+                        Mute Channel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            {openChannel === channelKey && (
+              <div className="px-0 py-2 rounded-[16px]">
+                {renderNotifications(groupedNotifications[channelKey], channelKey)}
+              </div>
+            )}
+          </div>
+        ))
+      )}
     </aside>
   );
 };

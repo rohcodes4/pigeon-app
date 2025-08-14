@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Button } from "./ui/button";
 import {
   Check,
@@ -20,6 +20,7 @@ import aiAll from "@/assets/images/aiAll.png";
 import discord from "@/assets/images/discord.png";
 import telegram from "@/assets/images/telegram.png";
 import { FaBars, FaDiscord, FaTelegram, FaTelegramPlane } from "react-icons/fa";
+import ChatAvatar from "./ChatAvatar";
 // Helper to generate a random gravatar
 const gravatarUrl = (seed: string) => {
   try {
@@ -192,8 +193,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onChatSelect,
   selectedChat,
 }) => {
+  // Use fallback dummy data if no chats are provided for testing
+  const displayChats = chats.length > 0 ? chats : sortedChats;
   const [isFocus, setIsFocus] = useState(false);
-  const [filters, setFilters] = useState(INITIAL_BOTTOM_ITEMS);
+  const [filters, setFilters] = useState([]);
   const SCROLL_AMOUNT = 100; // px
   const topRowRef = useRef<HTMLDivElement>(null);
   const bottomRowRef = useRef<HTMLDivElement>(null);
@@ -210,17 +213,248 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [isChannelsOpen, setIsChannelsOpen] = useState(true);
   const [searchMore, setSearchMore] = useState(false);
   const [filterFull, setFilterFull] = useState(false);
+  const [streamsExpanded, setStreamsExpanded] = useState(false);
+  const [channelsExpanded, setChannelsExpanded] = useState(false);
+  const [streamsLimit, setStreamsLimit] = useState(5);
+  const [channelsLimit, setChannelsLimit] = useState(10);
+  const [smartFilters, setSmartFilters] = useState<any[]>([]);
+  const [editingFilter, setEditingFilter] = useState<any>(null);
+  const [showEditPopup, setShowEditPopup] = useState(false);
+  const [isLoadingFilters, setIsLoadingFilters] = useState(false);
+  const [filterError, setFilterError] = useState<string | null>(null);
   const hideScrollbar = "scrollbar-hide";
+
+  useEffect(() => {
+    const loadFilters = async () => {
+      try {
+        setIsLoadingFilters(true);
+        setFilterError(null);
+        const filters = await getSmartFilters();
+        setSmartFilters(filters);
+        console.log("Loaded smart filters:", filters);
+      } catch (error) {
+        console.error("Error loading filters:", error);
+        setFilterError(
+          error instanceof Error ? error.message : "Failed to load filters"
+        );
+      } finally {
+        setIsLoadingFilters(false);
+      }
+    };
+
+    loadFilters();
+  }, []);
+
+  // Update your handleSave function to actually create the filter:
+  const handleSave = async () => {
+    const filterNameInput = document.querySelector(
+      'input[placeholder="Filter Name"]'
+    ) as HTMLInputElement;
+    const keywordInput = document.querySelector(
+      'input[placeholder="Keyword"]'
+    ) as HTMLInputElement;
+
+    if (!filterNameInput?.value.trim()) {
+      alert("Please enter a filter name");
+      return;
+    }
+
+    console.log("Creating filter with:", {
+      name: filterNameInput.value,
+      selectedChannels,
+      keyword: keywordInput?.value,
+    });
+
+    try {
+      const newFilter = await createSmartFilter({
+        name: filterNameInput.value,
+        channels: selectedChannels.map((ch) => ch.id || ch._id), // Support both id and _id properties
+        keywords: keywordInput?.value ? [keywordInput.value] : [],
+      });
+
+      // Add the new filter to the list
+      setSmartFilters((prev) => [...prev, newFilter]);
+
+      // Close popup and reset form
+      setShowFilterPopup(false);
+      setSelectedChannels([]);
+      setChannelSearch("");
+
+      console.log("Filter created successfully:", newFilter);
+      alert("Filter created successfully!");
+    } catch (error) {
+      console.error("Error creating filter:", error);
+      alert("Failed to create filter. Please try again.");
+    }
+  };
+
+  const updateSmartFilter = async (
+    filterId: string,
+    filterData: {
+      name?: string;
+      channels?: number[];
+      keywords?: string[];
+    }
+  ) => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const token = localStorage.getItem("access_token");
+
+    const formData = new FormData();
+    if (filterData.name) formData.append("name", filterData.name);
+    if (filterData.channels)
+      formData.append("channels", filterData.channels.join(","));
+    if (filterData.keywords)
+      formData.append("keywords", filterData.keywords.join("\n"));
+
+    const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update filter: ${response.status}`);
+    }
+
+    return response.json();
+  };
+
+  const handleEdit = (filter: any) => {
+    setEditingFilter(filter);
+    setShowEditPopup(true);
+  };
+
+  const handleDelete = async (filterId: string) => {
+    if (!confirm("Are you sure you want to delete this filter?")) {
+      return;
+    }
+
+    try {
+      await deleteSmartFilter(filterId);
+      setSmartFilters((prev) => prev.filter((f) => f.id !== filterId));
+      console.log("Filter deleted successfully");
+    } catch (error) {
+      console.error("Error deleting filter:", error);
+      alert("Failed to delete filter. Please try again.");
+    }
+  };
+
+  const handleEditSave = async () => {
+    const filterNameInput = document.querySelector(
+      'input[placeholder="Edit Filter Name"]'
+    ) as HTMLInputElement;
+    const keywordInput = document.querySelector(
+      'input[placeholder="Edit Keywords"]'
+    ) as HTMLInputElement;
+
+    if (!filterNameInput?.value.trim()) {
+      alert("Please enter a filter name");
+      return;
+    }
+
+    try {
+      const updatedFilter = await updateSmartFilter(editingFilter.id, {
+        name: filterNameInput.value,
+        channels: selectedChannels.map((ch) => ch.id),
+        keywords: keywordInput?.value
+          ? keywordInput.value.split(",").map((k) => k.trim())
+          : editingFilter.keywords,
+      });
+
+      // Update the filter in the list
+      setSmartFilters((prev) =>
+        prev.map((f) => (f.id === editingFilter.id ? updatedFilter : f))
+      );
+
+      // Close popup and reset form
+      setShowEditPopup(false);
+      setEditingFilter(null);
+      setSelectedChannels([]);
+
+      console.log("Filter updated successfully:", updatedFilter);
+    } catch (error) {
+      console.error("Error updating filter:", error);
+      alert("Failed to update filter. Please try again.");
+    }
+  };
+
+  const handleEditCancel = () => {
+    setShowEditPopup(false);
+    setEditingFilter(null);
+    setSelectedChannels([]);
+  };
+
+  const deleteSmartFilter = async (filterId: string) => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const token = localStorage.getItem("access_token");
+
+    const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete filter: ${response.status}`);
+    }
+
+    return response.json();
+  };
+
+  const createSmartFilter = async (filterData: {
+    name: string;
+    channels: number[];
+    keywords: string[];
+  }) => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const token = localStorage.getItem("access_token");
+
+    const formData = new FormData();
+    formData.append("name", filterData.name);
+    formData.append("channels", filterData.channels.join(","));
+    formData.append("keywords", filterData.keywords.join("\n"));
+
+    const response = await fetch(`${BACKEND_URL}/filters`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to create filter: ${response.status}`);
+    }
+
+    return response.json();
+  };
+
+  // API function to get all smart filters
+  const getSmartFilters = async () => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const token = localStorage.getItem("access_token");
+
+    const response = await fetch(`${BACKEND_URL}/filters`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch filters: ${response.status}`);
+    }
+
+    return response.json();
+  };
 
   const handleCancel = () => {
     setShowFilterPopup(false);
     setChannelSearch("");
     setSelectedChannels([]);
-  };
-
-  const handleSave = () => {
-    // Do something with selectedChannels
-    setShowFilterPopup(false);
   };
 
   useEffect(() => {
@@ -229,19 +463,25 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       return;
     }
     // Add null checks to prevent errors
-    if (!chats || !Array.isArray(chats)) {
+    if (!displayChats || !Array.isArray(displayChats)) {
       setSearchResults([]);
       return;
     }
     setSearchResults(
-      chats.filter(
+      displayChats.filter(
         (ch) =>
           ch &&
           ch.name &&
           ch.name.toLowerCase().includes(channelSearch.toLowerCase())
       )
     );
-  }, [channelSearch, chats]); // Add chats to dependency array
+  }, [channelSearch, displayChats]); // Add displayChats to dependency array
+
+  // Reset limits when search term or filters change
+  useEffect(() => {
+    setStreamsLimit(5);
+    setChannelsLimit(10);
+  }, [searchTerm, filters]);
 
   const scroll = (
     ref: React.RefObject<HTMLDivElement>,
@@ -263,33 +503,70 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     setTimeout(bottomArrows.checkScroll, 300);
   };
 
+  const addFilter = (item: string) => {
+    if (!filters.includes(item)) {
+      setFilters((prev) => [...prev, item]);
+      // Reset limits when filters change
+      setStreamsLimit(5);
+      setChannelsLimit(10);
+      setTimeout(bottomArrows.checkScroll, 300);
+    }
+  };
+
   // Sort all chats by time descending (latest first)
-  const chatsSortedByTime = [...(chats || [])].sort((a, b) => {
-    // Add null checks for timestamp
-    const aTime = a?.timestamp ? new Date(a.timestamp).getTime() : 0;
-    const bTime = b?.timestamp ? new Date(b.timestamp).getTime() : 0;
-    return bTime - aTime;
+  const chatsSortedByTime = [...(displayChats || [])].sort((a, b) => {
+    // For real chats (from API), prioritize chats with messages first
+    if (chats.length > 0) {
+      const aHasMessages =
+        a?.unread > 0 || (a?.lastMessage && a.lastMessage.trim() !== "");
+      const bHasMessages =
+        b?.unread > 0 || (b?.lastMessage && b.lastMessage.trim() !== "");
+
+      // If one has messages and the other doesn't, prioritize the one with messages
+      if (aHasMessages && !bHasMessages) return -1;
+      if (!aHasMessages && bHasMessages) return 1;
+
+      // If both have same message status, sort by timestamp
+      const aTime = a?.timestamp ? new Date(a.timestamp).getTime() : 0;
+      const bTime = b?.timestamp ? new Date(b.timestamp).getTime() : 0;
+      return bTime - aTime;
+    } else {
+      // For dummy data, use original sorting
+      const aTime = a?.timestamp ? new Date(a.timestamp).getTime() : 0;
+      const bTime = b?.timestamp ? new Date(b.timestamp).getTime() : 0;
+      return bTime - aTime;
+    }
   });
-  const sortedChats = [
-    ...chatsSortedByTime.filter((chat) => chat?.isPinned),
-    ...chatsSortedByTime.filter((chat) => !chat?.isPinned),
+
+  const sortedDisplayChats = [
+    ...chatsSortedByTime.filter((chat) => chat?.isPinned || chat?.pinned),
+    ...chatsSortedByTime.filter((chat) => !chat?.isPinned && !chat?.pinned),
   ];
 
   const getFilteredChats = () => {
-    let filtered = sortedChats;
+    let filtered = sortedDisplayChats;
+
+    // Apply search term filter first
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(
+        (chat) =>
+          chat.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          chat.lastMessage?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
 
     if (activeTopItem === "All") {
       // Changed from "Inbox" to "All" to match TOP_ITEMS
-      filtered = sortedChats;
+      filtered = filtered;
     }
     if (activeTopItem === "Telegram") {
-      filtered = sortedChats.filter((chat) => chat.platform === "Telegram");
+      filtered = filtered.filter((chat) => chat.platform === "Telegram");
     }
     if (activeTopItem === "Discord") {
-      filtered = sortedChats.filter((chat) => chat.platform === "Discord");
+      filtered = filtered.filter((chat) => chat.platform === "Discord");
     }
     if (activeTopItem === "Unread") {
-      filtered = sortedChats.filter((chat) => !chat.read);
+      filtered = filtered.filter((chat) => !chat.read);
     }
 
     if (filters.length > 0) {
@@ -301,12 +578,104 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     return filtered;
   };
 
-  const filteredStreams = getFilteredChats().slice(0, 3); // Assuming this returns a subset of `chats`
-  const channels = chats || []; // Use the same `chats` array for channels
+  // Separate filtering for filtered streams vs channels
+  const getFilteredStreams = () => {
+    let filtered = sortedDisplayChats;
+
+    // Apply search term filter
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(
+        (chat) =>
+          chat.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          chat.lastMessage?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply top item filters
+    if (activeTopItem === "Telegram") {
+      filtered = filtered.filter((chat) => chat.platform === "Telegram");
+    }
+    if (activeTopItem === "Discord") {
+      filtered = filtered.filter((chat) => chat.platform === "Discord");
+    }
+    if (activeTopItem === "Unread") {
+      filtered = filtered.filter((chat) => !chat.read);
+    }
+
+    // Apply tag filters
+    if (filters.length > 0) {
+      filtered = filtered.filter((chat) =>
+        filters.every((tag) => chat.tags?.includes(tag))
+      );
+    }
+
+    return filtered;
+  };
+
+  const getFilteredChannels = () => {
+    let filtered = sortedDisplayChats;
+
+    // Apply search term filter
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(
+        (chat) =>
+          chat.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          chat.lastMessage?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply top item filters
+    if (activeTopItem === "Telegram") {
+      filtered = filtered.filter((chat) => chat.platform === "Telegram");
+    }
+    if (activeTopItem === "Discord") {
+      filtered = filtered.filter((chat) => chat.platform === "Discord");
+    }
+    if (activeTopItem === "Unread") {
+      filtered = filtered.filter((chat) => !chat.read);
+    }
+
+    // Apply tag filters
+    if (filters.length > 0) {
+      filtered = filtered.filter((chat) =>
+        filters.every((tag) => chat.tags?.includes(tag))
+      );
+    }
+
+    return filtered;
+  };
+
+  // Memoize filtered results to avoid unnecessary recalculations
+  const allFilteredChats = useMemo(
+    () => getFilteredChats(),
+    [sortedDisplayChats, searchTerm, activeTopItem, filters]
+  );
+
+  const filteredStreams = useMemo(
+    () => getFilteredStreams(),
+    [sortedDisplayChats, searchTerm, activeTopItem, filters]
+  );
+
+  const channels = useMemo(
+    () => getFilteredChannels(),
+    [sortedDisplayChats, searchTerm, activeTopItem, filters]
+  );
+
+  // Show more streams when searching or when filters are applied
+  const displayStreams =
+    searchTerm.trim() || filters.length > 0
+      ? filteredStreams
+      : filteredStreams.slice(0, streamsLimit); // Use dynamic limit
+
+  // Show more channels when searching or when filters are applied
+  const displayChannels =
+    searchTerm.trim() || filters.length > 0
+      ? channels
+      : channels.slice(0, channelsLimit); // Use dynamic limit
 
   if (filterFull) {
     return (
-      <aside className="h-[calc(100vh-73px)] w-[350px] p-3 pl-0 flex flex-col border-r border-[#23272f] bg-[#111111]">
+      <aside className="h-[calc(100vh-73px)] w-[350px] p-3 pl-0 flex flex-col flex-shrink-0 border-r border-[#23272f] bg-[#111111]">
         {/* Header */}
         <div className="flex justify-between items-center mb-2 pb-3 border-b">
           <div
@@ -334,35 +703,82 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             ))}
           </div>
         </div>
-
         {/* Filtered Streams */}
         <div className="px-2 mb-4">
           <span className="text-[#ffffff80] text-sm">Filtered Streams</span>
           <div className="mt-2">
-            {[
-              // This is dummy data, should be fetched if needed
-              "Shitcoin Alpha",
-              "NFT Updates",
-              "General Banter",
-              "Custom Filter",
-              "Custom Filter",
-            ].map((stream, index) => (
-              <div
-                key={index}
-                className="flex justify-between items-center p-2 hover:bg-[#2d2d2d] rounded cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#3474ff] text-white text-xs">
-                    {stream
-                      .split(" ")
-                      .map((word) => word[0])
-                      .join("")}
-                  </span>
-                  <span className="text-white">{stream}</span>
-                </div>
-                <MoreHorizontal className="text-white w-4 h-4" />
+            {isLoadingFilters ? (
+              <div className="text-[#ffffff80] text-sm p-2">
+                Loading filters...
               </div>
-            ))}
+            ) : filterError ? (
+              <div className="text-red-400 text-sm p-2">
+                Error: {filterError}
+              </div>
+            ) : smartFilters.length === 0 ? (
+              <div className="text-[#ffffff80] text-sm p-2">
+                No filtered streams yet
+              </div>
+            ) : (
+              smartFilters.map((filter) => (
+                <div
+                  key={filter.id}
+                  className="flex justify-between items-center p-2 hover:bg-[#2d2d2d] rounded cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#3474ff] text-white text-xs">
+                      {filter.name
+                        .split(" ")
+                        .map((word) => word[0])
+                        .join("")
+                        .slice(0, 2)}
+                    </span>
+                    <span className="text-white">{filter.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {/* Edit button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(filter);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[#3474ff] rounded text-white"
+                      title="Edit filter"
+                    >
+                      <svg
+                        className="w-3 h-3"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                      </svg>
+                    </button>
+                    {/* Delete button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(filter.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-600 rounded text-white"
+                      title="Delete filter"
+                    >
+                      <svg
+                        className="w-3 h-3"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </button>
+                    {/* <MoreHorizontal className="text-white w-4 h-4" /> */}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -424,6 +840,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             </button>
           )}
         </div>
+        {/* Advanced Filters */}
         <div className="mt-4 flex-1">
           <div className="relative">
             <button
@@ -468,7 +885,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 </div>
               </>
             )}
-          </div>{" "}
+          </div>
         </div>
       </div>
       {/* Top Row  */}
@@ -595,6 +1012,25 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         `}
       </style>
 
+      {/* Available Filter Tags */}
+      <div className="pl-3 mt-4">
+        <div className="flex flex-wrap gap-2">
+          {INITIAL_BOTTOM_ITEMS.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => addFilter(tag)}
+              className={`px-3 py-1 text-xs rounded-full cursor-pointer transition ${
+                filters.includes(tag)
+                  ? "bg-[#3474ff] text-white"
+                  : "bg-[#212121] text-[#ffffff80] hover:bg-[#2d2d2d] hover:text-white"
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Chat List */}
       <div className="pl-3 h-min flex-1 overflow-y-scroll overflow-x-visible mt-2 no-scrollbar">
         <button
@@ -627,8 +1063,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   All Channels
                 </div>
                 <div className="text-[#fafafa60] text-xs">
-                  {chats.length > 0 && chats[0]?.timestamp
-                    ? formatChatTime(chats[0].timestamp)
+                  {displayChats.length > 0 && displayChats[0]?.timestamp
+                    ? formatChatTime(displayChats[0].timestamp)
                     : "now"}
                 </div>
               </span>
@@ -638,10 +1074,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-[#fafafa] font-[200] truncate max-w-[170px]">
-                {chats.length > 0 && chats[0]?.lastMessage
-                  ? chats[0].lastMessage.length > 50
-                    ? chats[0].lastMessage.slice(0, 50) + "..."
-                    : chats[0].lastMessage
+                {displayChats.length > 0 && displayChats[0]?.lastMessage
+                  ? displayChats[0].lastMessage.length > 50
+                    ? displayChats[0].lastMessage.slice(0, 50) + "..."
+                    : displayChats[0].lastMessage
                   : "No messages yet"}
               </span>
             </div>
@@ -865,13 +1301,50 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     )}
                     {/* Filter row */}
                     <div className="grid grid-cols-2 gap-2 mb-4">
-                      <select className="bg-[#fafafa10] rounded-[8px] px-3 py-2 text-sm text-white w-full">
-                        <option value="contains">Contains</option>
-                        <option value="not_contains">Does Not Contain</option>
-                        <option value="equals">Equals</option>
-                        <option value="not_equals">Does Not Equal</option>
-                        <option value="starts_with">Starts With</option>
-                        <option value="ends_with">Ends With</option>
+                      <select
+                        className="bg-[#fafafa10] rounded-[8px] px-3 py-2 text-sm text-white w-full appearance-none border-none outline-none"
+                        style={{
+                          colorScheme: "dark",
+                          backgroundColor: "rgba(250, 250, 250, 0.06)",
+                          color: "white",
+                        }}
+                      >
+                        <option
+                          value="contains"
+                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
+                        >
+                          Contains
+                        </option>
+                        <option
+                          value="not_contains"
+                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
+                        >
+                          Does Not Contain
+                        </option>
+                        <option
+                          value="equals"
+                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
+                        >
+                          Equals
+                        </option>
+                        <option
+                          value="not_equals"
+                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
+                        >
+                          Does Not Equal
+                        </option>
+                        <option
+                          value="starts_with"
+                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
+                        >
+                          Starts With
+                        </option>
+                        <option
+                          value="ends_with"
+                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
+                        >
+                          Ends With
+                        </option>
                       </select>
                       <div className="flex bg-[#fafafa10] rounded-[8px] overflow-hidden w-full">
                         <input
@@ -901,207 +1374,286 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   </div>
                 </>
               )}
+              {showEditPopup && editingFilter && (
+                <>
+                  {/* Backdrop for outside click */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={handleEditCancel}
+                    style={{ background: "transparent" }}
+                  />
+                  {/* Edit Popup */}
+                  <div className="absolute left-[20%] top-[20%] mt-2 z-50 w-[400px] bg-[#161717] border border-[#fafafa10] rounded-xl shadow-lg p-5">
+                    <div className="text-white text-base font-[200] mb-1">
+                      Edit Filter: {editingFilter.name}
+                    </div>
+                    <div className="text-xs text-[#ffffff80] mb-3">
+                      Update your filter settings below.
+                    </div>
+                    <input
+                      className="w-full bg-[#fafafa10] rounded-[8px] px-3 py-2 mb-3 text-sm text-white outline-none"
+                      placeholder="Edit Filter Name"
+                      defaultValue={editingFilter.name}
+                    />
+                    <input
+                      className="w-full bg-[#fafafa10] rounded-[8px] px-3 py-2 mb-3 text-sm text-white outline-none"
+                      placeholder="Edit Keywords"
+                      defaultValue={editingFilter.keywords?.join(", ") || ""}
+                    />
+
+                    {/* Actions */}
+                    <div className="flex justify-between">
+                      <button
+                        className="text-[#ffffff80] px-4 py-2 rounded hover:bg-[#23262F]"
+                        onClick={handleEditCancel}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className="bg-[#2563eb] text-white px-8 py-2 rounded hover:bg-[#1d4ed8]"
+                        onClick={handleEditSave}
+                      >
+                        Update
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
           {isFilteredStreamsOpen && (
             <div className="mt-2">
-              {filteredStreams.map((chat) => (
-                <button
-                  key={chat.id}
-                  className={
-                    `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
-                    (selectedId === chat.id
-                      ? "bg-[#212121] selected-chat "
-                      : "hover:bg-[#212121] focus:bg-[#212121] ") +
-                    (selectedId !== chat.id && !chat.read ? "unread-chat " : "")
-                  }
-                  onClick={() => {
-                    setSelectedId(chat.id);
-                    if (onChatSelect) {
-                      onChatSelect(chat);
-                    }
-                  }}
-                >
-                  {/* Avatar */}
-                  <div className="relative">
-                    <img
-                      src={chat.avatar}
-                      alt={chat.name}
-                      className="w-10 h-10 rounded-full object-cover"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    {/* <img
-              src={chat.platform === "Discord" ? discord : telegram}
-              className={`
-                absolute -bottom-2 -right-1
-                ${chat.platform === "Discord" ? "bg-[#7b5cfa]" : "bg-[#3474ff]"}
-                rounded-[4px] w-5 h-5 p-1 border-2 border-[#111111]
-              `}
-              alt={chat.platform}
-            /> */}
-                  </div>
-                  {/* Chat Info */}
-                  <div className="flex-1 text-left">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[#ffffff48] font-200 flex items-center gap-1">
-                        {/* {chat.platform === "Discord" ? <FaDiscord className="text-[#7b5cfa]"/> : <FaTelegramPlane className="text-[#3474ff]"/>} */}
-                        {chat.name}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-[#ffffff32] font-100">
-                        {chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
-                          ? chat.lastMessage.slice(0, 23) + "..."
-                          : chat.lastMessage}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="self-end text-xs text-gray-400">
-                      {formatChatTime(chat.time)}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      {chat.pinned && (
-                        <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
-                      )}
-                      {!chat.read && (
-                        <div
-                          className={`rounded-full w-5 h-5 text-xs flex items-center justify-center text-center bg-[#fafafa60] text-black`}
-                        >
-                          7
+              {isLoadingFilters ? (
+                <div className="text-[#ffffff80] text-sm px-4 py-2">
+                  Loading filters...
+                </div>
+              ) : filterError ? (
+                <div className="text-red-400 text-sm px-4 py-2">
+                  Error: {filterError}
+                </div>
+              ) : smartFilters.length === 0 ? (
+                <div className="text-[#ffffff80] text-sm px-4 py-2">
+                  No filtered streams yet
+                </div>
+              ) : (
+                smartFilters.slice(0, 3).map((filter) => (
+                  <div key={filter.id} className="relative group">
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] hover:bg-[#212121] focus:bg-[#212121]"
+                      onClick={() => {
+                        setSelectedId(filter.id);
+                        if (onChatSelect) {
+                          onChatSelect(filter);
+                        }
+                      }}
+                    >
+                      <div className="w-10 h-10 flex items-center justify-center rounded-full bg-[#3474ff] text-white text-xs">
+                        {filter.name
+                          .split(" ")
+                          .map((word: string) => word[0])
+                          .join("")
+                          .slice(0, 2)}
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#ffffff48] font-200">
+                            {filter.name}
+                          </span>
                         </div>
-                      )}
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-[#ffffff32] font-100">
+                            {filter.keywords?.slice(0, 2).join(", ")}
+                            {filter.keywords?.length > 2 && "..."}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="self-end text-xs text-gray-400">
+                          now
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* Edit/Delete buttons - show on hover */}
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(filter);
+                        }}
+                        className="p-1 bg-[#3474ff] rounded hover:bg-[#2563eb] text-white"
+                        title="Edit filter"
+                      >
+                        <svg
+                          className="w-3 h-3"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(filter.id);
+                        }}
+                        className="p-1 bg-red-600 rounded hover:bg-red-700 text-white"
+                        title="Delete filter"
+                      >
+                        <svg
+                          className="w-3 h-3"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
                     </div>
                   </div>
-                </button>
-              ))}
+                ))
+              )}
             </div>
           )}
         </div>
 
-        {/* Channels Section */}
-        <div className="pl-3 mt-4">
-          <div
-            className="flex justify-between items-center cursor-pointer"
-            onClick={() => setIsChannelsOpen(!isChannelsOpen)}
-          >
-            <span className="text-white font-medium">Channels</span>
-            {isChannelsOpen ? (
-              <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5 " />
-            ) : (
-              <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
-            )}
-          </div>
-          {isChannelsOpen && (
-            <div className="mt-2">
-              {chats.map((chat) => (
-                <button
-                  key={chat.id}
-                  className={
-                    `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
-                    (selectedId === chat.id
-                      ? "bg-[#212121] selected-chat "
-                      : "hover:bg-[#212121] focus:bg-[#212121] ") +
-                    (selectedId !== chat.id && !chat.read ? "unread-chat " : "")
-                  }
-                  onClick={() => {
-                    setSelectedId(chat.id);
-                    if (onChatSelect) {
-                      onChatSelect(chat);
-                    }
-                  }}
-                >
-                  {/* Avatar */}
-                  <div className="relative">
-                    <img
-                      src={gravatarUrl(chat.name || "User")}
-                      alt={chat.name || "User"}
-                      className="w-10 h-10 rounded-full object-cover"
-                      loading="lazy"
-                      decoding="async"
-                      onError={(e) => {
-                        console.log(`Gravatar failed to load for ${chat.name}`);
-                      }}
-                      onLoad={(e) => {
-                        // Only try to load real photo after gravatar loads and after a delay
-                        if (chat.photo_url) {
-                          setTimeout(() => {
-                            const img = new Image();
-                            img.onload = () => {
-                              const target = e.target as HTMLImageElement;
-                              if (target) {
-                                target.src = chat.photo_url;
-                              }
-                            };
-                            img.onerror = () => {
-                              // Keep gravatar if photo fails
-                              console.log(
-                                `Photo failed to load for ${chat.name}:`,
-                                chat.photo_url
-                              );
-                            };
-                            img.src = chat.photo_url;
-                          }, 100); // 100ms delay to prevent blocking
+        {/* Channels Section - Only show when no filters/search */}
+        {!searchTerm.trim() && filters.length === 0 && (
+          <div className="pl-3 mt-4">
+            <div
+              className="flex justify-between items-center cursor-pointer"
+              onClick={() => setIsChannelsOpen(!isChannelsOpen)}
+            >
+              <span className="text-white font-medium">Channels</span>
+              {isChannelsOpen ? (
+                <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5 " />
+              ) : (
+                <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
+              )}
+            </div>
+            {isChannelsOpen && (
+              <div className="mt-2">
+                {displayChannels.length === 0 && searchTerm.trim() ? (
+                  <div className="text-[#ffffff48] text-sm px-4 py-3">
+                    No channels found for "{searchTerm}"
+                  </div>
+                ) : (
+                  displayChannels.map((chat) => (
+                    <button
+                      key={chat.id}
+                      className={
+                        `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
+                        (selectedId === chat.id
+                          ? "bg-[#212121] selected-chat "
+                          : "hover:bg-[#212121] focus:bg-[#212121] ") +
+                        (selectedId !== chat.id && !chat.read
+                          ? "unread-chat "
+                          : "")
+                      }
+                      onClick={() => {
+                        setSelectedId(chat.id);
+                        if (onChatSelect) {
+                          onChatSelect(chat);
                         }
                       }}
-                    />
-                    <img
-                      src={chat.platform === "Discord" ? discord : telegram}
-                      className={`
-                absolute -bottom-2 -right-1
-                ${chat.platform === "Discord" ? "bg-[#7b5cfa]" : "bg-[#3474ff]"}
-                rounded-[4px] w-5 h-5 p-1 border-2 border-[#111111]
-              `}
-                      alt={chat.platform}
-                    />
-                  </div>
-                  {/* Chat Info */}
-                  <div className="flex-1 text-left">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[#ffffff48] font-200 flex items-center gap-1">
-                        {chat.platform === "Discord" ? (
-                          <FaDiscord className="text-[#7b5cfa]" />
-                        ) : (
-                          <FaTelegramPlane className="text-[#3474ff]" />
-                        )}
-                        {chat.name}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-[#ffffff32] font-100">
-                        {chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
-                          ? chat.lastMessage.slice(0, 23) + "..."
-                          : chat.lastMessage}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="self-end text-xs text-gray-400">
-                      {formatChatTime(chat.timestamp)}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      {chat.pinned && (
-                        <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
-                      )}
-                      {!chat.read && chat.unread && chat.unread > 0 && (
-                        <div
-                          className={`rounded-full w-5 h-5 text-xs flex items-center justify-center text-center ${
-                            chat.platform === "Telegram"
-                              ? "bg-[#3474ff]"
-                              : "bg-[#7b5cfa]"
-                          }`}
-                        >
-                          {chat.unread}
+                    >
+                      {/* Avatar */}
+                      <div className="relative">
+                        <ChatAvatar name={chat.name} avatar={chat.photo_url} />
+                        <img
+                          src={chat.platform === "Discord" ? discord : telegram}
+                          className={`
+                            absolute -bottom-2 -right-1
+                            ${
+                              chat.platform === "Discord"
+                                ? "bg-[#7b5cfa]"
+                                : "bg-[#3474ff]"
+                            }
+                            rounded-[4px] w-5 h-5 p-1 border-2 border-[#111111]
+                          `}
+                          alt={chat.platform}
+                        />
+                      </div>
+                      {/* Chat Info */}
+                      <div className="flex-1 text-left">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#ffffff48] font-200 flex items-center gap-1">
+                            {chat.platform === "Discord" ? (
+                              <FaDiscord className="text-[#7b5cfa]" />
+                            ) : (
+                              <FaTelegramPlane className="text-[#3474ff]" />
+                            )}
+                            {chat.name}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-[#ffffff32] font-100">
+                            {chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
+                              ? chat.lastMessage.slice(0, 23) + "..."
+                              : chat.lastMessage}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="self-end text-xs text-gray-400">
+                          {formatChatTime(chat.timestamp)}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {chat.pinned && (
+                            <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
+                          )}
+                          {!chat.read && chat.unread && chat.unread > 0 && (
+                            <div
+                              className={`rounded-full w-5 h-5 text-xs flex items-center justify-center text-center ${
+                                chat.platform === "Telegram"
+                                  ? "bg-[#3474ff]"
+                                  : "bg-[#7b5cfa]"
+                              }`}
+                            >
+                              {chat.unread}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+
+                {/* Show More button for channels */}
+                {!searchTerm.trim() &&
+                  filters.length === 0 &&
+                  channelsLimit < channels.length && (
+                    <button
+                      className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
+                      onClick={() =>
+                        setChannelsLimit((prev) =>
+                          Math.min(prev + 20, channels.length)
+                        )
+                      }
+                    >
+                      Show {Math.min(20, channels.length - channelsLimit)} more
+                      channels...
+                    </button>
+                  )}
+
+                {/* Show Less button when channels are expanded */}
+                {!searchTerm.trim() &&
+                  filters.length === 0 &&
+                  channelsLimit > 10 && (
+                    <button
+                      className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
+                      onClick={() => setChannelsLimit(10)}
+                    >
+                      Show Less
+                    </button>
+                  )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </aside>
   );

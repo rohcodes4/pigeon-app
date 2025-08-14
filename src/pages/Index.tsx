@@ -42,7 +42,6 @@ const Index = () => {
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [activeTab, setActiveTab] = useState("ai");
   const [isConnected, setIsConnected] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
   const [coin, setCoin] = useState(coinOptions[0]);
   const [filters, setFilters] = useState({});
   const [selectedId, setSelectedId] = useState(null);
@@ -56,6 +55,11 @@ const Index = () => {
   const [chats, setChats] = useState([]); // State to store fetched chats
   const [chatsLoading, setChatsLoading] = useState(true); // Loading state for chats
   const [selectedChat, setSelectedChat] = useState("all-channels"); // State for selected chat
+
+  // ADD these state hooks near the top
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSource, setSelectedSource] = useState("All sources");
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
 
   const handleOpenSmartSummary = () => setOpenPanel("smartSummary");
   const handleOpenNotificationPanel = () => setOpenPanel("notification");
@@ -265,7 +269,7 @@ const Index = () => {
 
   return (
     <Layout>
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
         <AppHeader
           isNotificationPanel={openPanel === "notification"}
           setIsNotificationPanel={(open) =>
@@ -280,14 +284,22 @@ const Index = () => {
           setIsSearchOpen={(open) => {
             setOpenPanel(open ? "search" : null);
           }}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          selectedOptions={selectedOptions}
+          setSelectedOptions={setSelectedOptions}
         />
-        <main className="h-[calc(100vh-72px)] flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-hidden">
+        <main className="h-[calc(100vh-72px)] flex pb-0 pr-3 space-x-0 flex max-w-screen justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-hidden">
           <ChatPanel
             chats={chats}
             onChatSelect={handleChatSelect}
             selectedChat={selectedChat}
           />
-          <div className="w-full h-[calc(100vh-72px)] overflow-hidden">
+          <div
+            className={`flex-shrink h-[calc(100vh-72px)] min-w-0 flex flex-col ${
+              openPanel !== null ? "max-w-[calc(100vw_-_914px)]" : ""
+            }`}
+          >
             <UnifiedHeader
               title="Unified Inbox"
               smartText="Summarize"
@@ -300,10 +312,19 @@ const Index = () => {
             />
             <UnifiedChatPanel selectedChat={selectedChat} />
           </div>
-          {openPanel === "smartSummary" && <SmartSummary />}
+          {openPanel === "smartSummary" && (
+            <SmartSummary selectedChat={selectedChat} />
+          )}
           {openPanel === "notification" && <NotificationsPanel />}
           {openPanel === "pinned" && <PinnedPanel />}
-          {openPanel === "search" && <SearchPanel />}
+          {openPanel === "search" && (
+            <SearchPanel
+              searchQuery={searchTerm}
+              selectedSource={selectedSource}
+              setSelectedSource={setSelectedSource}
+              selectedOptions={selectedOptions}
+            />
+          )}
         </main>
       </div>
     </Layout>

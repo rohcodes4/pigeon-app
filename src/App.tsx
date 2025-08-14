@@ -13,6 +13,9 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import SmartTasks from "./pages/SmartTasks";
 import Bookmarks from "./pages/Bookmarks";
 import Contacts from "./pages/Contacts";
+import Help from "./pages/Help";
+import Settings from "./pages/Settings";
+import { DashboardSettings } from "./components/DashboardSettings";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +32,12 @@ const App = () => (
               <Route path="/smart-tasks" element={<SmartTasks />} />
               <Route path="/bookmarks" element={<Bookmarks />} />
               <Route path="/contacts" element={<Contacts />} />
+              <Route path="/help" element={<Help />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route
+                path="/dashboard-settings"
+                element={<DashboardSettings />}
+              />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
