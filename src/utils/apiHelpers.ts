@@ -111,6 +111,12 @@ export const sendReaction = async (messageId: string, reaction: string) => {
   return response.json();
 };
 
+// Fetch a single message (with updated reactions after a send)
+export const getMessageById = async (messageId: string) => {
+  const response = await authFetch(`${BACKEND_URL}/api/messages/${messageId}`);
+  return response.json();
+};
+
 // 4. Media Handling
 export const getChatMedia = async (
   chatId: number,

@@ -5,8 +5,6 @@ import discordWhite from "@/assets/images/discord.png";
 import telegramWhite from "@/assets/images/telegram.png";
 import aiAll from "@/assets/images/aiAll.png";
 import {
-  ThumbsUp,
-  MessageCircle,
   Link2,
   Send,
   X,
@@ -26,7 +24,26 @@ import smartIcon from "@/assets/images/sidebar/Chat.png";
 import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
 import ChatAvatar from "./ChatAvatar";
 import { useAuth } from "@/hooks/useAuth";
-import { sendReaction } from "@/utils/apiHelpers";
+import { sendReaction, getMessageById } from "@/utils/apiHelpers";
+
+// Types
+type ReactionChip = { icon: string; count: number };
+type MessageItem = {
+  id: any;
+  originalId: any;
+  name: string;
+  avatar: string;
+  platform: "Discord" | "Telegram";
+  channel: string | null;
+  server: string;
+  date: Date;
+  message: string;
+  tags: string[];
+  reactions: ReactionChip[];
+  hasLink: boolean;
+  link: string | null;
+  replyTo: any;
+};
 
 // Dummy data generation
 const platforms = ["Discord", "Telegram"] as const;
@@ -93,16 +110,10 @@ const dummyMessages = Array.from({ length: 30 }, (_, i) => {
   const name = randomFrom(names);
   const message = randomFrom(messages);
   const messageTags = tags.filter(() => Math.random() < 0.3);
-  const reactions = [
-    {
-      icon: <ThumbsUp className="w-4 h-4" />,
-      count: Math.floor(Math.random() * 10),
-    },
-    {
-      icon: <MessageCircle className="w-4 h-4" />,
-      count: Math.floor(Math.random() * 5),
-    },
-  ].filter(() => Math.random() < 0.7);
+  const reactions: ReactionChip[] = [
+    { icon: "👍", count: Math.floor(Math.random() * 10) },
+    { icon: "💬", count: Math.floor(Math.random() * 5) },
+  ].filter(() => Math.random() < 0.7) as ReactionChip[];
   const hasLink = message.includes("http");
   return {
     id: i + 1,
@@ -142,8 +153,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const [replyTo, setReplyTo] = React.useState<
     null | (typeof dummyMessages)[0]
   >(null);
-  const [messages, setMessages] = React.useState(
-    USE_DUMMY_DATA ? dummyMessages : []
+  const [messages, setMessages] = React.useState<MessageItem[]>(
+    USE_DUMMY_DATA ? (dummyMessages as unknown as MessageItem[]) : []
   );
   const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -252,6 +263,55 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           console.log(
             `Reaction ${emoji} sent to backend for message ${messageId} (sent_to_telegram=${res?.sent_to_telegram})`
           );
+          // If backend returns updated reactions snapshot, reflect it in UI immediately
+          const toChips = (results: any[]) =>
+            results
+              .map((r: any) => {
+                const emoticon =
+                  typeof r?.reaction?.emoticon === "string"
+                    ? r.reaction.emoticon
+                    : typeof r?.reaction === "string"
+                    ? r.reaction
+                    : null;
+                return emoticon
+                  ? { icon: emoticon, count: r?.count || 0 }
+                  : null;
+              })
+              .filter(Boolean) as Array<{ icon: string; count: number }>;
+
+          if (res && res.reactions) {
+            const updated = Array.isArray(res.reactions?.results)
+              ? toChips(res.reactions.results)
+              : [];
+            setMessages((prev) =>
+              prev.map((m) =>
+                String(m.originalId || m.id) === String(messageId)
+                  ? { ...m, reactions: updated }
+                  : m
+              )
+            );
+          } else {
+            // Fallback: refetch message by id to ensure we have the latest reactions
+            try {
+              const fresh = await getMessageById(messageId);
+              const reactionResults =
+                (fresh?.message?.reactions &&
+                  fresh.message.reactions.results) ||
+                [];
+              const parsed = Array.isArray(reactionResults)
+                ? toChips(reactionResults)
+                : [];
+              setMessages((prev) =>
+                prev.map((m) =>
+                  String(m.originalId || m.id) === String(messageId)
+                    ? { ...m, reactions: parsed }
+                    : m
+                )
+              );
+            } catch (e) {
+              // ignore
+            }
+          }
         } catch (backendError) {
           console.warn(
             "Backend reaction failed, logging locally:",
@@ -437,6 +497,25 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
             channelName = null; // No channel for specific chat view
           }
 
+          // Parse Telegram reactions from message payload if present
+          const reactionResults =
+            (msg?.message?.reactions && msg.message.reactions.results) || [];
+          const parsedReactions = Array.isArray(reactionResults)
+            ? (reactionResults
+                .map((r: any) => {
+                  const emoticon =
+                    typeof r?.reaction?.emoticon === "string"
+                      ? r.reaction.emoticon
+                      : typeof r?.reaction === "string"
+                      ? r.reaction
+                      : null;
+                  return emoticon
+                    ? { icon: emoticon, count: r?.count || 0 }
+                    : null;
+                })
+                .filter(Boolean) as Array<{ icon: string; count: number }>)
+            : [];
+
           return {
             id: msg.id || msg._id || String(index + 1),
             originalId: msg.id || msg._id,
@@ -454,7 +533,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
             date: new Date(msg.timestamp),
             message: msg.raw_text || "",
             tags: [],
-            reactions: [],
+            reactions: parsedReactions,
             hasLink: (msg.raw_text || "").includes("http"),
             link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
             replyTo: null as any,
@@ -911,13 +990,13 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                     {/* Reactions */}
                     {
                       <div className="flex gap-3 mt-2">
-                        {msg.reactions.map((r, i) => (
+                        {msg.reactions.map((r: any, i: number) => (
                           <span
                             key={i}
                             className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]"
                           >
                             {r.icon}
-                            {r.count}
+                            {typeof r.count === "number" ? r.count : ""}
                           </span>
                         ))}
                         {/* No local reaction chips; Telegram is source of truth */}
