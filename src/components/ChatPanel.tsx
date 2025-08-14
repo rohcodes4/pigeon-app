@@ -8,7 +8,6 @@ import {
   Eye,
   Filter,
   GripVertical,
-  MoreHorizontal,
   MoreVertical,
   Plus,
   Search,
@@ -19,7 +18,7 @@ import { Pin, PinOff } from "lucide-react";
 import aiAll from "@/assets/images/aiAll.png";
 import discord from "@/assets/images/discord.png";
 import telegram from "@/assets/images/telegram.png";
-import { FaBars, FaDiscord, FaTelegram, FaTelegramPlane } from "react-icons/fa";
+import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
 import ChatAvatar from "./ChatAvatar";
 // Helper to generate a random gravatar
 const gravatarUrl = (seed: string) => {
@@ -49,15 +48,6 @@ const sampleMessages = [
   "Congrats on the launch!",
   "Are you coming tonight?",
   "Thanks for your help!",
-];
-
-const ALL_CHANNELS = [
-  { name: "All Channels", platform: ["telegram", "discord"] },
-  { name: "sahil", platform: ["telegram"] },
-  { name: "Portalcoin | $Portal", platform: ["discord"] },
-  { name: "Alpha Guild", platform: ["discord"] },
-  { name: "Crypto News", platform: ["telegram"] },
-  // ...add more as needed
 ];
 
 const TOP_ITEMS = ["All", "Unread", "Filtered Streams", "Telegram", "Discord"];
@@ -213,8 +203,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [isChannelsOpen, setIsChannelsOpen] = useState(true);
   const [searchMore, setSearchMore] = useState(false);
   const [filterFull, setFilterFull] = useState(false);
-  const [streamsExpanded, setStreamsExpanded] = useState(false);
-  const [channelsExpanded, setChannelsExpanded] = useState(false);
   const [streamsLimit, setStreamsLimit] = useState(5);
   const [channelsLimit, setChannelsLimit] = useState(10);
   const [smartFilters, setSmartFilters] = useState<any[]>([]);
@@ -222,7 +210,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [isLoadingFilters, setIsLoadingFilters] = useState(false);
   const [filterError, setFilterError] = useState<string | null>(null);
-  const hideScrollbar = "scrollbar-hide";
 
   useEffect(() => {
     const loadFilters = async () => {
@@ -543,75 +530,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     ...chatsSortedByTime.filter((chat) => !chat?.isPinned && !chat?.pinned),
   ];
 
-  const getFilteredChats = () => {
-    let filtered = sortedDisplayChats;
-
-    // Apply search term filter first
-    if (searchTerm.trim()) {
-      filtered = filtered.filter(
-        (chat) =>
-          chat.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          chat.lastMessage?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (activeTopItem === "All") {
-      // Changed from "Inbox" to "All" to match TOP_ITEMS
-      filtered = filtered;
-    }
-    if (activeTopItem === "Telegram") {
-      filtered = filtered.filter((chat) => chat.platform === "Telegram");
-    }
-    if (activeTopItem === "Discord") {
-      filtered = filtered.filter((chat) => chat.platform === "Discord");
-    }
-    if (activeTopItem === "Unread") {
-      filtered = filtered.filter((chat) => !chat.read);
-    }
-
-    if (filters.length > 0) {
-      filtered = filtered.filter((chat) =>
-        filters.every((tag) => chat.tags?.includes(tag))
-      );
-    }
-    // Add more filters if needed
-    return filtered;
-  };
-
-  // Separate filtering for filtered streams vs channels
-  const getFilteredStreams = () => {
-    let filtered = sortedDisplayChats;
-
-    // Apply search term filter
-    if (searchTerm.trim()) {
-      filtered = filtered.filter(
-        (chat) =>
-          chat.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          chat.lastMessage?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Apply top item filters
-    if (activeTopItem === "Telegram") {
-      filtered = filtered.filter((chat) => chat.platform === "Telegram");
-    }
-    if (activeTopItem === "Discord") {
-      filtered = filtered.filter((chat) => chat.platform === "Discord");
-    }
-    if (activeTopItem === "Unread") {
-      filtered = filtered.filter((chat) => !chat.read);
-    }
-
-    // Apply tag filters
-    if (filters.length > 0) {
-      filtered = filtered.filter((chat) =>
-        filters.every((tag) => chat.tags?.includes(tag))
-      );
-    }
-
-    return filtered;
-  };
-
   const getFilteredChannels = () => {
     let filtered = sortedDisplayChats;
 
@@ -645,27 +563,16 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     return filtered;
   };
 
-  // Memoize filtered results to avoid unnecessary recalculations
-  const allFilteredChats = useMemo(
-    () => getFilteredChats(),
-    [sortedDisplayChats, searchTerm, activeTopItem, filters]
-  );
-
-  const filteredStreams = useMemo(
-    () => getFilteredStreams(),
-    [sortedDisplayChats, searchTerm, activeTopItem, filters]
-  );
-
   const channels = useMemo(
     () => getFilteredChannels(),
     [sortedDisplayChats, searchTerm, activeTopItem, filters]
   );
 
-  // Show more streams when searching or when filters are applied
-  const displayStreams =
-    searchTerm.trim() || filters.length > 0
-      ? filteredStreams
-      : filteredStreams.slice(0, streamsLimit); // Use dynamic limit
+  // UI behavior: when "Filtered Streams" is selected in TOP_ITEMS,
+  // show only the Filtered Streams section (expanded) and hide Channels
+  const showChannelsSection = activeTopItem !== "Filtered Streams";
+  const streamsOpen =
+    activeTopItem === "Filtered Streams" ? true : isFilteredStreamsOpen;
 
   // Show more channels when searching or when filters are applied
   const displayChannels =
@@ -1083,62 +990,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             </div>
           </div>
         </button>
-        {/* {getFilteredChats().map((chat) => (
-    <button
-      key={chat.id}
-      className={
-        `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
-        (selectedId === chat.id
-          ? "bg-[#212121] selected-chat "
-          : "hover:bg-[#212121] focus:bg-[#212121] ") +
-        (selectedId !== chat.id && !chat.read ? "unread-chat " : "")
-      }
-      onClick={() => setSelectedId(chat.id)}
-    >
-      <div className="relative">
-  <img
-    src={chat.avatar}
-    alt={chat.name}
-    className="w-10 h-10 rounded-full object-cover"
-  />
-  <img
-    src={chat.platform === "Discord" ? discord : telegram}
-    className={`
-      absolute -bottom-2 -right-1
-      ${chat.platform === "Discord" ? "bg-[#7b5cfa]" : "bg-[#3474ff]"}
-      rounded-[4px] w-5 h-5 p-1 border-2 border-[#111111]
-    `}n    alt={chat.platform}
-  />
-</div>
-      <div className="flex-1 text-left">
-        <div className="flex justify-between items-center">
-          <span className="text-[#ffffff48] font-200 flex items-center gap-1">
-{chat.platform === "Discord" ? <FaDiscord className="text-[#7b5cfa]"/> : <FaTelegramPlane className="text-[#3474ff]"/>}
-            {chat.name}
-          </span>
-          
-        </div>
-        <div className="flex items-center gap-2">
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-[#ffffff32] font-100">
-            {chat.lastMessage.length > 50
-              ? chat.lastMessage.slice(0, 50) + "..."
-              : chat.lastMessage}
-          </span>
-        </div>
-      </div>
-      <div className="flex flex-col items-center gap-1">
-            {chat.pinned && (
-              <Pin className="w-3 h-3 text-[#84afff] fill-[#84afff] ml-1" />
-            )}
-            <span className="text-xs text-gray-400">
-              {formatChatTime(chat.time)}
-            </span>
-          </div>
-    </button>
-  ))} */}
-
         {/* Filtered Streams Section */}
         <div className="pl-3 mt-4">
           <div
@@ -1151,7 +1002,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 className="hover:text-white text-[#fafafa60] w-5 h-5"
                 onClick={() => setShowFilterPopup(!showFilterPopup)}
               />
-              {isFilteredStreamsOpen ? (
+              {streamsOpen ? (
                 <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5" />
               ) : (
                 <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
@@ -1421,7 +1272,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               )}
             </div>
           </div>
-          {isFilteredStreamsOpen && (
+          {streamsOpen && (
             <div className="mt-2">
               {isLoadingFilters ? (
                 <div className="text-[#ffffff80] text-sm px-4 py-2">
@@ -1521,50 +1372,51 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         </div>
 
         {/* Channels Section */}
-        <div className="pl-3 mt-4">
-          <div
-            className="flex justify-between items-center cursor-pointer"
-            onClick={() => setIsChannelsOpen(!isChannelsOpen)}
-          >
-            <span className="text-white font-medium">Channels</span>
-            {isChannelsOpen ? (
-              <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5 " />
-            ) : (
-              <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
-            )}
-          </div>
-          {isChannelsOpen && (
-            <div className="mt-2">
-              {displayChannels.length === 0 && searchTerm.trim() ? (
-                <div className="text-[#ffffff48] text-sm px-4 py-3">
-                  No channels found for "{searchTerm}"
-                </div>
+        {showChannelsSection && (
+          <div className="pl-3 mt-4">
+            <div
+              className="flex justify-between items-center cursor-pointer"
+              onClick={() => setIsChannelsOpen(!isChannelsOpen)}
+            >
+              <span className="text-white font-medium">Channels</span>
+              {isChannelsOpen ? (
+                <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5 " />
               ) : (
-                displayChannels.map((chat) => (
-                  <button
-                    key={chat.id}
-                    className={
-                      `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
-                      (selectedId === chat.id
-                        ? "bg-[#212121] selected-chat "
-                        : "hover:bg-[#212121] focus:bg-[#212121] ") +
-                      (selectedId !== chat.id && !chat.read
-                        ? "unread-chat "
-                        : "")
-                    }
-                    onClick={() => {
-                      setSelectedId(chat.id);
-                      if (onChatSelect) {
-                        onChatSelect(chat);
+                <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
+              )}
+            </div>
+            {isChannelsOpen && (
+              <div className="mt-2">
+                {displayChannels.length === 0 && searchTerm.trim() ? (
+                  <div className="text-[#ffffff48] text-sm px-4 py-3">
+                    No channels found for "{searchTerm}"
+                  </div>
+                ) : (
+                  displayChannels.map((chat) => (
+                    <button
+                      key={chat.id}
+                      className={
+                        `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
+                        (selectedId === chat.id
+                          ? "bg-[#212121] selected-chat "
+                          : "hover:bg-[#212121] focus:bg-[#212121] ") +
+                        (selectedId !== chat.id && !chat.read
+                          ? "unread-chat "
+                          : "")
                       }
-                    }}
-                  >
-                    {/* Avatar */}
-                    <div className="relative">
-                      <ChatAvatar name={chat.name} avatar={chat.photo_url} />
-                      <img
-                        src={chat.platform === "Discord" ? discord : telegram}
-                        className={`
+                      onClick={() => {
+                        setSelectedId(chat.id);
+                        if (onChatSelect) {
+                          onChatSelect(chat);
+                        }
+                      }}
+                    >
+                      {/* Avatar */}
+                      <div className="relative">
+                        <ChatAvatar name={chat.name} avatar={chat.photo_url} />
+                        <img
+                          src={chat.platform === "Discord" ? discord : telegram}
+                          className={`
                             absolute -bottom-2 -right-1
                             ${
                               chat.platform === "Discord"
@@ -1573,85 +1425,86 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                             }
                             rounded-[4px] w-5 h-5 p-1 border-2 border-[#111111]
                           `}
-                        alt={chat.platform}
-                      />
-                    </div>
-                    {/* Chat Info */}
-                    <div className="flex-1 text-left">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[#ffffff48] font-200 flex items-center gap-1">
-                          {chat.platform === "Discord" ? (
-                            <FaDiscord className="text-[#7b5cfa]" />
-                          ) : (
-                            <FaTelegramPlane className="text-[#3474ff]" />
+                          alt={chat.platform}
+                        />
+                      </div>
+                      {/* Chat Info */}
+                      <div className="flex-1 text-left">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#ffffff48] font-200 flex items-center gap-1">
+                            {chat.platform === "Discord" ? (
+                              <FaDiscord className="text-[#7b5cfa]" />
+                            ) : (
+                              <FaTelegramPlane className="text-[#3474ff]" />
+                            )}
+                            {chat.name}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-[#ffffff32] font-100">
+                            {chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
+                              ? chat.lastMessage.slice(0, 23) + "..."
+                              : chat.lastMessage}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="self-end text-xs text-gray-400">
+                          {formatChatTime(chat.timestamp)}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {chat.pinned && (
+                            <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
                           )}
-                          {chat.name}
-                        </span>
+                          {!chat.read && chat.unread && chat.unread > 0 && (
+                            <div
+                              className={`rounded-full w-5 h-5 text-xs flex items-center justify-center text-center ${
+                                chat.platform === "Telegram"
+                                  ? "bg-[#3474ff]"
+                                  : "bg-[#7b5cfa]"
+                              }`}
+                            >
+                              {chat.unread}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-[#ffffff32] font-100">
-                          {chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
-                            ? chat.lastMessage.slice(0, 23) + "..."
-                            : chat.lastMessage}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="self-end text-xs text-gray-400">
-                        {formatChatTime(chat.timestamp)}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        {chat.pinned && (
-                          <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
-                        )}
-                        {!chat.read && chat.unread && chat.unread > 0 && (
-                          <div
-                            className={`rounded-full w-5 h-5 text-xs flex items-center justify-center text-center ${
-                              chat.platform === "Telegram"
-                                ? "bg-[#3474ff]"
-                                : "bg-[#7b5cfa]"
-                            }`}
-                          >
-                            {chat.unread}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                ))
-              )}
-
-              {/* Show More button for channels */}
-              {!searchTerm.trim() &&
-                filters.length === 0 &&
-                channelsLimit < channels.length && (
-                  <button
-                    className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
-                    onClick={() =>
-                      setChannelsLimit((prev) =>
-                        Math.min(prev + 20, channels.length)
-                      )
-                    }
-                  >
-                    Show {Math.min(20, channels.length - channelsLimit)} more
-                    channels...
-                  </button>
+                    </button>
+                  ))
                 )}
 
-              {/* Show Less button when channels are expanded */}
-              {!searchTerm.trim() &&
-                filters.length === 0 &&
-                channelsLimit > 10 && (
-                  <button
-                    className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
-                    onClick={() => setChannelsLimit(10)}
-                  >
-                    Show Less
-                  </button>
-                )}
-            </div>
-          )}
-        </div>
+                {/* Show More button for channels */}
+                {!searchTerm.trim() &&
+                  filters.length === 0 &&
+                  channelsLimit < channels.length && (
+                    <button
+                      className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
+                      onClick={() =>
+                        setChannelsLimit((prev) =>
+                          Math.min(prev + 20, channels.length)
+                        )
+                      }
+                    >
+                      Show {Math.min(20, channels.length - channelsLimit)} more
+                      channels...
+                    </button>
+                  )}
+
+                {/* Show Less button when channels are expanded */}
+                {!searchTerm.trim() &&
+                  filters.length === 0 &&
+                  channelsLimit > 10 && (
+                    <button
+                      className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
+                      onClick={() => setChannelsLimit(10)}
+                    >
+                      Show Less
+                    </button>
+                  )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </aside>
   );
