@@ -60,26 +60,55 @@ export const ChatSyncing = ({
   useEffect(() => {
     if (!user) return;
     setTelegramLoading(true);
-    fetch(`${BACKEND_URL}/chats`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Unauthorized or failed to fetch chats");
-        return res.json();
-      })
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setTelegramChats(data);
-        } else if (Array.isArray(data.chats)) {
-          setTelegramChats(data.chats);
-        } else {
-          setTelegramChats([]);
+    const loadOrSync = async () => {
+      try {
+        // Try load
+        const res = await fetch(`${BACKEND_URL}/chats`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const chats = Array.isArray(data)
+            ? data
+            : Array.isArray(data.chats)
+            ? data.chats
+            : [];
+          if (chats.length > 0) {
+            setTelegramChats(chats);
+            return;
+          }
         }
-      })
-      .catch((err) => {
+        // If no chats yet, trigger server-side sync and poll a few times
+        await fetch(`${BACKEND_URL}/api/sync-dialogs`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        for (let i = 0; i < 5; i++) {
+          await new Promise((r) => setTimeout(r, 1500));
+          const r2 = await fetch(`${BACKEND_URL}/chats`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (r2.ok) {
+            const data2 = await r2.json();
+            const chats2 = Array.isArray(data2)
+              ? data2
+              : Array.isArray(data2.chats)
+              ? data2.chats
+              : [];
+            if (chats2.length > 0) {
+              setTelegramChats(chats2);
+              return;
+            }
+          }
+        }
         setTelegramChats([]);
-      })
-      .finally(() => setTelegramLoading(false));
+      } catch (e) {
+        setTelegramChats([]);
+      } finally {
+        setTelegramLoading(false);
+      }
+    };
+    loadOrSync();
   }, [user]);
 
   const [syncProgress, setSyncProgress] = useState({ discord: 0, telegram: 0 });

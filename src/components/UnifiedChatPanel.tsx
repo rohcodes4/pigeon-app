@@ -21,11 +21,12 @@ import {
 import moreIcon from "@/assets/images/moreIcon.png";
 import pinIcon from "@/assets/images/pinIcon.png";
 import replyIcon from "@/assets/images/replyIcon.png";
-import taskIcon from "@/assets/images/taskIcon.png";
+import taskIcon from "@/assets/images/sidebar/Chat.png";
 import smartIcon from "@/assets/images/sidebar/Chat.png";
 import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
 import ChatAvatar from "./ChatAvatar";
 import { useAuth } from "@/hooks/useAuth";
+import { sendReaction } from "@/utils/apiHelpers";
 
 // Dummy data generation
 const platforms = ["Discord", "Telegram"] as const;
@@ -105,6 +106,7 @@ const dummyMessages = Array.from({ length: 30 }, (_, i) => {
   const hasLink = message.includes("http");
   return {
     id: i + 1,
+    originalId: undefined, // Dummy messages don't have originalId
     name,
     avatar: gravatarUrl(name + platform),
     platform,
@@ -143,7 +145,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const [messages, setMessages] = React.useState(
     USE_DUMMY_DATA ? dummyMessages : []
   );
-  const [openMenuId, setOpenMenuId] = React.useState<number | null>(null);
+  const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [loadingMore, setLoadingMore] = React.useState(false);
   const [hasMoreMessages, setHasMoreMessages] = React.useState(true);
@@ -210,8 +212,92 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
 
   // 2. Add these state variables inside your component (around line 150):
   const [bookmarkLoading, setBookmarkLoading] = React.useState<{
-    [key: number]: boolean;
+    [key: string]: boolean;
   }>({});
+
+  // Reaction state management
+  const [reactionLoading, setReactionLoading] = React.useState<{
+    [key: string]: boolean;
+  }>({});
+  const [showReactionPicker, setShowReactionPicker] = React.useState<{
+    [key: string]: boolean;
+  }>({});
+  // Local UI reactions (emoji counts) keyed by message id
+  const [localReactions, setLocalReactions] = React.useState<{
+    [messageId: string]: { [emoji: string]: number };
+  }>({});
+
+  // Common emoji reactions
+  const commonReactions = [
+    "👍",
+    "❤️",
+    "🔥",
+    "😮",
+    "😢",
+    "😡",
+    "🎉",
+    "🚀",
+    "💯",
+    "👏",
+  ];
+
+  const handleReaction = async (messageId: string, emoji: string) => {
+    try {
+      setReactionLoading((prev) => ({ ...prev, [messageId]: true }));
+
+      const isObjectId = /^[a-f\d]{24}$/i.test(messageId);
+      if (isObjectId) {
+        try {
+          const res = await sendReaction(messageId, emoji);
+          console.log(
+            `Reaction ${emoji} sent to backend for message ${messageId} (sent_to_telegram=${res?.sent_to_telegram})`
+          );
+        } catch (backendError) {
+          console.warn(
+            "Backend reaction failed, logging locally:",
+            backendError
+          );
+          console.log(
+            `Reaction ${emoji} logged locally for message ${messageId}`
+          );
+        }
+      } else {
+        // Dummy/local message
+        console.log(
+          `Reaction ${emoji} logged locally for dummy message ${messageId}`
+        );
+      }
+
+      // No local UI/storage update – rely on Telegram as source of truth
+
+      // Close reaction picker
+      setShowReactionPicker((prev) => ({ ...prev, [messageId]: false }));
+    } catch (error) {
+      console.error("Failed to send reaction:", error);
+    } finally {
+      setReactionLoading((prev) => ({ ...prev, [messageId]: false }));
+    }
+  };
+
+  const toggleReactionPicker = (messageId: string) => {
+    setShowReactionPicker((prev) => ({
+      ...prev,
+      [messageId]: !prev[messageId],
+    }));
+  };
+
+  // Close reaction picker when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest(".reaction-picker")) {
+        setShowReactionPicker({});
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleBookmark = async (
     msg: any,
@@ -352,8 +438,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           }
 
           return {
-            id: index + 1,
-            originalId: msg.id,
+            id: msg.id || msg._id || String(index + 1),
+            originalId: msg.id || msg._id,
             name: msg.sender?.first_name || msg.sender?.username || "Unknown",
             avatar: msg.sender?.id
               ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
@@ -452,6 +538,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       const now = new Date();
       const newMsg = {
         id: messages.length + 1,
+        originalId: undefined, // New messages don't have originalId
         name: user.username, // or your user logic
         avatar: gravatarUrl("You" + (replyTo ? replyTo.platform : "Discord")), // match platform for avatar
         platform: replyTo ? replyTo.platform : "Discord", // use replyTo's platform if replying
@@ -637,7 +724,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           </div>
         ) : (
           Object.entries(groupedByDate).map(([date, msgs]) => (
-            <React.Fragment key={date}>
+            // Note: If you see "data-lov-id" warnings, it's likely from a browser extension
+            <div key={date} className="date-group">
               <div className="flex items-center gap-2 my-4">
                 <hr className="flex-1 border-[#23272f]" />
                 <span className="text-xs text-[#ffffff32] px-2">{date}</span>
@@ -645,7 +733,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
               </div>
               {msgs.map((msg) => (
                 <div
-                  key={msg.id}
+                  key={String(msg.id)}
                   className="flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 group hover:bg-[#212121]"
                   onMouseLeave={() => setOpenMenuId(null)}
                 >
@@ -709,7 +797,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                         title="More"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setOpenMenuId(openMenuId === msg.id ? null : msg.id);
+                          const mid = String(msg.id);
+                          setOpenMenuId(openMenuId === mid ? null : mid);
                         }}
                       >
                         <img
@@ -717,7 +806,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                           className="w-6 h-6 text-[#84afff]"
                         />
                         {/* Popup menu */}
-                        {openMenuId === msg.id && (
+                        {openMenuId === String(msg.id) && (
                           <div className="absolute right-0 bottom-[110%] mt-2 bg-[#111111] border border-[#ffffff12] rounded-[10px] shadow-lg z-50 flex flex-col p-2 min-w-max">
                             <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
                               <img src={smartIcon} className="w-6 h-6" />
@@ -831,9 +920,60 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                             {r.count}
                           </span>
                         ))}
-                        <span className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]">
-                          <SmilePlusIcon className="h-4 w-4" />
-                        </span>
+                        {/* No local reaction chips; Telegram is source of truth */}
+                        <div className="relative">
+                          <button
+                            onClick={() =>
+                              toggleReactionPicker(
+                                String(msg.originalId || msg.id)
+                              )
+                            }
+                            className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff] hover:bg-[#ffffff12] transition-all duration-200 cursor-pointer hover:scale-105 hover:bg-[#ffffff16]"
+                            disabled={
+                              reactionLoading[String(msg.originalId || msg.id)]
+                            }
+                            title="Add reaction"
+                          >
+                            <SmilePlusIcon className="h-4 w-4" />
+                            {reactionLoading[
+                              String(msg.originalId || msg.id)
+                            ] && (
+                              <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                            )}
+                          </button>
+
+                          {/* Reaction Picker */}
+                          {showReactionPicker[
+                            String(msg.originalId || msg.id)
+                          ] && (
+                            <div className="reaction-picker absolute top-1/2 left-full ml-2 bg-[#2d2d2d]/95 backdrop-blur-sm rounded-2xl p-2 shadow-2xl border border-[#555] z-10 transform -translate-y-1/2 min-w-[max-content]">
+                              {/* Arrow pointer pointing left */}
+                              <div className="absolute top-1/2 left-0 w-0 h-0 border-t-[8px] border-b-[8px] border-r-[8px] border-t-transparent border-b-transparent border-r-[#2d2d2d] transform -translate-y-1/2 -translate-x-1"></div>
+
+                              <div className="grid grid-cols-10 gap-0">
+                                {commonReactions.map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() =>
+                                      handleReaction(
+                                        String(msg.originalId || msg.id),
+                                        emoji
+                                      )
+                                    }
+                                    className="w-8 h-8 text-md hover:bg-[#444] rounded-xl transition-all duration-200 flex items-center justify-center hover:scale-110 active:scale-95 shadow-sm hover:shadow-md hover:bg-[#555]"
+                                    disabled={
+                                      reactionLoading[
+                                        String(msg.originalId || msg.id)
+                                      ]
+                                    }
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     }
 
@@ -853,7 +993,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                   </div>
                 </div>
               ))}
-            </React.Fragment>
+            </div>
           ))
         )}
         {/* Scroll target for auto-scroll */}

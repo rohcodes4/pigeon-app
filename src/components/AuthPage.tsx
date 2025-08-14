@@ -107,8 +107,7 @@ export const AuthPage = () => {
 
         toast({
           title: "Account created!",
-          description:
-            "You can now sign in.",
+          description: "You can now sign in.",
         });
         setIsSignIn(true);
         await checkAuth();
@@ -260,8 +259,14 @@ export const AuthPage = () => {
   const handleTelegramAuth = async () => {
     try {
       setIsLoading(true);
+      const token = localStorage.getItem("access_token");
       const response = await fetch(`${BACKEND_URL}/auth/qr`, {
         method: "POST",
+        headers: token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : undefined,
       });
       const data = await response.json();
 
@@ -286,11 +291,18 @@ export const AuthPage = () => {
     }
   };
 
-  const startQRPolling = async (token: string) => {
+  const startQRPolling = async (qrToken: string) => {
     setQrPolling(true);
+    const authToken = localStorage.getItem("access_token");
     const pollInterval = setInterval(async () => {
       try {
-        const response = await fetch(`${BACKEND_URL}/auth/qr/${token}`);
+        const response = await fetch(`${BACKEND_URL}/auth/qr/${qrToken}`, {
+          headers: authToken
+            ? {
+                Authorization: `Bearer ${authToken}`,
+              }
+            : undefined,
+        });
         const data = await response.json();
 
         if (response.ok && data.status === "success") {
