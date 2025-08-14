@@ -77,12 +77,11 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({
   searchQuery,
   selectedSource,
   setSelectedSource,
-  selectedOptions
+  selectedOptions,
 }) => {
-
-const { user } = useAuth()
-const username = user?.username
-  console.log(selectedOptions)
+  const { user } = useAuth();
+  const username = user?.username;
+  console.log(selectedOptions);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -115,7 +114,7 @@ const username = user?.username
       setSearchResults([]);
       return;
     }
-  
+
     const chatTypeMap: Record<string, string | undefined> = {
       from_user: "private",
       from_group: "group",
@@ -123,81 +122,82 @@ const username = user?.username
       mentions_user_channel: "", // special case
       filter_channel_or_user: "group",
       todo_task: "",
-      favourite_message_or_task: ""
+      favourite_message_or_task: "",
     };
-  
+
     const hasMentionsFilter = selectedOptions.includes("mentions_user_channel");
-  
+
     let chatTypes: string[] = [];
-  
+
     // Map all selected options except mentions_user_channel
-    const otherFilters = selectedOptions.filter(opt => opt !== "mentions_user_channel");
-  
+    const otherFilters = selectedOptions.filter(
+      (opt) => opt !== "mentions_user_channel"
+    );
+
     if (otherFilters.length > 0) {
       chatTypes = otherFilters
-        .map(opt => chatTypeMap[opt])
-        .filter(val => val !== undefined)
-        .flatMap(val => (val ? val.split(",") : [""]))
-        .map(s => s.trim());
+        .map((opt) => chatTypeMap[opt])
+        .filter((val) => val !== undefined)
+        .flatMap((val) => (val ? val.split(",") : [""]))
+        .map((s) => s.trim());
     }
-  
+
     // If there are no non-mention filters, decide if we need a default fetch or skip
     if (chatTypes.length === 0 && !hasMentionsFilter) {
       chatTypes = [""]; // base search with empty chat_type
     }
-  
+
     // --- Fetch logic ---
     // If mentions_user_channel is the ONLY filter, don't fetch — just filter existing results
     if (hasMentionsFilter && chatTypes.length === 0) {
-      setSearchResults(prev =>
-        prev.filter(msg => {
+      setSearchResults((prev) =>
+        prev.filter((msg) => {
           const mentionPattern = new RegExp(`@${username}\\b`, "i");
           return mentionPattern.test(msg.raw_text || "");
         })
       );
       return; // skip fetch
     }
-  
+
     // Otherwise, fetch normally
     setSearchLoading(true);
-  
+
     Promise.all(
-      chatTypes.map(type =>
+      chatTypes.map((type) =>
         fetchSearchMessages({
           keyword: searchQuery,
           chat_type: type,
-          limit: 100
-        }).catch(err => {
+          limit: 100,
+        }).catch((err) => {
           console.error(`API Error for ${type}:`, err);
           return { messages: [] };
         })
       )
     )
-      .then(resultsArrays => {
-        let combined = resultsArrays.flatMap(res => res.messages || []);
-  
+      .then((resultsArrays) => {
+        let combined = resultsArrays.flatMap((res) => res.messages || []);
+
         // Post-filter if mentions_user_channel is also active
         if (hasMentionsFilter && username) {
           const mentionPattern = new RegExp(`@${username}\\b`, "i");
-          combined = combined.filter(msg =>
+          combined = combined.filter((msg) =>
             mentionPattern.test(msg.raw_text || "")
           );
         }
-  
+
         // Deduplicate
         const uniqueMap = new Map();
-        combined.forEach(msg => {
+        combined.forEach((msg) => {
           if (!uniqueMap.has(msg._id)) {
             uniqueMap.set(msg._id, msg);
           }
         });
-  
+
         setSearchResults(Array.from(uniqueMap.values()));
       })
       .finally(() => setSearchLoading(false));
   }, [searchQuery, selectedSource, selectedOptions, username]);
-  
-  
+
   async function fetchSearchMessages({
     keyword,
     date_from,
@@ -211,12 +211,13 @@ const username = user?.username
     chat_type?: string;
     limit?: number;
   }) {
-    console.log(chat_type)
+    console.log(chat_type);
     const params = new URLSearchParams();
     params.append("keyword", keyword);
     if (date_from) params.append("date_from", date_from);
     if (date_to) params.append("date_to", date_to);
-    if (chat_type && selectedOptions.length>=0) params.append("chat_type", chat_type);
+    if (chat_type && selectedOptions.length >= 0)
+      params.append("chat_type", chat_type);
     if (limit !== undefined) params.append("limit", limit.toString());
 
     const response = await fetch(`${BACKEND_URL}/search?${params.toString()}`, {
@@ -268,7 +269,7 @@ const username = user?.username
   function highlightMentions(text: string) {
     const mentionRegex = /(@[a-zA-Z0-9_]+)/g;
     const parts = text.split(mentionRegex);
-  
+
     return parts.map((part, index) => {
       if (mentionRegex.test(part)) {
         return (
@@ -281,7 +282,6 @@ const username = user?.username
     });
   }
 
-  
   const handleCheckboxChange = (task) => {
     setCheckedItems((prev) => ({
       ...prev,
@@ -312,13 +312,16 @@ const username = user?.username
       const formData = new FormData();
       formData.append("reaction", reaction); // match backend Form(...)
 
-      const res = await fetch(`${BACKEND_URL}/api/messages/${msgId}/reactions`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`, // JWT from login
-        },
-        body: formData,
-      });
+      const res = await fetch(
+        `${BACKEND_URL}/api/messages/${msgId}/reactions`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`, // JWT from login
+          },
+          body: formData,
+        }
+      );
 
       if (!res.ok) {
         const err = await res.json();
@@ -334,7 +337,6 @@ const username = user?.username
       setLoading(false);
     }
   };
-
 
   const handleSelectAll = (todosArray) => {
     const newChecked = { ...checkedItems };
@@ -490,24 +492,31 @@ const username = user?.username
             {searchResults.map((msg) => {
               const ALL_REACTIONS = [
                 { type: "thumbsUp", emoticon: "👍" },
-                { type: "heart", emoticon: "❤" },
+                { type: "heart", emoticon: "❤️" },
                 { type: "fire", emoticon: "🔥" },
                 { type: "eyes", emoticon: "👀" },
               ];
               const reactionCounts = Array.isArray(msg.reactions)
                 ? Object.fromEntries(
-                    (msg.reactions || []).map((r) => [
-                      r.reaction.emoticon,
-                      r.count,
-                    ])
+                    (msg.reactions || []).map((r) => {
+                      const rawIcon =
+                        (r?.reaction && (r.reaction.emoticon || r.reaction)) ||
+                        "";
+                      const normalized =
+                        rawIcon === "❤" || rawIcon === "♥️" ? "❤️" : rawIcon;
+                      return [normalized, r.count];
+                    })
                   )
                 : msg.reactions || {};
 
               // 1️⃣ Get only those with count > 0
-              const nonZero = ALL_REACTIONS
-  .filter(r => (reactionCounts[r.emoticon] || 0) > 0)
-  .sort((a, b) => (reactionCounts[b.emoticon] || 0) - (reactionCounts[a.emoticon] || 0));
-
+              const nonZero = ALL_REACTIONS.filter(
+                (r) => (reactionCounts[r.emoticon] || 0) > 0
+              ).sort(
+                (a, b) =>
+                  (reactionCounts[b.emoticon] || 0) -
+                  (reactionCounts[a.emoticon] || 0)
+              );
 
               // 2️⃣ Fill the rest from all reactions ignoring already used ones
               const filled = [
@@ -594,24 +603,28 @@ const username = user?.username
 
                     {/* Message Text */}
                     <div className="mt-2 text-sm text-[#e0e0e0] max-w-[375px] break-words whitespace-pre-wrap">
-  {msg.raw_text ? highlightMentions(msg.raw_text) : "No message content"}
-</div>
-
+                      {msg.raw_text
+                        ? highlightMentions(msg.raw_text)
+                        : "No message content"}
+                    </div>
 
                     <div className="flex gap-1 mt-2">
-                    {filled.map((reaction) => (
-  <span
-    key={reaction.type}
-    className="flex items-center gap-1 text-xs bg-[#fafafa10] rounded-[6px] px-2 py-1 text-[#ffffff] cursor-pointer"
-    onClick={() => {console.log(msg); sendReaction(reaction.emoticon,msg._id)}}
-    // onClick={() => handleReaction(msg._id, reaction.type)}
-  >
-    {reaction.emoticon}
-    <span className="text-[#fafafa60]">
-      {reactionCounts[reaction.emoticon] || 0}
-    </span>
-  </span>
-))}
+                      {filled.map((reaction) => (
+                        <span
+                          key={reaction.type}
+                          className="flex items-center gap-1 text-xs bg-[#fafafa10] rounded-[6px] px-2 py-1 text-[#ffffff] cursor-pointer"
+                          onClick={() => {
+                            console.log(msg);
+                            sendReaction(reaction.emoticon, msg._id);
+                          }}
+                          // onClick={() => handleReaction(msg._id, reaction.type)}
+                        >
+                          {reaction.emoticon}
+                          <span className="text-[#fafafa60]">
+                            {reactionCounts[reaction.emoticon] || 0}
+                          </span>
+                        </span>
+                      ))}
                       {/* {ALL_REACTIONS.map((reaction) => (
                         <span
                           key={reaction.type}

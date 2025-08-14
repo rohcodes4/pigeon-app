@@ -273,8 +273,10 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                     : typeof r?.reaction === "string"
                     ? r.reaction
                     : null;
-                return emoticon
-                  ? { icon: emoticon, count: r?.count || 0 }
+                const normalized =
+                  emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
+                return normalized
+                  ? { icon: normalized, count: r?.count || 0 }
                   : null;
               })
               .filter(Boolean) as Array<{ icon: string; count: number }>;
@@ -509,8 +511,10 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                       : typeof r?.reaction === "string"
                       ? r.reaction
                       : null;
-                  return emoticon
-                    ? { icon: emoticon, count: r?.count || 0 }
+                  const normalized =
+                    emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
+                  return normalized
+                    ? { icon: normalized, count: r?.count || 0 }
                     : null;
                 })
                 .filter(Boolean) as Array<{ icon: string; count: number }>)
