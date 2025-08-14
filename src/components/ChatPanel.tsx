@@ -1520,52 +1520,51 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           )}
         </div>
 
-        {/* Channels Section - Only show when no filters/search */}
-        {!searchTerm.trim() && filters.length === 0 && (
-          <div className="pl-3 mt-4">
-            <div
-              className="flex justify-between items-center cursor-pointer"
-              onClick={() => setIsChannelsOpen(!isChannelsOpen)}
-            >
-              <span className="text-white font-medium">Channels</span>
-              {isChannelsOpen ? (
-                <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5 " />
+        {/* Channels Section */}
+        <div className="pl-3 mt-4">
+          <div
+            className="flex justify-between items-center cursor-pointer"
+            onClick={() => setIsChannelsOpen(!isChannelsOpen)}
+          >
+            <span className="text-white font-medium">Channels</span>
+            {isChannelsOpen ? (
+              <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5 " />
+            ) : (
+              <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
+            )}
+          </div>
+          {isChannelsOpen && (
+            <div className="mt-2">
+              {displayChannels.length === 0 && searchTerm.trim() ? (
+                <div className="text-[#ffffff48] text-sm px-4 py-3">
+                  No channels found for "{searchTerm}"
+                </div>
               ) : (
-                <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
-              )}
-            </div>
-            {isChannelsOpen && (
-              <div className="mt-2">
-                {displayChannels.length === 0 && searchTerm.trim() ? (
-                  <div className="text-[#ffffff48] text-sm px-4 py-3">
-                    No channels found for "{searchTerm}"
-                  </div>
-                ) : (
-                  displayChannels.map((chat) => (
-                    <button
-                      key={chat.id}
-                      className={
-                        `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
-                        (selectedId === chat.id
-                          ? "bg-[#212121] selected-chat "
-                          : "hover:bg-[#212121] focus:bg-[#212121] ") +
-                        (selectedId !== chat.id && !chat.read
-                          ? "unread-chat "
-                          : "")
+                displayChannels.map((chat) => (
+                  <button
+                    key={chat.id}
+                    className={
+                      `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
+                      (selectedId === chat.id
+                        ? "bg-[#212121] selected-chat "
+                        : "hover:bg-[#212121] focus:bg-[#212121] ") +
+                      (selectedId !== chat.id && !chat.read
+                        ? "unread-chat "
+                        : "")
+                    }
+                    onClick={() => {
+                      setSelectedId(chat.id);
+                      if (onChatSelect) {
+                        onChatSelect(chat);
                       }
-                      onClick={() => {
-                        setSelectedId(chat.id);
-                        if (onChatSelect) {
-                          onChatSelect(chat);
-                        }
-                      }}
-                    >
-                      {/* Avatar */}
-                      <div className="relative">
-                        <ChatAvatar name={chat.name} avatar={chat.photo_url} />
-                        <img
-                          src={chat.platform === "Discord" ? discord : telegram}
-                          className={`
+                    }}
+                  >
+                    {/* Avatar */}
+                    <div className="relative">
+                      <ChatAvatar name={chat.name} avatar={chat.photo_url} />
+                      <img
+                        src={chat.platform === "Discord" ? discord : telegram}
+                        className={`
                             absolute -bottom-2 -right-1
                             ${
                               chat.platform === "Discord"
@@ -1574,86 +1573,85 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                             }
                             rounded-[4px] w-5 h-5 p-1 border-2 border-[#111111]
                           `}
-                          alt={chat.platform}
-                        />
-                      </div>
-                      {/* Chat Info */}
-                      <div className="flex-1 text-left">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[#ffffff48] font-200 flex items-center gap-1">
-                            {chat.platform === "Discord" ? (
-                              <FaDiscord className="text-[#7b5cfa]" />
-                            ) : (
-                              <FaTelegramPlane className="text-[#3474ff]" />
-                            )}
-                            {chat.name}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-[#ffffff32] font-100">
-                            {chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
-                              ? chat.lastMessage.slice(0, 23) + "..."
-                              : chat.lastMessage}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="self-end text-xs text-gray-400">
-                          {formatChatTime(chat.timestamp)}
+                        alt={chat.platform}
+                      />
+                    </div>
+                    {/* Chat Info */}
+                    <div className="flex-1 text-left">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[#ffffff48] font-200 flex items-center gap-1">
+                          {chat.platform === "Discord" ? (
+                            <FaDiscord className="text-[#7b5cfa]" />
+                          ) : (
+                            <FaTelegramPlane className="text-[#3474ff]" />
+                          )}
+                          {chat.name}
                         </span>
-                        <div className="flex items-center gap-1">
-                          {chat.pinned && (
-                            <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
-                          )}
-                          {!chat.read && chat.unread && chat.unread > 0 && (
-                            <div
-                              className={`rounded-full w-5 h-5 text-xs flex items-center justify-center text-center ${
-                                chat.platform === "Telegram"
-                                  ? "bg-[#3474ff]"
-                                  : "bg-[#7b5cfa]"
-                              }`}
-                            >
-                              {chat.unread}
-                            </div>
-                          )}
-                        </div>
                       </div>
-                    </button>
-                  ))
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-[#ffffff32] font-100">
+                          {chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
+                            ? chat.lastMessage.slice(0, 23) + "..."
+                            : chat.lastMessage}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="self-end text-xs text-gray-400">
+                        {formatChatTime(chat.timestamp)}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {chat.pinned && (
+                          <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
+                        )}
+                        {!chat.read && chat.unread && chat.unread > 0 && (
+                          <div
+                            className={`rounded-full w-5 h-5 text-xs flex items-center justify-center text-center ${
+                              chat.platform === "Telegram"
+                                ? "bg-[#3474ff]"
+                                : "bg-[#7b5cfa]"
+                            }`}
+                          >
+                            {chat.unread}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))
+              )}
+
+              {/* Show More button for channels */}
+              {!searchTerm.trim() &&
+                filters.length === 0 &&
+                channelsLimit < channels.length && (
+                  <button
+                    className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
+                    onClick={() =>
+                      setChannelsLimit((prev) =>
+                        Math.min(prev + 20, channels.length)
+                      )
+                    }
+                  >
+                    Show {Math.min(20, channels.length - channelsLimit)} more
+                    channels...
+                  </button>
                 )}
 
-                {/* Show More button for channels */}
-                {!searchTerm.trim() &&
-                  filters.length === 0 &&
-                  channelsLimit < channels.length && (
-                    <button
-                      className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
-                      onClick={() =>
-                        setChannelsLimit((prev) =>
-                          Math.min(prev + 20, channels.length)
-                        )
-                      }
-                    >
-                      Show {Math.min(20, channels.length - channelsLimit)} more
-                      channels...
-                    </button>
-                  )}
-
-                {/* Show Less button when channels are expanded */}
-                {!searchTerm.trim() &&
-                  filters.length === 0 &&
-                  channelsLimit > 10 && (
-                    <button
-                      className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
-                      onClick={() => setChannelsLimit(10)}
-                    >
-                      Show Less
-                    </button>
-                  )}
-              </div>
-            )}
-          </div>
-        )}
+              {/* Show Less button when channels are expanded */}
+              {!searchTerm.trim() &&
+                filters.length === 0 &&
+                channelsLimit > 10 && (
+                  <button
+                    className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
+                    onClick={() => setChannelsLimit(10)}
+                  >
+                    Show Less
+                  </button>
+                )}
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );
