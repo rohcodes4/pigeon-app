@@ -20,6 +20,7 @@ import telegram from "@/assets/images/telegram.png";
 import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
 import ChatAvatar from "./ChatAvatar";
 import FiltersPanel from "./FiltersPanel";
+import FilterEditor from "./FilterEditor";
 // Helper to generate a random gravatar
 const gravatarUrl = (seed: string) => {
   try {
@@ -195,7 +196,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [activeTopItem, setActiveTopItem] = useState(TOP_ITEMS[0]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedId, setSelectedId] = useState<string | number>("all-channels");
-  const [showFilterPopup, setShowFilterPopup] = useState(false);
   const [channelSearch, setChannelSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [selectedChannels, setSelectedChannels] = useState([]);
@@ -206,226 +206,129 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [streamsLimit, setStreamsLimit] = useState(5);
   const [channelsLimit, setChannelsLimit] = useState(10);
   const [smartFilters, setSmartFilters] = useState<any[]>([]);
-  const [editingFilter, setEditingFilter] = useState<any>(null);
-  const [showEditPopup, setShowEditPopup] = useState(false);
   const [isLoadingFilters, setIsLoadingFilters] = useState(false);
   const [filterError, setFilterError] = useState<string | null>(null);
   const [topItems, setTopItems] = useState<string[]>(() => {
     const savedTopItems = localStorage.getItem("topItemsOrder");
     return savedTopItems ? JSON.parse(savedTopItems) : TOP_ITEMS;
   }); // State for TOP_ITEMS, initialized from localStorage
+  // Inline editor state for editing a Smart Filter from ChatPanel
+  const [showFilterEditor, setShowFilterEditor] = useState(false);
+  const [editingFilter, setEditingFilter] = useState<any>(null);
+  const [allChannels, setAllChannels] = useState<any[]>([]);
 
   useEffect(() => {
     // Save topItems to localStorage whenever it changes
     localStorage.setItem("topItemsOrder", JSON.stringify(topItems));
   }, [topItems]);
 
+  // Load channel list for FilterEditor (id/name mapping)
   useEffect(() => {
-    const loadFilters = async () => {
+    const loadChannels = async () => {
       try {
-        setIsLoadingFilters(true);
-        setFilterError(null);
-        const filters = await getSmartFilters();
-        setSmartFilters(filters);
-        console.log("Loaded smart filters:", filters);
-      } catch (error) {
-        console.error("Error loading filters:", error);
-        setFilterError(
-          error instanceof Error ? error.message : "Failed to load filters"
-        );
-      } finally {
-        setIsLoadingFilters(false);
+        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+        const token = localStorage.getItem("access_token");
+        const resp = await fetch(`${BACKEND_URL}/chats`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (resp.ok) {
+          const chats = await resp.json();
+          const chans = (chats || []).map((c: any) => ({
+            id: c?.id ?? c?._id,
+            name: c?.title || c?.username || String(c?.id ?? c?._id),
+            platform: c?.platform,
+          }));
+          setAllChannels(chans.filter((c: any) => c.id != null));
+        }
+      } catch (_) {
+        // ignore
       }
     };
-
-    loadFilters();
+    loadChannels();
   }, []);
 
-  // Update your handleSave function to actually create the filter:
-  const handleSave = async () => {
-    const filterNameInput = document.querySelector(
-      'input[placeholder="Filter Name"]'
-    ) as HTMLInputElement;
-    const keywordInput = document.querySelector(
-      'input[placeholder="Keyword"]'
-    ) as HTMLInputElement;
-
-    if (!filterNameInput?.value.trim()) {
-      alert("Please enter a filter name");
-      return;
-    }
-
-    console.log("Creating filter with:", {
-      name: filterNameInput.value,
-      selectedChannels,
-      keyword: keywordInput?.value,
-    });
-
+  const refreshSmartFilters = async () => {
     try {
-      const newFilter = await createSmartFilter({
-        name: filterNameInput.value,
-        channels: selectedChannels.map((ch) => ch.id || ch._id), // Support both id and _id properties
-        keywords: keywordInput?.value ? [keywordInput.value] : [],
-      });
-
-      // Add the new filter to the list
-      setSmartFilters((prev) => [...prev, newFilter]);
-
-      // Close popup and reset form
-      setShowFilterPopup(false);
-      setSelectedChannels([]);
-      setChannelSearch("");
-
-      console.log("Filter created successfully:", newFilter);
-      alert("Filter created successfully!");
+      setIsLoadingFilters(true);
+      setFilterError(null);
+      const filters = await getSmartFilters();
+      setSmartFilters(filters);
+      console.log("Loaded smart filters:", filters);
     } catch (error) {
-      console.error("Error creating filter:", error);
-      alert("Failed to create filter. Please try again.");
+      console.error("Error loading filters:", error);
+      setFilterError(
+        error instanceof Error ? error.message : "Failed to load filters"
+      );
+    } finally {
+      setIsLoadingFilters(false);
     }
   };
 
-  const updateSmartFilter = async (
-    filterId: string,
-    filterData: {
-      name?: string;
-      channels?: number[];
-      keywords?: string[];
-    }
-  ) => {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-    const token = localStorage.getItem("access_token");
+  useEffect(() => {
+    refreshSmartFilters();
+  }, []);
 
-    const formData = new FormData();
-    if (filterData.name) formData.append("name", filterData.name);
-    if (filterData.channels)
-      formData.append("channels", filterData.channels.join(","));
-    if (filterData.keywords)
-      formData.append("keywords", filterData.keywords.join("\n"));
-
-    const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to update filter: ${response.status}`);
-    }
-
-    return response.json();
-  };
-
+  // Open editor for a filter
   const handleEdit = (filter: any) => {
     setEditingFilter(filter);
-    setShowEditPopup(true);
+    setShowFilterEditor(true);
   };
 
+  // Delete a filter
   const handleDelete = async (filterId: string) => {
-    if (!confirm("Are you sure you want to delete this filter?")) {
-      return;
-    }
-
+    if (!confirm("Are you sure you want to delete this filter?")) return;
     try {
-      await deleteSmartFilter(filterId);
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+      const token = localStorage.getItem("access_token");
+      const resp = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!resp.ok) throw new Error(`Failed to delete filter: ${resp.status}`);
       setSmartFilters((prev) => prev.filter((f) => f.id !== filterId));
-      console.log("Filter deleted successfully");
-    } catch (error) {
-      console.error("Error deleting filter:", error);
+      await refreshSmartFilters();
+    } catch (e) {
       alert("Failed to delete filter. Please try again.");
     }
   };
 
-  const handleEditSave = async () => {
-    const filterNameInput = document.querySelector(
-      'input[placeholder="Edit Filter Name"]'
-    ) as HTMLInputElement;
-    const keywordInput = document.querySelector(
-      'input[placeholder="Edit Keywords"]'
-    ) as HTMLInputElement;
-
-    if (!filterNameInput?.value.trim()) {
-      alert("Please enter a filter name");
-      return;
-    }
-
+  // Save from FilterEditor (create/update)
+  const handleEditorSave = async (
+    data: { name: string; channels: number[]; keywords: string[] },
+    filterId?: string
+  ) => {
     try {
-      const updatedFilter = await updateSmartFilter(editingFilter.id, {
-        name: filterNameInput.value,
-        channels: selectedChannels.map((ch) => ch.id),
-        keywords: keywordInput?.value
-          ? keywordInput.value.split(",").map((k) => k.trim())
-          : editingFilter.keywords,
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+      const token = localStorage.getItem("access_token");
+      const formData = new FormData();
+      formData.append("name", data.name);
+      formData.append("channels", data.channels.join(","));
+      formData.append("keywords", data.keywords.join("\n"));
+
+      const url = filterId
+        ? `${BACKEND_URL}/filters/${filterId}`
+        : `${BACKEND_URL}/filters`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
       });
-
-      // Update the filter in the list
-      setSmartFilters((prev) =>
-        prev.map((f) => (f.id === editingFilter.id ? updatedFilter : f))
-      );
-
-      // Close popup and reset form
-      setShowEditPopup(false);
+      if (!resp.ok) throw new Error(`Failed to save filter: ${resp.status}`);
+      const saved = await resp.json();
+      if (filterId) {
+        setSmartFilters((prev) =>
+          prev.map((f) => (f.id === filterId ? saved : f))
+        );
+      } else {
+        setSmartFilters((prev) => [...prev, saved]);
+      }
+      await refreshSmartFilters();
+    } catch (e) {
+      alert("Failed to save filter. Please try again.");
+    } finally {
+      setShowFilterEditor(false);
       setEditingFilter(null);
-      setSelectedChannels([]);
-
-      console.log("Filter updated successfully:", updatedFilter);
-    } catch (error) {
-      console.error("Error updating filter:", error);
-      alert("Failed to update filter. Please try again.");
     }
-  };
-
-  const handleEditCancel = () => {
-    setShowEditPopup(false);
-    setEditingFilter(null);
-    setSelectedChannels([]);
-  };
-
-  const deleteSmartFilter = async (filterId: string) => {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-    const token = localStorage.getItem("access_token");
-
-    const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to delete filter: ${response.status}`);
-    }
-
-    return response.json();
-  };
-
-  const createSmartFilter = async (filterData: {
-    name: string;
-    channels: number[];
-    keywords: string[];
-  }) => {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-    const token = localStorage.getItem("access_token");
-
-    const formData = new FormData();
-    formData.append("name", filterData.name);
-    formData.append("channels", filterData.channels.join(","));
-    formData.append("keywords", filterData.keywords.join("\n"));
-
-    const response = await fetch(`${BACKEND_URL}/filters`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to create filter: ${response.status}`);
-    }
-
-    return response.json();
   };
 
   // API function to get all smart filters
@@ -445,12 +348,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     }
 
     return response.json();
-  };
-
-  const handleCancel = () => {
-    setShowFilterPopup(false);
-    setChannelSearch("");
-    setSelectedChannels([]);
   };
 
   useEffect(() => {
@@ -594,13 +491,89 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       <FiltersPanel
         onClose={() => setFilterFull(false)}
         loadFilters={getSmartFilters}
-        createFilter={createSmartFilter}
-        updateFilter={updateSmartFilter}
-        deleteFilter={async (id: string) => {
-          await deleteSmartFilter(id);
+        createFilter={async (filterData) => {
+          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+          const token = localStorage.getItem("access_token");
+
+          const formData = new FormData();
+          formData.append("name", filterData.name);
+          formData.append("channels", filterData.channels.join(","));
+          formData.append("keywords", filterData.keywords.join("\n"));
+
+          const response = await fetch(`${BACKEND_URL}/filters`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to create filter: ${response.status}`);
+          }
+
+          const newFilter = await response.json();
+          setSmartFilters((prev) => [...prev, newFilter]);
+          alert("Filter created successfully!");
+          refreshSmartFilters();
+          return newFilter;
+        }}
+        updateFilter={async (filterId, filterData) => {
+          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+          const token = localStorage.getItem("access_token");
+
+          const formData = new FormData();
+          if (filterData.name) formData.append("name", filterData.name);
+          if (filterData.channels)
+            formData.append("channels", filterData.channels.join(","));
+          if (filterData.keywords)
+            formData.append("keywords", filterData.keywords.join("\n"));
+
+          const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to update filter: ${response.status}`);
+          }
+
+          const updatedFilter = await response.json();
+          setSmartFilters((prev) =>
+            prev.map((f) => (f.id === filterId ? updatedFilter : f))
+          );
+          alert("Filter updated successfully!");
+          refreshSmartFilters();
+          return updatedFilter;
+        }}
+        deleteFilter={async (filterId) => {
+          if (!confirm("Are you sure you want to delete this filter?")) {
+            return;
+          }
+          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+          const token = localStorage.getItem("access_token");
+
+          const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to delete filter: ${response.status}`);
+          }
+
+          setSmartFilters((prev) => prev.filter((f) => f.id !== filterId));
+          alert("Filter deleted successfully!");
+          refreshSmartFilters();
         }}
         topItems={topItems}
         onTopItemsReorder={setTopItems}
+        onFiltersUpdated={refreshSmartFilters}
       />
     );
   }
@@ -890,279 +863,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             <div className="flex">
               <Plus
                 className="hover:text-white text-[#fafafa60] w-5 h-5"
-                onClick={() => setShowFilterPopup(!showFilterPopup)}
+                onClick={(e) => {
+                  e.stopPropagation(); // Stop event propagation
+                  setFilterFull(true);
+                }}
               />
-              {streamsOpen ? (
+              {isFilteredStreamsOpen ? (
                 <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5" />
               ) : (
                 <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
               )}
-              {showFilterPopup && (
-                <>
-                  {/* Backdrop for outside click */}
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setShowFilterPopup(false)}
-                    style={{ background: "transparent" }}
-                  />
-                  {/* Popup */}
-                  <div className="absolute left-[20%] top-[20%] mt-2 z-50 w-[400px] bg-[#161717] border border-[#fafafa10] rounded-xl shadow-lg p-5">
-                    {/* --- Popup content below --- */}
-                    <div className="text-white text-base font-[200] mb-1">
-                      Create Filtered Streams
-                    </div>
-                    <div className="text-xs text-[#ffffff80] mb-3">
-                      Give your stream a descriptive name so you can find it
-                      later.
-                    </div>
-                    <input
-                      className="w-full bg-[#fafafa10] rounded-[8px] px-3 py-2 mb-3 text-sm text-white outline-none"
-                      placeholder="Filter Name"
-                    />
-                    <div className="text-xs text-[#ffffff80] mb-1">
-                      Select Channels
-                    </div>
-                    <div className="flex items-center rounded-[8px]  px-3 py-2 mb-2">
-                      <Search className="w-4 h-4 text-[#ffffff80] mr-2" />
-                      <input
-                        className="flex-1 bg-transparent outline-none text-white text-sm"
-                        placeholder="Channel Name"
-                        value={channelSearch}
-                        onChange={(e) => setChannelSearch(e.target.value)}
-                      />
-                      {channelSearch && (
-                        <button
-                          className="ml-2 text-[#ffffff80]"
-                          onClick={() => setChannelSearch("")}
-                          aria-label="Clear search"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
-                    {
-                      <div className="max-h-32 overflow-y-auto mb-2">
-                        {searchResults.length === 0 ? (
-                          <div className="text-xs text-[#ffffff80] px-3 py-2">
-                            No results found.
-                          </div>
-                        ) : (
-                          searchResults.map((ch, idx) => (
-                            <div
-                              key={ch.name + idx}
-                              className="flex items-center gap-2 hover:bg-[#ffffff10] rounded-[10px] px-3 py-2 mb-1 cursor-pointer"
-                              onClick={() => {
-                                if (
-                                  !selectedChannels.some(
-                                    (sel) => sel.name === ch.name
-                                  )
-                                ) {
-                                  setSelectedChannels([
-                                    ...selectedChannels,
-                                    ch,
-                                  ]);
-                                }
-                              }}
-                            >
-                              {/* Platform icons */}
-                              <span className="flex gap-1">
-                                {ch.platform === "Telegram" && (
-                                  <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#3474ff]">
-                                    <img
-                                      src={telegram}
-                                      className="w-4 h-4"
-                                      alt="Telegram"
-                                    />
-                                  </span>
-                                )}
-                                {ch.platform === "Discord" && (
-                                  <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#7B5CFA]">
-                                    <img
-                                      src={discord}
-                                      className="w-4 h-4"
-                                      alt="Discord"
-                                    />
-                                  </span>
-                                )}
-                              </span>
-                              <span className="text-white text-sm">
-                                {ch.name}
-                              </span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    }
-
-                    {selectedChannels.length > 0 && (
-                      <div className="mb-2 max-h-32 overflow-y-auto">
-                        {selectedChannels.map((ch, idx) => (
-                          <div
-                            key={ch.name + idx}
-                            className="flex items-center gap-2 hover:bg-[#ffffff10] rounded px-3 py-2 mb-1"
-                          >
-                            <span className="flex gap-1">
-                              {ch.platform === "Telegram" && (
-                                <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#3474ff]">
-                                  <img
-                                    src={telegram}
-                                    className="w-4 h-4"
-                                    alt="Telegram"
-                                  />
-                                </span>
-                              )}
-                              {ch.platform === "Discord" && (
-                                <span className="w-6 h-6 flex items-center justify-center rounded-full bg-[#7B5CFA]">
-                                  <img
-                                    src={discord}
-                                    className="w-4 h-4"
-                                    alt="Discord"
-                                  />
-                                </span>
-                              )}
-                            </span>
-                            <span className="text-white text-sm">
-                              {ch.name}
-                            </span>
-                            <button
-                              className="ml-auto text-[#ffffff80]"
-                              onClick={() =>
-                                setSelectedChannels(
-                                  selectedChannels.filter(
-                                    (sel) => sel.name !== ch.name
-                                  )
-                                )
-                              }
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {/* Filter row */}
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                      <select
-                        className="bg-[#fafafa10] rounded-[8px] px-3 py-2 text-sm text-white w-full appearance-none border-none outline-none"
-                        style={{
-                          colorScheme: "dark",
-                          backgroundColor: "rgba(250, 250, 250, 0.06)",
-                          color: "white",
-                        }}
-                      >
-                        <option
-                          value="contains"
-                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
-                        >
-                          Contains
-                        </option>
-                        <option
-                          value="not_contains"
-                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
-                        >
-                          Does Not Contain
-                        </option>
-                        <option
-                          value="equals"
-                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
-                        >
-                          Equals
-                        </option>
-                        <option
-                          value="not_equals"
-                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
-                        >
-                          Does Not Equal
-                        </option>
-                        <option
-                          value="starts_with"
-                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
-                        >
-                          Starts With
-                        </option>
-                        <option
-                          value="ends_with"
-                          style={{ backgroundColor: "#2d2d2d", color: "white" }}
-                        >
-                          Ends With
-                        </option>
-                      </select>
-                      <div className="flex bg-[#fafafa10] rounded-[8px] overflow-hidden w-full">
-                        <input
-                          className="flex-1 bg-[#fafafa10] px-3 py-2 text-white outline-none"
-                          placeholder="Keyword"
-                        />
-                        <button className="flex-shrink-0 text-white px-3 py-2">
-                          +
-                        </button>
-                      </div>
-                    </div>
-                    {/* Actions */}
-                    <div className="flex justify-between">
-                      <button
-                        className="text-[#ffffff80] px-4 py-2 rounded hover:bg-[#23262F]"
-                        onClick={handleCancel}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        className="bg-[#2563eb] text-white px-8 py-2 rounded hover:bg-[#1d4ed8]"
-                        onClick={handleSave}
-                      >
-                        Save
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-              {showEditPopup && editingFilter && (
-                <>
-                  {/* Backdrop for outside click */}
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={handleEditCancel}
-                    style={{ background: "transparent" }}
-                  />
-                  {/* Edit Popup */}
-                  <div className="absolute left-[20%] top-[20%] mt-2 z-50 w-[400px] bg-[#161717] border border-[#fafafa10] rounded-xl shadow-lg p-5">
-                    <div className="text-white text-base font-[200] mb-1">
-                      Edit Filter: {editingFilter.name}
-                    </div>
-                    <div className="text-xs text-[#ffffff80] mb-3">
-                      Update your filter settings below.
-                    </div>
-                    <input
-                      className="w-full bg-[#fafafa10] rounded-[8px] px-3 py-2 mb-3 text-sm text-white outline-none"
-                      placeholder="Edit Filter Name"
-                      defaultValue={editingFilter.name}
-                    />
-                    <input
-                      className="w-full bg-[#fafafa10] rounded-[8px] px-3 py-2 mb-3 text-sm text-white outline-none"
-                      placeholder="Edit Keywords"
-                      defaultValue={editingFilter.keywords?.join(", ") || ""}
-                    />
-
-                    {/* Actions */}
-                    <div className="flex justify-between">
-                      <button
-                        className="text-[#ffffff80] px-4 py-2 rounded hover:bg-[#23262F]"
-                        onClick={handleEditCancel}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        className="bg-[#2563eb] text-white px-8 py-2 rounded hover:bg-[#1d4ed8]"
-                        onClick={handleEditSave}
-                      >
-                        Update
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
             </div>
           </div>
-          {streamsOpen && (
+          {isFilteredStreamsOpen && (
             <div className="mt-2">
               {isLoadingFilters ? (
                 <div className="text-[#ffffff80] text-sm px-4 py-2">
@@ -1396,6 +1109,17 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           </div>
         )}
       </div>
+      {/* Inline FilterEditor modal for editing from ChatPanel */}
+      <FilterEditor
+        show={showFilterEditor}
+        onClose={() => {
+          setShowFilterEditor(false);
+          setEditingFilter(null);
+        }}
+        editingFilter={editingFilter}
+        onSave={handleEditorSave}
+        allChannels={allChannels}
+      />
     </aside>
   );
 };
