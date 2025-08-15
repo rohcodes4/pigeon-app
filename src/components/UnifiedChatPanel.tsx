@@ -150,6 +150,11 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  // Preserve scroll position when older messages are prepended
+  const scrollRestoreRef = React.useRef<{
+    prevHeight: number;
+    prevTop: number;
+  } | null>(null);
   const [replyTo, setReplyTo] = React.useState<
     null | (typeof dummyMessages)[0]
   >(null);
@@ -161,10 +166,20 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const [loadingMore, setLoadingMore] = React.useState(false);
   const [hasMoreMessages, setHasMoreMessages] = React.useState(true);
   const [shouldAutoScroll, setShouldAutoScroll] = React.useState(true);
+  // Page size for fetching messages from backend
+  const PAGE_SIZE = 100;
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    // Scroll the container itself to the bottom. Run twice via rAF to account for late layout (e.g., images loading)
+    requestAnimationFrame(() => {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      requestAnimationFrame(() => {
+        container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      });
+    });
   };
 
   const [showAttachMenu, setShowAttachMenu] = React.useState(false);
@@ -435,6 +450,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
 
         // Add pagination parameter if loading older messages
         const params = new URLSearchParams();
+        params.append("limit", String(PAGE_SIZE));
         if (beforeTimestamp) {
           params.append("before", beforeTimestamp);
         }
@@ -548,8 +564,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
         transformedMessages.sort((a, b) => a.date.getTime() - b.date.getTime());
 
         // Check if we got fewer messages than requested (indicating we've reached the end)
-        if (data.length < 50) {
-          // Backend default limit is 50
+        if (data.length < PAGE_SIZE) {
           setHasMoreMessages(false);
         }
 
@@ -580,7 +595,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
 
   // Function to load more messages when scrolling to top
   const loadMoreMessages = React.useCallback(() => {
-    if (loadingMore || !hasMoreMessages || messages.length === 0) return;
+    if (loadingMore || loading || !hasMoreMessages || messages.length === 0)
+      return;
 
     // Get the timestamp of the oldest message
     const oldestMessage = messages[0];
@@ -600,7 +616,14 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     } else if (selectedChat === "all-channels") {
       fetchMessages("all-channels", beforeTimestamp, true);
     }
-  }, [loadingMore, hasMoreMessages, messages, selectedChat, fetchMessages]);
+  }, [
+    loadingMore,
+    loading,
+    hasMoreMessages,
+    messages,
+    selectedChat,
+    fetchMessages,
+  ]);
 
   // Scroll event handler for infinite loading
   const handleScroll = React.useCallback(
@@ -609,12 +632,39 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       const scrollTop = container.scrollTop;
       const threshold = 100; // Load more when within 100px of top
 
-      if (scrollTop <= threshold && hasMoreMessages && !loadingMore) {
+      const isScrollable =
+        container.scrollHeight > container.clientHeight + threshold;
+
+      if (
+        scrollTop <= threshold &&
+        hasMoreMessages &&
+        !loadingMore &&
+        !loading &&
+        isScrollable
+      ) {
+        // Capture current dimensions to restore scroll offset after older messages are prepended
+        scrollRestoreRef.current = {
+          prevHeight: container.scrollHeight,
+          prevTop: container.scrollTop,
+        };
         loadMoreMessages();
       }
     },
-    [hasMoreMessages, loadingMore, loadMoreMessages]
+    [hasMoreMessages, loadingMore, loading, loadMoreMessages]
   );
+
+  // After messages update, restore scroll position when we just prepended older items
+  React.useEffect(() => {
+    if (!loadingMore && scrollRestoreRef.current) {
+      const container = messagesContainerRef.current;
+      if (container) {
+        const { prevHeight, prevTop } = scrollRestoreRef.current;
+        const delta = container.scrollHeight - prevHeight;
+        container.scrollTop = prevTop + delta;
+      }
+      scrollRestoreRef.current = null;
+    }
+  }, [messages, loadingMore]);
 
   const handleSend = () => {
     if (inputRef.current && inputRef.current.value.trim()) {
