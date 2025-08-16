@@ -158,7 +158,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
       <nav className="flex flex-col gap-4 flex-1">
         {/* AI */}
         <button
-          className={`relative p-2 rounded-lg flex items-center justify-center transition-colors
+          className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
             ${activeNav === "AI" ? "bg-[#212121]" : "hover:bg-[#212121]"}`}
           onClick={() => {
             setActiveNav("AI");
@@ -172,7 +172,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
         </button>
         {/* Logs */}
         <button
-          className={`relative p-2 rounded-lg flex items-center justify-center transition-colors
+          className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
             ${activeNav === "Tasks" ? "bg-[#212121]" : "hover:bg-[#212121]"}`}
           onClick={() => {
             setActiveNav("Tasks");
@@ -192,7 +192,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
         </button>
         {/* Favourite */}
         <button
-          className={`relative p-2 rounded-lg flex items-center justify-center transition-colors
+          className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
             ${
               activeNav === "Bookmarks" ? "bg-[#212121]" : "hover:bg-[#212121]"
             }`}
@@ -214,7 +214,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
         </button>
         {/* Users */}
         <button
-          className={`relative p-2 rounded-lg flex items-center justify-center transition-colors
+          className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
             ${
               activeNav === "Contacts" ? "bg-[#212121]" : "hover:bg-[#212121]"
             }`}
@@ -234,7 +234,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
         </button>
         {/* Help */}
         <button
-          className={`relative p-2 rounded-lg flex items-center justify-center transition-colors
+          className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
             ${activeNav === "Help" ? "bg-[#212121]" : "hover:bg-[#212121]"}`}
           onClick={() => {
             setActiveNav("Help");

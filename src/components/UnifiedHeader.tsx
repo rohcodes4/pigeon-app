@@ -30,7 +30,7 @@ const UnifiedHeader:React.FC<UnifiedHeaderProps> = ({
         <span className="p-1.5 rounded-[6px] text-[11px] text-[#bfd6ff] bg-[#3474ff]">Telegram</span>
         <span className="p-1.5 rounded-[6px] text-[11px] text-[#d7d5ff] bg-[#7b5cfa]">Discord</span>
         
-        {isPinnable && <div className="p-2 flex items-center justify-center bg-[#fafafa10] rounded-[6px]">
+        {isPinnable && <div className=" cursor-pointer p-2 flex items-center justify-center bg-[#fafafa10] rounded-[6px]">
   <PinOff
     className="text-[#fafafa60] fill-[#fafafa60] w-4 h-4"
     aria-label="Unpin"
@@ -49,13 +49,13 @@ const UnifiedHeader:React.FC<UnifiedHeaderProps> = ({
 ) : (
   <div className="flex items-center gap-3">
     {isReadAll && (
-      <button className="p-1.5 my-1 flex gap-2 text-[11px] items-center rounded-lg bg-[#ffffff06] border border-[#ffffff03] text-[#ffffff32] hover:text-[#ffffff64] hover:bg-[#ffffff32] transition">
+      <button className="p-1.5 my-1 flex gap-2 text-[11px] items-center rounded-[6px] cursor-pointer bg-[#ffffff06] border border-[#ffffff03] text-[#ffffff32] hover:text-[#ffffff64] hover:bg-[#ffffff32] transition">
         <CheckCheck className="w-5 h-5" /> <span>Read All</span>
       </button>
     )}
     <button
       onClick={() => setIsSmartSummary(!isSmartSummary)}
-      className="p-1.5 my-1 flex gap-2 text-[11px] items-center rounded-lg text-[#84afff] bg-[#3474ff12] hover:text-[#ffffff] hover:bg-[#3474ff] transition"
+      className="p-1.5 px-3 my-1 flex gap-2 text-[11px] items-center rounded-[6px] cursor-pointer text-[#84afff] bg-[#3474ff12] hover:text-[#ffffff] hover:bg-[#3474ff] transition"
     >
       <img src={aiIMG} className="w-5 h-5" />
       <span>{smartText}</span>

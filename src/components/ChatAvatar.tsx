@@ -13,16 +13,29 @@ function gravatarUrl(seed: string) {
   }
 }
 
-function ChatAvatar({ name, avatar }) {
+// ... existing code ...
+function ChatAvatar({ name, avatar, backupAvatar }) {
+  const gravatar = gravatarUrl(name + "Telegram");
   const [src, setSrc] = useState(
-    avatar &&
-      (avatar.includes("/contact_photo/") || avatar.includes("/chat_photo/"))
+    avatar
       ? avatar
-      : gravatarUrl(name + "Telegram")
+      : backupAvatar
+        ? backupAvatar
+        : gravatar
   );
 
-  // If avatar is a backend photo, set src as avatar
-  // If that fails, fallback to gravatar
+  // Track which fallback we're on
+  const [fallbackStep, setFallbackStep] = useState(0);
+
+  const handleError = () => {
+    if (fallbackStep === 0 && backupAvatar && src !== backupAvatar) {
+      setSrc(backupAvatar);
+      setFallbackStep(1);
+    } else if ((fallbackStep <= 1) && src !== gravatar) {
+      setSrc(gravatar);
+      setFallbackStep(2);
+    }
+  };
 
   return (
     <>
@@ -32,13 +45,10 @@ function ChatAvatar({ name, avatar }) {
         className="w-10 h-10 rounded-full object-cover"
         loading="lazy"
         decoding="async"
-        onError={() => {
-          if (src !== gravatarUrl(name + "Telegram")) {
-            setSrc(gravatarUrl(name + "Telegram"));
-          }
-        }}
+        onError={handleError}
       />
     </>
   );
 }
+
 export default ChatAvatar;
