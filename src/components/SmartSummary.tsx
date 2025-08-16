@@ -367,7 +367,7 @@ const SmartSummary = ({ selectedChat }: SmartSummaryProps) => {
   }, [dropdownOpen]);
 
   return (
-    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[500px] bg-[#111111] text-white rounded-2xl py-2 flex flex-col shadow-lg border border-[#23242a]"
+    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[350px] max-w-[517px] bg-[#111111] text-white rounded-2xl py-2 flex flex-col shadow-lg border border-[#23242a]"
     >
       {/* Header */}
       <div className="flex items-center justify-between pb-2 px-2 border-b">
@@ -376,14 +376,14 @@ const SmartSummary = ({ selectedChat }: SmartSummaryProps) => {
           {/* Dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
-              className="flex items-center justify-evenly gap-1 bg-[#23242a] px-2 py-1 rounded-lg text-xs font-medium"
+              className="flex items-center justify-evenly gap-1 bg-[#23242a] px-2 py-1 rounded-[6px] text-xs font-medium"
               onClick={() => setDropdownOpen((open) => !open)}
             >
                     <CalendarCog className="h-4 w-4 "/>
                     {selectedTime.label} <FaChevronDown className="ml-1 text-xs" />
             </button>
             {dropdownOpen && (
-              <div className="absolute right-0 mt-1 w-24 bg-[#23242a] border border-[#333] rounded-lg shadow-lg z-10">
+              <div className="absolute right-0 mt-1 w-24 bg-[#23242a] border border-[#333] rounded-[6px] overflow-hidden shadow-lg z-10">
                 {TIME_OPTIONS.map((option) => (
                   <button
                     key={option.value}
@@ -407,7 +407,7 @@ const SmartSummary = ({ selectedChat }: SmartSummaryProps) => {
           <button 
             onClick={handleGenerateSummary}
             disabled={summaryLoading || !selectedChat || selectedChat === "all-channels"}
-            className="bg-[#3474ff] hover:bg-[#2563eb] disabled:bg-[#23242a] disabled:text-[#666] text-white px-3 py-1 rounded-lg text-xs font-medium"
+                  className="p-1.5 px-3 my-1 flex gap-2 text-[11px] items-center rounded-[10px] cursor-pointer text-[#84afff] bg-[#3474ff12] hover:text-[#ffffff] hover:bg-[#3474ff] transition"
           >
             {summaryLoading ? "Generating..." : "Summarize"}
           </button>

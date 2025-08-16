@@ -98,8 +98,8 @@ const Help = () => {
 
   return (
     <Layout>
-      <div className="flex flex-col p-6 bg-gradient-to-br from-[#171717] via-[#1a1a1a] to-[#171717] min-h-screen">
-        <div className="max-w-5xl mx-auto w-full space-y-8">
+      <div className="flex justify-center flex-col p-6 bg-gradient-to-br from-[#171717] via-[#1a1a1a] to-[#171717] min-h-screen w-full">
+        <div className="max-w-7xl block mx-auto w-full space-y-8">
           {/* Header */}
           <div className="text-center space-y-6 py-8">
             <div className="relative">

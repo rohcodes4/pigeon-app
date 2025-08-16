@@ -221,7 +221,7 @@ const Settings = () => {
 
   return (
     <Layout>
-      <div className="flex flex-col p-6 bg-gradient-to-br from-[#171717] via-[#1a1a1a] to-[#171717] min-h-screen">
+      <div className="flex grow flex-col p-6 bg-gradient-to-br from-[#171717] via-[#1a1a1a] to-[#171717] min-h-screen min-w-0 max-w-full ">
         <div className="max-w-4xl mx-auto w-full space-y-8">
           {/* Header */}
           <div className="space-y-4">
