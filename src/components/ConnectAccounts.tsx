@@ -81,6 +81,13 @@ export const ConnectAccounts = ({
           const tg = await tgRes.json();
           setTelegramConnected(!!tg.connected);
         }
+        const dcRes = await fetch(`${BACKEND_URL}/auth/discord/status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (dcRes.ok) {
+          const dc = await dcRes.json();
+          setDiscordConnected(!!dc.connected);
+        }
       } catch (e) {
         // ignore
       }
@@ -90,7 +97,7 @@ export const ConnectAccounts = ({
       );
       if (onboardingData) {
         const data = JSON.parse(onboardingData);
-        setDiscordConnected(data.discord || false);
+        if (data.discord) setDiscordConnected(true);
       }
     };
     fetchStatuses();

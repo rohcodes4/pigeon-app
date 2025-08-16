@@ -223,6 +223,23 @@ export const AuthPage = () => {
 
         console.log("Calling checkAuth...");
         await checkAuth();
+
+        try {
+          // Mark Discord connected in onboarding storage, if applicable
+          const meRes = await fetch(`${BACKEND_URL}/auth/me`, {
+            headers: { Authorization: `Bearer ${data.access_token}` },
+          });
+          const me = meRes.ok ? await meRes.json() : null;
+          if (me && me.id) {
+            const key = `chatpilot_accounts_${me.id}`;
+            const existing = JSON.parse(localStorage.getItem(key) || "{}");
+            const updated = { ...existing };
+            updated.discord = true;
+            localStorage.setItem(key, JSON.stringify(updated));
+          }
+        } catch (e) {
+          console.log("Failed to set Discord connected flag:", e);
+        }
         console.log("checkAuth completed");
 
         popup?.close();
