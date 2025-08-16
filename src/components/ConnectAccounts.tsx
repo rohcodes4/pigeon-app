@@ -91,14 +91,6 @@ export const ConnectAccounts = ({
       } catch (e) {
         // ignore
       }
-      // Discord status endpoint not implemented yet
-      const onboardingData = localStorage.getItem(
-        `chatpilot_accounts_${user.id}`
-      );
-      if (onboardingData) {
-        const data = JSON.parse(onboardingData);
-        if (data.discord) setDiscordConnected(true);
-      }
     };
     fetchStatuses();
   }, [user, setTelegramConnected, setDiscordConnected]);
@@ -135,19 +127,6 @@ export const ConnectAccounts = ({
             setPollingIntervalId(null);
             setShowTelegramQrModal(false);
             setTelegramConnected(true); // Update local state
-            // Persist Telegram connection in localStorage
-            if (user) {
-              const existingData = JSON.parse(
-                localStorage.getItem(`chatpilot_accounts_${user.id}`) || "{}"
-              );
-              localStorage.setItem(
-                `chatpilot_accounts_${user.id}`,
-                JSON.stringify({
-                  ...existingData,
-                  telegram: true,
-                })
-              );
-            }
             toast({
               title: "Telegram Connected",
               description: "Successfully connected to your Telegram account.",
@@ -290,20 +269,6 @@ export const ConnectAccounts = ({
         setTwoFactorPassword("");
         setTelegramConnected(true);
 
-        // Persist Telegram connection in localStorage
-        if (user) {
-          const existingData = JSON.parse(
-            localStorage.getItem(`chatpilot_accounts_${user.id}`) || "{}"
-          );
-          localStorage.setItem(
-            `chatpilot_accounts_${user.id}`,
-            JSON.stringify({
-              ...existingData,
-              telegram: true,
-            })
-          );
-        }
-
         toast({
           title: "Telegram Connected",
           description: "Successfully connected to your Telegram account.",
@@ -329,9 +294,11 @@ export const ConnectAccounts = ({
     setLoading((prev) => ({ ...prev, discord: true }));
 
     try {
-      // Start Discord OAuth flow
+      // Start Discord OAuth flow with Authorization header so backend can link to current user
+      const token = localStorage.getItem("access_token");
       const response = await fetch(`${BACKEND_URL}/auth/discord/start`, {
         method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       if (!response.ok) {
@@ -362,17 +329,7 @@ export const ConnectAccounts = ({
               setDiscordConnected(true);
               setLoading((prev) => ({ ...prev, discord: false }));
 
-              // Persist Discord connection in localStorage
-              const existingData = JSON.parse(
-                localStorage.getItem(`chatpilot_accounts_${user.id}`) || "{}"
-              );
-              localStorage.setItem(
-                `chatpilot_accounts_${user.id}`,
-                JSON.stringify({
-                  ...existingData,
-                  discord: true,
-                })
-              );
+              // Status is derived from backend
 
               toast({
                 title: "Discord Connected",
@@ -799,16 +756,7 @@ export const ConnectAccounts = ({
             <ConnectTelegram
               onConnected={() => {
                 setTelegramConnected(true);
-                if (user) {
-                  const existingData = JSON.parse(
-                    localStorage.getItem(`chatpilot_accounts_${user.id}`) ||
-                      "{}"
-                  );
-                  localStorage.setItem(
-                    `chatpilot_accounts_${user.id}`,
-                    JSON.stringify({ ...existingData, telegram: true })
-                  );
-                }
+                // Status is derived from backend
                 toast({
                   title: "Telegram Connected",
                   description: "Successfully connected via phone.",
