@@ -1016,7 +1016,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     >
                       {/* Avatar */}
                       <div className="relative">
-                        <ChatAvatar name={chat.name} avatar={chat.photo_url} />
+                        <ChatAvatar
+                          name={chat.name}
+                          avatar={chat.photo_url}
+                          backupAvatar={undefined}
+                        />
                         <img
                           src={chat.platform === "Discord" ? discord : telegram}
                           className={`

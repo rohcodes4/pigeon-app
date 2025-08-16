@@ -707,6 +707,118 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     }
   }, [openMenuId]);
 
+  // Silent refresh that avoids toggling loading states and only appends new messages
+  const refreshLatest = React.useCallback(async () => {
+    if (USE_DUMMY_DATA) return;
+    try {
+      const token = localStorage.getItem("access_token");
+      let endpoint: string | null = null;
+
+      if (selectedChat === "all-channels") {
+        endpoint = `${
+          import.meta.env.VITE_BACKEND_URL
+        }/chats/all/messages?limit=${PAGE_SIZE}`;
+      } else if (
+        selectedChat &&
+        typeof selectedChat === "object" &&
+        (selectedChat as any).id
+      ) {
+        if (
+          (selectedChat as any).name &&
+          (selectedChat as any).keywords !== undefined
+        ) {
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
+            (selectedChat as any).id
+          }/messages?limit=${PAGE_SIZE}`;
+        } else {
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/${
+            (selectedChat as any).id
+          }/messages?limit=${PAGE_SIZE}`;
+        }
+      } else {
+        return;
+      }
+
+      const response = await fetch(endpoint, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+
+      const toChips = (results: any[]) =>
+        results
+          .map((r: any) => {
+            const emoticon =
+              typeof r?.reaction?.emoticon === "string"
+                ? r.reaction.emoticon
+                : typeof r?.reaction === "string"
+                ? r.reaction
+                : null;
+            const normalized =
+              emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
+            return normalized
+              ? { icon: normalized, count: r?.count || 0 }
+              : null;
+          })
+          .filter(Boolean) as Array<{ icon: string; count: number }>;
+
+      const transformed = (data || []).map((msg: any, index: number) => {
+        const reactionResults =
+          ((msg?.message || {}).reactions || {}).results || [];
+        const parsedReactions = Array.isArray(reactionResults)
+          ? toChips(reactionResults)
+          : [];
+        const chatName = msg.chat
+          ? msg.chat.title ||
+            msg.chat.username ||
+            msg.chat.first_name ||
+            "Unknown"
+          : selectedChat && typeof selectedChat === "object"
+          ? (selectedChat as any).name || "Chat"
+          : "Unknown";
+        return {
+          id: msg.id || msg._id || String(index + 1),
+          originalId: msg.id || msg._id,
+          name: msg.sender?.first_name || msg.sender?.username || "Unknown",
+          avatar: msg.sender?.id
+            ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
+                msg.sender.id
+              }`
+            : gravatarUrl(
+                msg.sender?.first_name || msg.sender?.username || "Unknown"
+              ),
+          platform: "Telegram" as const,
+          channel: null,
+          server: chatName,
+          date: new Date(msg.timestamp),
+          message: msg.raw_text || "",
+          tags: [],
+          reactions: parsedReactions,
+          hasLink: (msg.raw_text || "").includes("http"),
+          link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
+          replyTo: null as any,
+        } as MessageItem;
+      });
+
+      transformed.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+      setMessages((prev) => {
+        const seen = new Set(prev.map((m) => String(m.originalId || m.id)));
+        const onlyNew = transformed.filter(
+          (m) => !seen.has(String(m.originalId || m.id))
+        );
+        if (onlyNew.length === 0) return prev;
+        return [...prev, ...onlyNew];
+      });
+      setShouldAutoScroll(true);
+    } catch (_) {
+      // ignore
+    }
+  }, [USE_DUMMY_DATA, selectedChat]);
+
   // Fetch messages when selectedChat changes or on initial mount
   React.useEffect(() => {
     if (!USE_DUMMY_DATA) {
@@ -732,6 +844,25 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       setMessages(dummyMessages);
     }
   }, [selectedChat?.id, selectedChat, fetchMessages, USE_DUMMY_DATA]);
+
+  // Polling: refresh current view every 30s (no websockets)
+  React.useEffect(() => {
+    if (USE_DUMMY_DATA) return;
+    let timer: any = null;
+    const poll = async () => {
+      try {
+        await refreshLatest();
+      } catch (_) {
+        // ignore transient polling errors
+      } finally {
+        timer = setTimeout(poll, 30000);
+      }
+    };
+    timer = setTimeout(poll, 30000);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [USE_DUMMY_DATA, selectedChat, refreshLatest]);
 
   // Function to mark chat as read
   const markChatAsRead = async (chatId) => {
@@ -870,7 +1001,11 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                   className="flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 group hover:bg-[#212121]"
                   onMouseLeave={() => setOpenMenuId(null)}
                 >
-                  <ChatAvatar name={msg.name} avatar={msg.avatar} />
+                  <ChatAvatar
+                    name={msg.name}
+                    avatar={msg.avatar}
+                    backupAvatar={undefined}
+                  />
 
                   <div className="flex-1 relative">
                     <div className="absolute right-0 top-0 flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity z-10">

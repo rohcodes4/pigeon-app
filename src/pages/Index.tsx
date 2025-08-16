@@ -225,6 +225,37 @@ const Index = () => {
     fetchChats();
   }, [user]);
 
+  // Lightweight polling: refresh sidebar chats every 30s
+  useEffect(() => {
+    if (!user) return;
+    let timer: any = null;
+    const poll = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/ui/chats`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setChats(data.chats || []);
+        }
+      } catch (_) {
+        // ignore transient polling errors
+      } finally {
+        timer = setTimeout(poll, 30000);
+      }
+    };
+    timer = setTimeout(poll, 30000);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [user]);
+
   const handleOnboardingComplete = () => {
     if (user) {
       localStorage.setItem(`chatpilot_onboarded_${user.id}`, "true");
