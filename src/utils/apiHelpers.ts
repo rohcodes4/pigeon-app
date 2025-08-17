@@ -61,6 +61,47 @@ export const searchBookmarks = async (params: {
   return response.json();
 };
 
+// 7. Bookmark/Favorites Management
+export const createBookmark = async (
+  messageId: string,
+  type: "bookmark" | "pin" = "bookmark"
+) => {
+  const formData = new FormData();
+  formData.append("message_id", messageId);
+  formData.append("type", type);
+
+  const response = await authFetch(`${BACKEND_URL}/bookmarks`, {
+    method: "POST",
+    body: formData,
+  });
+
+  return response.json();
+};
+
+export const deleteBookmark = async (bookmarkId: string) => {
+  const response = await authFetch(`${BACKEND_URL}/bookmarks/${bookmarkId}`, {
+    method: "DELETE",
+  });
+
+  return response.json();
+};
+
+export const updateBookmark = async (
+  bookmarkId: string,
+  updates: { text?: string; type?: string }
+) => {
+  const formData = new FormData();
+  if (updates.text) formData.append("text", updates.text);
+  if (updates.type) formData.append("type", updates.type);
+
+  const response = await authFetch(`${BACKEND_URL}/bookmarks/${bookmarkId}`, {
+    method: "POST",
+    body: formData,
+  });
+
+  return response.json();
+};
+
 // 2. Search by Platform
 export const searchMessages = async (params: {
   keyword: string;
@@ -282,6 +323,9 @@ export const handleMediaDownload = async (
 export default {
   searchTasks,
   searchBookmarks,
+  createBookmark,
+  deleteBookmark,
+  updateBookmark,
   searchMessages,
   searchByPlatform,
   sendMessage,

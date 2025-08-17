@@ -24,7 +24,12 @@ import smartIcon from "@/assets/images/sidebar/Chat.png";
 import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
 import ChatAvatar from "./ChatAvatar";
 import { useAuth } from "@/hooks/useAuth";
-import { sendReaction, getMessageById, sendMessage } from "@/utils/apiHelpers";
+import {
+  sendReaction,
+  getMessageById,
+  sendMessage,
+  createBookmark,
+} from "@/utils/apiHelpers";
 import { toast } from "@/hooks/use-toast";
 
 // Types
@@ -212,32 +217,6 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       return groups;
     }, [messages]);
 
-  const createBookmark = async (
-    messageId: string,
-    type: "bookmark" | "pin" = "bookmark"
-  ) => {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-    const token = localStorage.getItem("access_token");
-
-    const formData = new FormData();
-    formData.append("message_id", messageId);
-    formData.append("type", type);
-
-    const response = await fetch(`${BACKEND_URL}/bookmarks`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to ${type} message: ${response.status}`);
-    }
-
-    return response.json();
-  };
-
   // 2. Add these state variables inside your component (around line 150):
   const [bookmarkLoading, setBookmarkLoading] = React.useState<{
     [key: string]: boolean;
@@ -417,6 +396,13 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     // For API data, use the original message ID from the database
     const messageId = msg.originalId || msg.id; // Use originalId if available, fallback to current id
 
+    console.log("Bookmarking message:", {
+      messageId,
+      originalId: msg.originalId,
+      id: msg.id,
+      type,
+    });
+
     if (!messageId) {
       toast({
         title: "Cannot bookmark message",
@@ -429,7 +415,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     try {
       setBookmarkLoading((prev) => ({ ...prev, [msg.id]: true }));
 
-      await createBookmark(messageId.toString(), type);
+      const result = await createBookmark(messageId.toString(), type);
+      console.log("Bookmark result:", result);
 
       const actionText = type === "pin" ? "pinned" : "bookmarked";
       console.log(`Message ${actionText} successfully`);
@@ -1275,21 +1262,39 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                               <img src={smartIcon} className="w-6 h-6" />
                               Add to Smart Channels
                             </button>
-                            <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                            <button
+                              className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleBookmark(msg, "bookmark");
+                              }}
+                              disabled={bookmarkLoading[msg.id]}
+                            >
                               <Heart
                                 className="w-6 h-6"
                                 stroke="currentColor"
                                 fill="currentColor"
                               />
-                              Save to Favorites
+                              {bookmarkLoading[msg.id]
+                                ? "Saving..."
+                                : "Save to Favorites"}
                             </button>
-                            <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                            <button
+                              className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleBookmark(msg, "pin");
+                              }}
+                              disabled={bookmarkLoading[msg.id]}
+                            >
                               <Pin
                                 className="w-6 h-6"
                                 stroke="currentColor"
                                 fill="currentColor"
                               />
-                              Pin Message
+                              {bookmarkLoading[msg.id]
+                                ? "Pinning..."
+                                : "Pin Message"}
                             </button>
                             <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
                               <Plus
