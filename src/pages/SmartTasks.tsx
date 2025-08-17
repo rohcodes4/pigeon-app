@@ -53,7 +53,8 @@ const SmartTasks = () => {
   const [chats, setChats] = useState([]); // State to store fetched chats
   const [chatsLoading, setChatsLoading] = useState(true); // Loading state for chats
   const [selectedChat, setSelectedChat] = useState(null); // State for selected chat
-
+  const [selectedSource, setSelectedSource] = useState("All sources");
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -149,6 +150,7 @@ const SmartTasks = () => {
         console.error("Failed to mark chat as read:", error);
       }
     }
+    navigate("/", { state: { selectedChat:chat}});
   };
 
   if (loading || chatsLoading) {
@@ -185,6 +187,10 @@ const SmartTasks = () => {
           setIsSearchOpen={(open) => {
             setOpenPanel(open ? "search" : null);
           }}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          selectedOptions={selectedOptions}
+          setSelectedOptions={setSelectedOptions}
         />
         <main className="flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
           <ChatPanel
@@ -209,7 +215,14 @@ const SmartTasks = () => {
           {openPanel === "smartTask" && <SmartTask />}
           {openPanel === "notification" && <NotificationsPanel />}
           {openPanel === "pinned" && <PinnedPanel />}
-          {openPanel === "search" && <SearchPanel />}
+          {openPanel === "search" && (
+            <SearchPanel
+              searchQuery={searchTerm}
+              selectedSource={selectedSource}
+              setSelectedSource={setSelectedSource}
+              selectedOptions={selectedOptions}
+            />
+          )}
         </main>
       </div>
     </Layout>

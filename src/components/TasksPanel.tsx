@@ -72,7 +72,10 @@ const getUniqueTags = (tasks) => {
   return Array.from(tagSet);
 };
 
-function formatDueText(due) {
+function formatDueText(task) {
+
+  console.log(task)
+  const due = task.due
     if (!due || due === "Done") return "Done";
     if (/Due in \d+/.test(due)) return due;
   
@@ -109,24 +112,42 @@ const getUniqueServers = (tasks) => {
 };
 
 const getDueDate = (due) => {
-    if (!due || due === "Done") return null;
-    const now = new Date();
-    const match = due.match(/Due in (\d+)\s*(Days?|hr|mins?)/i);
-    if (!match) return null;
-    const value = parseInt(match[1], 10);
-    if (due.includes("Day")) {
-      now.setDate(now.getDate() + value);
-    } else if (due.includes("hr")) {
-      now.setHours(now.getHours() + value);
-    } else if (due.includes("min")) {
-      now.setMinutes(now.getMinutes() + value);
-    }
-    return now;
-  };
+  if (!due || due === "Done") return null;
+
+  // Check if due looks like an ISO datetime string (simple pattern)
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?/.test(due)) {
+    const parsed = new Date(due);
+    if (!isNaN(parsed.getTime())) {
+      return parsed;
+    } 
+    return null; // invalid date string
+  }
+
+  // Parse as relative time string like "3d", "6 hr", "30 mins"
+  const now = new Date();
+  const match = due.match(/(\d+)\s*(d|h|m)/i);
+  if (!match) return null;
+
+  const value = parseInt(match[1], 10);
+  const unit = match[2].toLowerCase();
+
+  if (unit === "d") {
+    now.setDate(now.getDate() + value);
+  } else if (unit === "h") {
+    now.setHours(now.getHours() + value);
+  } else if (unit === "m") {
+    now.setMinutes(now.getMinutes() + value);
+  }
+
+  return now;
+};
+
 
 const isWithinTimeFilter = (due, filter) => {
 if (filter === "all" || !due || due === "Done") return true;
 const dueDate = getDueDate(due);
+console.log(due)
+console.log(dueDate)
 if (!dueDate) return false;
 const now = new Date();
 const diffMs = dueDate.getTime() - now.getTime();
@@ -176,7 +197,7 @@ const TasksPanel = () => {
       tags: [],
       due: "",
       description: "",
-      platform: "discord",
+      platform: "telegram",
       channel: "",
       server: "",
       priority: "HIGH",
@@ -284,10 +305,10 @@ const TasksPanel = () => {
             id: taskId,
             name: task.text || 'Untitled Task',
             tags: task.tags || [],
-            due: "3d",
+            due: task.due|| "3d",
             description: "",
-            platform: "discord",
-            channel: "GENERAL",
+            platform: task.platform || "telegram",
+            channel: task.chat_title || "Telegram",
             server: "MAIN",
             priority: task.priority || "MEDIUM",
             status: task.status === "open" ? "urgent" : task.status,
@@ -333,6 +354,7 @@ const TasksPanel = () => {
       if (taskData.chat_title) formData.append('chat_title', taskData.chat_title);
       if (taskData.originator_id) formData.append('originator_id', taskData.originator_id.toString());
       if (taskData.originator_name) formData.append('originator_name', taskData.originator_name);
+      if (taskData.due_date) formData.append('due_date', taskData.due_date);
 
       const response = await fetch(`${BACKEND_URL}/tasks`, {
         method: "POST",
@@ -475,6 +497,7 @@ const TasksPanel = () => {
           priority: newTask.priority,
           status: newTask.status === "urgent" ? "open" : newTask.status,
           tags: newTask.tags,
+          due_date: newTask.due
         });
         
         const transformedTask = {
@@ -484,7 +507,7 @@ const TasksPanel = () => {
           due: newTask.due || "3d",
           description: newTask.description,
           platform: newTask.platform,
-          channel: newTask.channel,
+          channel: newTask.channel??newTask.platform,
           server: newTask.server,
           priority: backendTask.priority,
           status: newTask.status,
@@ -497,7 +520,7 @@ const TasksPanel = () => {
           tags: [],
           due: "",
           description: "",
-          platform: "discord",
+          platform: "telegram",
           channel: "",
           server: "",
           priority: "HIGH",
@@ -790,13 +813,13 @@ const TasksPanel = () => {
                                 </span>
                                 <span className="h-6 flex-shrink-0 flex gap-1 items-center bg-[#fafafa10] text-[#ffffff72] px-2 py-1 rounded-[6px]">
                                   <CalendarCogIcon className="w-4 h-4"/>
-                                  {formatDueText(task.due)}
+                                  {formatDueText(task)}
                                 </span>
                                 <span className="text-[#ffffff72]">{task.name}</span>
                               </div>
                               <div className={`text-xs text-white flex gap-2 items-center mb-1 w-max rounded-[4px] px-2 py-0.5 ${task.platform=="telegram"?"bg-[#3474ff]":"bg-[#7B5CFA]"}`}>
                                 <div className="">{task.platform==="telegram"?<FaTelegramPlane/>:<FaDiscord/>}</div>
-                                <span>{task.channel}</span>
+                                <span>{task.channel || "Telegram"}</span>
                               </div>
                             </>
                           )}
