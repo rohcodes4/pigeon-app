@@ -118,18 +118,30 @@ export const ChatSyncing = ({
   //   const [discordConnected, setDiscordConnected] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      // Check connected accounts
-      const accountsData = localStorage.getItem(
-        `chatpilot_accounts_${user.id}`
-      );
-      if (accountsData) {
-        const accounts = JSON.parse(accountsData);
-        setTelegramConnected(accounts.telegram || false);
-        setDiscordConnected(accounts.discord || false);
+    if (!user) return;
+    const fetchStatuses = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        const tgRes = await fetch(`${BACKEND_URL}/auth/telegram/status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (tgRes.ok) {
+          const tg = await tgRes.json();
+          setTelegramConnected(!!tg.connected);
+        }
+        const dcRes = await fetch(`${BACKEND_URL}/auth/discord/status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (dcRes.ok) {
+          const dc = await dcRes.json();
+          setDiscordConnected(!!dc.connected);
+        }
+      } catch (e) {
+        // ignore
       }
-    }
-  }, [user]);
+    };
+    fetchStatuses();
+  }, [user, setTelegramConnected, setDiscordConnected]);
 
   useEffect(() => {
     // Discord Sync

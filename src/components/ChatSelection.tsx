@@ -1,18 +1,29 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { MessageCircle, Users, Check,  Save, ExternalLink, Loader2, ArrowRight, Ban, Play } from "lucide-react";
+import {
+  MessageCircle,
+  Users,
+  Check,
+  Save,
+  ExternalLink,
+  Loader2,
+  ArrowRight,
+  Ban,
+  Play,
+} from "lucide-react";
 
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import telegram from '@/assets/images/telegram.png'
-import discord from '@/assets/images/discord.png'
-import play from '@/assets/images/play.png'
+import telegram from "@/assets/images/telegram.png";
+import discord from "@/assets/images/discord.png";
+import play from "@/assets/images/play.png";
 import { PlatformStatusBadges } from "./PlatformStatusBadges";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 export interface ChatGroup {
   id: string;
@@ -27,7 +38,7 @@ export interface ChatGroup {
 
 interface ChatSelectionProps {
   onChatsSelected?: (chats) => void;
-  onContinue?: () => void; 
+  onContinue?: () => void;
   telegramConnected: boolean;
   setTelegramConnected: React.Dispatch<React.SetStateAction<boolean>>;
   discordConnected: boolean;
@@ -440,10 +451,14 @@ const fakeChatGroups: ChatGroup[] = [
   },
 ];
 
-export const ChatSelection = ({ onChatsSelected, onContinue,telegramConnected,
+export const ChatSelection = ({
+  onChatsSelected,
+  onContinue,
+  telegramConnected,
   setTelegramConnected,
   discordConnected,
-  setDiscordConnected, }: ChatSelectionProps) => {
+  setDiscordConnected,
+}: ChatSelectionProps) => {
   const { user } = useAuth();
   const [chatGroups, setChatGroups] = useState<ChatGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -451,103 +466,142 @@ export const ChatSelection = ({ onChatsSelected, onContinue,telegramConnected,
   // const [telegramConnected, setTelegramConnected] = useState(false);
   // const [discordConnected, setDiscordConnected] = useState(false);
 
+  // Fetch connected statuses from backend (authoritative source)
   useEffect(() => {
-    if (user) {
-      // Check connected accounts
-      const accountsData = localStorage.getItem(`chatpilot_accounts_${user.id}`);
-      if (accountsData) {
-        const accounts = JSON.parse(accountsData);
-        setTelegramConnected(accounts.telegram || false);
-        setDiscordConnected(accounts.discord || false);
+    if (!user) return;
+    const fetchStatuses = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        const tgRes = await fetch(`${BACKEND_URL}/auth/telegram/status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (tgRes.ok) {
+          const tg = await tgRes.json();
+          setTelegramConnected(!!tg.connected);
+        }
+        const dcRes = await fetch(`${BACKEND_URL}/auth/discord/status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (dcRes.ok) {
+          const dc = await dcRes.json();
+          setDiscordConnected(!!dc.connected);
+        }
+      } catch (e) {
+        // ignore errors
+      }
+    };
+    fetchStatuses();
+  }, [user, setTelegramConnected, setDiscordConnected]);
+
+  // Load saved chat selections (local, non-authoritative)
+  useEffect(() => {
+    if (!user) return;
+    setTimeout(() => {
+      const savedSelections = localStorage.getItem(
+        `chatpilot_chats_${user.id}`
+      );
+      let updatedGroups = [...fakeChatGroups];
+
+      if (savedSelections) {
+        const selections = JSON.parse(savedSelections);
+        updatedGroups = updatedGroups.map((group) => ({
+          ...group,
+          is_synced: selections[group.id] || false,
+        }));
       }
 
-      setTimeout(() => {
-        const savedSelections = localStorage.getItem(`chatpilot_chats_${user.id}`);
-        let updatedGroups = [...fakeChatGroups];
-        
-        if (savedSelections) {
-          const selections = JSON.parse(savedSelections);
-          updatedGroups = updatedGroups.map(group => ({
-            ...group,
-            is_synced: selections[group.id] || false
-          }));
-        }
-        
-        setChatGroups(updatedGroups);
-        setLoading(false);
-        
-        const hasSelectedChats = updatedGroups.some(group => group.is_synced);
-        const selectedChats = updatedGroups.filter(group => group.is_synced);
-        if (hasSelectedChats && onChatsSelected) {
-          onChatsSelected(selectedChats);
-        }
-      }, 1000);
-    }
+      setChatGroups(updatedGroups);
+      setLoading(false);
+
+      const hasSelectedChats = updatedGroups.some((group) => group.is_synced);
+      const selectedChats = updatedGroups.filter((group) => group.is_synced);
+      if (hasSelectedChats && onChatsSelected) {
+        onChatsSelected(selectedChats);
+      }
+    }, 1000);
   }, [user, onChatsSelected]);
 
-  const toggleChatSync = async (groupId: string, currentSyncStatus: boolean) => {
-    setChatGroups(prev => 
-      prev.map(group => 
-        group.id === groupId 
+  const toggleChatSync = async (
+    groupId: string,
+    currentSyncStatus: boolean
+  ) => {
+    setChatGroups((prev) =>
+      prev.map((group) =>
+        group.id === groupId
           ? { ...group, is_synced: !currentSyncStatus }
           : group
       )
     );
 
-    const updatedSelections = { ...JSON.parse(localStorage.getItem(`chatpilot_chats_${user?.id}`) || '{}') };
+    const updatedSelections = {
+      ...JSON.parse(
+        localStorage.getItem(`chatpilot_chats_${user?.id}`) || "{}"
+      ),
+    };
     updatedSelections[groupId] = !currentSyncStatus;
-    localStorage.setItem(`chatpilot_chats_${user?.id}`, JSON.stringify(updatedSelections));
-
-    const hasSelectedChats = chatGroups.some(group => 
-      group.id === groupId ? !currentSyncStatus : group.is_synced
-    );
-    const selectedChats = chatGroups.some(group => 
-      group.id === groupId ? !currentSyncStatus : group.is_synced
+    localStorage.setItem(
+      `chatpilot_chats_${user?.id}`,
+      JSON.stringify(updatedSelections)
     );
 
-    
+    const hasSelectedChats = chatGroups.some((group) =>
+      group.id === groupId ? !currentSyncStatus : group.is_synced
+    );
+    const selectedChats = chatGroups.some((group) =>
+      group.id === groupId ? !currentSyncStatus : group.is_synced
+    );
+
     if (hasSelectedChats && onChatsSelected) {
       onChatsSelected(selectedChats);
     }
 
     toast({
       title: !currentSyncStatus ? "Chat Added" : "Chat Removed",
-      description: !currentSyncStatus 
-        ? "Chat will now appear in your unified inbox" 
+      description: !currentSyncStatus
+        ? "Chat will now appear in your unified inbox"
         : "Chat removed from unified inbox",
     });
   };
 
   const selectAllByPlatform = (platform: string) => {
     // Find all chats for the platform
-    const platformChats = chatGroups.filter(group => group.platform === platform);
+    const platformChats = chatGroups.filter(
+      (group) => group.platform === platform
+    );
     // Check if all are already selected
-    const allSelected = platformChats.every(group => group.is_synced);
-  
+    const allSelected = platformChats.every((group) => group.is_synced);
+
     // Compute the new chatGroups state
-    const newChatGroups = chatGroups.map(group =>
+    const newChatGroups = chatGroups.map((group) =>
       group.platform === platform
         ? { ...group, is_synced: !allSelected }
         : group
     );
     setChatGroups(newChatGroups);
-  
+
     // Update localStorage as well
-    const updatedSelections = { ...JSON.parse(localStorage.getItem(`chatpilot_chats_${user?.id}`) || '{}') };
-    newChatGroups.forEach(group => {
+    const updatedSelections = {
+      ...JSON.parse(
+        localStorage.getItem(`chatpilot_chats_${user?.id}`) || "{}"
+      ),
+    };
+    newChatGroups.forEach((group) => {
       updatedSelections[group.id] = group.is_synced;
     });
-    localStorage.setItem(`chatpilot_chats_${user?.id}`, JSON.stringify(updatedSelections));
+    localStorage.setItem(
+      `chatpilot_chats_${user?.id}`,
+      JSON.stringify(updatedSelections)
+    );
   };
 
   const saveAllChanges = async () => {
     setSaving(true);
-    
+
     setTimeout(() => {
       setSaving(false);
-      
-      const hasSelectedChats = chatGroups.some(group => group.is_synced);
-      const selectedChats = chatGroups.filter(group => group.is_synced);
+
+      const hasSelectedChats = chatGroups.some((group) => group.is_synced);
+      const selectedChats = chatGroups.filter((group) => group.is_synced);
       if (hasSelectedChats && onChatsSelected) {
         onChatsSelected(selectedChats);
       }
@@ -559,8 +613,12 @@ export const ChatSelection = ({ onChatsSelected, onContinue,telegramConnected,
     }, 1500);
   };
 
-  const discordChats = chatGroups.filter(group => group.platform === 'discord');
-  const telegramChats = chatGroups.filter(group => group.platform === 'telegram');
+  const discordChats = chatGroups.filter(
+    (group) => group.platform === "discord"
+  );
+  const telegramChats = chatGroups.filter(
+    (group) => group.platform === "telegram"
+  );
   const canContinue = telegramConnected || discordConnected;
 
   // if (loading) {
@@ -582,8 +640,14 @@ export const ChatSelection = ({ onChatsSelected, onContinue,telegramConnected,
   return (
     <div className="space-y-6">
       <div className="">
-        <h2 className="text-[36px] leading-[44px] tracking-[2px] text-white mb-2">Select<br/> Your Chats</h2>
-        <p className="text-[#ffffff48]">Select your Discord and Telegram groups and chats to start syncing your conversations.</p>
+        <h2 className="text-[36px] leading-[44px] tracking-[2px] text-white mb-2">
+          Select
+          <br /> Your Chats
+        </h2>
+        <p className="text-[#ffffff48]">
+          Select your Discord and Telegram groups and chats to start syncing
+          your conversations.
+        </p>
       </div>
 
       {/* Connection Status */}
@@ -597,81 +661,109 @@ export const ChatSelection = ({ onChatsSelected, onContinue,telegramConnected,
           Telegram {telegramConnected ? "Connected" : "Not Connected"}
         </Badge>
       </div> */}
-      <PlatformStatusBadges telegramConnected={telegramConnected} discordConnected={discordConnected}/>
+      <PlatformStatusBadges
+        telegramConnected={telegramConnected}
+        discordConnected={discordConnected}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Discord Chats */}
-        <Card className={`${discordConnected?"bg-[#111111]":"bg-[#ffffff06]"} border-0 shadow-none rounded-[18px]`}>
-  <CardContent className="p-6 gap-5">
-    <div className="flex gap-2 items-center">
-    {/* Discord Logo in Circle */}
-    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#5389ff] flex items-center justify-center relative">
-  <img src={discord} alt="Discord" className="w-6 h-6" />
-  {/* Status badge */}
-  <span
-    className={`
+        <Card
+          className={`${
+            discordConnected ? "bg-[#111111]" : "bg-[#ffffff06]"
+          } border-0 shadow-none rounded-[18px]`}
+        >
+          <CardContent className="p-6 gap-5">
+            <div className="flex gap-2 items-center">
+              {/* Discord Logo in Circle */}
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#5389ff] flex items-center justify-center relative">
+                <img src={discord} alt="Discord" className="w-6 h-6" />
+                {/* Status badge */}
+                <span
+                  className={`
       absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#23272f]
       ${discordConnected ? "bg-[#50DF3A]" : "bg-[#FDCB35]"}
     `}
-  />
-</div>
-<div className="flex flex-col gap-0 mb-1">
-        <span className="text-lg font-semibold mb-1 text-white">Discord</span>
-        <span className={`text-xs text-[#ffffff48] rounded-full font-medium`}>
-Select channels:
-        </span>
-      </div>
-
-      </div>
-      <hr className="w-full h-0.5 my-4 bg-[#ffffff06]"/>
-
-    {/* Info Section */}
-    <div className="flex-1 text-[#ffffff72]">
-      <div className="h-[150px] overflow-y-scroll">
-    {discordConnected ? (
-              discordChats.map((group) => (
-                <div key={group.id} className="flex items-center justify-between p-2 border-0 rounded-lg">
-                  <div className="flex items-center gap-3 w-full">
-                    <Checkbox
-                    className="min-h-1 min-w-1"
-                      checked={group.is_synced}
-                      onCheckedChange={() => toggleChatSync(group.id, group.is_synced)}
-                    />
-                    <div className="flex justify-between w-full">
-                      <p className="font-medium text-sm">{group.group_name}</p>
-                      <p className="text-xs text-black bg-[#3589ff] px-2 py-1 rounded-[6px]">{group.member_count} channels</p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-gray-500 text-center py-4">Connect Telegram to see chats</p>
-            )}
+                />
+              </div>
+              <div className="flex flex-col gap-0 mb-1">
+                <span className="text-lg font-semibold mb-1 text-white">
+                  Discord
+                </span>
+                <span
+                  className={`text-xs text-[#ffffff48] rounded-full font-medium`}
+                >
+                  Select channels:
+                </span>
+              </div>
             </div>
-    <hr className="w-full h-0.5 my-4 bg-[#ffffff06]"/>
+            <hr className="w-full h-0.5 my-4 bg-[#ffffff06]" />
 
-      <div className="flex items-center justify-between mt-4">
-  {/* Status pill */}
-  <span className={`
+            {/* Info Section */}
+            <div className="flex-1 text-[#ffffff72]">
+              <div className="h-[150px] overflow-y-scroll">
+                {discordConnected ? (
+                  discordChats.map((group) => (
+                    <div
+                      key={group.id}
+                      className="flex items-center justify-between p-2 border-0 rounded-lg"
+                    >
+                      <div className="flex items-center gap-3 w-full">
+                        <Checkbox
+                          className="min-h-1 min-w-1"
+                          checked={group.is_synced}
+                          onCheckedChange={() =>
+                            toggleChatSync(group.id, group.is_synced)
+                          }
+                        />
+                        <div className="flex justify-between w-full">
+                          <p className="font-medium text-sm">
+                            {group.group_name}
+                          </p>
+                          <p className="text-xs text-black bg-[#3589ff] px-2 py-1 rounded-[6px]">
+                            {group.member_count} channels
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    Connect Telegram to see chats
+                  </p>
+                )}
+              </div>
+              <hr className="w-full h-0.5 my-4 bg-[#ffffff06]" />
+
+              <div className="flex items-center justify-between mt-4">
+                {/* Status pill */}
+                <span
+                  className={`
           text-xs pr-3 py-1 flex gap-2 items-center text-[#ffffff84] cursor-pointer
-        `}>
-          <span>
-          <Check className="w-4 h-4" />
-          </span>
-          <span className="cursor-pointer" onClick={() => selectAllByPlatform('discord')}> Select all</span>
-        </span>
-  {/* Action button */}
-    <Button
-    // disabled={loading.discord}
-    className="bg-[#171717] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
-    >
-      Reconnect
-    </Button>
-</div>
-    </div>
-
-  </CardContent>
-</Card>
+        `}
+                >
+                  <span>
+                    <Check className="w-4 h-4" />
+                  </span>
+                  <span
+                    className="cursor-pointer"
+                    onClick={() => selectAllByPlatform("discord")}
+                  >
+                    {" "}
+                    Select all
+                  </span>
+                </span>
+                {/* Action button */}
+                <Button
+                  // disabled={loading.discord}
+                  className="bg-[#171717] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
+                >
+                  Reconnect
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Telegram Chats */}
         {/* <Card className={`${telegramConnected ? '' : 'opacity-50'}`}>
@@ -702,86 +794,106 @@ Select channels:
             )}
           </CardContent>
         </Card> */}
-        <Card className={`${telegramConnected?"bg-[#111111]":"bg-[#ffffff06]"} border-0 shadow-none rounded-[18px]`}>
-  <CardContent className="p-6 gap-5">
-    <div className="flex gap-2 items-center">
-      {/* Telegram Logo in Circle */}
-      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#5389ff] flex items-center justify-center relative">
-        <img src={telegram} alt="Telegram" className="w-6 h-6" />
-        {/* Status badge */}
-        <span
-          className={`
+        <Card
+          className={`${
+            telegramConnected ? "bg-[#111111]" : "bg-[#ffffff06]"
+          } border-0 shadow-none rounded-[18px]`}
+        >
+          <CardContent className="p-6 gap-5">
+            <div className="flex gap-2 items-center">
+              {/* Telegram Logo in Circle */}
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#5389ff] flex items-center justify-center relative">
+                <img src={telegram} alt="Telegram" className="w-6 h-6" />
+                {/* Status badge */}
+                <span
+                  className={`
             absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#23272f]
             ${telegramConnected ? "bg-[#50DF3A]" : "bg-[#FDCB35]"}
           `}
-        />
-      </div>
-      <div className="flex flex-col gap-0 mb-1">
-        <span className="text-lg font-semibold mb-1 text-white">Telegram</span>
-        <span className={`text-xs text-[#ffffff48] rounded-full font-medium`}>
-          Select chats:
-        </span>
-      </div>
-    </div>
-    <hr className="w-full h-0.5 my-4 bg-[#ffffff06]" />
-
-    {/* Info Section */}
-    <div className="flex-1 text-[#ffffff72]">
-      <div className="h-[150px] overflow-y-scroll">
-    {telegramConnected ? (
-              telegramChats.map((group) => (
-                <div key={group.id} className="flex items-center justify-between p-2 border-0 rounded-lg">
-                  <div className="flex items-center gap-3 w-full">
-                    <Checkbox
-                      checked={group.is_synced}
-                      onCheckedChange={() => toggleChatSync(group.id, group.is_synced)}
-                    />
-                     <div className="flex justify-between w-full">
-                      <p className="font-medium text-sm">{group.group_name}</p>
-                      <p className="text-xs text-black bg-[#3589ff] px-2 py-1 rounded-[6px]">{group.type}</p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-gray-500 text-center py-4">Connect Telegram to see chats</p>
-            )}
+                />
+              </div>
+              <div className="flex flex-col gap-0 mb-1">
+                <span className="text-lg font-semibold mb-1 text-white">
+                  Telegram
+                </span>
+                <span
+                  className={`text-xs text-[#ffffff48] rounded-full font-medium`}
+                >
+                  Select chats:
+                </span>
+              </div>
             </div>
-      <hr className="w-full h-0.5 my-4 bg-[#ffffff06]" />
+            <hr className="w-full h-0.5 my-4 bg-[#ffffff06]" />
 
-      <div className="flex items-center justify-between mt-4">
-        {/* Status pill */}
-        <span className={`text-xs pr-3 py-1 flex gap-2 items-center text-[#ffffff84] cursor-pointer`}>
-          <span>
-          <Check className="w-4 h-4" />
-          </span>
-          <span onClick={() => selectAllByPlatform('telegram')}> Select all</span>
-        </span>
-        {/* Action button */}
-        {telegramConnected ? (
-          <Button
-            className="bg-[#212121] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
-          >
-            Reconnect
-          </Button>
-        ) : (
-          <Button
-            className="bg-[#2d2d2d] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
-          >
-            {telegramConnected ? "Reconnect" : "Connect"}
-          </Button>
-        )}
-      </div>
-    </div>
-  </CardContent>
-</Card>
+            {/* Info Section */}
+            <div className="flex-1 text-[#ffffff72]">
+              <div className="h-[150px] overflow-y-scroll">
+                {telegramConnected ? (
+                  telegramChats.map((group) => (
+                    <div
+                      key={group.id}
+                      className="flex items-center justify-between p-2 border-0 rounded-lg"
+                    >
+                      <div className="flex items-center gap-3 w-full">
+                        <Checkbox
+                          checked={group.is_synced}
+                          onCheckedChange={() =>
+                            toggleChatSync(group.id, group.is_synced)
+                          }
+                        />
+                        <div className="flex justify-between w-full">
+                          <p className="font-medium text-sm">
+                            {group.group_name}
+                          </p>
+                          <p className="text-xs text-black bg-[#3589ff] px-2 py-1 rounded-[6px]">
+                            {group.type}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    Connect Telegram to see chats
+                  </p>
+                )}
+              </div>
+              <hr className="w-full h-0.5 my-4 bg-[#ffffff06]" />
+
+              <div className="flex items-center justify-between mt-4">
+                {/* Status pill */}
+                <span
+                  className={`text-xs pr-3 py-1 flex gap-2 items-center text-[#ffffff84] cursor-pointer`}
+                >
+                  <span>
+                    <Check className="w-4 h-4" />
+                  </span>
+                  <span onClick={() => selectAllByPlatform("telegram")}>
+                    {" "}
+                    Select all
+                  </span>
+                </span>
+                {/* Action button */}
+                {telegramConnected ? (
+                  <Button className="bg-[#212121] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none">
+                    Reconnect
+                  </Button>
+                ) : (
+                  <Button className="bg-[#2d2d2d] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none">
+                    {telegramConnected ? "Reconnect" : "Connect"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Save Settings */}
         <Card className="bg-[#111111] border-0 shadow-none rounded-[18px]">
-  <CardContent className="p-6">
-    <div className="flex flex-col items-center space-y-4 ">
-      {/* Arrow icon in blue circle with status badge */}
-      {/* <div className="relative w-14 h-14 flex items-center justify-center">
+          <CardContent className="p-6">
+            <div className="flex flex-col items-center space-y-4 ">
+              {/* Arrow icon in blue circle with status badge */}
+              {/* <div className="relative w-14 h-14 flex items-center justify-center">
         <div className="w-14 h-14 rounded-full bg-[#5389ff] flex items-center justify-center">
           <ArrowRight className="w-8 h-8 text-white" />
         </div>
@@ -792,48 +904,71 @@ Select channels:
           `}
         />
       </div> */}
-      <div className="w-full">
-        <div className="flex flex-col gap-0 mb-1">
-        <span className="text-lg font-semibold mb-1 text-white">Finalize Your Configuration</span>
-        <span className={`text-xs text-[#ffffff48] rounded-full font-medium`}>
-        {canContinue?"You are connected, you can move forward.":"Connect at least one platform."}
-        </span>
-      </div>
-      <hr className="w-full h-0.5 my-4 bg-[#ffffff06]" />
+              <div className="w-full">
+                <div className="flex flex-col gap-0 mb-1">
+                  <span className="text-lg font-semibold mb-1 text-white">
+                    Finalize Your Configuration
+                  </span>
+                  <span
+                    className={`text-xs text-[#ffffff48] rounded-full font-medium`}
+                  >
+                    {canContinue
+                      ? "You are connected, you can move forward."
+                      : "Connect at least one platform."}
+                  </span>
+                </div>
+                <hr className="w-full h-0.5 my-4 bg-[#ffffff06]" />
 
-      <div className="flex-1 text-[#ffffff72]">
-        <div className="h-[150px]">
-      <p className="text-[#ffffff72] mb-4">What to anticipate:</p>
-      <ul className="text-xs text-[#ffffff48] space-y-2 mb-3">
-        <li className="flex gap-4"><Check className="w-4 h-4 flex-shrink-0" />Chats sync in about 30 minutes.</li>
-        <li className="flex gap-4"><Check className="w-4 h-4 flex-shrink-0" />Choose your focus areas.</li>
-        <li className="flex gap-4"><Check className="w-4 h-4 flex-shrink-0" />Discover the Focus Mode features.</li>
-        <li className="flex gap-4 h-4"></li>
-      </ul>
-      </div>
-      <hr className="w-full h-0.5 my-4 bg-[#ffffff06]" />
+                <div className="flex-1 text-[#ffffff72]">
+                  <div className="h-[150px]">
+                    <p className="text-[#ffffff72] mb-4">What to anticipate:</p>
+                    <ul className="text-xs text-[#ffffff48] space-y-2 mb-3">
+                      <li className="flex gap-4">
+                        <Check className="w-4 h-4 flex-shrink-0" />
+                        Chats sync in about 30 minutes.
+                      </li>
+                      <li className="flex gap-4">
+                        <Check className="w-4 h-4 flex-shrink-0" />
+                        Choose your focus areas.
+                      </li>
+                      <li className="flex gap-4">
+                        <Check className="w-4 h-4 flex-shrink-0" />
+                        Discover the Focus Mode features.
+                      </li>
+                      <li className="flex gap-4 h-4"></li>
+                    </ul>
+                  </div>
+                  <hr className="w-full h-0.5 my-4 bg-[#ffffff06]" />
 
-      <div className="flex items-center justify-between mt-4 h-10">
-        {/* Status pill */}
-        <span className={`text-xs pr-3 py-1 flex gap-2 items-center text-[#84afff]`}>          
-          <span>Can't wait to help you!</span>
-        </span>
-        {/* Action button */}
-          {canContinue && <Button         
-              onClick={onContinue}   
-            className="bg-[#5389ff] hover:bg-[#4170cc] text-black rounded-[12px] px-3 py-2 gap-2 shadow-none"
-          >
-            <img src={play} className="fill-black rounded-full w-4 h-4 object-contain"/>Continue
-          </Button>}
-      </div>
-    </div>
-      </div>
-      {/* <div className={`text-sm font-semibold ${canContinue ? 'text-[#50DF3A]' : 'text-[#FDCB35]'}`}>
+                  <div className="flex items-center justify-between mt-4 h-10">
+                    {/* Status pill */}
+                    <span
+                      className={`text-xs pr-3 py-1 flex gap-2 items-center text-[#84afff]`}
+                    >
+                      <span>Can't wait to help you!</span>
+                    </span>
+                    {/* Action button */}
+                    {canContinue && (
+                      <Button
+                        onClick={onContinue}
+                        className="bg-[#5389ff] hover:bg-[#4170cc] text-black rounded-[12px] px-3 py-2 gap-2 shadow-none"
+                      >
+                        <img
+                          src={play}
+                          className="fill-black rounded-full w-4 h-4 object-contain"
+                        />
+                        Continue
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {/* <div className={`text-sm font-semibold ${canContinue ? 'text-[#50DF3A]' : 'text-[#FDCB35]'}`}>
         {canContinue ? '✓ Ready to proceed' : 'Connect at least one platform'}
       </div> */}
-    </div>
-  </CardContent>
-</Card>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

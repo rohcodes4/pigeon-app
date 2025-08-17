@@ -33,6 +33,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [syncComplete, setSyncComplete] = useState(false);
   const [telegramConnected, setTelegramConnected] = useState(false);
   const [discordConnected, setDiscordConnected] = useState(false);
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const steps = [
     {
       id: "connect",
@@ -56,14 +57,29 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
   const handleAccountsConnected = () => {
     setAccountsConnected(true);
-    // Check which accounts are connected from localStorage
-    const user = { id: "demo-user" }; // Mock user for demo
-    const accountsData = localStorage.getItem(`chatpilot_accounts_${user.id}`);
-    if (accountsData) {
-      const accounts = JSON.parse(accountsData);
-      setTelegramConnected(accounts.telegram || false);
-      setDiscordConnected(accounts.discord || false);
-    }
+    // Refresh from backend so we reflect true connection state
+    const refreshStatuses = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        const tgRes = await fetch(`${BACKEND_URL}/auth/telegram/status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (tgRes.ok) {
+          const tg = await tgRes.json();
+          setTelegramConnected(!!tg.connected);
+        }
+        const dcRes = await fetch(`${BACKEND_URL}/auth/discord/status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (dcRes.ok) {
+          const dc = await dcRes.json();
+          setDiscordConnected(!!dc.connected);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    refreshStatuses();
   };
 
   const handleChatsSelected = (chats) => {
