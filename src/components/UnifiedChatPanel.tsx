@@ -261,6 +261,9 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       setReactionLoading((prev) => ({ ...prev, [messageId]: true }));
 
       const isObjectId = /^[a-f\d]{24}$/i.test(messageId);
+      console.log(
+        `Reaction attempt: messageId="${messageId}", isObjectId=${isObjectId}, emoji="${emoji}"`
+      );
       if (isObjectId) {
         // Create rollback snapshot visible to catch
         let rollbackSnapshot = messages;
