@@ -247,10 +247,10 @@ const Index = () => {
       } catch (_) {
         // ignore transient polling errors
       } finally {
-        timer = setTimeout(poll, 30000);
+        timer = setTimeout(poll, 10000);
       }
     };
-    timer = setTimeout(poll, 30000);
+    timer = setTimeout(poll, 10000);
     return () => {
       if (timer) clearTimeout(timer);
     };

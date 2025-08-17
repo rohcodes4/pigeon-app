@@ -736,16 +736,28 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           }/messages?limit=${PAGE_SIZE}`;
         }
       } else {
+        console.log(
+          "DEBUG: No valid selectedChat, skipping refresh",
+          selectedChat
+        );
         return;
       }
 
+      console.log("DEBUG: Refreshing from endpoint:", endpoint);
       const response = await fetch(endpoint, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        console.log(
+          "DEBUG: Response not OK:",
+          response.status,
+          response.statusText
+        );
+        return;
+      }
       const data = await response.json();
 
       const toChips = (results: any[]) =>
@@ -805,17 +817,36 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
 
       transformed.sort((a, b) => a.date.getTime() - b.date.getTime());
 
+      console.log("DEBUG: API returned", data.length, "messages");
+      console.log("DEBUG: Transformed", transformed.length, "messages");
+
       setMessages((prev) => {
         const seen = new Set(prev.map((m) => String(m.originalId || m.id)));
         const onlyNew = transformed.filter(
           (m) => !seen.has(String(m.originalId || m.id))
         );
+        console.log(
+          "DEBUG: Previous messages:",
+          prev.length,
+          "New messages:",
+          onlyNew.length
+        );
+        if (onlyNew.length > 0) {
+          console.log(
+            "DEBUG: Adding new messages:",
+            onlyNew.map((m) => ({
+              id: m.originalId || m.id,
+              text: m.message.slice(0, 30),
+              date: m.date,
+            }))
+          );
+        }
         if (onlyNew.length === 0) return prev;
         return [...prev, ...onlyNew];
       });
       setShouldAutoScroll(true);
-    } catch (_) {
-      // ignore
+    } catch (e) {
+      console.error("DEBUG: refreshLatest error:", e);
     }
   }, [USE_DUMMY_DATA, selectedChat]);
 
@@ -855,10 +886,10 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       } catch (_) {
         // ignore transient polling errors
       } finally {
-        timer = setTimeout(poll, 30000);
+        timer = setTimeout(poll, 10000);
       }
     };
-    timer = setTimeout(poll, 30000);
+    timer = setTimeout(poll, 10000);
     return () => {
       if (timer) clearTimeout(timer);
     };
