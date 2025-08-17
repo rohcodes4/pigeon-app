@@ -42,7 +42,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
   };
   const { settings, updateSettings, loading } = useUserSettings();
   const { setTheme: setGlobalTheme } = useTheme(); // Destructure setTheme from useTheme
-
+const isHelpPage = activePage === "/help";
   useEffect(() => {
     if (!loading) {
       setTheme(settings.theme);
@@ -153,7 +153,9 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
     await signOut(); // Call signOut from useAuth
   };
   return (
-    <aside className="h-screen w-16 flex flex-col items-center py-[18px] min-w-16 overflow-hidden">
+    <aside className={`h-screen w-16 flex flex-col items-center py-[18px] min-w-16 overflow-hidden bg-[#171717] flex-shrink-0 ${
+      isHelpPage ? 'fixed left-0 top-0 z-40' : ''
+    }`}>
       <img src={logo} alt="AI" className="w-9 h-9 mb-4" />
       <nav className="flex flex-col gap-4 flex-1">
         {/* AI */}

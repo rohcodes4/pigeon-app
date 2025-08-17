@@ -52,6 +52,11 @@ const Bookmarks = () => {
     null | "smartTask" | "notification" | "pinned" | "search"
   >(null);
 
+  // ✅ ADD: Missing chat state variables
+  const [chats, setChats] = useState([]); // State to store fetched chats
+  const [chatsLoading, setChatsLoading] = useState(true); // Loading state for chats
+  const [selectedChat, setSelectedChat] = useState(null); // State for selected chat
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,7 +84,80 @@ const Bookmarks = () => {
     }
   }, [activeTab]);
 
-  if (loading) {
+  // ✅ ADD: Missing chat fetching logic
+  useEffect(() => {
+    const fetchChats = async () => {
+      if (!user) {
+        setChatsLoading(false);
+        return;
+      }
+      setChatsLoading(true);
+      try {
+        const token = localStorage.getItem("access_token");
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/ui/chats`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        // Assuming data.chats is the array of chat objects
+        setChats(data.chats || []);
+        console.log("✅ Bookmarks page fetched chats:", data.chats || []);
+      } catch (error) {
+        console.error("❌ Failed to fetch chats in bookmarks page:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load chats.",
+          variant: "destructive",
+        });
+        setChats([]);
+      } finally {
+        setChatsLoading(false);
+      }
+    };
+    fetchChats();
+  }, [user]);
+
+  // ✅ ADD: Missing chat selection handler
+  const handleChatSelect = async (chat) => {
+    setSelectedChat(chat);
+
+    // Mark the chat as read when selected
+    if (chat && chat.id) {
+      try {
+        const token = localStorage.getItem("access_token");
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/chats/${chat.id}/read`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: "read=true",
+          }
+        );
+
+        if (response.ok) {
+          // Update the chat's read status in the local state
+          setChats((prevChats) =>
+            prevChats.map((c) => (c.id === chat.id ? { ...c, read: true } : c))
+          );
+        }
+      } catch (error) {
+        console.error("Failed to mark chat as read:", error);
+      }
+    }
+  };
+
+  // ✅ UPDATE: Include chatsLoading in the loading check
+  if (loading || chatsLoading) {
     return (
       <div className="min-h-screen bg-[#171717] flex items-center justify-center">
         <div className="text-center">
@@ -111,11 +189,16 @@ const Bookmarks = () => {
           }}
           isSearchOpen={openPanel === "search"}
           setIsSearchOpen={(open) => {
-            setOpenPanel(open ? "search" : null);
+            setOpenPanel(open ? "search" : null)
           }}
         />
         <main className="flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
-          <ChatPanel />
+          {/* ✅ FIX: Add missing props to ChatPanel */}
+          <ChatPanel 
+            chats={chats}
+            onChatSelect={handleChatSelect}
+            selectedChat={selectedChat}
+          />
           <div className="w-full">
             <UnifiedHeader
               title="Bookmarks"

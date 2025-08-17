@@ -2,8 +2,12 @@ import React, { useRef } from "react";
 import discord from "@/assets/images/discordColor.png";
 import telegram from "@/assets/images/telegramColor.png";
 import discordWhite from "@/assets/images/discord.png";
+import { FaCopy } from "react-icons/fa";
+import { FaReply } from "react-icons/fa";
 import telegramWhite from "@/assets/images/telegram.png";
+import { IoIosMore } from "react-icons/io";
 import aiAll from "@/assets/images/aiAll.png";
+
 import {
   Link2,
   Send,
@@ -186,12 +190,98 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const attachRef = React.useRef(null);
   const [uploadedFiles, setUploadedFiles] = React.useState([]);
   const fileInputRef = React.useRef(null);
-
+console.log("selectedChat", selectedChat)
   const getFileType = (file) => {
     if (file.type.startsWith("image/")) return "image";
     if (file.type.startsWith("video/")) return "video";
     return "doc";
   };
+
+const openInTelegram = (msg = null) => {
+  console.log('🔍 === DEBUG: openInTelegram START ===');
+  console.log('🔍 openInTelegram called with msg:', msg);
+  
+  if (!selectedChat) {
+    console.log('❌ No selectedChat available');
+    return;
+  }
+  
+  console.log('✅ selectedChat exists:', selectedChat);
+
+  // Get chatId from selectedChat
+  const chatId = selectedChat.id || selectedChat._id;
+  console.log('🔍 Using chatId from selectedChat:', chatId);
+
+  // Use the preserved original chat type from the API response
+  let chatType;
+  
+  console.log('🔍 === DEBUG: GETTING CHAT TYPE FROM PRESERVED API DATA ===');
+  
+  if (msg && msg.originalChatType) {
+    // Use the preserved chat type from the original API response
+    chatType = msg.originalChatType;
+    console.log('✅ Got chatType from preserved API data (msg.originalChatType):', chatType);
+  } else {
+    // Fallback: Use heuristics from selectedChat if originalChatType is not available
+    console.log('⚠️ No preserved chat type found, using fallback heuristics');
+    
+    const chatIdStr = String(chatId);
+    const chatIdLength = chatIdStr.length;
+    
+    if (selectedChat.participants_count !== undefined) {
+      chatType = "Chat";
+      console.log('✅ Fallback: Determined Chat (found participants_count)');
+    } else if (selectedChat.username || (selectedChat.name && selectedChat.name.startsWith('@'))) {
+      chatType = "Channel";
+      console.log('✅ Fallback: Determined Channel (found username/@)');
+    } else if (chatIdLength <= 10 && !selectedChat.title) {
+      chatType = "User";
+      console.log('✅ Fallback: Determined User (short ID + no title)');
+    } else if (chatIdLength > 10) {
+      chatType = "Channel";
+      console.log('✅ Fallback: Determined Channel (long ID)');
+    } else {
+      chatType = "Chat";
+      console.log('✅ Fallback: Defaulted to Chat');
+    }
+  }
+  
+  console.log('🔍 Final chatType determined:', chatType);
+  
+  let webUrl;
+  
+  console.log('🔍 === DEBUG: URL GENERATION ===');
+  
+  if (chatType === "User") {
+    // Direct Message - no prefix
+    webUrl = `https://web.telegram.org/a/#${chatId}`;
+    console.log('📱 Generated URL for Direct Message:', webUrl);
+    
+  } else if (chatType === "Channel") {
+    // Supergroup/Channel - needs -100 prefix
+    webUrl = `https://web.telegram.org/a/#-100${chatId}`;
+    console.log('📱 Generated URL for Channel/Supergroup:', webUrl);
+    
+  } else if (chatType === "Chat") {
+    // Regular Group - needs - prefix
+    webUrl = `https://web.telegram.org/a/#-${chatId}`;
+    console.log('📱 Generated URL for Regular Group:', webUrl);
+    
+  } else {
+    // Fallback - assume regular group
+    console.log('⚠️ Unknown chat type, assuming regular group');
+    webUrl = `https://web.telegram.org/a/#-${chatId}`;
+    console.log('📱 Generated URL (fallback):', webUrl);
+  }
+  
+  console.log('🔗 === DEBUG: OPENING URL ===');
+  console.log('🔗 Final URL to open:', webUrl);
+  console.log('🔍 === DEBUG: openInTelegram END ===');
+  
+  window.open(webUrl, '_blank');
+};
+
+
 
   React.useEffect(() => {
     if (shouldAutoScroll) {
@@ -557,6 +647,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
             hasLink: (msg.raw_text || "").includes("http"),
             link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
             replyTo: null as any,
+            originalChatType: msg.chat?._ || null,
+             telegramMessageId: msg.message?.id || null, // This will be 3207, 3206, etc.
           };
         });
 
@@ -875,58 +967,46 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                   <div className="flex-1 relative">
                     <div className="absolute right-0 top-0 flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
                       <button
-                        className="p-1 rounded"
+                              className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
                         title="Reply"
                         onClick={(e) => {
                           e.stopPropagation();
                           setReplyTo(msg);
                         }}
                       >
-                        <img
-                          src={replyIcon}
-                          className="w-6 h-6 text-[#84afff]"
-                        />
+                  <FaReply  className="text-[#ffffff] w-3 h-3" />
                       </button>
                       <button
-                        className="p-1 rounded"
+                           className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
                         title="Copy"
                         onClick={(e) => {
                           e.stopPropagation();
                           navigator.clipboard.writeText(msg.message);
                         }}
                       >
-                        <img src={pinIcon} className="w-6 h-6 text-[#84afff]" />
+                           <FaCopy  className="text-[#ffffff] w-3 h-3" />
                       </button>
                       <button
-                        className="p-1 rounded"
-                        title="Share"
+                                 className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
+                        title="Open in Discord"
                         onClick={(e) => {
                           e.stopPropagation(); /* implement share logic */
                         }}
                       >
-                        <img
-                          src={taskIcon}
-                          className="w-6 h-6 text-[#84afff]"
-                        />
+           <FaDiscord  className="text-[#ffffff] w-3 h-3" />
                       </button>
+<button
+  className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
+  title="Open in Telegram"
+  onClick={(e) => {
+    e.stopPropagation();
+    openInTelegram(msg); // Pass the message to open specific message
+  }}
+>
+  <FaTelegramPlane className="text-[#ffffff] w-3 h-3" />
+</button>
                       <button
-                        className="h-6 w-6 rounded-[6px] bg-[#2d2d2d] border border-[#ffffff03]"
-                        title="Share"
-                        onClick={(e) => {
-                          e.stopPropagation(); /* implement share logic */
-                        }}
-                      >
-                        <img
-                          src={
-                            msg.platform === "Discord"
-                              ? discordWhite
-                              : telegramWhite
-                          }
-                          className="w-4 h-4 text-[#84afff] mx-auto"
-                        />
-                      </button>
-                      <button
-                        className="p-1 rounded relative"
+                                    className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
                         title="More"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -934,10 +1014,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                           setOpenMenuId(openMenuId === mid ? null : mid);
                         }}
                       >
-                        <img
-                          src={moreIcon}
-                          className="w-6 h-6 text-[#84afff]"
-                        />
+                <IoIosMore  className="text-[#ffffff] w-3 h-3" />
                         {/* Popup menu */}
                         {openMenuId === String(msg.id) && (
                           <div className="absolute right-0 bottom-[110%] mt-2 bg-[#111111] border border-[#ffffff12] rounded-[10px] shadow-lg z-50 flex flex-col p-2 min-w-max">
