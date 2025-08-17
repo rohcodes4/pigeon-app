@@ -95,7 +95,27 @@ export const searchByPlatform = async (
   return response.json();
 };
 
-// 3. Send Reactions
+// 3. Send Messages
+export const sendMessage = async (
+  chatId: number,
+  text: string,
+  replyTo?: number
+) => {
+  const formData = new FormData();
+  formData.append("text", text);
+  if (replyTo) {
+    formData.append("reply_to", replyTo.toString());
+  }
+
+  const response = await authFetch(`${BACKEND_URL}/chats/${chatId}/send`, {
+    method: "POST",
+    body: formData,
+  });
+
+  return response.json();
+};
+
+// 4. Send Reactions
 export const sendReaction = async (
   messageId: string,
   reaction: string,
@@ -124,7 +144,7 @@ export const getMessageById = async (messageId: string) => {
   return response.json();
 };
 
-// 4. Media Handling
+// 5. Media Handling
 export const getChatMedia = async (
   chatId: number,
   limit?: number,
@@ -174,7 +194,7 @@ export const sendMediaToChat = async (
   return response.json();
 };
 
-// 5. Example Usage Functions for Components
+// 6. Example Usage Functions for Components
 
 // Example: Search component
 export const handleTaskSearch = async (searchTerm: string, filters: any) => {
@@ -264,7 +284,9 @@ export default {
   searchBookmarks,
   searchMessages,
   searchByPlatform,
+  sendMessage,
   sendReaction,
+  getMessageById,
   getChatMedia,
   downloadMessageMedia,
   sendMediaToChat,

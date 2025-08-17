@@ -24,13 +24,15 @@ import smartIcon from "@/assets/images/sidebar/Chat.png";
 import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
 import ChatAvatar from "./ChatAvatar";
 import { useAuth } from "@/hooks/useAuth";
-import { sendReaction, getMessageById } from "@/utils/apiHelpers";
+import { sendReaction, getMessageById, sendMessage } from "@/utils/apiHelpers";
+import { toast } from "@/hooks/use-toast";
 
 // Types
 type ReactionChip = { icon: string; count: number };
 type MessageItem = {
   id: any;
   originalId: any;
+  telegramMessageId?: number; // Telegram message ID for replies
   name: string;
   avatar: string;
   platform: "Discord" | "Telegram";
@@ -118,6 +120,7 @@ const dummyMessages = Array.from({ length: 30 }, (_, i) => {
   return {
     id: i + 1,
     originalId: undefined, // Dummy messages don't have originalId
+    telegramMessageId: undefined, // Dummy messages don't have telegramMessageId
     name,
     avatar: gravatarUrl(name + platform),
     platform,
@@ -155,9 +158,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     prevHeight: number;
     prevTop: number;
   } | null>(null);
-  const [replyTo, setReplyTo] = React.useState<
-    null | (typeof dummyMessages)[0]
-  >(null);
+  const [replyTo, setReplyTo] = React.useState<null | MessageItem>(null);
   const [messages, setMessages] = React.useState<MessageItem[]>(
     USE_DUMMY_DATA ? (dummyMessages as unknown as MessageItem[]) : []
   );
@@ -166,6 +167,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const [loadingMore, setLoadingMore] = React.useState(false);
   const [hasMoreMessages, setHasMoreMessages] = React.useState(true);
   const [shouldAutoScroll, setShouldAutoScroll] = React.useState(true);
+  const [isSending, setIsSending] = React.useState(false);
   // Page size for fetching messages from backend
   const PAGE_SIZE = 100;
 
@@ -416,7 +418,11 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     const messageId = msg.originalId || msg.id; // Use originalId if available, fallback to current id
 
     if (!messageId) {
-      alert("Cannot bookmark this message - no message ID available");
+      toast({
+        title: "Cannot bookmark message",
+        description: "This message cannot be bookmarked",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -428,11 +434,18 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       const actionText = type === "pin" ? "pinned" : "bookmarked";
       console.log(`Message ${actionText} successfully`);
 
-      // Optional: Show success feedback
-      // You could add a toast notification here
+      // Show success feedback
+      toast({
+        title: `Message ${actionText}`,
+        description: `Message has been ${actionText} successfully`,
+      });
     } catch (error) {
       console.error(`Error ${type}ing message:`, error);
-      alert(`Failed to ${type} message. Please try again.`);
+      toast({
+        title: `Failed to ${type} message`,
+        description: "Please try again",
+        variant: "destructive",
+      });
     } finally {
       setBookmarkLoading((prev) => ({ ...prev, [msg.id]: false }));
     }
@@ -489,8 +502,6 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
         if (params.toString()) {
           endpoint += `?${params.toString()}`;
         }
-
-        console.log("ENDPOINTTTTTTTT ~ UnifiedChatPanel ~ endpoint:", endpoint);
 
         const response = await fetch(endpoint, {
           headers: {
@@ -571,6 +582,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           return {
             id: msg._id || msg.id || String(index + 1),
             originalId: msg._id || msg.id,
+            telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
             name: msg.sender?.first_name || msg.sender?.username || "Unknown",
             avatar: msg.sender?.id
               ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
@@ -698,36 +710,148 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     }
   }, [messages, loadingMore]);
 
-  const handleSend = () => {
-    if (inputRef.current && inputRef.current.value.trim()) {
-      const now = new Date();
-      const newMsg = {
-        id: messages.length + 1,
-        originalId: undefined, // New messages don't have originalId
-        name: user.username, // or your user logic
-        avatar: gravatarUrl("You" + (replyTo ? replyTo.platform : "Discord")), // match platform for avatar
-        platform: replyTo ? replyTo.platform : "Discord", // use replyTo's platform if replying
-        channel: replyTo ? replyTo.channel : "#general", // use replyTo's channel if replying
-        server: replyTo ? replyTo.channel : "Server",
-        date: now,
-        message: inputRef.current.value,
-        tags: [],
-        reactions: [],
-        hasLink: inputRef.current.value.includes("http"),
-        link: inputRef.current.value.match(/https?:\/\/\S+/)?.[0] || null,
-        // Add replyTo reference if replying
-        replyTo: replyTo
-          ? {
-              id: replyTo.id,
-              name: replyTo.name,
-              message: replyTo.message,
-            }
-          : null,
-      };
-      setMessages([...messages, newMsg]);
-      inputRef.current.value = "";
-      setReplyTo(null); // Clear reply after sending
-      setShouldAutoScroll(true); // Enable auto-scroll when sending new message
+  const handleSend = async () => {
+    if (!inputRef.current || !inputRef.current.value.trim()) {
+      return;
+    }
+
+    const messageText = inputRef.current.value.trim();
+
+    // Check if we have a valid chat selected and it's not "all-channels"
+    if (!selectedChat || selectedChat === "all-channels") {
+      toast({
+        title: "No chat selected",
+        description: "Please select a specific chat to send messages",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if this is a smart filter (not a real chat)
+    if (selectedChat.keywords !== undefined) {
+      toast({
+        title: "Cannot send to smart filter",
+        description: "Please select a real chat instead of a smart filter",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const chatId = selectedChat.id;
+    if (!chatId) {
+      toast({
+        title: "Invalid chat",
+        description: "The selected chat is not valid",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Prevent multiple sends
+    if (isSending) {
+      return;
+    }
+
+    setIsSending(true);
+
+    // Create optimistic message for immediate UI feedback
+    const optimisticMessage: MessageItem = {
+      id: `temp-${Date.now()}`, // Temporary ID
+      originalId: null,
+      telegramMessageId: undefined,
+      name: user?.username || user?.first_name || "You",
+      avatar: user?.photo_url || gravatarUrl(user?.username || "You"),
+      platform: "Telegram" as const,
+      channel: selectedChat.channel || null,
+      server: selectedChat.name || "Chat",
+      date: new Date(),
+      message: messageText,
+      tags: [],
+      reactions: [],
+      hasLink: messageText.includes("http"),
+      link: messageText.match(/https?:\/\/\S+/)?.[0] || null,
+      replyTo: replyTo
+        ? {
+            id: replyTo.id,
+            name: replyTo.name,
+            message: replyTo.message,
+          }
+        : null,
+    };
+
+    // Add optimistic message to UI
+    setMessages((prev) => [...prev, optimisticMessage]);
+
+    // Clear input and reply state immediately for better UX
+    const originalValue = inputRef.current.value;
+    const originalReplyTo = replyTo;
+    inputRef.current.value = "";
+    setReplyTo(null);
+    setShouldAutoScroll(true);
+
+    try {
+      // Send message to backend/Telegram
+      const replyToId = originalReplyTo?.telegramMessageId;
+      const result = await sendMessage(chatId, messageText, replyToId);
+
+      console.log("Message sent successfully:", result);
+
+      // Show success toast
+      toast({
+        title: "Message sent",
+        description: "Your message has been sent successfully",
+      });
+
+      // Remove optimistic message since the real one will come from the database
+      setMessages((prev) =>
+        prev.filter((msg) => msg.id !== optimisticMessage.id)
+      );
+    } catch (error) {
+      console.error("Failed to send message:", error);
+
+      // Remove optimistic message on error
+      setMessages((prev) =>
+        prev.filter((msg) => msg.id !== optimisticMessage.id)
+      );
+
+      // Restore input and reply state on error
+      if (inputRef.current) {
+        inputRef.current.value = originalValue;
+      }
+      setReplyTo(originalReplyTo);
+
+      // Show user-friendly error message
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      if (errorMessage.includes("No Telegram session")) {
+        toast({
+          title: "No Telegram session",
+          description:
+            "Please reconnect your Telegram account to send messages",
+          variant: "destructive",
+        });
+      } else if (errorMessage.includes("404")) {
+        toast({
+          title: "Chat not found",
+          description: "This chat is no longer accessible",
+          variant: "destructive",
+        });
+      } else if (errorMessage.includes("403")) {
+        toast({
+          title: "Permission denied",
+          description:
+            "You don't have permission to send messages to this chat",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Failed to send message",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -826,6 +950,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
         return {
           id: msg._id || msg.id || String(index + 1),
           originalId: msg._id || msg.id,
+          telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
           name: msg.sender?.first_name || msg.sender?.username || "Unknown",
           avatar: msg.sender?.id
             ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
@@ -906,6 +1031,9 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       // Use dummy data when flag is enabled
       setMessages(dummyMessages);
     }
+
+    // Close attachment menu when switching chats
+    setShowAttachMenu(false);
   }, [selectedChat?.id, selectedChat, fetchMessages, USE_DUMMY_DATA]);
 
   // Polling: refresh current view every 30s (no websockets)
@@ -1061,7 +1189,11 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
               {msgs.map((msg) => (
                 <div
                   key={String(msg.id)}
-                  className="flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 group hover:bg-[#212121]"
+                  className={`flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 group hover:bg-[#212121] ${
+                    String(msg.id).startsWith("temp-")
+                      ? "opacity-70 bg-[#1a1a1a]"
+                      : ""
+                  }`}
                   onMouseLeave={() => setOpenMenuId(null)}
                 >
                   <ChatAvatar
@@ -1212,6 +1344,11 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                       <span className="text-xs text-[#ffffff32]">
                         {formatTime(msg.date)}
                       </span>
+                      {String(msg.id).startsWith("temp-") && (
+                        <span className="text-xs text-[#84afff] italic">
+                          sending...
+                        </span>
+                      )}
                     </div>
                     {msg.replyTo && (
                       <div className="text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1">
@@ -1428,68 +1565,100 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
         )}
         <div className="flex">
           <div className="flex grow items-center bg-[#212121] rounded-[10px] px-4 py-2 shadow-lg">
-            <div ref={attachRef} className="relative">
+            <div
+              ref={attachRef}
+              className="relative"
+              title={
+                selectedChat === "all-channels"
+                  ? "Select a specific chat to attach files"
+                  : selectedChat?.keywords !== undefined
+                  ? "Cannot attach files to smart filters"
+                  : isSending
+                  ? "Please wait for current message to send"
+                  : "Attach files"
+              }
+            >
               <Plus
-                className="text-black bg-[#fafafa60] rounded-full mr-2 w-[18px] h-[18px] cursor-pointer"
-                onClick={() => setShowAttachMenu((prev) => !prev)}
+                className={`text-black bg-[#fafafa60] rounded-full mr-2 w-[18px] h-[18px] cursor-pointer ${
+                  selectedChat === "all-channels" ||
+                  selectedChat?.keywords !== undefined ||
+                  isSending
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-[#fafafa80]"
+                }`}
+                onClick={() => {
+                  if (
+                    selectedChat === "all-channels" ||
+                    selectedChat?.keywords !== undefined ||
+                    isSending
+                  ) {
+                    return;
+                  }
+                  setShowAttachMenu((prev) => !prev);
+                }}
               />
 
               {/* Popup menu */}
-              {showAttachMenu && (
-                <div className="absolute bottom-[130%] left-0 mb-2 px-3 py-2 bg-[#2d2d2d] text-white text-sm rounded-lg shadow-lg border border-[#ffffff14] z-50">
-                  {/* Actual file input, hidden */}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    style={{ display: "none" }}
-                    multiple
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []).map(
-                        (file) => ({
-                          file,
-                          type: getFileType(file),
-                          preview: file.type.startsWith("image/")
-                            ? URL.createObjectURL(file)
-                            : null,
-                          status: "uploading",
-                        })
-                      );
-
-                      setUploadedFiles((prev) => [...prev, ...files]);
-                      setShowAttachMenu(false);
-
-                      // Simulate upload completion after 2s for demo
-                      setTimeout(() => {
-                        setUploadedFiles((prev) =>
-                          prev.map((f) =>
-                            files.includes(f) ? { ...f, status: "done" } : f
-                          )
+              {showAttachMenu &&
+                !(
+                  selectedChat === "all-channels" ||
+                  selectedChat?.keywords !== undefined ||
+                  isSending
+                ) && (
+                  <div className="absolute bottom-[130%] left-0 mb-2 px-3 py-2 bg-[#2d2d2d] text-white text-sm rounded-lg shadow-lg border border-[#ffffff14] z-50">
+                    {/* Actual file input, hidden */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      style={{ display: "none" }}
+                      multiple
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []).map(
+                          (file) => ({
+                            file,
+                            type: getFileType(file),
+                            preview: file.type.startsWith("image/")
+                              ? URL.createObjectURL(file)
+                              : null,
+                            status: "uploading",
+                          })
                         );
-                      }, 2000);
-                    }}
-                  />
-                  {/* Triggers file picker */}
-                  <p
-                    className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Attach File
-                  </p>
-                  <p
-                    className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Send Image
-                  </p>
-                  <p
-                    className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Send Video
-                  </p>
-                  {/* More menu options as needed */}
-                </div>
-              )}
+
+                        setUploadedFiles((prev) => [...prev, ...files]);
+                        setShowAttachMenu(false);
+
+                        // Simulate upload completion after 2s for demo
+                        setTimeout(() => {
+                          setUploadedFiles((prev) =>
+                            prev.map((f) =>
+                              files.includes(f) ? { ...f, status: "done" } : f
+                            )
+                          );
+                        }, 2000);
+                      }}
+                    />
+                    {/* Triggers file picker */}
+                    <p
+                      className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Attach File
+                    </p>
+                    <p
+                      className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Send Image
+                    </p>
+                    <p
+                      className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Send Video
+                    </p>
+                    {/* More menu options as needed */}
+                  </div>
+                )}
             </div>
             <input
               ref={inputRef}
@@ -1497,16 +1666,40 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
               placeholder={
                 replyTo && replyTo.name
                   ? `Replying to ${replyTo.name}...`
+                  : selectedChat === "all-channels"
+                  ? "Select a channel on the sidebar to send messages..."
+                  : selectedChat?.keywords !== undefined
+                  ? "Cannot send messages to smart filters..."
                   : "Type your message..."
               }
-              className="flex-1 bg-transparent outline-none text-white placeholder-[#ffffff48] text-sm"
+              disabled={
+                selectedChat === "all-channels" ||
+                selectedChat?.keywords !== undefined ||
+                isSending
+              }
+              className="flex-1 bg-transparent outline-none text-white placeholder-[#ffffff48] text-sm disabled:opacity-50"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
             />
           </div>
           <button
             onClick={handleSend}
-            className="ml-3 p-2 rounded-[10px] bg-[#5389ff] hover:bg-[#5389ff] transition"
+            disabled={
+              selectedChat === "all-channels" ||
+              selectedChat?.keywords !== undefined ||
+              isSending
+            }
+            className="ml-3 p-2 rounded-[10px] bg-[#5389ff] hover:bg-[#5389ff] transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <SendHorizonal className="w-5 h-5 text-black fill-black" />
+            {isSending ? (
+              <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <SendHorizonal className="w-5 h-5 text-black fill-black" />
+            )}
           </button>
         </div>
       </div>
