@@ -254,18 +254,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   }>({});
 
   // Common emoji reactions
-  const commonReactions = [
-    "👍",
-    "❤️",
-    "🔥",
-    "😮",
-    "😢",
-    "😡",
-    "🎉",
-    "🚀",
-    "💯",
-    "👏",
-  ];
+  const commonReactions = ["👍", "❤️", "🔥", "😢", "😡", "🎉", "💯", "👏"];
 
   const handleReaction = async (messageId: string, emoji: string) => {
     try {
@@ -273,8 +262,51 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
 
       const isObjectId = /^[a-f\d]{24}$/i.test(messageId);
       if (isObjectId) {
+        // Create rollback snapshot visible to catch
+        let rollbackSnapshot = messages;
         try {
-          const res = await sendReaction(messageId, emoji);
+          // Determine if user already reacted with this emoji (toggle behavior)
+          const msg = messages.find(
+            (m) => String(m.originalId || m.id) === String(messageId)
+          );
+          const already = !!msg?.reactions?.find((r: any) => r.icon === emoji);
+
+          // Optimistic update
+          rollbackSnapshot = messages;
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (String(m.originalId || m.id) !== String(messageId)) return m;
+              const existing = [...(m.reactions || [])];
+              const idx = existing.findIndex((r) => r.icon === emoji);
+              if (already) {
+                if (idx >= 0) {
+                  const next = [...existing];
+                  const newCount = Math.max(0, (existing[idx].count || 1) - 1);
+                  if (newCount === 0) next.splice(idx, 1);
+                  else next[idx] = { ...existing[idx], count: newCount };
+                  return { ...m, reactions: next };
+                }
+                return m;
+              } else {
+                if (idx >= 0) {
+                  const next = [...existing];
+                  next[idx] = {
+                    ...existing[idx],
+                    count: (existing[idx].count || 0) + 1,
+                  };
+                  return { ...m, reactions: next };
+                }
+                return {
+                  ...m,
+                  reactions: [...existing, { icon: emoji, count: 1 }],
+                };
+              }
+            })
+          );
+
+          const res = await sendReaction(messageId, emoji, {
+            clear: already,
+          });
           console.log(
             `Reaction ${emoji} sent to backend for message ${messageId} (sent_to_telegram=${res?.sent_to_telegram})`
           );
@@ -331,12 +363,11 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           }
         } catch (backendError) {
           console.warn(
-            "Backend reaction failed, logging locally:",
+            "Backend reaction failed, reverting optimistic update:",
             backendError
           );
-          console.log(
-            `Reaction ${emoji} logged locally for message ${messageId}`
-          );
+          // Rollback
+          setMessages((_) => rollbackSnapshot);
         }
       } else {
         // Dummy/local message
@@ -344,8 +375,6 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           `Reaction ${emoji} logged locally for dummy message ${messageId}`
         );
       }
-
-      // No local UI/storage update – rely on Telegram as source of truth
 
       // Close reaction picker
       setShowReactionPicker((prev) => ({ ...prev, [messageId]: false }));
@@ -537,8 +566,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
             : [];
 
           return {
-            id: msg.id || msg._id || String(index + 1),
-            originalId: msg.id || msg._id,
+            id: msg._id || msg.id || String(index + 1),
+            originalId: msg._id || msg.id,
             name: msg.sender?.first_name || msg.sender?.username || "Unknown",
             avatar: msg.sender?.id
               ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
@@ -792,8 +821,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           ? (selectedChat as any).name || "Chat"
           : "Unknown";
         return {
-          id: msg.id || msg._id || String(index + 1),
-          originalId: msg.id || msg._id,
+          id: msg._id || msg.id || String(index + 1),
+          originalId: msg._id || msg.id,
           name: msg.sender?.first_name || msg.sender?.username || "Unknown",
           avatar: msg.sender?.id
             ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
@@ -821,28 +850,28 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       console.log("DEBUG: Transformed", transformed.length, "messages");
 
       setMessages((prev) => {
-        const seen = new Set(prev.map((m) => String(m.originalId || m.id)));
-        const onlyNew = transformed.filter(
-          (m) => !seen.has(String(m.originalId || m.id))
-        );
-        console.log(
-          "DEBUG: Previous messages:",
-          prev.length,
-          "New messages:",
-          onlyNew.length
-        );
-        if (onlyNew.length > 0) {
-          console.log(
-            "DEBUG: Adding new messages:",
-            onlyNew.map((m) => ({
-              id: m.originalId || m.id,
-              text: m.message.slice(0, 30),
-              date: m.date,
-            }))
-          );
+        const idOf = (x: any) => String(x.originalId || x.id);
+        const prevMap = new Map(prev.map((m) => [idOf(m), m]));
+        let changed = false;
+        for (const m of transformed) {
+          const key = idOf(m);
+          if (prevMap.has(key)) {
+            // Update existing entry (reactions/timestamp/etc.)
+            const old = prevMap.get(key)!;
+            // Preserve any local fields (e.g., replyTo)
+            const merged = { ...old, ...m };
+            prevMap.set(key, merged);
+            changed = true;
+          } else {
+            prevMap.set(key, m);
+            changed = true;
+          }
         }
-        if (onlyNew.length === 0) return prev;
-        return [...prev, ...onlyNew];
+        if (!changed) return prev;
+        // Return in chronological order
+        return Array.from(prevMap.values()).sort(
+          (a, b) => a.date.getTime() - b.date.getTime()
+        );
       });
       setShouldAutoScroll(true);
     } catch (e) {
@@ -1211,13 +1240,20 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                     {
                       <div className="flex gap-3 mt-2">
                         {msg.reactions.map((r: any, i: number) => (
-                          <span
+                          <button
                             key={i}
-                            className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]"
+                            onClick={() =>
+                              handleReaction(
+                                String(msg.originalId || msg.id),
+                                r.icon
+                              )
+                            }
+                            className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff] hover:bg-[#ffffff12] transition"
+                            title="Toggle reaction"
                           >
                             {r.icon}
                             {typeof r.count === "number" ? r.count : ""}
-                          </span>
+                          </button>
                         ))}
                         {/* No local reaction chips; Telegram is source of truth */}
                         <div className="relative">
@@ -1249,7 +1285,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                               {/* Arrow pointer pointing left */}
                               <div className="absolute top-1/2 left-0 w-0 h-0 border-t-[8px] border-b-[8px] border-r-[8px] border-t-transparent border-b-transparent border-r-[#2d2d2d] transform -translate-y-1/2 -translate-x-1"></div>
 
-                              <div className="grid grid-cols-10 gap-0">
+                              <div className="grid grid-cols-8 gap-0">
                                 {commonReactions.map((emoji) => (
                                   <button
                                     key={emoji}

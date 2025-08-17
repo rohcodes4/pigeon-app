@@ -96,9 +96,16 @@ export const searchByPlatform = async (
 };
 
 // 3. Send Reactions
-export const sendReaction = async (messageId: string, reaction: string) => {
+export const sendReaction = async (
+  messageId: string,
+  reaction: string,
+  options?: { clear?: boolean }
+) => {
   const formData = new FormData();
   formData.append("reaction", reaction);
+  if (options?.clear) {
+    formData.append("clear", "true");
+  }
 
   const response = await authFetch(
     `${BACKEND_URL}/api/messages/${messageId}/reactions`,
