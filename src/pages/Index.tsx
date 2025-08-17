@@ -197,7 +197,7 @@ const Index = () => {
       try {
         const token = localStorage.getItem("access_token");
         const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/ui/chats`,
+          `${import.meta.env.VITE_BACKEND_URL}/ui/chats?include_all=true`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -233,7 +233,7 @@ const Index = () => {
       try {
         const token = localStorage.getItem("access_token");
         const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/ui/chats`,
+          `${import.meta.env.VITE_BACKEND_URL}/ui/chats?include_all=true`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

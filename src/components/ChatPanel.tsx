@@ -184,8 +184,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onChatSelect,
   selectedChat,
 }) => {
-  // Use fallback dummy data if no chats are provided for testing
-  const displayChats = chats.length > 0 ? chats : sortedChats;
+  // Use ONLY real chats; never fall back to dummy/sample data
+  const displayChats = chats;
   const [isFocus, setIsFocus] = useState(false);
   const [filters, setFilters] = useState([]);
   const SCROLL_AMOUNT = 100; // px

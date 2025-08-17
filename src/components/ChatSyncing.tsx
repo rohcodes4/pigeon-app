@@ -62,8 +62,8 @@ export const ChatSyncing = ({
     setTelegramLoading(true);
     const loadOrSync = async () => {
       try {
-        // Try load
-        const res = await fetch(`${BACKEND_URL}/chats`, {
+        // Prefer UI chats endpoint that computes last message and counts
+        const res = await fetch(`${BACKEND_URL}/ui/chats?include_all=true`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -83,9 +83,9 @@ export const ChatSyncing = ({
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });
-        for (let i = 0; i < 5; i++) {
-          await new Promise((r) => setTimeout(r, 1500));
-          const r2 = await fetch(`${BACKEND_URL}/chats`, {
+        for (let i = 0; i < 10; i++) {
+          await new Promise((r) => setTimeout(r, 2000));
+          const r2 = await fetch(`${BACKEND_URL}/ui/chats?include_all=true`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (r2.ok) {
@@ -306,6 +306,7 @@ export const ChatSyncing = ({
                 {/* Action button */}
                 <Button
                   // disabled={loading.discord}
+                  onClick={restartOnboarding}
                   className="bg-[#171717] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
                 >
                   Reconnect
