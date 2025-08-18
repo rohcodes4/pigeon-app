@@ -156,7 +156,22 @@ export const AuthPage = () => {
       const data = await response.json();
       if (response.ok && data.status === "success") {
         localStorage.setItem("access_token", data.access_token);
-        toast({ title: "Welcome!", description: "Telegram connected." });
+
+        // Trigger sync-dialogs immediately after successful 2FA login
+        try {
+          await fetch(`${BACKEND_URL}/api/sync-dialogs`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${data.access_token}` },
+          });
+          console.log("Triggered initial chat sync after Telegram 2FA login");
+        } catch (syncError) {
+          console.error("Failed to trigger initial sync after 2FA:", syncError);
+        }
+
+        toast({
+          title: "Welcome!",
+          description: "Telegram connected. Your chats are being synced.",
+        });
         setShowTelegramModal(false);
         setQrNeedsPassword(false);
         setQrPassword("");
@@ -392,9 +407,22 @@ export const AuthPage = () => {
           setShowTelegramModal(false);
 
           localStorage.setItem("access_token", data.access_token);
+
+          // Trigger sync-dialogs immediately after successful login
+          try {
+            await fetch(`${BACKEND_URL}/api/sync-dialogs`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${data.access_token}` },
+            });
+            console.log("Triggered initial chat sync after Telegram login");
+          } catch (syncError) {
+            console.error("Failed to trigger initial sync:", syncError);
+          }
+
           toast({
             title: "Welcome!",
-            description: "You have been signed in with Telegram.",
+            description:
+              "You have been signed in with Telegram. Your chats are being synced.",
           });
           await checkAuth();
         } else if (data.status === "password_required") {
@@ -708,7 +736,14 @@ export const AuthPage = () => {
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => handleTelegramAuth()}
+                  onClick={() => {
+                    if (telegramAuthMethod === "qr") {
+                      handleTelegramAuth();
+                    } else {
+                      // For phone method, just close modal and let user try again
+                      closeTelegramModal();
+                    }
+                  }}
                   variant="outline"
                   className="flex-1 bg-[#212121] text-white border-[#333] hover:bg-[#333]"
                 >

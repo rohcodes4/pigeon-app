@@ -211,8 +211,10 @@ export const ConnectAccounts = ({
     // QR code authentication
     setLoading((prev) => ({ ...prev, telegram: true }));
     try {
+      const token = localStorage.getItem("access_token");
       const response = await fetch(`${BACKEND_URL}/auth/qr`, {
         method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!response.ok) {
         const errorData = await response.json();

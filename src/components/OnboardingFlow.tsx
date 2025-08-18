@@ -192,6 +192,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     setSyncComplete(false);
     setTelegramConnected(false);
     setDiscordConnected(false);
+
+    // Force reload to reset the entire onboarding state
+    window.location.reload();
   };
 
   const canProceed = () => {

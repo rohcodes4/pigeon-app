@@ -54,6 +54,9 @@ export const ChatSyncing = ({
   // We'll fetch Telegram chats from the backend as before
   const [telegramChats, setTelegramChats] = useState<any[]>([]);
   const [telegramLoading, setTelegramLoading] = useState(true);
+  const [syncingInProgress, setSyncingInProgress] = useState(false);
+  const [initialSyncTriggered, setInitialSyncTriggered] = useState(false);
+  const [hasStartedFindingChats, setHasStartedFindingChats] = useState(false);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const token = localStorage.getItem("access_token");
 
@@ -75,19 +78,34 @@ export const ChatSyncing = ({
             : [];
           if (chats.length > 0) {
             setTelegramChats(chats);
+            setTelegramLoading(false);
             return;
           }
         }
-        // If no chats yet, trigger server-side sync and poll a few times
+
+        // If no chats yet, trigger server-side sync and show progress
+        setSyncingInProgress(true);
+        setInitialSyncTriggered(true);
+
+        // Start syncing
         await fetch(`${BACKEND_URL}/api/sync-dialogs`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });
-        for (let i = 0; i < 10; i++) {
-          await new Promise((r) => setTimeout(r, 2000));
+
+        // Start with a small delay to let sync begin
+        await new Promise((r) => setTimeout(r, 1000));
+
+        // Poll more frequently with progress updates
+        let consecutiveEmptyPolls = 0;
+        const maxConsecutiveEmpty = 5;
+
+        for (let i = 0; i < 45; i++) {
+          // Increased attempts and longer polling
           const r2 = await fetch(`${BACKEND_URL}/ui/chats?include_all=true`, {
             headers: { Authorization: `Bearer ${token}` },
           });
+
           if (r2.ok) {
             const data2 = await r2.json();
             const chats2 = Array.isArray(data2)
@@ -95,17 +113,47 @@ export const ChatSyncing = ({
               : Array.isArray(data2.chats)
               ? data2.chats
               : [];
+
+            // Update chats immediately to show progress
+            setTelegramChats(chats2);
+
+            // If we got chats, reset the empty poll counter
             if (chats2.length > 0) {
-              setTelegramChats(chats2);
-              return;
+              if (!hasStartedFindingChats) {
+                setHasStartedFindingChats(true);
+              }
+              consecutiveEmptyPolls = 0;
+
+              // If we have a good number of chats, continue for a bit longer to catch more
+              if (chats2.length >= 20 && i >= 15) {
+                // Continue for a few more iterations to catch additional chats
+                if (i >= 25) {
+                  setSyncingInProgress(false);
+                  setTelegramLoading(false);
+                  return;
+                }
+              }
+            } else {
+              consecutiveEmptyPolls++;
+
+              // If we've had too many empty polls in a row, stop
+              if (consecutiveEmptyPolls >= maxConsecutiveEmpty && i >= 10) {
+                break;
+              }
             }
           }
+
+          // Wait before next poll - longer wait as time goes on
+          const waitTime = Math.min(1000 + i * 100, 3000); // 1s to 3s
+          await new Promise((r) => setTimeout(r, waitTime));
         }
-        setTelegramChats([]);
-      } catch (e) {
-        setTelegramChats([]);
-      } finally {
+
+        setSyncingInProgress(false);
         setTelegramLoading(false);
+      } catch (e) {
+        setSyncingInProgress(false);
+        setTelegramLoading(false);
+        setTelegramChats([]);
       }
     };
     loadOrSync();
@@ -144,7 +192,7 @@ export const ChatSyncing = ({
   }, [user, setTelegramConnected, setDiscordConnected]);
 
   useEffect(() => {
-    // Discord Sync
+    // Discord Sync - only simulate if we have Discord chats
     let discordInterval: NodeJS.Timeout | null = null;
     if (discordChats.length > 0) {
       let discordProgress = 0;
@@ -163,28 +211,54 @@ export const ChatSyncing = ({
       setSyncProgress((prev) => ({ ...prev, discord: 0 }));
     }
 
-    // Telegram Sync
+    // Telegram Sync - base progress on actual chat count and loading state
     let telegramInterval: NodeJS.Timeout | null = null;
-    if (telegramChats.length > 0) {
-      let telegramProgress = 0;
-      const telegramStep = 100 / telegramChats.length;
+
+    if (syncingInProgress) {
+      // Show incremental progress while syncing based on actual chat count
+      let baseProgress;
+      if (telegramChats.length === 0) {
+        // If no chats yet, show some progress to indicate work is happening
+        baseProgress = hasStartedFindingChats ? 15 : 8;
+      } else {
+        // Scale progress based on chat count, max 85% while still syncing
+        baseProgress = Math.min(15 + (telegramChats.length / 100) * 70, 85);
+      }
+
+      setSyncProgress((prev) => ({
+        ...prev,
+        telegram: Math.max(baseProgress, prev.telegram), // Only increase, never decrease
+      }));
+
+      // Update progress periodically while syncing to show it's active
       telegramInterval = setInterval(() => {
-        telegramProgress += telegramStep;
+        let currentProgress;
+        if (telegramChats.length === 0) {
+          currentProgress = hasStartedFindingChats ? 15 : 8;
+        } else {
+          currentProgress = Math.min(
+            15 + (telegramChats.length / 100) * 70,
+            85
+          );
+        }
+
         setSyncProgress((prev) => ({
           ...prev,
-          telegram: Math.min(telegramProgress, 100),
+          telegram: Math.max(currentProgress, prev.telegram),
         }));
-        //   if (telegramProgress >= 100) {
-        //     if (telegramInterval) clearInterval(telegramInterval);
-        //     // Complete syncing after both are done
-        //     setTimeout(() => {
-        //       setSyncComplete(true);
-        //     }, 500);
-        //   }
-        if (telegramProgress >= 100) {
-          if (telegramInterval) clearInterval(telegramInterval);
-        }
-      }, 300); // 300ms per chat
+      }, 1500);
+    } else if (telegramLoading) {
+      // Show initial loading state
+      setSyncProgress((prev) => ({
+        ...prev,
+        telegram: 3, // Small progress to show it's starting
+      }));
+    } else if (telegramChats.length > 0) {
+      // Complete progress when done loading
+      setSyncProgress((prev) => ({
+        ...prev,
+        telegram: 100,
+      }));
     } else {
       setSyncProgress((prev) => ({ ...prev, telegram: 0 }));
     }
@@ -194,16 +268,30 @@ export const ChatSyncing = ({
       if (discordInterval) clearInterval(discordInterval);
       if (telegramInterval) clearInterval(telegramInterval);
     };
-  }, [approvedChats]);
+  }, [
+    telegramChats.length,
+    syncingInProgress,
+    telegramLoading,
+    discordChats.length,
+    hasStartedFindingChats,
+  ]);
 
   useEffect(() => {
     if (
       (discordChats.length === 0 || syncProgress.discord >= 100) &&
-      (telegramChats.length === 0 || syncProgress.telegram >= 100)
+      (telegramChats.length === 0 || syncProgress.telegram >= 100) &&
+      !syncingInProgress &&
+      !telegramLoading
     ) {
       setTimeout(() => setSyncComplete(true), 500); // Optional: add a small delay for smoothness
     }
-  }, [syncProgress, discordChats.length, telegramChats.length]);
+  }, [
+    syncProgress,
+    discordChats.length,
+    telegramChats.length,
+    syncingInProgress,
+    telegramLoading,
+  ]);
 
   //   useEffect(() => {
   //     if (syncComplete) {
@@ -214,10 +302,15 @@ export const ChatSyncing = ({
   //     }
   //   }, [syncComplete, onComplete]);
 
-  // Telegram sync bar logic: fully loaded and green if any chats found
-  const telegramSyncValue = telegramChats.length > 0 ? 100 : 0;
-  const telegramSyncBarClass =
-    telegramChats.length > 0 ? "bg-green-900" : "bg-gray-700";
+  // Telegram sync bar logic: show actual progress
+  const telegramSyncValue = syncProgress.telegram;
+  const telegramSyncBarClass = syncingInProgress
+    ? "bg-blue-600" // Blue while actively syncing
+    : telegramLoading
+    ? "bg-blue-400" // Lighter blue while loading
+    : telegramChats.length > 0
+    ? "bg-green-900" // Green when complete with chats
+    : "bg-gray-700"; // Gray when no chats
 
   return (
     <div className="space-y-6">
@@ -229,11 +322,15 @@ export const ChatSyncing = ({
         >
           {syncComplete
             ? "Syncing is done!"
+            : syncingInProgress || telegramLoading
+            ? "Syncing your chats..."
             : "All platforms connected successfully!"}
         </h2>
         <p className="text-[#ffffff48]">
           {syncComplete
             ? "Let's start playing around"
+            : syncingInProgress || telegramLoading
+            ? "Please wait while we sync your conversations from Telegram."
             : "Your accounts have been connected and your chats are now syncing."}{" "}
         </p>
       </div>
@@ -252,14 +349,20 @@ export const ChatSyncing = ({
             <div className="flex gap-2 items-center">
               <div className="flex flex-col gap-0 mb-1">
                 <span className="text-lg font-semibold mb-1 text-[#ffffff90]">
-                  {syncComplete ? "Sync done." : "Sync in progress..."}
+                  {syncComplete
+                    ? "Sync done."
+                    : syncingInProgress || telegramLoading
+                    ? "Sync in progress..."
+                    : "Sync in progress..."}
                 </span>
                 <span
                   className={`text-xs text-[#ffffff48] rounded-full font-medium`}
                 >
                   {syncComplete
-                    ? "All your chat were processed. "
-                    : "All your chat are being processed."}
+                    ? "All your chats were processed. "
+                    : syncingInProgress || telegramLoading
+                    ? `Syncing... ${telegramChats.length} chats found so far.`
+                    : "All your chats are being processed."}
                 </span>
               </div>
             </div>
@@ -289,13 +392,30 @@ export const ChatSyncing = ({
                 </div>
 
                 <div className="telegramProgress">
-                  <p>Telegram Servers ({telegramChats.length})</p>
+                  <p className="flex items-center gap-2">
+                    Telegram Chats ({telegramChats.length})
+                    {(syncingInProgress || telegramLoading) && (
+                      <>
+                        <span className="flex items-center gap-1 text-xs text-blue-400">
+                          <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                          {syncingInProgress ? "Syncing..." : "Loading..."}
+                        </span>
+                      </>
+                    )}
+                  </p>
                   <div className="w-full rounded-full bg-[#171717] px-3 py-3 mt-2">
                     <div
-                      className={`h-1 rounded-full telegramProgressBar transition-all duration-300 ${telegramSyncBarClass}`}
+                      className={`h-1 rounded-full telegramProgressBar transition-all duration-300 ${telegramSyncBarClass} ${
+                        syncingInProgress ? "animate-pulse" : ""
+                      }`}
                       style={{
                         width: `${telegramSyncValue}%`,
-                        opacity: telegramChats.length === 0 ? 0.5 : 1,
+                        opacity:
+                          telegramChats.length === 0 &&
+                          !syncingInProgress &&
+                          !telegramLoading
+                            ? 0.5
+                            : 1,
                       }}
                     ></div>
                   </div>

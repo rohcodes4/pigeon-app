@@ -38,18 +38,37 @@ export default function ConnectTelegram({
       return;
     }
 
+    // Basic phone number validation
+    const phoneNumber = phone.trim();
+    if (!phoneNumber.startsWith("+")) {
+      setError("Phone number must include country code (e.g., +1234567890)");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
+      console.log("Requesting phone login for:", phoneNumber);
       const response = await fetch(`${BACKEND_URL}/auth/phone/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phone.trim() }),
+        body: JSON.stringify({ phone: phoneNumber }),
       });
 
       const data = await response.json();
+      console.log("Phone login response:", data);
 
       if (!response.ok) {
+        // Handle specific error types
+        if (response.status === 429) {
+          throw new Error(
+            "Too many requests. Please wait a few minutes and try again."
+          );
+        } else if (response.status === 408) {
+          throw new Error(
+            "Request timed out. Please check your internet connection and try again."
+          );
+        }
         throw new Error(data.detail || "Failed to start login");
       }
 
@@ -58,9 +77,10 @@ export default function ConnectTelegram({
       toast({
         title: "Code Sent",
         description:
-          "Please check your Telegram app for the verification code.",
+          "Please check your Telegram app for the verification code. It may take a few moments to arrive.",
       });
     } catch (e: any) {
+      console.error("Phone login error:", e);
       setError(e.message);
       toast({
         title: "Error",
@@ -114,10 +134,25 @@ export default function ConnectTelegram({
         setStep("success");
         if (data.access_token) {
           localStorage.setItem("access_token", data.access_token);
+
+          // Trigger sync-dialogs immediately after successful login
+          try {
+            await fetch(`${BACKEND_URL}/api/sync-dialogs`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${data.access_token}` },
+            });
+            console.log(
+              "Triggered initial chat sync after Telegram phone login"
+            );
+          } catch (syncError) {
+            console.error("Failed to trigger initial sync:", syncError);
+          }
         }
+
         toast({
           title: "Success!",
-          description: "Telegram connected successfully!",
+          description:
+            "Telegram connected successfully! Your chats are being synced.",
         });
         if (onConnected) onConnected();
       } else {
@@ -170,10 +205,28 @@ export default function ConnectTelegram({
         setShowPasswordModal(false);
         if (data.access_token) {
           localStorage.setItem("access_token", data.access_token);
+
+          // Trigger sync-dialogs immediately after successful 2FA login
+          try {
+            await fetch(`${BACKEND_URL}/api/sync-dialogs`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${data.access_token}` },
+            });
+            console.log(
+              "Triggered initial chat sync after Telegram phone 2FA login"
+            );
+          } catch (syncError) {
+            console.error(
+              "Failed to trigger initial sync after 2FA:",
+              syncError
+            );
+          }
         }
+
         toast({
           title: "Success!",
-          description: "Telegram connected successfully!",
+          description:
+            "Telegram connected successfully! Your chats are being synced.",
         });
         if (onConnected) onConnected();
       } else {
@@ -267,6 +320,19 @@ export default function ConnectTelegram({
               ) : (
                 "Verify Code"
               )}
+            </Button>
+          </div>
+          <div className="text-center">
+            <Button
+              onClick={() => {
+                setStep("phone");
+                setOtp("");
+                setError(null);
+              }}
+              variant="link"
+              className="text-sm text-gray-400 hover:text-white"
+            >
+              Didn't receive a code? Try again
             </Button>
           </div>
         </div>
