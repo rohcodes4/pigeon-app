@@ -56,10 +56,12 @@ const Bookmarks = () => {
   const [favoriteChats, setFavoriteChats] = useState([]);
   const [loadingChats, setLoadingChats] = useState(true);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // ✅ ADD: Missing chat state variables
   const [chats, setChats] = useState([]); // State to store fetched chats
   const [chatsLoading, setChatsLoading] = useState(true); // Loading state for chats
   const [selectedChat, setSelectedChat] = useState(null); // State for selected chat
+
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [selectedSource, setSelectedSource] = useState("All sources");
 
   useEffect(() => {
@@ -207,8 +209,9 @@ const Bookmarks = () => {
         const data = await response.json();
         // Assuming data.chats is the array of chat objects
         setChats(data.chats || []);
+        console.log("✅ Bookmarks page fetched chats:", data.chats || []);
       } catch (error) {
-        console.error("Failed to fetch chats:", error);
+        console.error("❌ Failed to fetch chats in bookmarks page:", error);
         toast({
           title: "Error",
           description: "Failed to load chats.",
@@ -222,6 +225,7 @@ const Bookmarks = () => {
     fetchChats();
   }, [user]);
 
+  // ✅ ADD: Missing chat selection handler
   const handleChatSelect = async (chat) => {
     setSelectedChat(chat);
 
@@ -251,9 +255,9 @@ const Bookmarks = () => {
         console.error("Failed to mark chat as read:", error);
       }
     }
-    navigate("/", { state: { selectedChat: chat } });
   };
 
+  // ✅ UPDATE: Include chatsLoading in the loading check
   if (loading || chatsLoading) {
     return (
       <div className="min-h-screen bg-[#171717] flex items-center justify-center">
@@ -295,11 +299,7 @@ const Bookmarks = () => {
         <main className="flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
           <ChatPanel
             chats={favoriteChats}
-            onChatSelect={(chat) => {
-              if (chat && chat.id) {
-                setSelectedId(chat.id);
-              }
-            }}
+            onChatSelect={handleChatSelect}
             selectedChat={selectedId}
 
             // chats={chats} // RC/FixesNew
@@ -318,6 +318,7 @@ const Bookmarks = () => {
             />
             {/* Show FavoritesPanel by default */}
             <FavoritesPanel />
+            {/* <UnifiedChatPanel selectedChat={selectedChat} />  Flex's changes */}
           </div>
 
           {openPanel === "smartTask" && <SmartBookmark />}

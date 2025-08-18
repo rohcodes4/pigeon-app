@@ -52,10 +52,12 @@ const Contacts = () => {
     null | "smartTask" | "notification" | "pinned" | "search"
   >(null);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // ✅ ADD: Missing chat state variables
   const [chats, setChats] = useState([]); // State to store fetched chats
   const [chatsLoading, setChatsLoading] = useState(true); // Loading state for chats
   const [selectedChat, setSelectedChat] = useState(null); // State for selected chat
+
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [selectedSource, setSelectedSource] = useState("All sources");
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   useEffect(() => {
@@ -83,7 +85,7 @@ const Contacts = () => {
     }
   }, [activeTab]);
 
-
+  // ✅ ADD: Missing chat fetching logic
   useEffect(() => {
     const fetchChats = async () => {
       if (!user) {
@@ -107,8 +109,9 @@ const Contacts = () => {
         const data = await response.json();
         // Assuming data.chats is the array of chat objects
         setChats(data.chats || []);
+        console.log("✅ Contacts page fetched chats:", data.chats || []);
       } catch (error) {
-        console.error("Failed to fetch chats:", error);
+        console.error("❌ Failed to fetch chats in contacts page:", error);
         toast({
           title: "Error",
           description: "Failed to load chats.",
@@ -122,6 +125,7 @@ const Contacts = () => {
     fetchChats();
   }, [user]);
 
+  // ✅ ADD: Missing chat selection handler
   const handleChatSelect = async (chat) => {
     setSelectedChat(chat);
 
@@ -151,10 +155,9 @@ const Contacts = () => {
         console.error("Failed to mark chat as read:", error);
       }
     }
-    navigate("/", { state: { selectedChat:chat}});
   };
 
-
+  // ✅ UPDATE: Include chatsLoading in the loading check
   if (loading || chatsLoading) {
     return (
       <div className="min-h-screen bg-[#171717] flex items-center justify-center">
@@ -195,10 +198,11 @@ const Contacts = () => {
           setSelectedOptions={setSelectedOptions}
         />
         <main className="flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
-          <ChatPanel 
-          chats={chats}
-          onChatSelect={handleChatSelect}
-          selectedChat={selectedChat}
+          {/* ✅ FIX: Add missing props to ChatPanel */}
+          <ChatPanel
+            chats={chats}
+            onChatSelect={handleChatSelect}
+            selectedChat={selectedChat}
           />
           <div className="w-full">
             <UnifiedHeader

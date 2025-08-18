@@ -506,10 +506,8 @@ const token = localStorage.getItem("access_token");
               </div>
             )}
           </div>
-          <button className="p-2 hover:bg-[#23242a] rounded-lg">
-            <FaCog />
-          </button>
-          <button
+
+          <button 
             onClick={handleGenerateSummary}
             disabled={
               summaryLoading || !selectedChat || selectedChat === "all-channels"
