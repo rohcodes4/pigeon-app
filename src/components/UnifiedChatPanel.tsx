@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import discord from "@/assets/images/discordColor.png";
 import telegram from "@/assets/images/telegramColor.png";
 import discordWhite from "@/assets/images/discord.png";
@@ -673,10 +673,10 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
         id: messages.length + 1,
         originalId: undefined, // New messages don't have originalId
         name: user.username, // or your user logic
-        avatar: gravatarUrl("You" + (replyTo ? replyTo.platform : "Discord")), // match platform for avatar
-        platform: replyTo ? replyTo.platform : "Discord", // use replyTo's platform if replying
-        channel: replyTo ? replyTo.channel : "#general", // use replyTo's channel if replying
-        server: replyTo ? replyTo.channel : "Server",
+        avatar: "",
+        platform: replyTo ? replyTo.platform : "Telegram", // use replyTo's platform if replying
+        channel: replyTo ? replyTo.channel : "", // use replyTo's channel if replying
+        server: replyTo ? replyTo.name : "Server",
         date: now,
         message: inputRef.current.value,
         tags: [],
@@ -731,6 +731,9 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       // Use dummy data when flag is enabled
       setMessages(dummyMessages);
     }
+    setReplyTo(null);
+    inputRef.current.value=""
+    setUploadedFiles([])
   }, [selectedChat?.id, selectedChat, fetchMessages, USE_DUMMY_DATA]);
 
   // Function to mark chat as read
@@ -870,7 +873,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                   className="flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 group hover:bg-[#212121]"
                   onMouseLeave={() => setOpenMenuId(null)}
                 >
-                  <ChatAvatar name={msg.name} avatar={msg.avatar} />
+                  <ChatAvatar name={msg.name} avatar={msg?.avatar} />
 
                   <div className="flex-1 relative">
                     <div className="absolute right-0 top-0 flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
@@ -1282,7 +1285,6 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                   >
                     Send Video
                   </p>
-                  {/* More menu options as needed */}
                 </div>
               )}
             </div>

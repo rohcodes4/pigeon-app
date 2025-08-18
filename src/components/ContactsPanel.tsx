@@ -114,7 +114,10 @@ const ContactsPanel = () => {
     if (infoDivRef.current) {
       setInfoDivHeight(infoDivRef.current.offsetHeight);
     }
-  }, [uploadedFiles]);
+    if(!selectedUser){
+      setInfoDivHeight(0)
+    }
+  }, [uploadedFiles, selectedUser]);
 
   useEffect(() => {
     // Fetch users from backend
