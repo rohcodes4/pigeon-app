@@ -16,6 +16,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { PlatformStatusBadges } from "./PlatformStatusBadges";
+import ConnectTelegram from "./ConnectTelegram";
 import telegram from "@/assets/images/telegram.png";
 import discord from "@/assets/images/discord.png";
 import play from "@/assets/images/play.png";
@@ -59,6 +60,8 @@ export const ConnectAccounts = ({
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [twoFactorPassword, setTwoFactorPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [authMethod, setAuthMethod] = useState<"qr" | "phone">("qr");
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
 
   const checkAllConnected = useCallback(() => {
     if (telegramConnected && discordConnected) {
@@ -67,17 +70,29 @@ export const ConnectAccounts = ({
   }, [telegramConnected, discordConnected, onAccountsConnected]);
 
   useEffect(() => {
-    if (user) {
-      // TODO: In a real scenario, this should fetch actual connection status from backend
-      const onboardingData = localStorage.getItem(
-        `chatpilot_accounts_${user.id}`
-      );
-      if (onboardingData) {
-        const data = JSON.parse(onboardingData);
-        setTelegramConnected(data.telegram || false);
-        setDiscordConnected(data.discord || false);
+    const fetchStatuses = async () => {
+      if (!user) return;
+      try {
+        const token = localStorage.getItem("access_token");
+        const tgRes = await fetch(`${BACKEND_URL}/auth/telegram/status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (tgRes.ok) {
+          const tg = await tgRes.json();
+          setTelegramConnected(!!tg.connected);
+        }
+        const dcRes = await fetch(`${BACKEND_URL}/auth/discord/status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (dcRes.ok) {
+          const dc = await dcRes.json();
+          setDiscordConnected(!!dc.connected);
+        }
+      } catch (e) {
+        // ignore
       }
-    }
+    };
+    fetchStatuses();
   }, [user, setTelegramConnected, setDiscordConnected]);
 
   useEffect(() => {
@@ -112,19 +127,6 @@ export const ConnectAccounts = ({
             setPollingIntervalId(null);
             setShowTelegramQrModal(false);
             setTelegramConnected(true); // Update local state
-            // Persist Telegram connection in localStorage
-            if (user) {
-              const existingData = JSON.parse(
-                localStorage.getItem(`chatpilot_accounts_${user.id}`) || "{}"
-              );
-              localStorage.setItem(
-                `chatpilot_accounts_${user.id}`,
-                JSON.stringify({
-                  ...existingData,
-                  telegram: true,
-                })
-              );
-            }
             toast({
               title: "Telegram Connected",
               description: "Successfully connected to your Telegram account.",
@@ -199,6 +201,14 @@ export const ConnectAccounts = ({
 
   const connectTelegram = async () => {
     if (!user) return;
+
+    if (authMethod === "phone") {
+      // For phone auth, we'll show the phone input modal
+      setShowPhoneModal(true);
+      return;
+    }
+
+    // QR code authentication
     setLoading((prev) => ({ ...prev, telegram: true }));
     try {
       const response = await fetch(`${BACKEND_URL}/auth/qr`, {
@@ -259,20 +269,6 @@ export const ConnectAccounts = ({
         setTwoFactorPassword("");
         setTelegramConnected(true);
 
-        // Persist Telegram connection in localStorage
-        if (user) {
-          const existingData = JSON.parse(
-            localStorage.getItem(`chatpilot_accounts_${user.id}`) || "{}"
-          );
-          localStorage.setItem(
-            `chatpilot_accounts_${user.id}`,
-            JSON.stringify({
-              ...existingData,
-              telegram: true,
-            })
-          );
-        }
-
         toast({
           title: "Telegram Connected",
           description: "Successfully connected to your Telegram account.",
@@ -298,9 +294,11 @@ export const ConnectAccounts = ({
     setLoading((prev) => ({ ...prev, discord: true }));
 
     try {
-      // Start Discord OAuth flow
+      // Start Discord OAuth flow with Authorization header so backend can link to current user
+      const token = localStorage.getItem("access_token");
       const response = await fetch(`${BACKEND_URL}/auth/discord/start`, {
         method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       if (!response.ok) {
@@ -331,17 +329,7 @@ export const ConnectAccounts = ({
               setDiscordConnected(true);
               setLoading((prev) => ({ ...prev, discord: false }));
 
-              // Persist Discord connection in localStorage
-              const existingData = JSON.parse(
-                localStorage.getItem(`chatpilot_accounts_${user.id}`) || "{}"
-              );
-              localStorage.setItem(
-                `chatpilot_accounts_${user.id}`,
-                JSON.stringify({
-                  ...existingData,
-                  discord: true,
-                })
-              );
+              // Status is derived from backend
 
               toast({
                 title: "Discord Connected",
@@ -561,16 +549,41 @@ export const ConnectAccounts = ({
                     Reconnect
                   </Button>
                 ) : (
-                  <Button
-                    onClick={connectTelegram}
-                    disabled={loading.telegram}
-                    className="bg-[#2d2d2d] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
-                  >
-                    {loading.telegram && (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    )}
-                    {telegramConnected ? "Reconnect" : "Connect"}
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    {/* Authentication Method Toggle */}
+                    <div className="flex gap-1 bg-[#212121] rounded-lg p-1">
+                      <button
+                        onClick={() => setAuthMethod("qr")}
+                        className={`px-3 py-1 text-xs rounded-md transition ${
+                          authMethod === "qr"
+                            ? "bg-[#5389ff] text-white"
+                            : "text-[#ffffff80] hover:text-white"
+                        }`}
+                      >
+                        QR Code
+                      </button>
+                      <button
+                        onClick={() => setAuthMethod("phone")}
+                        className={`px-3 py-1 text-xs rounded-md transition ${
+                          authMethod === "phone"
+                            ? "bg-[#5389ff] text-white"
+                            : "text-[#ffffff80] hover:text-white"
+                        }`}
+                      >
+                        Phone
+                      </button>
+                    </div>
+                    <Button
+                      onClick={connectTelegram}
+                      disabled={loading.telegram}
+                      className="bg-[#2d2d2d] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
+                    >
+                      {loading.telegram && (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      )}
+                      {telegramConnected ? "Reconnect" : "Connect"}
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
@@ -725,6 +738,43 @@ export const ConnectAccounts = ({
               )}
               Connect
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Phone Authentication Modal */}
+      <AlertDialog open={showPhoneModal} onOpenChange={setShowPhoneModal}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Connect Telegram via Phone</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter your phone number to receive a verification code via
+              Telegram.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="p-4">
+            <ConnectTelegram
+              onConnected={() => {
+                setTelegramConnected(true);
+                // Status is derived from backend
+                toast({
+                  title: "Telegram Connected",
+                  description: "Successfully connected via phone.",
+                });
+                checkAllConnected();
+                setShowPhoneModal(false);
+              }}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowPhoneModal(false);
+                setLoading((prev) => ({ ...prev, telegram: false }));
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

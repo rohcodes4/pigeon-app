@@ -22,11 +22,7 @@ interface ChatAvatarProps {
 function ChatAvatar({ name, avatar, backupAvatar }: ChatAvatarProps) {
   const gravatar = gravatarUrl(name + "Telegram");
   const [src, setSrc] = useState(
-    avatar
-      ? avatar
-      : backupAvatar
-        ? backupAvatar
-        : gravatar
+    avatar ? avatar : backupAvatar ? backupAvatar : gravatar
   );
 
   // Track which fallback we're on
@@ -36,7 +32,7 @@ function ChatAvatar({ name, avatar, backupAvatar }: ChatAvatarProps) {
     if (fallbackStep === 0 && backupAvatar && src !== backupAvatar) {
       setSrc(backupAvatar);
       setFallbackStep(1);
-    } else if ((fallbackStep <= 1) && src !== gravatar) {
+    } else if (fallbackStep <= 1 && src !== gravatar) {
       setSrc(gravatar);
       setFallbackStep(2);
     }
