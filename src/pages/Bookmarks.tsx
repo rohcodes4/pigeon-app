@@ -199,18 +199,18 @@ const Bookmarks = () => {
             onChatSelect={handleChatSelect}
             selectedChat={selectedChat}
           />
-          <div className="w-full">
-            <UnifiedHeader
-              title="Bookmarks"
-              smartText="Smart Tasks"
-              isReadAll={false}
-              isSmartSummary={openPanel === "smartTask"}
-              setIsSmartSummary={(open) =>
-                setOpenPanel(open ? "smartTask" : null)
-              }
-            />
-            <UnifiedChatPanel />
-          </div>
+<div className="w-full">
+  <UnifiedHeader
+    title="Bookmarks"
+    smartText="Smart Tasks"
+    isReadAll={false}
+    isSmartSummary={openPanel === "smartTask"}
+    setIsSmartSummary={(open) =>
+      setOpenPanel(open ? "smartTask" : null)
+    }
+  />
+  <UnifiedChatPanel selectedChat={selectedChat} />  {/* ✅ FIXED */}
+</div>
 
           {openPanel === "smartTask" && <SmartBookmark />}
           {openPanel === "notification" && <NotificationsPanel />}
