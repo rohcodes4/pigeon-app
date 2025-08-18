@@ -53,7 +53,11 @@ const Contacts = () => {
   >(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-
+  const [chats, setChats] = useState([]); // State to store fetched chats
+  const [chatsLoading, setChatsLoading] = useState(true); // Loading state for chats
+  const [selectedChat, setSelectedChat] = useState(null); // State for selected chat
+  const [selectedSource, setSelectedSource] = useState("All sources");
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   useEffect(() => {
     if (!loading && !user) {
       navigate("/auth");
@@ -79,7 +83,79 @@ const Contacts = () => {
     }
   }, [activeTab]);
 
-  if (loading) {
+
+  useEffect(() => {
+    const fetchChats = async () => {
+      if (!user) {
+        setChatsLoading(false);
+        return;
+      }
+      setChatsLoading(true);
+      try {
+        const token = localStorage.getItem("access_token");
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/ui/chats`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        // Assuming data.chats is the array of chat objects
+        setChats(data.chats || []);
+      } catch (error) {
+        console.error("Failed to fetch chats:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load chats.",
+          variant: "destructive",
+        });
+        setChats([]);
+      } finally {
+        setChatsLoading(false);
+      }
+    };
+    fetchChats();
+  }, [user]);
+
+  const handleChatSelect = async (chat) => {
+    setSelectedChat(chat);
+
+    // Mark the chat as read when selected
+    if (chat && chat.id) {
+      try {
+        const token = localStorage.getItem("access_token");
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/chats/${chat.id}/read`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: "read=true",
+          }
+        );
+
+        if (response.ok) {
+          // Update the chat's read status in the local state
+          setChats((prevChats) =>
+            prevChats.map((c) => (c.id === chat.id ? { ...c, read: true } : c))
+          );
+        }
+      } catch (error) {
+        console.error("Failed to mark chat as read:", error);
+      }
+    }
+    navigate("/", { state: { selectedChat:chat}});
+  };
+
+
+  if (loading || chatsLoading) {
     return (
       <div className="min-h-screen bg-[#171717] flex items-center justify-center">
         <div className="text-center">
@@ -113,9 +189,17 @@ const Contacts = () => {
           setIsSearchOpen={(open) => {
             setOpenPanel(open ? "search" : null);
           }}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          selectedOptions={selectedOptions}
+          setSelectedOptions={setSelectedOptions}
         />
         <main className="flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
-          <ChatPanel />
+          <ChatPanel 
+          chats={chats}
+          onChatSelect={handleChatSelect}
+          selectedChat={selectedChat}
+          />
           <div className="w-full">
             <UnifiedHeader
               title="Contacts"
@@ -133,7 +217,14 @@ const Contacts = () => {
           {openPanel === "smartTask" && <SmartTask />}
           {openPanel === "notification" && <NotificationsPanel />}
           {openPanel === "pinned" && <PinnedPanel />}
-          {openPanel === "search" && <SearchPanel />}
+          {openPanel === "search" && (
+            <SearchPanel
+              searchQuery={searchTerm}
+              selectedSource={selectedSource}
+              setSelectedSource={setSelectedSource}
+              selectedOptions={selectedOptions}
+            />
+          )}
         </main>
       </div>
     </Layout>

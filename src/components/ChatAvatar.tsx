@@ -13,8 +13,13 @@ function gravatarUrl(seed: string) {
   }
 }
 
-// ... existing code ...
-function ChatAvatar({ name, avatar, backupAvatar }) {
+interface ChatAvatarProps {
+  name: string;
+  avatar?: string;
+  backupAvatar?: string; // optional: the "?" suffix
+}
+
+function ChatAvatar({ name, avatar, backupAvatar }: ChatAvatarProps) {
   const gravatar = gravatarUrl(name + "Telegram");
   const [src, setSrc] = useState(
     avatar ? avatar : backupAvatar ? backupAvatar : gravatar

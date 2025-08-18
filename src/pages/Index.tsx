@@ -35,10 +35,13 @@ import UnifiedChatPanel from "@/components/UnifiedChatPanel";
 import SmartSummary from "@/components/SmartSummary";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
+import { useLocation } from 'react-router-dom';
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const stateChat = location.state?.selectedChat;
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [activeTab, setActiveTab] = useState("ai");
   const [isConnected, setIsConnected] = useState(false);
@@ -54,8 +57,7 @@ const Index = () => {
   >(null);
   const [chats, setChats] = useState([]); // State to store fetched chats
   const [chatsLoading, setChatsLoading] = useState(true); // Loading state for chats
-  const [selectedChat, setSelectedChat] = useState("all-channels"); // State for selected chat
-
+  const [selectedChat, setSelectedChat] = useState(stateChat || "all-channels");
   // ADD these state hooks near the top
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSource, setSelectedSource] = useState("All sources");
@@ -68,6 +70,12 @@ const Index = () => {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (stateChat) {
+      setSelectedChat(stateChat);
+    }
+  }, [stateChat]);
+  
   const handleAISummary = (id, tab) => {
     const updateChats = (chats) =>
       chats.map((chat) =>
@@ -113,7 +121,7 @@ const Index = () => {
   // Handle chat selection
   const handleChatSelect = async (chat) => {
     setSelectedChat(chat);
-    console.log("Selected chat:", chat);
+    console.log("Selected chat:", chat.id);
 
     // Mark the chat as read when selected
     if (chat && chat.id) {
@@ -344,7 +352,7 @@ const Index = () => {
             <UnifiedChatPanel selectedChat={selectedChat} />
           </div>
           {openPanel === "smartSummary" && (
-            <SmartSummary selectedChat={selectedChat} />
+            <SmartSummary selectedChat={selectedChat} chatId={selectedChat.id} />
           )}
           {openPanel === "notification" && <NotificationsPanel />}
           {openPanel === "pinned" && <PinnedPanel />}

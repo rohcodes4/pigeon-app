@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import discord from "@/assets/images/discordColor.png";
 import telegram from "@/assets/images/telegramColor.png";
 import discordWhite from "@/assets/images/discord.png";
@@ -1018,9 +1018,13 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       // Use dummy data when flag is enabled
       setMessages(dummyMessages);
     }
-
     // Close attachment menu when switching chats
     setShowAttachMenu(false);
+    setReplyTo(null);
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
+    setUploadedFiles([]);
   }, [selectedChat?.id, selectedChat, fetchMessages, USE_DUMMY_DATA]);
 
   // Polling: refresh current view every 30s (no websockets)
@@ -1628,7 +1632,6 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                             status: "uploading",
                           })
                         );
-
                         setUploadedFiles((prev) => [...prev, ...files]);
                         setShowAttachMenu(false);
 
@@ -1661,7 +1664,6 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                     >
                       Send Video
                     </p>
-                    {/* More menu options as needed */}
                   </div>
                 )}
             </div>

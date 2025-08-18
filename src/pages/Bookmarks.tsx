@@ -57,6 +57,10 @@ const Bookmarks = () => {
   const [loadingChats, setLoadingChats] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [chats, setChats] = useState([]); // State to store fetched chats
+  const [chatsLoading, setChatsLoading] = useState(true); // Loading state for chats
+  const [selectedChat, setSelectedChat] = useState(null); // State for selected chat
+  const [selectedSource, setSelectedSource] = useState("All sources");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -179,7 +183,78 @@ const Bookmarks = () => {
     }
   }, [activeTab]);
 
-  if (loading) {
+  // Fetch chats from backend
+  useEffect(() => {
+    const fetchChats = async () => {
+      if (!user) {
+        setChatsLoading(false);
+        return;
+      }
+      setChatsLoading(true);
+      try {
+        const token = localStorage.getItem("access_token");
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/ui/chats`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        // Assuming data.chats is the array of chat objects
+        setChats(data.chats || []);
+      } catch (error) {
+        console.error("Failed to fetch chats:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load chats.",
+          variant: "destructive",
+        });
+        setChats([]);
+      } finally {
+        setChatsLoading(false);
+      }
+    };
+    fetchChats();
+  }, [user]);
+
+  const handleChatSelect = async (chat) => {
+    setSelectedChat(chat);
+
+    // Mark the chat as read when selected
+    if (chat && chat.id) {
+      try {
+        const token = localStorage.getItem("access_token");
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/chats/${chat.id}/read`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: "read=true",
+          }
+        );
+
+        if (response.ok) {
+          // Update the chat's read status in the local state
+          setChats((prevChats) =>
+            prevChats.map((c) => (c.id === chat.id ? { ...c, read: true } : c))
+          );
+        }
+      } catch (error) {
+        console.error("Failed to mark chat as read:", error);
+      }
+    }
+    navigate("/", { state: { selectedChat: chat } });
+  };
+
+  if (loading || chatsLoading) {
     return (
       <div className="min-h-screen bg-[#171717] flex items-center justify-center">
         <div className="text-center">
@@ -226,6 +301,10 @@ const Bookmarks = () => {
               }
             }}
             selectedChat={selectedId}
+
+            // chats={chats} // RC/FixesNew
+            // onChatSelect={handleChatSelect} // RC/FixesNew
+            // selectedChat={selectedChat} // RC/FixesNew
           />
           <div className="w-full">
             <UnifiedHeader
@@ -247,8 +326,8 @@ const Bookmarks = () => {
           {openPanel === "search" && (
             <SearchPanel
               searchQuery={searchTerm}
-              selectedSource="All sources"
-              setSelectedSource={() => {}}
+              selectedSource={selectedSource}
+              setSelectedSource={setSelectedSource}
               selectedOptions={selectedOptions}
             />
           )}

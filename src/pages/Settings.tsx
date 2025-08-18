@@ -18,6 +18,10 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
+import { AppHeader } from "@/components/AppHeader";
+import NotificationsPanel from "@/components/NotificationsPanel";
+import PinnedPanel from "@/components/PinnedPanel";
+import { SearchPanel } from "@/components/SearchPanel";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -45,6 +49,14 @@ const Settings = () => {
 
   const [isUpdating, setIsUpdating] = useState(false);
 
+
+  const [openPanel, setOpenPanel] = useState<
+  null | "smartSummary" | "notification" | "pinned" | "search"
+>(null);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSource, setSelectedSource] = useState("All sources");
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   // Function to check if user is OAuth user
   const checkIfOAuthUser = async () => {
     try {
@@ -221,6 +233,28 @@ const Settings = () => {
 
   return (
     <Layout>
+      <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
+      <AppHeader
+          isNotificationPanel={openPanel === "notification"}
+          setIsNotificationPanel={(open) =>
+            setOpenPanel(open ? "notification" : null)
+          }
+          // onOpenPinnedPanel={() => setOpenPanel("pinned")}
+          isPinnedOpen={openPanel === "pinned"}
+          setIsPinnedOpen={(open) => {
+            setOpenPanel(open ? "pinned" : null);
+          }}
+          isSearchOpen={openPanel === "search"}
+          setIsSearchOpen={(open) => {
+            setOpenPanel(open ? "search" : null);
+          }}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          selectedOptions={selectedOptions}
+          setSelectedOptions={setSelectedOptions}
+        />
+                <main className="h-[calc(100vh-72px)] flex pb-0 pr-3 space-x-0 flex max-w-screen justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-hidden">
+
       <div className="flex grow flex-col p-6 bg-gradient-to-br from-[#171717] via-[#1a1a1a] to-[#171717] min-h-screen min-w-0 max-w-full ">
         <div className="max-w-4xl mx-auto w-full space-y-8">
           {/* Header */}
@@ -541,6 +575,18 @@ const Settings = () => {
             </CardContent>
           </Card>
         </div>
+      </div>
+      {openPanel === "notification" && <NotificationsPanel />}
+          {openPanel === "pinned" && <PinnedPanel />}
+          {openPanel === "search" && (
+            <SearchPanel
+              searchQuery={searchTerm}
+              selectedSource={selectedSource}
+              setSelectedSource={setSelectedSource}
+              selectedOptions={selectedOptions}
+            />
+          )}
+        </main>
       </div>
     </Layout>
   );
