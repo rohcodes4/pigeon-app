@@ -617,7 +617,7 @@ export const ConnectAccounts = ({
                   <ul className="text-xs text-[#ffffff48] space-y-2 mb-3">
                     <li className="flex gap-4">
                       <Check className="w-4 h-4 flex-shrink-0" />
-                      Manually trigger chat sync when ready.
+                      Chat syncing takes less than 10 minutes.
                     </li>
                     <li className="flex gap-4">
                       <Check className="w-4 h-4 flex-shrink-0" />

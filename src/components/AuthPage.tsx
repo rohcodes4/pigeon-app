@@ -165,7 +165,7 @@ export const AuthPage = () => {
         toast({
           title: "Welcome!",
           description:
-            "Telegram connected successfully! You can now sync your chats when ready.",
+            "Telegram connected successfully!",
         });
         setShowTelegramModal(false);
         setQrNeedsPassword(false);
@@ -411,7 +411,7 @@ export const AuthPage = () => {
           toast({
             title: "Welcome!",
             description:
-              "You have been signed in with Telegram! You can now sync your chats when ready.",
+              "You have been signed in with Telegram!",
           });
           await checkAuth();
         } else if (data.status === "password_required") {
