@@ -176,9 +176,213 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const [loadingMore, setLoadingMore] = React.useState(false);
   const [hasMoreMessages, setHasMoreMessages] = React.useState(true);
   const [shouldAutoScroll, setShouldAutoScroll] = React.useState(true);
+  const [pinLoading, setPinLoading] = React.useState({});
+const [pinnedMessages, setPinnedMessages] = React.useState([]);
   const [isSending, setIsSending] = React.useState(false);
   // Page size for fetching messages from backend
   const PAGE_SIZE = 100;
+
+  const pinMessage = async (messageId) => {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const token = localStorage.getItem("access_token");
+
+  const formData = new FormData();
+  formData.append("message_id", messageId);
+
+  const response = await fetch(`${BACKEND_URL}/pins`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Pin request failed: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+const unpinMessage = async (pinId) => {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const token = localStorage.getItem("access_token");
+
+  const response = await fetch(`${BACKEND_URL}/pins/${pinId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Unpin request failed: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+const handlePin = async (msg) => {
+  const messageId = msg.originalId || msg.id;
+
+  if (!messageId) {
+    toast({
+      title: "Cannot pin message",
+      description: "This message cannot be pinned",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  const isPinned = isMessagePinned(messageId?.toString());
+
+  try {
+    setPinLoading((prev) => ({ ...prev, [msg.id]: true }));
+
+    if (isPinned) {
+      // Unpin the message - use pin.id, not pin._id
+      console.log("Attempting to unpin message with ID:", messageId);
+      console.log("All pinned messages:", pinnedMessages);
+      
+      const pinToRemove = pinnedMessages.find(pin => pin.message_id === messageId?.toString());
+      console.log("Pin to remove:", pinToRemove);
+      
+      if (pinToRemove && pinToRemove.id) {
+        console.log("Using pin ID for deletion:", pinToRemove.id);
+        
+        await unpinMessage(pinToRemove.id);
+        
+        // Remove from local pinned messages state using pin.id
+        setPinnedMessages((prev) => prev.filter(pin => pin.id !== pinToRemove.id));
+
+        toast({
+          title: "Message unpinned",
+          description: "Message has been unpinned successfully",
+        });
+      } else {
+        // If pin not found in local state, try to fetch latest pins and try again
+        console.log("Pin not found in local state, fetching latest pins...");
+        
+        try {
+          const chatIdForFetch = selectedChat?.id || null;
+          console.log("Fetching pins for chat:", chatIdForFetch);
+          
+          const latestPins = await getPinnedMessages(chatIdForFetch);
+          console.log("Latest pins from server:", latestPins);
+          
+          const serverPin = latestPins.find(pin => pin.message_id === messageId?.toString());
+          console.log("Server pin found:", serverPin);
+          
+          if (serverPin && serverPin.id) {
+            console.log("Using server pin ID for deletion:", serverPin.id);
+            await unpinMessage(serverPin.id);
+            
+            // Update local state with fresh data minus the removed pin
+            setPinnedMessages(latestPins.filter(pin => pin.id !== serverPin.id));
+            
+            toast({
+              title: "Message unpinned",
+              description: "Message has been unpinned successfully",
+            });
+          } else {
+            console.error("Server pin not found or missing id");
+            toast({
+              title: "Cannot unpin message",
+              description: "Pin not found on server",
+              variant: "destructive",
+            });
+          }
+        } catch (fetchError) {
+          console.error("Failed to fetch latest pins:", fetchError);
+          toast({
+            title: "Cannot unpin message", 
+            description: "Failed to fetch pin data: " + fetchError.message,
+            variant: "destructive",
+          });
+        }
+      }
+    } else {
+      // Pin the message
+      console.log("Attempting to pin message with ID:", messageId);
+      
+      const result = await pinMessage(messageId.toString());
+      console.log("Pin result:", result);
+      
+      // Update local pinned messages state
+      setPinnedMessages((prev) => [result, ...prev]);
+
+      toast({
+        title: "Message pinned",
+        description: "Message has been pinned successfully",
+      });
+    }
+  } catch (error) {
+    console.error("Error with pin/unpin:", error);
+    
+    if (error.message.includes("already pinned")) {
+      toast({
+        title: "Already pinned",
+        description: "This message is already pinned",
+        variant: "destructive",
+      });
+    } else if (error.message.includes("Pin not found")) {
+      toast({
+        title: "Pin not found",
+        description: "This pin may have been removed already",
+        variant: "destructive",
+      });
+    } else {
+      const action = isPinned ? "unpin" : "pin";
+      toast({
+        title: `Failed to ${action} message`,
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    }
+  } finally {
+    setPinLoading((prev) => ({ ...prev, [msg.id]: false }));
+  }
+};
+const isMessagePinned = (messageId) => {
+  return pinnedMessages.some(pin => pin.message_id === messageId);
+};
+
+const fetchPinnedMessages = React.useCallback(async (chatId = null) => {
+  try {
+    const pins = await getPinnedMessages(chatId);
+    console.log("Fetched pins:", pins);
+    setPinnedMessages(pins);
+  } catch (error) {
+    console.error("Failed to fetch pinned messages:", error);
+  }
+}, []);
+
+const getPinnedMessages = async (chatId = null) => {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const token = localStorage.getItem("access_token");
+
+  let url = `${BACKEND_URL}/pins`;
+  if (chatId !== null) {
+    url += `?chat_id=${chatId}`;
+  }
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Get pins request failed: ${response.status}`);
+  }
+
+  return response.json();
+};
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = () => {
@@ -1088,37 +1292,35 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   }, [USE_DUMMY_DATA, selectedChat]);
 
   // Fetch messages when selectedChat changes or on initial mount
-  React.useEffect(() => {
-    if (!USE_DUMMY_DATA) {
-      if (selectedChat?.id) {
-        // Check if this is a smart filter (has name, keywords properties) or a regular chat
-        if (selectedChat.name && selectedChat.keywords !== undefined) {
-          // This is a smart filter
-          fetchMessages(selectedChat);
-        } else {
-          // This is a regular chat
-          fetchMessages(selectedChat.id);
-          // Mark chat as read when messages are loaded
-          markChatAsRead(selectedChat.id);
-        }
-      } else if (selectedChat === "all-channels") {
-        // Handle "All Channels" selection
-        fetchMessages("all-channels");
+React.useEffect(() => {
+  if (!USE_DUMMY_DATA) {
+    if (selectedChat?.id) {
+      if (selectedChat.name && selectedChat.keywords !== undefined) {
+        fetchMessages(selectedChat);
+        fetchPinnedMessages(); // Add this line
       } else {
-        setMessages([]); // Show empty when no chat is selected
+        fetchMessages(selectedChat.id);
+        fetchPinnedMessages(selectedChat.id); // Add this line
+        markChatAsRead(selectedChat.id);
       }
+    } else if (selectedChat === "all-channels") {
+      fetchMessages("all-channels");
+      fetchPinnedMessages(); // Add this line
     } else {
-      // Use dummy data when flag is enabled
-      setMessages(dummyMessages);
+      setMessages([]);
+      setPinnedMessages([]); // Add this line
     }
-    // Close attachment menu when switching chats
-    setShowAttachMenu(false);
-    setReplyTo(null);
-    if (inputRef.current) {
-      inputRef.current.value = "";
-    }
-    setUploadedFiles([]);
-  }, [selectedChat?.id, selectedChat, fetchMessages, USE_DUMMY_DATA]);
+  } else {
+    setMessages(dummyMessages);
+    setPinnedMessages([]); // Add this line
+  }
+  setShowAttachMenu(false);
+  setReplyTo(null);
+  if (inputRef.current) {
+    inputRef.current.value = "";
+  }
+  setUploadedFiles([]);
+}, [selectedChat?.id, selectedChat, fetchMessages, fetchPinnedMessages, USE_DUMMY_DATA]);
 
   // Polling: refresh current view every 30s (no websockets)
   React.useEffect(() => {
@@ -1361,23 +1563,29 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                                 ? "Saving..."
                                 : "Save to Favorites"}
                             </button>
-                            <button
-                              className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleBookmark(msg, "pin");
-                              }}
-                              disabled={bookmarkLoading[msg.id]}
-                            >
-                              <Pin
-                                className="w-6 h-6"
-                                stroke="currentColor"
-                                fill="currentColor"
-                              />
-                              {bookmarkLoading[msg.id]
-                                ? "Pinning..."
-                                : "Pin Message"}
-                            </button>
+<button
+  className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+  onClick={(e) => {
+    e.stopPropagation();
+    setOpenMenuId(null);
+    handlePin(msg);
+  }}
+  disabled={pinLoading[msg.id]}
+>
+  <Pin
+    className={`w-6 h-6 ${
+      isMessagePinned((msg.originalId || msg.id)?.toString()) 
+        ? "text-blue-400" 
+        : ""
+    }`}
+    stroke="currentColor"
+    fill={isMessagePinned((msg.originalId || msg.id)?.toString()) ? "currentColor" : "none"}
+  />
+  {pinLoading[msg.id] ? 
+    (isMessagePinned((msg.originalId || msg.id)?.toString()) ? "Unpinning..." : "Pinning...") :
+    (isMessagePinned((msg.originalId || msg.id)?.toString()) ? "Unpin Message" : "Pin Message")
+  }
+</button>
                             <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
                               <Plus
                                 className="w-6 h-6"
