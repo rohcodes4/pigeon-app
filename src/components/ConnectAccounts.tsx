@@ -50,7 +50,7 @@ export const ConnectAccounts = ({
   discordConnected,
   setDiscordConnected,
 }: ConnectAccountsProps) => {
-  const { user } = useAuth();
+  const { user, checkAuth } = useAuth();
   const [loading, setLoading] = useState({ telegram: false, discord: false });
   const [showTelegramQrModal, setShowTelegramQrModal] = useState(false);
   const [telegramQrCode, setTelegramQrCode] = useState<string | null>(null);
@@ -766,6 +766,7 @@ export const ConnectAccounts = ({
                 checkAllConnected();
                 setShowPhoneModal(false);
               }}
+              checkAuth={checkAuth}
             />
           </div>
           <AlertDialogFooter>

@@ -157,20 +157,25 @@ export const AuthPage = () => {
       if (response.ok && data.status === "success") {
         localStorage.setItem("access_token", data.access_token);
 
-        // Trigger sync-dialogs immediately after successful 2FA login
-        try {
-          await fetch(`${BACKEND_URL}/api/sync-dialogs`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${data.access_token}` },
+        // Trigger sync-dialogs in the background (non-blocking)
+        fetch(`${BACKEND_URL}/api/sync-dialogs`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${data.access_token}` },
+        })
+          .then(() => {
+            console.log("Completed initial chat sync after Telegram 2FA login");
+          })
+          .catch((syncError) => {
+            console.error(
+              "Failed to trigger initial sync after 2FA:",
+              syncError
+            );
           });
-          console.log("Triggered initial chat sync after Telegram 2FA login");
-        } catch (syncError) {
-          console.error("Failed to trigger initial sync after 2FA:", syncError);
-        }
 
         toast({
           title: "Welcome!",
-          description: "Telegram connected. Your chats are being synced.",
+          description:
+            "Telegram connected. Your chats are being synced in the background.",
         });
         setShowTelegramModal(false);
         setQrNeedsPassword(false);
@@ -408,21 +413,22 @@ export const AuthPage = () => {
 
           localStorage.setItem("access_token", data.access_token);
 
-          // Trigger sync-dialogs immediately after successful login
-          try {
-            await fetch(`${BACKEND_URL}/api/sync-dialogs`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${data.access_token}` },
+          // Trigger sync-dialogs in the background (non-blocking)
+          fetch(`${BACKEND_URL}/api/sync-dialogs`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${data.access_token}` },
+          })
+            .then(() => {
+              console.log("Completed initial chat sync after Telegram login");
+            })
+            .catch((syncError) => {
+              console.error("Failed to trigger initial sync:", syncError);
             });
-            console.log("Triggered initial chat sync after Telegram login");
-          } catch (syncError) {
-            console.error("Failed to trigger initial sync:", syncError);
-          }
 
           toast({
             title: "Welcome!",
             description:
-              "You have been signed in with Telegram. Your chats are being synced.",
+              "You have been signed in with Telegram. Your chats are being synced in the background.",
           });
           await checkAuth();
         } else if (data.status === "password_required") {

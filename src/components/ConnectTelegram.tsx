@@ -19,8 +19,10 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 export default function ConnectTelegram({
   onConnected,
+  checkAuth,
 }: {
   onConnected?: () => void;
+  checkAuth?: () => Promise<void>;
 }) {
   const [step, setStep] = useState("phone"); // "phone" or "otp" or "password" or "success"
   const [phone, setPhone] = useState("");
@@ -31,6 +33,22 @@ export default function ConnectTelegram({
   const [phoneToken, setPhoneToken] = useState<string | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const { user } = useAuth();
+
+  // Helper function to handle successful authentication
+  const handleAuthSuccess = async () => {
+    // Update global auth state
+    if (checkAuth) {
+      await checkAuth();
+    }
+
+    // Force a page refresh to ensure the auth state is properly updated
+    // This is needed because the component is used in ConnectAccounts which doesn't have the same redirect logic
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+
+    if (onConnected) onConnected();
+  };
 
   async function requestLogin() {
     if (!phone.trim()) {
@@ -135,26 +153,29 @@ export default function ConnectTelegram({
         if (data.access_token) {
           localStorage.setItem("access_token", data.access_token);
 
-          // Trigger sync-dialogs immediately after successful login
-          try {
-            await fetch(`${BACKEND_URL}/api/sync-dialogs`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${data.access_token}` },
+          // Trigger sync-dialogs in the background (non-blocking)
+          fetch(`${BACKEND_URL}/api/sync-dialogs`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${data.access_token}` },
+          })
+            .then(() => {
+              console.log(
+                "Completed initial chat sync after Telegram phone login"
+              );
+            })
+            .catch((syncError) => {
+              console.error("Failed to trigger initial sync:", syncError);
             });
-            console.log(
-              "Triggered initial chat sync after Telegram phone login"
-            );
-          } catch (syncError) {
-            console.error("Failed to trigger initial sync:", syncError);
-          }
         }
 
         toast({
           title: "Success!",
           description:
-            "Telegram connected successfully! Your chats are being synced.",
+            "Telegram connected successfully! Your chats are being synced in the background.",
         });
-        if (onConnected) onConnected();
+
+        // Handle successful authentication
+        await handleAuthSuccess();
       } else {
         throw new Error(data.detail || "Unexpected response");
       }
@@ -206,29 +227,32 @@ export default function ConnectTelegram({
         if (data.access_token) {
           localStorage.setItem("access_token", data.access_token);
 
-          // Trigger sync-dialogs immediately after successful 2FA login
-          try {
-            await fetch(`${BACKEND_URL}/api/sync-dialogs`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${data.access_token}` },
+          // Trigger sync-dialogs in the background (non-blocking)
+          fetch(`${BACKEND_URL}/api/sync-dialogs`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${data.access_token}` },
+          })
+            .then(() => {
+              console.log(
+                "Completed initial chat sync after Telegram phone 2FA login"
+              );
+            })
+            .catch((syncError) => {
+              console.error(
+                "Failed to trigger initial sync after 2FA:",
+                syncError
+              );
             });
-            console.log(
-              "Triggered initial chat sync after Telegram phone 2FA login"
-            );
-          } catch (syncError) {
-            console.error(
-              "Failed to trigger initial sync after 2FA:",
-              syncError
-            );
-          }
         }
 
         toast({
           title: "Success!",
           description:
-            "Telegram connected successfully! Your chats are being synced.",
+            "Telegram connected successfully! Your chats are being synced in the background.",
         });
-        if (onConnected) onConnected();
+
+        // Handle successful authentication
+        await handleAuthSuccess();
       } else {
         throw new Error(data.detail || "Unexpected response");
       }
