@@ -129,7 +129,8 @@ export const ConnectAccounts = ({
             setTelegramConnected(true); // Update local state
             toast({
               title: "Telegram Connected",
-              description: "Successfully connected to your Telegram account.",
+              description:
+                "Successfully connected to your Telegram account. You can now sync your chats when ready.",
             });
             checkAllConnected();
           } else if (data && data.status === "password_required") {
@@ -273,7 +274,8 @@ export const ConnectAccounts = ({
 
         toast({
           title: "Telegram Connected",
-          description: "Successfully connected to your Telegram account.",
+          description:
+            "Successfully connected to your Telegram account. You can now sync your chats when ready.",
         });
         checkAllConnected();
       } else {
@@ -615,7 +617,7 @@ export const ConnectAccounts = ({
                   <ul className="text-xs text-[#ffffff48] space-y-2 mb-3">
                     <li className="flex gap-4">
                       <Check className="w-4 h-4 flex-shrink-0" />
-                      Chats sync in about 30 minutes.
+                      Manually trigger chat sync when ready.
                     </li>
                     <li className="flex gap-4">
                       <Check className="w-4 h-4 flex-shrink-0" />

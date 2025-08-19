@@ -157,25 +157,15 @@ export const AuthPage = () => {
       if (response.ok && data.status === "success") {
         localStorage.setItem("access_token", data.access_token);
 
-        // Trigger sync-dialogs in the background (non-blocking)
-        fetch(`${BACKEND_URL}/api/sync-dialogs`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${data.access_token}` },
-        })
-          .then(() => {
-            console.log("Completed initial chat sync after Telegram 2FA login");
-          })
-          .catch((syncError) => {
-            console.error(
-              "Failed to trigger initial sync after 2FA:",
-              syncError
-            );
-          });
+        // Note: Chat sync will be triggered manually by the user on the ChatSyncing page
+        console.log(
+          "Telegram 2FA login successful - chat sync can be started manually"
+        );
 
         toast({
           title: "Welcome!",
           description:
-            "Telegram connected. Your chats are being synced in the background.",
+            "Telegram connected successfully! You can now sync your chats when ready.",
         });
         setShowTelegramModal(false);
         setQrNeedsPassword(false);
@@ -413,22 +403,15 @@ export const AuthPage = () => {
 
           localStorage.setItem("access_token", data.access_token);
 
-          // Trigger sync-dialogs in the background (non-blocking)
-          fetch(`${BACKEND_URL}/api/sync-dialogs`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${data.access_token}` },
-          })
-            .then(() => {
-              console.log("Completed initial chat sync after Telegram login");
-            })
-            .catch((syncError) => {
-              console.error("Failed to trigger initial sync:", syncError);
-            });
+          // Note: Chat sync will be triggered manually by the user on the ChatSyncing page
+          console.log(
+            "Telegram QR login successful - chat sync can be started manually"
+          );
 
           toast({
             title: "Welcome!",
             description:
-              "You have been signed in with Telegram. Your chats are being synced in the background.",
+              "You have been signed in with Telegram! You can now sync your chats when ready.",
           });
           await checkAuth();
         } else if (data.status === "password_required") {
