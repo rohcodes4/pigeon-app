@@ -156,7 +156,17 @@ export const AuthPage = () => {
       const data = await response.json();
       if (response.ok && data.status === "success") {
         localStorage.setItem("access_token", data.access_token);
-        toast({ title: "Welcome!", description: "Telegram connected." });
+
+        // Note: Chat sync will be triggered manually by the user on the ChatSyncing page
+        console.log(
+          "Telegram 2FA login successful - chat sync can be started manually"
+        );
+
+        toast({
+          title: "Welcome!",
+          description:
+            "Telegram connected successfully!",
+        });
         setShowTelegramModal(false);
         setQrNeedsPassword(false);
         setQrPassword("");
@@ -392,9 +402,16 @@ export const AuthPage = () => {
           setShowTelegramModal(false);
 
           localStorage.setItem("access_token", data.access_token);
+
+          // Note: Chat sync will be triggered manually by the user on the ChatSyncing page
+          console.log(
+            "Telegram QR login successful - chat sync can be started manually"
+          );
+
           toast({
             title: "Welcome!",
-            description: "You have been signed in with Telegram.",
+            description:
+              "You have been signed in with Telegram!",
           });
           await checkAuth();
         } else if (data.status === "password_required") {
@@ -708,7 +725,14 @@ export const AuthPage = () => {
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => handleTelegramAuth()}
+                  onClick={() => {
+                    if (telegramAuthMethod === "qr") {
+                      handleTelegramAuth();
+                    } else {
+                      // For phone method, just close modal and let user try again
+                      closeTelegramModal();
+                    }
+                  }}
                   variant="outline"
                   className="flex-1 bg-[#212121] text-white border-[#333] hover:bg-[#333]"
                 >

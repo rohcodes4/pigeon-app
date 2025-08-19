@@ -35,7 +35,7 @@ import UnifiedChatPanel from "@/components/UnifiedChatPanel";
 import SmartSummary from "@/components/SmartSummary";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
-import { useLocation } from 'react-router-dom';
+import { useLocation } from "react-router-dom";
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -75,7 +75,7 @@ const Index = () => {
       setSelectedChat(stateChat);
     }
   }, [stateChat]);
-  
+
   const handleAISummary = (id, tab) => {
     const updateChats = (chats) =>
       chats.map((chat) =>
@@ -352,7 +352,10 @@ const Index = () => {
             <UnifiedChatPanel selectedChat={selectedChat} />
           </div>
           {openPanel === "smartSummary" && (
-            <SmartSummary selectedChat={selectedChat} chatId={selectedChat.id} />
+            <SmartSummary
+              selectedChat={selectedChat}
+              chatId={selectedChat.id}
+            />
           )}
           {openPanel === "notification" && <NotificationsPanel />}
           {openPanel === "pinned" && <PinnedPanel />}

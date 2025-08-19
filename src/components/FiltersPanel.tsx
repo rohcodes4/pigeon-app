@@ -30,7 +30,7 @@ interface FiltersPanelProps {
   onFiltersUpdated: () => void; // Callback to notify parent of filter changes
 }
 
-const FiltersPanel: React.FC<FiltersPanelProps> = ({
+const FiltersPanel = React.memo(function FiltersPanel({
   onClose,
   loadFilters,
   createFilter,
@@ -40,7 +40,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
   topItems,
   onTopItemsReorder,
   onFiltersUpdated,
-}) => {
+}: FiltersPanelProps) {
   const [smartFilters, setSmartFilters] = useState<SmartFilter[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +118,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
       }
     };
     load();
-  }, [loadFilters, listChannels]);
+  }, []);
 
   const unionSmartLabels = useMemo(() => {
     const set = new Set<string>();
@@ -126,14 +126,15 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
     return Array.from(set);
   }, [smartFilters]);
 
-  const beginCreate = () => {
+  const beginCreate = React.useCallback(() => {
     setEditingFilter(null);
     setShowEditor(true);
-  };
-  const beginEdit = (f: SmartFilter) => {
+  }, []);
+
+  const beginEdit = React.useCallback((f: SmartFilter) => {
     setEditingFilter(f);
     setShowEditor(true);
-  };
+  }, []);
 
   const handleEditorSave = async (
     data: { name: string; channels: number[]; keywords: string[] },
@@ -147,10 +148,11 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
     onFiltersUpdated(); // Notify parent component of changes
   };
 
-  const handleEditorClose = () => {
+  const handleEditorClose = React.useCallback(() => {
     setShowEditor(false);
-    setEditingFilter(null);
-  };
+    // Don't clear editingFilter immediately to prevent input flicker
+    setTimeout(() => setEditingFilter(null), 150);
+  }, []);
 
   const onDelete = async (id: string) => {
     await deleteFilter(id);
@@ -272,15 +274,27 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
         </div>
       </div>
 
-      <FilterEditor
-        show={showEditor}
-        onClose={handleEditorClose}
-        editingFilter={editingFilter}
-        onSave={handleEditorSave}
-        allChannels={allChannels}
-      />
+      {/* Wrap FilterEditor in useMemo to prevent unnecessary re-renders */}
+      {React.useMemo(
+        () => (
+          <FilterEditor
+            show={showEditor}
+            onClose={handleEditorClose}
+            editingFilter={editingFilter}
+            onSave={handleEditorSave}
+            allChannels={allChannels}
+          />
+        ),
+        [
+          showEditor,
+          editingFilter,
+          handleEditorClose,
+          handleEditorSave,
+          allChannels,
+        ]
+      )}
     </aside>
   );
-};
+});
 
 export default FiltersPanel;

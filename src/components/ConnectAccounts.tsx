@@ -50,7 +50,7 @@ export const ConnectAccounts = ({
   discordConnected,
   setDiscordConnected,
 }: ConnectAccountsProps) => {
-  const { user } = useAuth();
+  const { user, checkAuth } = useAuth();
   const [loading, setLoading] = useState({ telegram: false, discord: false });
   const [showTelegramQrModal, setShowTelegramQrModal] = useState(false);
   const [telegramQrCode, setTelegramQrCode] = useState<string | null>(null);
@@ -129,7 +129,8 @@ export const ConnectAccounts = ({
             setTelegramConnected(true); // Update local state
             toast({
               title: "Telegram Connected",
-              description: "Successfully connected to your Telegram account.",
+              description:
+                "Successfully connected to your Telegram account. You can now sync your chats when ready.",
             });
             checkAllConnected();
           } else if (data && data.status === "password_required") {
@@ -211,8 +212,10 @@ export const ConnectAccounts = ({
     // QR code authentication
     setLoading((prev) => ({ ...prev, telegram: true }));
     try {
+      const token = localStorage.getItem("access_token");
       const response = await fetch(`${BACKEND_URL}/auth/qr`, {
         method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -271,7 +274,8 @@ export const ConnectAccounts = ({
 
         toast({
           title: "Telegram Connected",
-          description: "Successfully connected to your Telegram account.",
+          description:
+            "Successfully connected to your Telegram account. You can now sync your chats when ready.",
         });
         checkAllConnected();
       } else {
@@ -613,7 +617,7 @@ export const ConnectAccounts = ({
                   <ul className="text-xs text-[#ffffff48] space-y-2 mb-3">
                     <li className="flex gap-4">
                       <Check className="w-4 h-4 flex-shrink-0" />
-                      Chats sync in about 30 minutes.
+                      Chat syncing takes less than 10 minutes.
                     </li>
                     <li className="flex gap-4">
                       <Check className="w-4 h-4 flex-shrink-0" />
@@ -764,6 +768,7 @@ export const ConnectAccounts = ({
                 checkAllConnected();
                 setShowPhoneModal(false);
               }}
+              checkAuth={checkAuth}
             />
           </div>
           <AlertDialogFooter>

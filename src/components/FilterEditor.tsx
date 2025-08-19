@@ -28,7 +28,7 @@ const FilterEditor: React.FC<FilterEditorProps> = ({
   onSave,
   allChannels,
 }) => {
-  const [name, setName] = useState(editingFilter?.name || "");
+  const [name, setName] = useState("");
   const [keyword, setKeyword] = useState("");
   const [keywords, setKeywords] = useState<string[]>(
     editingFilter?.keywords || []
@@ -62,7 +62,7 @@ const FilterEditor: React.FC<FilterEditorProps> = ({
     }
     setKeyword("");
     setChannelSearch("");
-  }, [editingFilter, show, allChannels]); // Re-evaluate when channels load
+  }, [editingFilter, show]); // Re-evaluate when channels load
 
   const filteredChannels = useMemo(() => {
     if (!channelSearch.trim()) return allChannels;
