@@ -19,6 +19,7 @@ import {
   Sun,
   Moon,
   Circle,
+  BotMessageSquare,
   Users,
 } from "lucide-react";
 import logo from "@/assets/images/sidebarLogo.png";
@@ -37,6 +38,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
     "/smart-tasks": "Tasks",
     "/bookmarks": "Bookmarks",
     "/contacts": "Contacts",
+    "/ai": "AiChat",
     "/help": "Help",
     // add more as needed
   };
@@ -212,6 +214,25 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
             } w-6 h-6`}
           />
         </button>
+        {/* AI Chat */}
+<button
+  className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
+    ${activeNav === "AIChat" ? "bg-[#212121]" : "hover:bg-[#212121]"}`}
+  onClick={() => {
+    setActiveNav("AIChat");
+    navigate("/ai");
+  }}
+>
+{activeNav === "AiChat" && (
+            <span className="absolute left-[-13px] h-full top-0 bottom-2 w-1 rounded bg-[#3474ff]" />
+          )}
+  <BotMessageSquare
+  className={`${
+    activeNav === "AiChat" ? "opacity-1" : "opacity-[0.5]"
+  } w-6 h-6`}
+/>
+</button>
+
         {/* Users */}
         <button
           className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors

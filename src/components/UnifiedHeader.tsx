@@ -1,6 +1,7 @@
 import React from "react";
 import { Search, Filter, Settings, Plus, CheckCheck, PinOff, SmilePlusIcon } from "lucide-react";
 import aiIMG from "@/assets/images/aiBlue.png";
+import { useLocation } from "react-router-dom";
 
 type UnifiedHeaderProps = {
     title: string;
@@ -10,6 +11,7 @@ type UnifiedHeaderProps = {
     setIsSmartSummary?: (value:boolean)=>void;
   isPinnable?: boolean;
   isContact?: boolean;
+  isAI?: boolean;
 
   };
 const UnifiedHeader:React.FC<UnifiedHeaderProps> = ({
@@ -19,8 +21,14 @@ const UnifiedHeader:React.FC<UnifiedHeaderProps> = ({
     isSmartSummary,
     setIsSmartSummary,
     isPinnable,
-    isContact=false
+    isContact=false,
+    isAI=false
 }) => {
+
+  const location = useLocation();
+
+  // Only show smart button on the home page (/)
+  const showSmartButton = location.pathname === "/" || (location.pathname === "/ai" && !isAI);
   return (
     <header className="flex flex-shrink-0 items-center justify-between px-6 py-1 border-b border-[#23272f] rounded-tl-[12px]">
       {/* Left: Title and subtitle */}
@@ -30,19 +38,25 @@ const UnifiedHeader:React.FC<UnifiedHeaderProps> = ({
         <span className="p-1.5 rounded-[6px] text-[11px] text-[#bfd6ff] bg-[#3474ff]">Telegram</span>
         <span className="p-1.5 rounded-[6px] text-[11px] text-[#d7d5ff] bg-[#7b5cfa]">Discord</span>
         
-        {isPinnable && <div className=" cursor-pointer p-2 flex items-center justify-center bg-[#fafafa10] rounded-[6px]">
+        {isPinnable && <><div className=" cursor-pointer p-2 flex items-center justify-center bg-[#fafafa10] rounded-[6px]">
   <PinOff
     className="text-[#fafafa60] fill-[#fafafa60] w-4 h-4"
     aria-label="Unpin"
   />
-</div>}
+</div>
+<div className=" cursor-pointer p-2 flex items-center justify-center bg-[#fafafa10] rounded-[6px]">
+  <PinOff
+    className="text-[#fafafa60] fill-[#fafafa60] w-4 h-4"
+    aria-label="Unpin"
+  />
+</div></>}
       </div>
 
     
       {/* Right: Actions and avatar */}
       {isContact ? (
   <div className="flex items-center gap-3">
-      <button className="p-1.5 my-1 flex gap-2 text-[11px] items-center rounded-lg bg-[#fafafa10] border border-[#ffffff03] text-[#ffffff] hover:text-[#ffffff] hover:bg-[#ffffff32] transition">
+      <button onClick={() => setIsSmartSummary(!isSmartSummary)} className="p-1.5 my-1 flex gap-2 text-[11px] items-center rounded-[6px] bg-[#fafafa10] border border-[#ffffff03] text-[#ffffff] hover:text-[#ffffff] hover:bg-[#ffffff32] transition">
         <SmilePlusIcon className="w-4 h-4" /> <span>Add a friend</span>
       </button>
   </div>
@@ -53,13 +67,15 @@ const UnifiedHeader:React.FC<UnifiedHeaderProps> = ({
         <CheckCheck className="w-5 h-5" /> <span>Read All</span>
       </button>
     )}
-    <button
-      onClick={() => setIsSmartSummary(!isSmartSummary)}
-      className="p-1.5 px-3 my-1 flex gap-2 text-[11px] items-center rounded-[6px] cursor-pointer text-[#84afff] bg-[#3474ff12] hover:text-[#ffffff] hover:bg-[#3474ff] transition"
-    >
-      <img src={aiIMG} className="w-5 h-5" />
-      <span>{smartText}</span>
-    </button>
+   {showSmartButton && (
+      <button
+        onClick={() => setIsSmartSummary && setIsSmartSummary(!isSmartSummary)}
+        className="p-1.5 px-3 my-1 flex gap-2 text-[11px] items-center rounded-[6px] cursor-pointer text-[#84afff] bg-[#3474ff12] hover:text-[#ffffff] hover:bg-[#3474ff] transition"
+      >
+        <img src={aiIMG} className="w-5 h-5" />
+        <span>{smartText}</span>
+      </button>
+    )}
   </div>
 )}
     </header>
