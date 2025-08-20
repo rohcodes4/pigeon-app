@@ -73,7 +73,6 @@ import React from "react";
 import { useLocation } from "react-router-dom";
 import { Search, Filter, Settings, Plus, CheckCheck, PinOff, SmilePlusIcon } from "lucide-react";
 import aiIMG from "@/assets/images/aiBlue.png";
-import { useLocation } from "react-router-dom";
 
 type UnifiedHeaderProps = {
     title: string;
