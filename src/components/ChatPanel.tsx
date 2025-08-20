@@ -184,8 +184,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onChatSelect,
   selectedChat,
 }) => {
-  // Use fallback dummy data if no chats are provided for testing
-  const displayChats = chats.length > 0 ? chats : sortedChats;
+  // Use ONLY real chats; never fall back to dummy/sample data
+  const displayChats = chats;
   const [isFocus, setIsFocus] = useState(false);
   const [filters, setFilters] = useState([]);
   const SCROLL_AMOUNT = 100; // px
@@ -1016,7 +1016,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     >
                       {/* Avatar */}
                       <div className="relative">
-                        <ChatAvatar name={chat.name} avatar={chat.photo_url} />
+                        <ChatAvatar
+                          name={chat.name}
+                          avatar={chat.photo_url}
+                          backupAvatar={undefined}
+                        />
                         <img
                           src={chat.platform === "Discord" ? discord : telegram}
                           className={`

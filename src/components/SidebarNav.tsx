@@ -28,6 +28,7 @@ import { useNavigate } from "react-router-dom";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useTheme, Theme } from "@/hooks/useTheme"; // Correctly import Theme
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 interface SidebarNavProps {
   activePage: string;
 }
@@ -44,7 +45,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
   };
   const { settings, updateSettings, loading } = useUserSettings();
   const { setTheme: setGlobalTheme } = useTheme(); // Destructure setTheme from useTheme
-
+const isHelpPage = activePage === "/help";
   useEffect(() => {
     if (!loading) {
       setTheme(settings.theme);
@@ -133,29 +134,39 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
     setActiveNav(navMap[activePage] || "AI");
   }, [activePage]);
 
-  // Check connection status from localStorage
+  // Fetch connection status from backend
   useEffect(() => {
-    if (authUser) {
-      const onboardingData = localStorage.getItem(
-        `chatpilot_accounts_${authUser.id}`
-      );
-      if (onboardingData) {
-        try {
-          const data = JSON.parse(onboardingData);
-          setDiscordConnected(data.discord || false);
-          setTelegramConnected(data.telegram || false);
-        } catch (error) {
-          console.error("Error parsing connection data:", error);
+    if (!authUser) return;
+    const fetchStatuses = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const [tgRes, dcRes] = await Promise.all([
+          fetch(`${BACKEND_URL}/auth/telegram/status`, { headers }),
+          fetch(`${BACKEND_URL}/auth/discord/status`, { headers }),
+        ]);
+        if (tgRes.ok) {
+          const tg = await tgRes.json();
+          setTelegramConnected(!!tg.connected);
         }
+        if (dcRes.ok) {
+          const dc = await dcRes.json();
+          setDiscordConnected(!!dc.connected);
+        }
+      } catch (e) {
+        // ignore transient errors
       }
-    }
+    };
+    fetchStatuses();
   }, [authUser]);
 
   const logOut = async () => {
     await signOut(); // Call signOut from useAuth
   };
   return (
-    <aside className="h-screen w-16 flex flex-col items-center py-[18px] min-w-16 overflow-hidden">
+    <aside className={`h-screen w-16 flex flex-col items-center py-[18px] min-w-16 overflow-hidden bg-[#171717] flex-shrink-0 ${
+      isHelpPage ? 'fixed left-0 top-0 z-40' : ''
+    }`}>
       <img src={logo} alt="AI" className="w-9 h-9 mb-4" />
       <nav className="flex flex-col gap-4 flex-1">
         {/* AI */}

@@ -127,8 +127,8 @@ async function fetchTasks({ chat_id }) {
   const token = localStorage.getItem("access_token");
 
   try {
-    // First, try the primary tasks endpoint for this chat
-    const response = await fetch(`${BACKEND_URL}/chats/${chat_id}/extract_tasks`, {
+    // First, extract tasks from the chat (this creates/updates tasks)
+    const extractResponse = await fetch(`${BACKEND_URL}/chats/${chat_id}/extract_tasks`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -136,23 +136,47 @@ async function fetchTasks({ chat_id }) {
       },
     });
 
-    if (!response.ok) {
-      // Fail: fall back to "all tasks"
-      throw new Error(`Tasks request failed: ${response.status}`);
+    if (extractResponse.ok) {
+      const extractResult = await extractResponse.json();
+      console.log(`Extracted ${extractResult.extracted} tasks from chat ${chat_id}`);
     }
-
-    // Success: do NOT call responseAll, just return
-    return await response.json();
-  } catch (error) {
-    // On error, run the fallback responseAll request
-    const responseAll = await fetch(`${BACKEND_URL}/tasks`, {
+    
+    // Then fetch the actual tasks for this chat
+    const tasksResponse = await fetch(`${BACKEND_URL}/tasks?chat_id=${chat_id}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
     });
-    return await responseAll.json();
+
+    if (!tasksResponse.ok) {
+      throw new Error(`Tasks fetch failed: ${tasksResponse.status}`);
+    }
+
+    return await tasksResponse.json();
+  } catch (error) {
+    console.error('Error in fetchTasks:', error);
+    
+    // Fallback: fetch all tasks
+    try {
+      const responseAll = await fetch(`${BACKEND_URL}/tasks`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (!responseAll.ok) {
+        throw new Error(`Fallback tasks fetch failed: ${responseAll.status}`);
+      }
+      
+      return await responseAll.json();
+    } catch (fallbackError) {
+      console.error('Fallback tasks fetch also failed:', fallbackError);
+      return []; // Return empty array as final fallback
+    }
   }
 }
 
@@ -357,20 +381,26 @@ const SmartSummary = ({ selectedChat, chatId }: SmartSummaryProps) => {
     }
   };
 
-  const handleFetchTasks = async () => {
-    setTasksLoading(true);
-    try {        
-        const fetchedTasks = await fetchTasks({chat_id: selectedChat.id});
-      console.log("fetchTasks")
-      console.log(fetchedTasks)
-      console.log(selectedChat)
+const handleFetchTasks = async () => {
+  setTasksLoading(true);
+  try {        
+    const fetchedTasks = await fetchTasks({chat_id: selectedChat.id});
+    console.log("fetchTasks result:", fetchedTasks);
+    
+    // Ensure we have an array
+    if (Array.isArray(fetchedTasks)) {
       setTasks(fetchedTasks);
-    } catch (error) {
-      console.error("Failed to fetch tasks:", error);
-    } finally {
-      setTasksLoading(false);
+    } else {
+      console.warn("fetchTasks did not return an array:", fetchedTasks);
+      setTasks([]); // Set empty array if not an array
     }
-  };
+  } catch (error) {
+    console.error("Failed to fetch tasks:", error);
+    setTasks([]); // Set empty array on error
+  } finally {
+    setTasksLoading(false);
+  }
+};
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 const token = localStorage.getItem("access_token");
@@ -506,10 +536,8 @@ const token = localStorage.getItem("access_token");
               </div>
             )}
           </div>
-          <button className="p-2 hover:bg-[#23242a] rounded-lg">
-            <FaCog />
-          </button>
-          <button
+
+          <button 
             onClick={handleGenerateSummary}
             disabled={
               summaryLoading || !selectedChat || selectedChat === "all-channels"

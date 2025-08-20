@@ -2,8 +2,12 @@ import React, { useEffect, useRef } from "react";
 import discord from "@/assets/images/discordColor.png";
 import telegram from "@/assets/images/telegramColor.png";
 import discordWhite from "@/assets/images/discord.png";
+import { FaCopy } from "react-icons/fa";
+import { FaReply } from "react-icons/fa";
 import telegramWhite from "@/assets/images/telegram.png";
+import { IoIosMore } from "react-icons/io";
 import aiAll from "@/assets/images/aiAll.png";
+
 import {
   Link2,
   Send,
@@ -24,13 +28,20 @@ import smartIcon from "@/assets/images/sidebar/Chat.png";
 import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
 import ChatAvatar from "./ChatAvatar";
 import { useAuth } from "@/hooks/useAuth";
-import { sendReaction, getMessageById } from "@/utils/apiHelpers";
+import {
+  sendReaction,
+  getMessageById,
+  sendMessage,
+  createBookmark,
+} from "@/utils/apiHelpers";
+import { toast } from "@/hooks/use-toast";
 
 // Types
 type ReactionChip = { icon: string; count: number };
 type MessageItem = {
   id: any;
   originalId: any;
+  telegramMessageId?: number; // Telegram message ID for replies
   name: string;
   avatar: string;
   platform: "Discord" | "Telegram";
@@ -118,6 +129,7 @@ const dummyMessages = Array.from({ length: 30 }, (_, i) => {
   return {
     id: i + 1,
     originalId: undefined, // Dummy messages don't have originalId
+    telegramMessageId: undefined, // Dummy messages don't have telegramMessageId
     name,
     avatar: gravatarUrl(name + platform),
     platform,
@@ -155,9 +167,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     prevHeight: number;
     prevTop: number;
   } | null>(null);
-  const [replyTo, setReplyTo] = React.useState<
-    null | (typeof dummyMessages)[0]
-  >(null);
+  const [replyTo, setReplyTo] = React.useState<null | MessageItem>(null);
   const [messages, setMessages] = React.useState<MessageItem[]>(
     USE_DUMMY_DATA ? (dummyMessages as unknown as MessageItem[]) : []
   );
@@ -166,8 +176,213 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const [loadingMore, setLoadingMore] = React.useState(false);
   const [hasMoreMessages, setHasMoreMessages] = React.useState(true);
   const [shouldAutoScroll, setShouldAutoScroll] = React.useState(true);
+  const [pinLoading, setPinLoading] = React.useState({});
+const [pinnedMessages, setPinnedMessages] = React.useState([]);
+  const [isSending, setIsSending] = React.useState(false);
   // Page size for fetching messages from backend
   const PAGE_SIZE = 100;
+
+  const pinMessage = async (messageId) => {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const token = localStorage.getItem("access_token");
+
+  const formData = new FormData();
+  formData.append("message_id", messageId);
+
+  const response = await fetch(`${BACKEND_URL}/pins`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Pin request failed: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+const unpinMessage = async (pinId) => {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const token = localStorage.getItem("access_token");
+
+  const response = await fetch(`${BACKEND_URL}/pins/${pinId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Unpin request failed: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+const handlePin = async (msg) => {
+  const messageId = msg.originalId || msg.id;
+
+  if (!messageId) {
+    toast({
+      title: "Cannot pin message",
+      description: "This message cannot be pinned",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  const isPinned = isMessagePinned(messageId?.toString());
+
+  try {
+    setPinLoading((prev) => ({ ...prev, [msg.id]: true }));
+
+    if (isPinned) {
+      // Unpin the message - use pin.id, not pin._id
+      console.log("Attempting to unpin message with ID:", messageId);
+      console.log("All pinned messages:", pinnedMessages);
+      
+      const pinToRemove = pinnedMessages.find(pin => pin.message_id === messageId?.toString());
+      console.log("Pin to remove:", pinToRemove);
+      
+      if (pinToRemove && pinToRemove.id) {
+        console.log("Using pin ID for deletion:", pinToRemove.id);
+        
+        await unpinMessage(pinToRemove.id);
+        
+        // Remove from local pinned messages state using pin.id
+        setPinnedMessages((prev) => prev.filter(pin => pin.id !== pinToRemove.id));
+
+        toast({
+          title: "Message unpinned",
+          description: "Message has been unpinned successfully",
+        });
+      } else {
+        // If pin not found in local state, try to fetch latest pins and try again
+        console.log("Pin not found in local state, fetching latest pins...");
+        
+        try {
+          const chatIdForFetch = selectedChat?.id || null;
+          console.log("Fetching pins for chat:", chatIdForFetch);
+          
+          const latestPins = await getPinnedMessages(chatIdForFetch);
+          console.log("Latest pins from server:", latestPins);
+          
+          const serverPin = latestPins.find(pin => pin.message_id === messageId?.toString());
+          console.log("Server pin found:", serverPin);
+          
+          if (serverPin && serverPin.id) {
+            console.log("Using server pin ID for deletion:", serverPin.id);
+            await unpinMessage(serverPin.id);
+            
+            // Update local state with fresh data minus the removed pin
+            setPinnedMessages(latestPins.filter(pin => pin.id !== serverPin.id));
+            
+            toast({
+              title: "Message unpinned",
+              description: "Message has been unpinned successfully",
+            });
+          } else {
+            console.error("Server pin not found or missing id");
+            toast({
+              title: "Cannot unpin message",
+              description: "Pin not found on server",
+              variant: "destructive",
+            });
+          }
+        } catch (fetchError) {
+          console.error("Failed to fetch latest pins:", fetchError);
+          toast({
+            title: "Cannot unpin message", 
+            description: "Failed to fetch pin data: " + fetchError.message,
+            variant: "destructive",
+          });
+        }
+      }
+    } else {
+      // Pin the message
+      console.log("Attempting to pin message with ID:", messageId);
+      
+      const result = await pinMessage(messageId.toString());
+      console.log("Pin result:", result);
+      
+      // Update local pinned messages state
+      setPinnedMessages((prev) => [result, ...prev]);
+
+      toast({
+        title: "Message pinned",
+        description: "Message has been pinned successfully",
+      });
+    }
+  } catch (error) {
+    console.error("Error with pin/unpin:", error);
+    
+    if (error.message.includes("already pinned")) {
+      toast({
+        title: "Already pinned",
+        description: "This message is already pinned",
+        variant: "destructive",
+      });
+    } else if (error.message.includes("Pin not found")) {
+      toast({
+        title: "Pin not found",
+        description: "This pin may have been removed already",
+        variant: "destructive",
+      });
+    } else {
+      const action = isPinned ? "unpin" : "pin";
+      toast({
+        title: `Failed to ${action} message`,
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    }
+  } finally {
+    setPinLoading((prev) => ({ ...prev, [msg.id]: false }));
+  }
+};
+const isMessagePinned = (messageId) => {
+  return pinnedMessages.some(pin => pin.message_id === messageId);
+};
+
+const fetchPinnedMessages = React.useCallback(async (chatId = null) => {
+  try {
+    const pins = await getPinnedMessages(chatId);
+    console.log("Fetched pins:", pins);
+    setPinnedMessages(pins);
+  } catch (error) {
+    console.error("Failed to fetch pinned messages:", error);
+  }
+}, []);
+
+const getPinnedMessages = async (chatId = null) => {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const token = localStorage.getItem("access_token");
+
+  let url = `${BACKEND_URL}/pins`;
+  if (chatId !== null) {
+    url += `?chat_id=${chatId}`;
+  }
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Get pins request failed: ${response.status}`);
+  }
+
+  return response.json();
+};
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = () => {
@@ -186,11 +401,98 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const attachRef = React.useRef(null);
   const [uploadedFiles, setUploadedFiles] = React.useState([]);
   const fileInputRef = React.useRef(null);
-
+  console.log("selectedChat", selectedChat);
   const getFileType = (file) => {
     if (file.type.startsWith("image/")) return "image";
     if (file.type.startsWith("video/")) return "video";
     return "doc";
+  };
+
+  const openInTelegram = (msg = null) => {
+    console.log("🔍 === DEBUG: openInTelegram START ===");
+    console.log("🔍 openInTelegram called with msg:", msg);
+
+    if (!selectedChat) {
+      console.log("❌ No selectedChat available");
+      return;
+    }
+
+    console.log("✅ selectedChat exists:", selectedChat);
+
+    // Get chatId from selectedChat
+    const chatId = selectedChat.id || selectedChat._id;
+    console.log("🔍 Using chatId from selectedChat:", chatId);
+
+    // Use the preserved original chat type from the API response
+    let chatType;
+
+    console.log("🔍 === DEBUG: GETTING CHAT TYPE FROM PRESERVED API DATA ===");
+
+    if (msg && msg.originalChatType) {
+      // Use the preserved chat type from the original API response
+      chatType = msg.originalChatType;
+      console.log(
+        "✅ Got chatType from preserved API data (msg.originalChatType):",
+        chatType
+      );
+    } else {
+      // Fallback: Use heuristics from selectedChat if originalChatType is not available
+      console.log("⚠️ No preserved chat type found, using fallback heuristics");
+
+      const chatIdStr = String(chatId);
+      const chatIdLength = chatIdStr.length;
+
+      if (selectedChat.participants_count !== undefined) {
+        chatType = "Chat";
+        console.log("✅ Fallback: Determined Chat (found participants_count)");
+      } else if (
+        selectedChat.username ||
+        (selectedChat.name && selectedChat.name.startsWith("@"))
+      ) {
+        chatType = "Channel";
+        console.log("✅ Fallback: Determined Channel (found username/@)");
+      } else if (chatIdLength <= 10 && !selectedChat.title) {
+        chatType = "User";
+        console.log("✅ Fallback: Determined User (short ID + no title)");
+      } else if (chatIdLength > 10) {
+        chatType = "Channel";
+        console.log("✅ Fallback: Determined Channel (long ID)");
+      } else {
+        chatType = "Chat";
+        console.log("✅ Fallback: Defaulted to Chat");
+      }
+    }
+
+    console.log("🔍 Final chatType determined:", chatType);
+
+    let webUrl;
+
+    console.log("🔍 === DEBUG: URL GENERATION ===");
+
+    if (chatType === "User") {
+      // Direct Message - no prefix
+      webUrl = `https://web.telegram.org/a/#${chatId}`;
+      console.log("📱 Generated URL for Direct Message:", webUrl);
+    } else if (chatType === "Channel") {
+      // Supergroup/Channel - needs -100 prefix
+      webUrl = `https://web.telegram.org/a/#-100${chatId}`;
+      console.log("📱 Generated URL for Channel/Supergroup:", webUrl);
+    } else if (chatType === "Chat") {
+      // Regular Group - needs - prefix
+      webUrl = `https://web.telegram.org/a/#-${chatId}`;
+      console.log("📱 Generated URL for Regular Group:", webUrl);
+    } else {
+      // Fallback - assume regular group
+      console.log("⚠️ Unknown chat type, assuming regular group");
+      webUrl = `https://web.telegram.org/a/#-${chatId}`;
+      console.log("📱 Generated URL (fallback):", webUrl);
+    }
+
+    console.log("🔗 === DEBUG: OPENING URL ===");
+    console.log("🔗 Final URL to open:", webUrl);
+    console.log("🔍 === DEBUG: openInTelegram END ===");
+
+    window.open(webUrl, "_blank");
   };
 
   React.useEffect(() => {
@@ -210,32 +512,6 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       return groups;
     }, [messages]);
 
-  const createBookmark = async (
-    messageId: string,
-    type: "bookmark" | "pin" = "bookmark"
-  ) => {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-    const token = localStorage.getItem("access_token");
-
-    const formData = new FormData();
-    formData.append("message_id", messageId);
-    formData.append("type", type);
-
-    const response = await fetch(`${BACKEND_URL}/bookmarks`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to ${type} message: ${response.status}`);
-    }
-
-    return response.json();
-  };
-
   // 2. Add these state variables inside your component (around line 150):
   const [bookmarkLoading, setBookmarkLoading] = React.useState<{
     [key: string]: boolean;
@@ -254,27 +530,62 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   }>({});
 
   // Common emoji reactions
-  const commonReactions = [
-    "👍",
-    "❤️",
-    "🔥",
-    "😮",
-    "😢",
-    "😡",
-    "🎉",
-    "🚀",
-    "💯",
-    "👏",
-  ];
+  const commonReactions = ["👍", "❤️", "🔥", "😢", "😡", "🎉", "💯", "👏"];
 
   const handleReaction = async (messageId: string, emoji: string) => {
     try {
       setReactionLoading((prev) => ({ ...prev, [messageId]: true }));
 
       const isObjectId = /^[a-f\d]{24}$/i.test(messageId);
+      console.log(
+        `Reaction attempt: messageId="${messageId}", isObjectId=${isObjectId}, emoji="${emoji}"`
+      );
       if (isObjectId) {
+        // Create rollback snapshot visible to catch
+        let rollbackSnapshot = messages;
         try {
-          const res = await sendReaction(messageId, emoji);
+          // Determine if user already reacted with this emoji (toggle behavior)
+          const msg = messages.find(
+            (m) => String(m.originalId || m.id) === String(messageId)
+          );
+          const already = !!msg?.reactions?.find((r: any) => r.icon === emoji);
+
+          // Optimistic update
+          rollbackSnapshot = messages;
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (String(m.originalId || m.id) !== String(messageId)) return m;
+              const existing = [...(m.reactions || [])];
+              const idx = existing.findIndex((r) => r.icon === emoji);
+              if (already) {
+                if (idx >= 0) {
+                  const next = [...existing];
+                  const newCount = Math.max(0, (existing[idx].count || 1) - 1);
+                  if (newCount === 0) next.splice(idx, 1);
+                  else next[idx] = { ...existing[idx], count: newCount };
+                  return { ...m, reactions: next };
+                }
+                return m;
+              } else {
+                if (idx >= 0) {
+                  const next = [...existing];
+                  next[idx] = {
+                    ...existing[idx],
+                    count: (existing[idx].count || 0) + 1,
+                  };
+                  return { ...m, reactions: next };
+                }
+                return {
+                  ...m,
+                  reactions: [...existing, { icon: emoji, count: 1 }],
+                };
+              }
+            })
+          );
+
+          const res = await sendReaction(messageId, emoji, {
+            clear: already,
+          });
           console.log(
             `Reaction ${emoji} sent to backend for message ${messageId} (sent_to_telegram=${res?.sent_to_telegram})`
           );
@@ -331,12 +642,11 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           }
         } catch (backendError) {
           console.warn(
-            "Backend reaction failed, logging locally:",
+            "Backend reaction failed, reverting optimistic update:",
             backendError
           );
-          console.log(
-            `Reaction ${emoji} logged locally for message ${messageId}`
-          );
+          // Rollback
+          setMessages((_) => rollbackSnapshot);
         }
       } else {
         // Dummy/local message
@@ -344,8 +654,6 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           `Reaction ${emoji} logged locally for dummy message ${messageId}`
         );
       }
-
-      // No local UI/storage update – rely on Telegram as source of truth
 
       // Close reaction picker
       setShowReactionPicker((prev) => ({ ...prev, [messageId]: false }));
@@ -383,24 +691,43 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     // For API data, use the original message ID from the database
     const messageId = msg.originalId || msg.id; // Use originalId if available, fallback to current id
 
+    console.log("Bookmarking message:", {
+      messageId,
+      originalId: msg.originalId,
+      id: msg.id,
+      type,
+    });
+
     if (!messageId) {
-      alert("Cannot bookmark this message - no message ID available");
+      toast({
+        title: "Cannot bookmark message",
+        description: "This message cannot be bookmarked",
+        variant: "destructive",
+      });
       return;
     }
 
     try {
       setBookmarkLoading((prev) => ({ ...prev, [msg.id]: true }));
 
-      await createBookmark(messageId.toString(), type);
+      const result = await createBookmark(messageId.toString(), type);
+      console.log("Bookmark result:", result);
 
       const actionText = type === "pin" ? "pinned" : "bookmarked";
       console.log(`Message ${actionText} successfully`);
 
-      // Optional: Show success feedback
-      // You could add a toast notification here
+      // Show success feedback
+      toast({
+        title: `Message ${actionText}`,
+        description: `Message has been ${actionText} successfully`,
+      });
     } catch (error) {
       console.error(`Error ${type}ing message:`, error);
-      alert(`Failed to ${type} message. Please try again.`);
+      toast({
+        title: `Failed to ${type} message`,
+        description: "Please try again",
+        variant: "destructive",
+      });
     } finally {
       setBookmarkLoading((prev) => ({ ...prev, [msg.id]: false }));
     }
@@ -457,8 +784,6 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
         if (params.toString()) {
           endpoint += `?${params.toString()}`;
         }
-
-        console.log("ENDPOINTTTTTTTT ~ UnifiedChatPanel ~ endpoint:", endpoint);
 
         const response = await fetch(endpoint, {
           headers: {
@@ -537,8 +862,9 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
             : [];
 
           return {
-            id: msg.id || msg._id || String(index + 1),
-            originalId: msg.id || msg._id,
+            id: msg._id || msg.id || String(index + 1),
+            originalId: msg._id || msg.id,
+            telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
             name: msg.sender?.first_name || msg.sender?.username || "Unknown",
             avatar: msg.sender?.id
               ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
@@ -557,6 +883,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
             hasLink: (msg.raw_text || "").includes("http"),
             link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
             replyTo: null as any,
+            originalChatType: msg.chat?._ || null,
+            // telegramMessageId already set above; keep a single definition only
           };
         });
 
@@ -666,36 +994,148 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     }
   }, [messages, loadingMore]);
 
-  const handleSend = () => {
-    if (inputRef.current && inputRef.current.value.trim()) {
-      const now = new Date();
-      const newMsg = {
-        id: messages.length + 1,
-        originalId: undefined, // New messages don't have originalId
-        name: user.username, // or your user logic
-        avatar: "",
-        platform: replyTo ? replyTo.platform : "Telegram", // use replyTo's platform if replying
-        channel: replyTo ? replyTo.channel : "", // use replyTo's channel if replying
-        server: replyTo ? replyTo.name : "Server",
-        date: now,
-        message: inputRef.current.value,
-        tags: [],
-        reactions: [],
-        hasLink: inputRef.current.value.includes("http"),
-        link: inputRef.current.value.match(/https?:\/\/\S+/)?.[0] || null,
-        // Add replyTo reference if replying
-        replyTo: replyTo
-          ? {
-              id: replyTo.id,
-              name: replyTo.name,
-              message: replyTo.message,
-            }
-          : null,
-      };
-      setMessages([...messages, newMsg]);
-      inputRef.current.value = "";
-      setReplyTo(null); // Clear reply after sending
-      setShouldAutoScroll(true); // Enable auto-scroll when sending new message
+  const handleSend = async () => {
+    if (!inputRef.current || !inputRef.current.value.trim()) {
+      return;
+    }
+
+    const messageText = inputRef.current.value.trim();
+
+    // Check if we have a valid chat selected and it's not "all-channels"
+    if (!selectedChat || selectedChat === "all-channels") {
+      toast({
+        title: "No chat selected",
+        description: "Please select a specific chat to send messages",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if this is a smart filter (not a real chat)
+    if (selectedChat.keywords !== undefined) {
+      toast({
+        title: "Cannot send to smart filter",
+        description: "Please select a real chat instead of a smart filter",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const chatId = selectedChat.id;
+    if (!chatId) {
+      toast({
+        title: "Invalid chat",
+        description: "The selected chat is not valid",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Prevent multiple sends
+    if (isSending) {
+      return;
+    }
+
+    setIsSending(true);
+
+    // Create optimistic message for immediate UI feedback
+    const optimisticMessage: MessageItem = {
+      id: `temp-${Date.now()}`, // Temporary ID
+      originalId: null,
+      telegramMessageId: undefined,
+      name: user?.username || user?.first_name || "You",
+      avatar: user?.photo_url || gravatarUrl(user?.username || "You"),
+      platform: "Telegram" as const,
+      channel: selectedChat.channel || null,
+      server: selectedChat.name || "Chat",
+      date: new Date(),
+      message: messageText,
+      tags: [],
+      reactions: [],
+      hasLink: messageText.includes("http"),
+      link: messageText.match(/https?:\/\/\S+/)?.[0] || null,
+      replyTo: replyTo
+        ? {
+            id: replyTo.id,
+            name: replyTo.name,
+            message: replyTo.message,
+          }
+        : null,
+    };
+
+    // Add optimistic message to UI
+    setMessages((prev) => [...prev, optimisticMessage]);
+
+    // Clear input and reply state immediately for better UX
+    const originalValue = inputRef.current.value;
+    const originalReplyTo = replyTo;
+    inputRef.current.value = "";
+    setReplyTo(null);
+    setShouldAutoScroll(true);
+
+    try {
+      // Send message to backend/Telegram
+      const replyToId = originalReplyTo?.telegramMessageId;
+      const result = await sendMessage(chatId, messageText, replyToId);
+
+      console.log("Message sent successfully:", result);
+
+      // Show success toast
+      toast({
+        title: "Message sent",
+        description: "Your message has been sent successfully",
+      });
+
+      // Remove optimistic message since the real one will come from the database
+      setMessages((prev) =>
+        prev.filter((msg) => msg.id !== optimisticMessage.id)
+      );
+    } catch (error) {
+      console.error("Failed to send message:", error);
+
+      // Remove optimistic message on error
+      setMessages((prev) =>
+        prev.filter((msg) => msg.id !== optimisticMessage.id)
+      );
+
+      // Restore input and reply state on error
+      if (inputRef.current) {
+        inputRef.current.value = originalValue;
+      }
+      setReplyTo(originalReplyTo);
+
+      // Show user-friendly error message
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      if (errorMessage.includes("No Telegram session")) {
+        toast({
+          title: "No Telegram session",
+          description:
+            "Please reconnect your Telegram account to send messages",
+          variant: "destructive",
+        });
+      } else if (errorMessage.includes("404")) {
+        toast({
+          title: "Chat not found",
+          description: "This chat is no longer accessible",
+          variant: "destructive",
+        });
+      } else if (errorMessage.includes("403")) {
+        toast({
+          title: "Permission denied",
+          description:
+            "You don't have permission to send messages to this chat",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Failed to send message",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -707,34 +1147,199 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     }
   }, [openMenuId]);
 
-  // Fetch messages when selectedChat changes or on initial mount
-  React.useEffect(() => {
-    if (!USE_DUMMY_DATA) {
-      if (selectedChat?.id) {
-        // Check if this is a smart filter (has name, keywords properties) or a regular chat
-        if (selectedChat.name && selectedChat.keywords !== undefined) {
-          // This is a smart filter
-          fetchMessages(selectedChat);
+  // Silent refresh that avoids toggling loading states and only appends new messages
+  const refreshLatest = React.useCallback(async () => {
+    if (USE_DUMMY_DATA) return;
+    try {
+      const token = localStorage.getItem("access_token");
+      let endpoint: string | null = null;
+
+      if (selectedChat === "all-channels") {
+        endpoint = `${
+          import.meta.env.VITE_BACKEND_URL
+        }/chats/all/messages?limit=${PAGE_SIZE}`;
+      } else if (
+        selectedChat &&
+        typeof selectedChat === "object" &&
+        (selectedChat as any).id
+      ) {
+        if (
+          (selectedChat as any).name &&
+          (selectedChat as any).keywords !== undefined
+        ) {
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
+            (selectedChat as any).id
+          }/messages?limit=${PAGE_SIZE}`;
         } else {
-          // This is a regular chat
-          fetchMessages(selectedChat.id);
-          // Mark chat as read when messages are loaded
-          markChatAsRead(selectedChat.id);
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/${
+            (selectedChat as any).id
+          }/messages?limit=${PAGE_SIZE}`;
         }
-      } else if (selectedChat === "all-channels") {
-        // Handle "All Channels" selection
-        fetchMessages("all-channels");
       } else {
-        setMessages([]); // Show empty when no chat is selected
+        console.log(
+          "DEBUG: No valid selectedChat, skipping refresh",
+          selectedChat
+        );
+        return;
       }
-    } else {
-      // Use dummy data when flag is enabled
-      setMessages(dummyMessages);
+
+      console.log("DEBUG: Refreshing from endpoint:", endpoint);
+      const response = await fetch(endpoint, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      if (!response.ok) {
+        console.log(
+          "DEBUG: Response not OK:",
+          response.status,
+          response.statusText
+        );
+        return;
+      }
+      const data = await response.json();
+
+      const toChips = (results: any[]) =>
+        results
+          .map((r: any) => {
+            const emoticon =
+              typeof r?.reaction?.emoticon === "string"
+                ? r.reaction.emoticon
+                : typeof r?.reaction === "string"
+                ? r.reaction
+                : null;
+            const normalized =
+              emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
+            return normalized
+              ? { icon: normalized, count: r?.count || 0 }
+              : null;
+          })
+          .filter(Boolean) as Array<{ icon: string; count: number }>;
+
+      const transformed = (data || []).map((msg: any, index: number) => {
+        const reactionResults =
+          ((msg?.message || {}).reactions || {}).results || [];
+        const parsedReactions = Array.isArray(reactionResults)
+          ? toChips(reactionResults)
+          : [];
+        const chatName = msg.chat
+          ? msg.chat.title ||
+            msg.chat.username ||
+            msg.chat.first_name ||
+            "Unknown"
+          : selectedChat && typeof selectedChat === "object"
+          ? (selectedChat as any).name || "Chat"
+          : "Unknown";
+        return {
+          id: msg._id || msg.id || String(index + 1),
+          originalId: msg._id || msg.id,
+          telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
+          name: msg.sender?.first_name || msg.sender?.username || "Unknown",
+          avatar: msg.sender?.id
+            ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
+                msg.sender.id
+              }`
+            : gravatarUrl(
+                msg.sender?.first_name || msg.sender?.username || "Unknown"
+              ),
+          platform: "Telegram" as const,
+          channel: null,
+          server: chatName,
+          date: new Date(msg.timestamp),
+          message: msg.raw_text || "",
+          tags: [],
+          reactions: parsedReactions,
+          hasLink: (msg.raw_text || "").includes("http"),
+          link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
+          replyTo: null as any,
+        } as MessageItem;
+      });
+
+      transformed.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+      console.log("DEBUG: API returned", data.length, "messages");
+      console.log("DEBUG: Transformed", transformed.length, "messages");
+
+      setMessages((prev) => {
+        const idOf = (x: any) => String(x.originalId || x.id);
+        const prevMap = new Map(prev.map((m) => [idOf(m), m]));
+        let changed = false;
+        for (const m of transformed) {
+          const key = idOf(m);
+          if (prevMap.has(key)) {
+            // Update existing entry (reactions/timestamp/etc.)
+            const old = prevMap.get(key)!;
+            // Preserve any local fields (e.g., replyTo)
+            const merged = { ...old, ...m };
+            prevMap.set(key, merged);
+            changed = true;
+          } else {
+            prevMap.set(key, m);
+            changed = true;
+          }
+        }
+        if (!changed) return prev;
+        // Return in chronological order
+        return Array.from(prevMap.values()).sort(
+          (a, b) => a.date.getTime() - b.date.getTime()
+        );
+      });
+      setShouldAutoScroll(true);
+    } catch (e) {
+      console.error("DEBUG: refreshLatest error:", e);
     }
-    setReplyTo(null);
-    inputRef.current.value=""
-    setUploadedFiles([])
-  }, [selectedChat?.id, selectedChat, fetchMessages, USE_DUMMY_DATA]);
+  }, [USE_DUMMY_DATA, selectedChat]);
+
+  // Fetch messages when selectedChat changes or on initial mount
+React.useEffect(() => {
+  if (!USE_DUMMY_DATA) {
+    if (selectedChat?.id) {
+      if (selectedChat.name && selectedChat.keywords !== undefined) {
+        fetchMessages(selectedChat);
+        fetchPinnedMessages(); // Add this line
+      } else {
+        fetchMessages(selectedChat.id);
+        fetchPinnedMessages(selectedChat.id); // Add this line
+        markChatAsRead(selectedChat.id);
+      }
+    } else if (selectedChat === "all-channels") {
+      fetchMessages("all-channels");
+      fetchPinnedMessages(); // Add this line
+    } else {
+      setMessages([]);
+      setPinnedMessages([]); // Add this line
+    }
+  } else {
+    setMessages(dummyMessages);
+    setPinnedMessages([]); // Add this line
+  }
+  setShowAttachMenu(false);
+  setReplyTo(null);
+  if (inputRef.current) {
+    inputRef.current.value = "";
+  }
+  setUploadedFiles([]);
+}, [selectedChat?.id, selectedChat, fetchMessages, fetchPinnedMessages, USE_DUMMY_DATA]);
+
+  // Polling: refresh current view every 30s (no websockets)
+  React.useEffect(() => {
+    if (USE_DUMMY_DATA) return;
+    let timer: any = null;
+    const poll = async () => {
+      try {
+        await refreshLatest();
+      } catch (_) {
+        // ignore transient polling errors
+      } finally {
+        timer = setTimeout(poll, 10000);
+      }
+    };
+    timer = setTimeout(poll, 10000);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [USE_DUMMY_DATA, selectedChat, refreshLatest]);
 
   // Function to mark chat as read
   const markChatAsRead = async (chatId) => {
@@ -870,66 +1475,62 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
               {msgs.map((msg) => (
                 <div
                   key={String(msg.id)}
-                  className="flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 group hover:bg-[#212121]"
+                  className={`flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 group hover:bg-[#212121] ${
+                    String(msg.id).startsWith("temp-")
+                      ? "opacity-70 bg-[#1a1a1a]"
+                      : ""
+                  }`}
                   onMouseLeave={() => setOpenMenuId(null)}
                 >
-                  <ChatAvatar name={msg.name} avatar={msg?.avatar} />
+                  <ChatAvatar
+                    name={msg.name}
+                    avatar={msg.avatar}
+                    backupAvatar={undefined}
+                  />
 
                   <div className="flex-1 relative">
                     <div className="absolute right-0 top-0 flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
                       <button
-                        className="p-1 rounded"
+                        className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
                         title="Reply"
                         onClick={(e) => {
                           e.stopPropagation();
                           setReplyTo(msg);
                         }}
                       >
-                        <img
-                          src={replyIcon}
-                          className="w-6 h-6 text-[#84afff]"
-                        />
+                        <FaReply className="text-[#ffffff] w-3 h-3" />
                       </button>
                       <button
-                        className="p-1 rounded"
+                        className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
                         title="Copy"
                         onClick={(e) => {
                           e.stopPropagation();
                           navigator.clipboard.writeText(msg.message);
                         }}
                       >
-                        <img src={pinIcon} className="w-6 h-6 text-[#84afff]" />
+                        <FaCopy className="text-[#ffffff] w-3 h-3" />
                       </button>
                       <button
-                        className="p-1 rounded"
-                        title="Share"
+                        className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
+                        title="Open in Discord"
                         onClick={(e) => {
                           e.stopPropagation(); /* implement share logic */
                         }}
                       >
-                        <img
-                          src={taskIcon}
-                          className="w-6 h-6 text-[#84afff]"
-                        />
+                        <FaDiscord className="text-[#ffffff] w-3 h-3" />
                       </button>
                       <button
-                        className="h-6 w-6 rounded-[6px] bg-[#2d2d2d] border border-[#ffffff03]"
-                        title="Share"
+                        className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
+                        title="Open in Telegram"
                         onClick={(e) => {
-                          e.stopPropagation(); /* implement share logic */
+                          e.stopPropagation();
+                          openInTelegram(msg); // Pass the message to open specific message
                         }}
                       >
-                        <img
-                          src={
-                            msg.platform === "Discord"
-                              ? discordWhite
-                              : telegramWhite
-                          }
-                          className="w-4 h-4 text-[#84afff] mx-auto"
-                        />
+                        <FaTelegramPlane className="text-[#ffffff] w-3 h-3" />
                       </button>
                       <button
-                        className="p-1 rounded relative"
+                        className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
                         title="More"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -937,10 +1538,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                           setOpenMenuId(openMenuId === mid ? null : mid);
                         }}
                       >
-                        <img
-                          src={moreIcon}
-                          className="w-6 h-6 text-[#84afff]"
-                        />
+                        <IoIosMore className="text-[#ffffff] w-3 h-3" />
                         {/* Popup menu */}
                         {openMenuId === String(msg.id) && (
                           <div className="absolute right-0 bottom-[110%] mt-2 bg-[#111111] border border-[#ffffff12] rounded-[10px] shadow-lg z-50 flex flex-col p-2 min-w-max">
@@ -948,22 +1546,46 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                               <img src={smartIcon} className="w-6 h-6" />
                               Add to Smart Channels
                             </button>
-                            <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                            <button
+                              className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleBookmark(msg, "bookmark");
+                              }}
+                              disabled={bookmarkLoading[msg.id]}
+                            >
                               <Heart
                                 className="w-6 h-6"
                                 stroke="currentColor"
                                 fill="currentColor"
                               />
-                              Save to Favorites
+                              {bookmarkLoading[msg.id]
+                                ? "Saving..."
+                                : "Save to Favorites"}
                             </button>
-                            <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
-                              <Pin
-                                className="w-6 h-6"
-                                stroke="currentColor"
-                                fill="currentColor"
-                              />
-                              Pin Message
-                            </button>
+<button
+  className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+  onClick={(e) => {
+    e.stopPropagation();
+    setOpenMenuId(null);
+    handlePin(msg);
+  }}
+  disabled={pinLoading[msg.id]}
+>
+  <Pin
+    className={`w-6 h-6 ${
+      isMessagePinned((msg.originalId || msg.id)?.toString()) 
+        ? "text-blue-400" 
+        : ""
+    }`}
+    stroke="currentColor"
+    fill={isMessagePinned((msg.originalId || msg.id)?.toString()) ? "currentColor" : "none"}
+  />
+  {pinLoading[msg.id] ? 
+    (isMessagePinned((msg.originalId || msg.id)?.toString()) ? "Unpinning..." : "Pinning...") :
+    (isMessagePinned((msg.originalId || msg.id)?.toString()) ? "Unpin Message" : "Pin Message")
+  }
+</button>
                             <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
                               <Plus
                                 className="w-6 h-6"
@@ -1017,6 +1639,11 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                       <span className="text-xs text-[#ffffff32]">
                         {formatTime(msg.date)}
                       </span>
+                      {String(msg.id).startsWith("temp-") && (
+                        <span className="text-xs text-[#84afff] italic">
+                          sending...
+                        </span>
+                      )}
                     </div>
                     {msg.replyTo && (
                       <div className="text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1">
@@ -1048,13 +1675,20 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                     {
                       <div className="flex gap-3 mt-2">
                         {msg.reactions.map((r: any, i: number) => (
-                          <span
+                          <button
                             key={i}
-                            className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]"
+                            onClick={() =>
+                              handleReaction(
+                                String(msg.originalId || msg.id),
+                                r.icon
+                              )
+                            }
+                            className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff] hover:bg-[#ffffff12] transition"
+                            title="Toggle reaction"
                           >
                             {r.icon}
                             {typeof r.count === "number" ? r.count : ""}
-                          </span>
+                          </button>
                         ))}
                         {/* No local reaction chips; Telegram is source of truth */}
                         <div className="relative">
@@ -1086,7 +1720,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                               {/* Arrow pointer pointing left */}
                               <div className="absolute top-1/2 left-0 w-0 h-0 border-t-[8px] border-b-[8px] border-r-[8px] border-t-transparent border-b-transparent border-r-[#2d2d2d] transform -translate-y-1/2 -translate-x-1"></div>
 
-                              <div className="grid grid-cols-10 gap-0">
+                              <div className="grid grid-cols-8 gap-0">
                                 {commonReactions.map((emoji) => (
                                   <button
                                     key={emoji}
@@ -1226,67 +1860,98 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
         )}
         <div className="flex">
           <div className="flex grow items-center bg-[#212121] rounded-[10px] px-4 py-2 shadow-lg">
-            <div ref={attachRef} className="relative">
+            <div
+              ref={attachRef}
+              className="relative"
+              title={
+                selectedChat === "all-channels"
+                  ? "Select a specific chat to attach files"
+                  : selectedChat?.keywords !== undefined
+                  ? "Cannot attach files to smart filters"
+                  : isSending
+                  ? "Please wait for current message to send"
+                  : "Attach files"
+              }
+            >
               <Plus
-                className="text-black bg-[#fafafa60] rounded-full mr-2 w-[18px] h-[18px] cursor-pointer"
-                onClick={() => setShowAttachMenu((prev) => !prev)}
+                className={`text-black bg-[#fafafa60] rounded-full mr-2 w-[18px] h-[18px] cursor-pointer ${
+                  selectedChat === "all-channels" ||
+                  selectedChat?.keywords !== undefined ||
+                  isSending
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-[#fafafa80]"
+                }`}
+                onClick={() => {
+                  if (
+                    selectedChat === "all-channels" ||
+                    selectedChat?.keywords !== undefined ||
+                    isSending
+                  ) {
+                    return;
+                  }
+                  setShowAttachMenu((prev) => !prev);
+                }}
               />
 
               {/* Popup menu */}
-              {showAttachMenu && (
-                <div className="absolute bottom-[130%] left-0 mb-2 px-3 py-2 bg-[#2d2d2d] text-white text-sm rounded-lg shadow-lg border border-[#ffffff14] z-50">
-                  {/* Actual file input, hidden */}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    style={{ display: "none" }}
-                    multiple
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []).map(
-                        (file) => ({
-                          file,
-                          type: getFileType(file),
-                          preview: file.type.startsWith("image/")
-                            ? URL.createObjectURL(file)
-                            : null,
-                          status: "uploading",
-                        })
-                      );
-
-                      setUploadedFiles((prev) => [...prev, ...files]);
-                      setShowAttachMenu(false);
-
-                      // Simulate upload completion after 2s for demo
-                      setTimeout(() => {
-                        setUploadedFiles((prev) =>
-                          prev.map((f) =>
-                            files.includes(f) ? { ...f, status: "done" } : f
-                          )
+              {showAttachMenu &&
+                !(
+                  selectedChat === "all-channels" ||
+                  selectedChat?.keywords !== undefined ||
+                  isSending
+                ) && (
+                  <div className="absolute bottom-[130%] left-0 mb-2 px-3 py-2 bg-[#2d2d2d] text-white text-sm rounded-lg shadow-lg border border-[#ffffff14] z-50">
+                    {/* Actual file input, hidden */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      style={{ display: "none" }}
+                      multiple
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []).map(
+                          (file) => ({
+                            file,
+                            type: getFileType(file),
+                            preview: file.type.startsWith("image/")
+                              ? URL.createObjectURL(file)
+                              : null,
+                            status: "uploading",
+                          })
                         );
-                      }, 2000);
-                    }}
-                  />
-                  {/* Triggers file picker */}
-                  <p
-                    className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Attach File
-                  </p>
-                  <p
-                    className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Send Image
-                  </p>
-                  <p
-                    className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Send Video
-                  </p>
-                </div>
-              )}
+                        setUploadedFiles((prev) => [...prev, ...files]);
+                        setShowAttachMenu(false);
+
+                        // Simulate upload completion after 2s for demo
+                        setTimeout(() => {
+                          setUploadedFiles((prev) =>
+                            prev.map((f) =>
+                              files.includes(f) ? { ...f, status: "done" } : f
+                            )
+                          );
+                        }, 2000);
+                      }}
+                    />
+                    {/* Triggers file picker */}
+                    <p
+                      className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Attach File
+                    </p>
+                    <p
+                      className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Send Image
+                    </p>
+                    <p
+                      className="mb-1 cursor-pointer hover:text-[#84afff] w-max"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Send Video
+                    </p>
+                  </div>
+                )}
             </div>
             <input
               ref={inputRef}
@@ -1294,16 +1959,40 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
               placeholder={
                 replyTo && replyTo.name
                   ? `Replying to ${replyTo.name}...`
+                  : selectedChat === "all-channels"
+                  ? "Select a channel on the sidebar to send messages..."
+                  : selectedChat?.keywords !== undefined
+                  ? "Cannot send messages to smart filters..."
                   : "Type your message..."
               }
-              className="flex-1 bg-transparent outline-none text-white placeholder-[#ffffff48] text-sm"
+              disabled={
+                selectedChat === "all-channels" ||
+                selectedChat?.keywords !== undefined ||
+                isSending
+              }
+              className="flex-1 bg-transparent outline-none text-white placeholder-[#ffffff48] text-sm disabled:opacity-50"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
             />
           </div>
           <button
             onClick={handleSend}
-            className="ml-3 p-2 rounded-[10px] bg-[#5389ff] hover:bg-[#5389ff] transition"
+            disabled={
+              selectedChat === "all-channels" ||
+              selectedChat?.keywords !== undefined ||
+              isSending
+            }
+            className="ml-3 p-2 rounded-[10px] bg-[#5389ff] hover:bg-[#5389ff] transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <SendHorizonal className="w-5 h-5 text-black fill-black" />
+            {isSending ? (
+              <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <SendHorizonal className="w-5 h-5 text-black fill-black" />
+            )}
           </button>
         </div>
       </div>

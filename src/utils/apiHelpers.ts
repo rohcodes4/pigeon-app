@@ -61,6 +61,47 @@ export const searchBookmarks = async (params: {
   return response.json();
 };
 
+// 7. Bookmark/Favorites Management
+export const createBookmark = async (
+  messageId: string,
+  type: "bookmark" | "pin" = "bookmark"
+) => {
+  const formData = new FormData();
+  formData.append("message_id", messageId);
+  formData.append("type", type);
+
+  const response = await authFetch(`${BACKEND_URL}/bookmarks`, {
+    method: "POST",
+    body: formData,
+  });
+
+  return response.json();
+};
+
+export const deleteBookmark = async (bookmarkId: string) => {
+  const response = await authFetch(`${BACKEND_URL}/bookmarks/${bookmarkId}`, {
+    method: "DELETE",
+  });
+
+  return response.json();
+};
+
+export const updateBookmark = async (
+  bookmarkId: string,
+  updates: { text?: string; type?: string }
+) => {
+  const formData = new FormData();
+  if (updates.text) formData.append("text", updates.text);
+  if (updates.type) formData.append("type", updates.type);
+
+  const response = await authFetch(`${BACKEND_URL}/bookmarks/${bookmarkId}`, {
+    method: "POST",
+    body: formData,
+  });
+
+  return response.json();
+};
+
 // 2. Search by Platform
 export const searchMessages = async (params: {
   keyword: string;
@@ -95,10 +136,37 @@ export const searchByPlatform = async (
   return response.json();
 };
 
-// 3. Send Reactions
-export const sendReaction = async (messageId: string, reaction: string) => {
+// 3. Send Messages
+export const sendMessage = async (
+  chatId: number,
+  text: string,
+  replyTo?: number
+) => {
+  const formData = new FormData();
+  formData.append("text", text);
+  if (replyTo) {
+    formData.append("reply_to", replyTo.toString());
+  }
+
+  const response = await authFetch(`${BACKEND_URL}/chats/${chatId}/send`, {
+    method: "POST",
+    body: formData,
+  });
+
+  return response.json();
+};
+
+// 4. Send Reactions
+export const sendReaction = async (
+  messageId: string,
+  reaction: string,
+  options?: { clear?: boolean }
+) => {
   const formData = new FormData();
   formData.append("reaction", reaction);
+  if (options?.clear) {
+    formData.append("clear", "true");
+  }
 
   const response = await authFetch(
     `${BACKEND_URL}/api/messages/${messageId}/reactions`,
@@ -117,7 +185,7 @@ export const getMessageById = async (messageId: string) => {
   return response.json();
 };
 
-// 4. Media Handling
+// 5. Media Handling
 export const getChatMedia = async (
   chatId: number,
   limit?: number,
@@ -167,7 +235,7 @@ export const sendMediaToChat = async (
   return response.json();
 };
 
-// 5. Example Usage Functions for Components
+// 6. Example Usage Functions for Components
 
 // Example: Search component
 export const handleTaskSearch = async (searchTerm: string, filters: any) => {
@@ -255,9 +323,14 @@ export const handleMediaDownload = async (
 export default {
   searchTasks,
   searchBookmarks,
+  createBookmark,
+  deleteBookmark,
+  updateBookmark,
   searchMessages,
   searchByPlatform,
+  sendMessage,
   sendReaction,
+  getMessageById,
   getChatMedia,
   downloadMessageMedia,
   sendMediaToChat,

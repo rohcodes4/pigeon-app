@@ -5,65 +5,66 @@ import discord from "@/assets/images/discord.png";
 import telegram from "@/assets/images/telegram.png";
 import smartIcon from "@/assets/images/sidebar/Chat.png";
 
-// API function to fetch pinned messages (bookmarks with type "pin")
+// API function to fetch pinned messages using /pins endpoint
 const fetchPinnedMessages = async () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const token = localStorage.getItem("access_token");
 
-  const response = await fetch(`${BACKEND_URL}/bookmarks`, {
+  const response = await fetch(`${BACKEND_URL}/pins`, {
     method: "GET",
     headers: {
-      Authorization: `Bearer ${token}`
-    }
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch bookmarks: ${response.status}`);
-  }
-
-  const allBookmarks = await response.json();
-  // Filter for pins only
-  return allBookmarks.filter(bookmark => bookmark.type === 'pin');
-};
-
-// API function to unpin a message (delete bookmark)
-const unpinMessage = async (bookmarkId: string) => {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  const token = localStorage.getItem("access_token");
-
-  const response = await fetch(`${BACKEND_URL}/bookmarks/${bookmarkId}`, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to unpin message: ${response.status}`);
+    throw new Error(`Failed to fetch pins: ${response.status}`);
   }
 
   return response.json();
 };
 
-// API function to pin a message (create bookmark with type "pin")
+// API function to unpin a message using /pins/{pin_id} endpoint
+const unpinMessage = async (pinId: string) => {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const token = localStorage.getItem("access_token");
+
+  const response = await fetch(`${BACKEND_URL}/pins/${pinId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to unpin message: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+// API function to pin a message using /pins endpoint
 const pinMessage = async (messageId: string) => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const token = localStorage.getItem("access_token");
 
   const formData = new FormData();
   formData.append('message_id', messageId);
-  formData.append('type', 'pin');
 
-  const response = await fetch(`${BACKEND_URL}/bookmarks`, {
+  const response = await fetch(`${BACKEND_URL}/pins`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     },
-    body: formData
+    body: formData,
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to pin message: ${response.status}`);
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to pin message: ${response.status}`);
   }
 
   return response.json();
@@ -119,17 +120,18 @@ const PinnedPanel = () => {
     setOpenChannel(openChannel === channel ? null : channel);
   };
 
-  const handleUnpinMessage = async (bookmarkId: string) => {
+  const handleUnpinMessage = async (pinId: string) => {
     try {
-      await unpinMessage(bookmarkId);
+      console.log('Unpinning message with pin ID:', pinId);
+      await unpinMessage(pinId);
       
-      // Remove from local state
-      setPinnedMessages(prev => prev.filter(pin => pin.id !== bookmarkId));
+      // Remove from local state using pin.id (not pin._id)
+      setPinnedMessages(prev => prev.filter(pin => pin.id !== pinId));
       
       // Update grouped pins
       const newGrouped = {...groupedPins};
       Object.keys(newGrouped).forEach(chatId => {
-        newGrouped[chatId] = newGrouped[chatId].filter(pin => pin.id !== bookmarkId);
+        newGrouped[chatId] = newGrouped[chatId].filter(pin => pin.id !== pinId);
         if (newGrouped[chatId].length === 0) {
           delete newGrouped[chatId];
         }
@@ -140,6 +142,31 @@ const PinnedPanel = () => {
     } catch (error) {
       console.error('Error unpinning message:', error);
       alert('Failed to unpin message. Please try again.');
+    }
+  };
+
+  const handleUnpinAllInChannel = async (channelKey: string) => {
+    try {
+      const pinsInChannel = groupedPins[channelKey] || [];
+      
+      // Unpin all messages in this channel
+      await Promise.all(pinsInChannel.map(pin => unpinMessage(pin.id)));
+      
+      // Remove all pins for this channel from local state
+      setPinnedMessages(prev => prev.filter(pin => pin.chat_id?.toString() !== channelKey));
+      
+      // Remove channel from grouped pins
+      const newGrouped = {...groupedPins};
+      delete newGrouped[channelKey];
+      setGroupedPins(newGrouped);
+      
+      // Close menu
+      setOpenMenuId(null);
+      
+      console.log(`All messages unpinned from channel ${channelKey}`);
+    } catch (error) {
+      console.error('Error unpinning all messages:', error);
+      alert('Failed to unpin all messages. Please try again.');
     }
   };
 
@@ -168,7 +195,7 @@ const PinnedPanel = () => {
   };
 
   const getPlatformFromChatId = (chatId: string) => {
-    // Simple heuristic - you might want to store this info in bookmarks
+    // Simple heuristic - you might want to store this info in pins
     return Math.random() > 0.5 ? 'telegram' : 'discord';
   };
 
@@ -301,7 +328,10 @@ const PinnedPanel = () => {
                         <Heart className="w-6 h-6" stroke="currentColor" fill="currentColor"/>
                         Save to Favorites
                       </button>
-                      <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                      <button 
+                        className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+                        onClick={() => handleUnpinAllInChannel(channelKey)}
+                      >
                         <Pin className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
                         Unpin All Messages
                       </button>

@@ -18,6 +18,7 @@ import telegram from "@/assets/images/telegram.png";
 import discord from "@/assets/images/discord.png";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import ConnectTelegram from "./ConnectTelegram";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -35,11 +36,17 @@ export const AuthPage = () => {
   const [isSignIn, setIsSignIn] = useState(initialMode);
   const { user, loading, checkAuth } = useAuth(); // Destructure checkAuth
 
-  // Telegram QR modal state
-  const [showQRModal, setShowQRModal] = useState(false);
+  // Telegram authentication state
+  const [showTelegramModal, setShowTelegramModal] = useState(false);
+  const [telegramAuthMethod, setTelegramAuthMethod] = useState<"qr" | "phone">(
+    "qr"
+  );
   const [qrCode, setQrCode] = useState("");
   const [qrToken, setQrToken] = useState("");
   const [qrPolling, setQrPolling] = useState(false);
+  const [qrNeedsPassword, setQrNeedsPassword] = useState(false);
+  const [qrPassword, setQrPassword] = useState("");
+  const [submittingQrPassword, setSubmittingQrPassword] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
@@ -123,6 +130,65 @@ export const AuthPage = () => {
     }
   };
 
+  const submitQrPassword = async () => {
+    if (!qrPassword) {
+      toast({
+        title: "2FA password required",
+        description: "Please enter your Telegram 2FA password.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      setSubmittingQrPassword(true);
+      const authToken = localStorage.getItem("access_token");
+      const response = await fetch(
+        `${BACKEND_URL}/auth/qr/${qrToken}/password`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          },
+          body: new URLSearchParams({ password: qrPassword }).toString(),
+        }
+      );
+      const data = await response.json();
+      if (response.ok && data.status === "success") {
+        localStorage.setItem("access_token", data.access_token);
+
+        // Note: Chat sync will be triggered manually by the user on the ChatSyncing page
+        console.log(
+          "Telegram 2FA login successful - chat sync can be started manually"
+        );
+
+        toast({
+          title: "Welcome!",
+          description:
+            "Telegram connected successfully!",
+        });
+        setShowTelegramModal(false);
+        setQrNeedsPassword(false);
+        setQrPassword("");
+        await checkAuth();
+      } else {
+        toast({
+          title: "2FA failed",
+          description: data.detail || "Invalid password or verification failed",
+          variant: "destructive",
+        });
+      }
+    } catch (e: any) {
+      toast({
+        title: "Error",
+        description: e.message || "Failed to submit 2FA password",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingQrPassword(false);
+    }
+  };
+
   // OAuth handlers
   const handleOAuthPopup = (url: string, platform: string) => {
     const popup = window.open(
@@ -167,6 +233,23 @@ export const AuthPage = () => {
 
         console.log("Calling checkAuth...");
         await checkAuth();
+
+        try {
+          // Mark Discord connected in onboarding storage, if applicable
+          const meRes = await fetch(`${BACKEND_URL}/auth/me`, {
+            headers: { Authorization: `Bearer ${data.access_token}` },
+          });
+          const me = meRes.ok ? await meRes.json() : null;
+          if (me && me.id) {
+            const key = `chatpilot_accounts_${me.id}`;
+            const existing = JSON.parse(localStorage.getItem(key) || "{}");
+            const updated = { ...existing };
+            updated.discord = true;
+            localStorage.setItem(key, JSON.stringify(updated));
+          }
+        } catch (e) {
+          console.log("Failed to set Discord connected flag:", e);
+        }
         console.log("checkAuth completed");
 
         popup?.close();
@@ -259,6 +342,14 @@ export const AuthPage = () => {
   const handleTelegramAuth = async () => {
     try {
       setIsLoading(true);
+
+      if (telegramAuthMethod === "phone") {
+        // For phone auth, just show the modal - no need to make API call yet
+        setShowTelegramModal(true);
+        return;
+      }
+
+      // QR code authentication
       const token = localStorage.getItem("access_token");
       const response = await fetch(`${BACKEND_URL}/auth/qr`, {
         method: "POST",
@@ -273,7 +364,7 @@ export const AuthPage = () => {
       if (response.ok) {
         setQrCode(data.qr);
         setQrToken(data.token);
-        setShowQRModal(true);
+        setShowTelegramModal(true);
         startQRPolling(data.token);
       } else {
         throw new Error(
@@ -308,18 +399,29 @@ export const AuthPage = () => {
         if (response.ok && data.status === "success") {
           clearInterval(pollInterval);
           setQrPolling(false);
-          setShowQRModal(false);
+          setShowTelegramModal(false);
 
           localStorage.setItem("access_token", data.access_token);
+
+          // Note: Chat sync will be triggered manually by the user on the ChatSyncing page
+          console.log(
+            "Telegram QR login successful - chat sync can be started manually"
+          );
+
           toast({
             title: "Welcome!",
-            description: "You have been signed in with Telegram.",
+            description:
+              "You have been signed in with Telegram!",
           });
           await checkAuth();
+        } else if (data.status === "password_required") {
+          clearInterval(pollInterval);
+          setQrPolling(false);
+          setQrNeedsPassword(true);
         } else if (data.status === "invalid_token") {
           clearInterval(pollInterval);
           setQrPolling(false);
-          setShowQRModal(false);
+          setShowTelegramModal(false);
           toast({
             title: "QR Code Expired",
             description: "Please try again.",
@@ -336,8 +438,8 @@ export const AuthPage = () => {
     setTimeout(() => {
       clearInterval(pollInterval);
       setQrPolling(false);
-      if (showQRModal) {
-        setShowQRModal(false);
+      if (showTelegramModal) {
+        setShowTelegramModal(false);
         toast({
           title: "QR Code Expired",
           description: "Please try again.",
@@ -347,11 +449,13 @@ export const AuthPage = () => {
     }, 5 * 60 * 1000);
   };
 
-  const closeQRModal = () => {
-    setShowQRModal(false);
+  const closeTelegramModal = () => {
+    setShowTelegramModal(false);
     setQrPolling(false);
     setQrCode("");
     setQrToken("");
+    setQrNeedsPassword(false);
+    setQrPassword("");
   };
 
   return (
@@ -520,49 +624,119 @@ export const AuthPage = () => {
         </div>
       </div>
 
-      {/* Telegram QR Modal */}
-      {showQRModal && (
+      {/* Telegram Authentication Modal */}
+      {showTelegramModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-[#111111] rounded-2xl p-8 max-w-sm w-full mx-4">
             <div className="text-center">
-              <h3 className="text-xl text-white mb-4">Scan QR Code</h3>
-              <p className="text-[#ffffff48] text-sm mb-6">
-                Open Telegram on your phone and scan this QR code to sign in
-              </p>
+              <h3 className="text-xl text-white mb-4">Connect Telegram</h3>
 
-              {qrCode && (
-                <div className="flex justify-center mb-6">
-                  <img
-                    src={`data:image/png;base64,${qrCode}`}
-                    alt="Telegram QR Code"
-                    className="w-48 h-48 bg-white rounded-lg p-2"
-                  />
-                </div>
-              )}
+              {/* Authentication Method Toggle */}
+              <div className="flex gap-1 bg-[#212121] rounded-lg p-1 mb-6 mx-auto w-fit">
+                <button
+                  onClick={() => setTelegramAuthMethod("qr")}
+                  className={`px-3 py-1 text-xs rounded-md transition ${
+                    telegramAuthMethod === "qr"
+                      ? "bg-[#5389ff] text-white"
+                      : "text-[#ffffff80] hover:text-white"
+                  }`}
+                >
+                  QR Code
+                </button>
+                <button
+                  onClick={() => setTelegramAuthMethod("phone")}
+                  className={`px-3 py-1 text-xs rounded-md transition ${
+                    telegramAuthMethod === "phone"
+                      ? "bg-[#5389ff] text-white"
+                      : "text-[#ffffff80] hover:text-white"
+                  }`}
+                >
+                  Phone
+                </button>
+              </div>
 
-              {qrPolling && (
-                <div className="mb-4">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#5389ff] mx-auto"></div>
-                  <p className="text-[#ffffff48] text-sm mt-2">
-                    Waiting for scan...
+              {telegramAuthMethod === "qr" ? (
+                <>
+                  <p className="text-[#ffffff48] text-sm mb-6">
+                    Open Telegram on your phone and scan this QR code to sign in
                   </p>
+                </>
+              ) : (
+                <p className="text-[#ffffff48] text-sm mb-6">
+                  Enter your phone number to receive a verification code
+                </p>
+              )}
+
+              {telegramAuthMethod === "qr" ? (
+                <>
+                  {qrCode && (
+                    <div className="flex justify-center mb-6">
+                      <img
+                        src={`data:image/png;base64,${qrCode}`}
+                        alt="Telegram QR Code"
+                        className="w-48 h-48 bg-white rounded-lg p-2"
+                      />
+                    </div>
+                  )}
+
+                  {qrPolling && (
+                    <div className="mb-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#5389ff] mx-auto"></div>
+                      <p className="text-[#ffffff48] text-sm mt-2">
+                        Waiting for scan...
+                      </p>
+                    </div>
+                  )}
+
+                  {qrNeedsPassword && (
+                    <div className="space-y-3">
+                      <p className="text-[#ffffffb3] text-sm text-center">
+                        Enter your Telegram 2FA password
+                      </p>
+                      <Input
+                        type="password"
+                        value={qrPassword}
+                        onChange={(e) => setQrPassword(e.target.value)}
+                        placeholder="Your 2FA password"
+                        className="bg-[#212121] border-0"
+                      />
+                      <Button
+                        onClick={submitQrPassword}
+                        disabled={submittingQrPassword}
+                        className="w-full bg-[#5389ff] text-black hover:bg-blue-700 rounded-[12px]"
+                      >
+                        {submittingQrPassword ? "Submitting..." : "Submit 2FA"}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="mb-6">
+                  <ConnectTelegram />
                 </div>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 mt-3">
                 <Button
-                  onClick={closeQRModal}
+                  onClick={closeTelegramModal}
                   variant="outline"
                   className="flex-1 bg-[#212121] text-white border-[#333] hover:bg-[#333]"
                 >
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => handleTelegramAuth()}
+                  onClick={() => {
+                    if (telegramAuthMethod === "qr") {
+                      handleTelegramAuth();
+                    } else {
+                      // For phone method, just close modal and let user try again
+                      closeTelegramModal();
+                    }
+                  }}
                   variant="outline"
                   className="flex-1 bg-[#212121] text-white border-[#333] hover:bg-[#333]"
                 >
-                  New QR
+                  {telegramAuthMethod === "qr" ? "New QR" : "Try Again"}
                 </Button>
               </div>
             </div>

@@ -37,6 +37,7 @@ import SmartTask from "@/components/SmartTasks";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
 import SmartBookmark from "@/components/SmartBookmark";
+import FavoritesPanel from "@/components/FavoritesPanel";
 
 const Bookmarks = () => {
   const { user, loading, signOut } = useAuth();
@@ -49,16 +50,19 @@ const Bookmarks = () => {
   const [selectedId, setSelectedId] = useState(null);
   const [isSmartTask, setIsSmartTask] = useState(false);
   const [openPanel, setOpenPanel] = useState<
-    null | "smartTask" | "notification" | "pinned" | "search"
+    null | "smartTask" | "notification" | "pinned" | "search" | "favorites"
   >(null);
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [favoriteChats, setFavoriteChats] = useState([]);
+  const [loadingChats, setLoadingChats] = useState(true);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // ✅ ADD: Missing chat state variables
   const [chats, setChats] = useState([]); // State to store fetched chats
   const [chatsLoading, setChatsLoading] = useState(true); // Loading state for chats
   const [selectedChat, setSelectedChat] = useState(null); // State for selected chat
-  const [selectedSource, setSelectedSource] = useState("All sources");
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [selectedSource, setSelectedSource] = useState("All sources");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -79,14 +83,110 @@ const Bookmarks = () => {
     }
   }, [user]);
 
+  // Fetch chats that contain favorited messages
+  useEffect(() => {
+    const fetchFavoriteChats = async () => {
+      if (!user) return;
+
+      try {
+        setLoadingChats(true);
+        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+        const token = localStorage.getItem("access_token");
+
+        // Use the existing /ui/chats endpoint to get all chats
+        const chatsResponse = await fetch(`${BACKEND_URL}/ui/chats`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!chatsResponse.ok) {
+          throw new Error(`Failed to fetch chats: ${chatsResponse.status}`);
+        }
+
+        const allChats = await chatsResponse.json();
+
+        // Get bookmarks to filter chats
+        const bookmarksResponse = await fetch(
+          `${BACKEND_URL}/bookmarks?type=bookmark`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!bookmarksResponse.ok) {
+          throw new Error(
+            `Failed to fetch bookmarks: ${bookmarksResponse.status}`
+          );
+        }
+
+        const bookmarks = await bookmarksResponse.json();
+
+        if (bookmarks.length === 0) {
+          setFavoriteChats([]);
+          setLoadingChats(false);
+          return;
+        }
+
+        // Get unique chat IDs from bookmarks
+        const chatIdsWithBookmarks = [
+          ...new Set(bookmarks.map((b) => b.chat_id)),
+        ];
+
+        // Check the structure of allChats - it might be different than expected
+        const chatsArray = allChats.chats || allChats;
+
+        // Filter chats to only show those with bookmarks
+        const chatsWithBookmarks = chatsArray.filter((chat) =>
+          chatIdsWithBookmarks.includes(chat.id)
+        );
+
+        // Add bookmark count and enhance chat data
+        const enhancedChats = chatsWithBookmarks.map((chat) => {
+          const bookmarkCount = bookmarks.filter(
+            (b) => b.chat_id === chat.id
+          ).length;
+          return {
+            ...chat,
+            bookmarkCount,
+            // Ensure we have the required fields for ChatPanel
+            platform: chat.platform || "Telegram",
+            tags: chat.tags || [],
+            read: chat.read || false,
+            unread: chat.unread || 0,
+            isPinned: chat.isPinned || false,
+            pinned: chat.isPinned || false,
+          };
+        });
+
+        setFavoriteChats(enhancedChats);
+      } catch (error) {
+        console.error("Error fetching favorite chats:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load favorite chats",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingChats(false);
+      }
+    };
+
+    if (user) {
+      fetchFavoriteChats();
+    }
+  }, [user]);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = 0;
     }
   }, [activeTab]);
 
-   // Fetch chats from backend
-   useEffect(() => {
+  // Fetch chats from backend
+  useEffect(() => {
     const fetchChats = async () => {
       if (!user) {
         setChatsLoading(false);
@@ -109,8 +209,9 @@ const Bookmarks = () => {
         const data = await response.json();
         // Assuming data.chats is the array of chat objects
         setChats(data.chats || []);
+        console.log("✅ Bookmarks page fetched chats:", data.chats || []);
       } catch (error) {
-        console.error("Failed to fetch chats:", error);
+        console.error("❌ Failed to fetch chats in bookmarks page:", error);
         toast({
           title: "Error",
           description: "Failed to load chats.",
@@ -124,6 +225,7 @@ const Bookmarks = () => {
     fetchChats();
   }, [user]);
 
+  // ✅ ADD: Missing chat selection handler
   const handleChatSelect = async (chat) => {
     setSelectedChat(chat);
 
@@ -153,10 +255,9 @@ const Bookmarks = () => {
         console.error("Failed to mark chat as read:", error);
       }
     }
-    navigate("/", { state: { selectedChat:chat}});
   };
 
-
+  // ✅ UPDATE: Include chatsLoading in the loading check
   if (loading || chatsLoading) {
     return (
       <div className="min-h-screen bg-[#171717] flex items-center justify-center">
@@ -182,7 +283,6 @@ const Bookmarks = () => {
           setIsNotificationPanel={(open) =>
             setOpenPanel(open ? "notification" : null)
           }
-          // onOpenPinnedPanel={() => setOpenPanel("pinned")}
           isPinnedOpen={openPanel === "pinned"}
           setIsPinnedOpen={(open) => {
             setOpenPanel(open ? "pinned" : null);
@@ -197,10 +297,15 @@ const Bookmarks = () => {
           setSelectedOptions={setSelectedOptions}
         />
         <main className="flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
-          <ChatPanel 
-          chats={chats}
-          onChatSelect={handleChatSelect}
-          selectedChat={selectedChat}/>
+          <ChatPanel
+            chats={favoriteChats}
+            onChatSelect={handleChatSelect}
+            selectedChat={selectedId}
+
+            // chats={chats} // RC/FixesNew
+            // onChatSelect={handleChatSelect} // RC/FixesNew
+            // selectedChat={selectedChat} // RC/FixesNew
+          />
           <div className="w-full">
             <UnifiedHeader
               title="Bookmarks"
@@ -211,7 +316,9 @@ const Bookmarks = () => {
                 setOpenPanel(open ? "smartTask" : null)
               }
             />
-            <UnifiedChatPanel />
+            {/* Show FavoritesPanel by default */}
+            <FavoritesPanel />
+            {/* <UnifiedChatPanel selectedChat={selectedChat} />  Flex's changes */}
           </div>
 
           {openPanel === "smartTask" && <SmartBookmark />}
