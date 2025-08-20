@@ -33,7 +33,7 @@ import ChatPanel from "@/components/ChatPanel";
 import UnifiedHeader from "@/components/UnifiedHeader";
 import UnifiedChatPanel from "@/components/UnifiedChatPanel";
 import TasksPanel from "@/components/TasksPanel";
-import SmartTask from "@/components/SmartTasks";
+import AddFriend from "@/components/AddFriend";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
 import ContactsPanel from "@/components/ContactsPanel";
@@ -49,7 +49,7 @@ const Contacts = () => {
   const [selectedId, setSelectedId] = useState(null);
   const [isSmartTask, setIsSmartTask] = useState(false);
   const [openPanel, setOpenPanel] = useState<
-    null | "smartTask" | "notification" | "pinned" | "search"
+    null | "friend" | "notification" | "pinned" | "search"
   >(null);
 
   // ✅ ADD: Missing chat state variables
@@ -85,7 +85,6 @@ const Contacts = () => {
     }
   }, [activeTab]);
 
-  // ✅ ADD: Missing chat fetching logic
   useEffect(() => {
     const fetchChats = async () => {
       if (!user) {
@@ -210,15 +209,15 @@ const Contacts = () => {
               smartText="Smart Tasks"
               isReadAll={false}
               isContact={true}
-              isSmartSummary={openPanel === "smartTask"}
+              isSmartSummary={openPanel === "friend"}
               setIsSmartSummary={(open) =>
-                setOpenPanel(open ? "smartTask" : null)
+                setOpenPanel(open ? "friend" : null)
               }
             />
             <ContactsPanel />
           </div>
 
-          {openPanel === "smartTask" && <SmartTask />}
+          {openPanel === "friend" && <AddFriend />}
           {openPanel === "notification" && <NotificationsPanel />}
           {openPanel === "pinned" && <PinnedPanel />}
           {openPanel === "search" && (

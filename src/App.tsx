@@ -16,6 +16,7 @@ import Contacts from "./pages/Contacts";
 import Help from "./pages/Help";
 import Settings from "./pages/Settings";
 import { DashboardSettings } from "./components/DashboardSettings";
+import AiChat from "./pages/AiChat";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/smart-tasks" element={<SmartTasks />} />
               <Route path="/bookmarks" element={<Bookmarks />} />
               <Route path="/contacts" element={<Contacts />} />
+              <Route path="/ai" element={<AiChat />} />
               <Route path="/help" element={<Help />} />
               <Route path="/settings" element={<Settings />} />
               <Route
