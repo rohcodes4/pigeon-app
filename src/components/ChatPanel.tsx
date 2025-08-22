@@ -216,34 +216,35 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [showFilterEditor, setShowFilterEditor] = useState(false);
   const [editingFilter, setEditingFilter] = useState<any>(null);
   const [allChannels, setAllChannels] = useState<any[]>([]);
+  const [focusChannels, setFocusChannels] = useState<any[]>([]);
 
   useEffect(() => {
     // Save topItems to localStorage whenever it changes
     localStorage.setItem("topItemsOrder", JSON.stringify(topItems));
   }, [topItems]);
-
+  const loadChannels = async () => {
+    try {
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+      const token = localStorage.getItem("access_token");
+      const resp = await fetch(`${BACKEND_URL}/chats`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (resp.ok) {
+        const chats = await resp.json();
+        const chans = (chats || []).map((c: any) => ({
+          id: c?.id ?? c?._id,
+          name: c?.title || c?.username || String(c?.id ?? c?._id),
+          platform: c?.platform,
+        }));
+        setAllChannels(chans.filter((c: any) => c.id != null));
+      }
+    } catch (_) {
+      // ignore
+    }
+  };
   // Load channel list for FilterEditor (id/name mapping)
   useEffect(() => {
-    const loadChannels = async () => {
-      try {
-        const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-        const token = localStorage.getItem("access_token");
-        const resp = await fetch(`${BACKEND_URL}/chats`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (resp.ok) {
-          const chats = await resp.json();
-          const chans = (chats || []).map((c: any) => ({
-            id: c?.id ?? c?._id,
-            name: c?.title || c?.username || String(c?.id ?? c?._id),
-            platform: c?.platform,
-          }));
-          setAllChannels(chans.filter((c: any) => c.id != null));
-        }
-      } catch (_) {
-        // ignore
-      }
-    };
+  
     loadChannels();
   }, []);
 
@@ -437,7 +438,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   ];
 
   const getFilteredChannels = () => {
-    let filtered = sortedDisplayChats;
+    let baseArray = isFocus ? focusChannels : sortedDisplayChats;
+    let filtered = baseArray;
 
     // Apply search term filter
     if (searchTerm.trim()) {
@@ -471,7 +473,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   const channels = useMemo(
     () => getFilteredChannels(),
-    [sortedDisplayChats, searchTerm, activeTopItem, filters]
+    [sortedDisplayChats, searchTerm, activeTopItem, filters, isFocus]
   );
 
   // UI behavior: when "Filtered Streams" is selected in TOP_ITEMS,
@@ -578,11 +580,26 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     );
   }
 
+  const handleFocusMode = () => {
+    setIsFocus(prevIsFocus => {
+      const newIsFocus = !prevIsFocus;
+      if (newIsFocus) {
+        setFocusChannels(displayChannels.filter(chat => chat.pinned || chat.isPinned));
+      } else {
+        setFocusChannels(displayChannels);
+      }
+      return newIsFocus;
+    });
+  };
+
+  const channelsToShow = isFocus ? focusChannels : displayChannels;
+
+  
   return (
     <aside className="h-[calc(100vh-73px)] w-[350px] p-3 pl-0 flex flex-col border-r border-[#23272f] bg-[#111111]">
       <Button
         variant="ghost"
-        onClick={() => setIsFocus(!isFocus)}
+        onClick={handleFocusMode}
         className={`ml-3 bg-[#171717] rounded-[8px] ${
           isFocus ? "text-[#5389ff]" : "text-[#FFFFFF32]"
         } p-0 `}
@@ -990,12 +1007,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             </div>
             {isChannelsOpen && (
               <div className="mt-2">
-                {displayChannels.length === 0 && searchTerm.trim() ? (
+                {channelsToShow.length === 0 && searchTerm.trim() ? (
                   <div className="text-[#ffffff48] text-sm px-4 py-3">
                     No channels found for "{searchTerm}"
                   </div>
                 ) : (
-                  displayChannels.map((chat) => (
+                  channelsToShow.map((chat) => (
                     <button
                       key={chat.id}
                       className={

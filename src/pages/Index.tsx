@@ -348,6 +348,7 @@ const Index = () => {
                 setOpenPanel(open ? "smartSummary" : null)
               }
               isPinnable={true}
+              selectedChat={selectedChat}
             />
             <UnifiedChatPanel selectedChat={selectedChat} />
           </div>

@@ -67,16 +67,23 @@ const AiChatBox: React.FC<AiChatBoxProps> = ({ selectedChat }) => {
     setInput("");
     if (inputRef.current) inputRef.current.value = "";
     setLoading(true);
+    const authToken = localStorage.getItem("access_token");
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/chat/${selectedChat?.id}/message`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/ai/chat`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: userMessage.text }),
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": `Bearer ${authToken}`
+          },
+          body: new URLSearchParams({
+            message: userMessage.text
+          })
         }
       );
+      
 
       if (!response.ok) throw new Error("Failed to get AI reply");
       const data = await response.json();
