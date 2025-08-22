@@ -6,11 +6,53 @@ interface Message {
   id: number;
   sender: "user" | "assistant";
   text: string;
+  loading?: boolean;  
 }
 
 interface AiChatBoxProps {
   selectedChat?: any; // Replace with your chat type
 }
+
+const LoadingDots: React.FC = () => {
+  return (
+    <span aria-label="Loading" role="status" className="inline-flex space-x-1">
+      <span className="dot animate-bounce">•</span>
+      <span className="dot animate-bounce animation-delay-200">•</span>
+      <span className="dot animate-bounce animation-delay-400">•</span>
+
+      <style jsx>{`
+        .dot {
+          font-size: 22px;
+          line-height: 0;
+          color: #84afff;
+          display: inline-block;
+        }
+
+        .animate-bounce {
+          animation: bounce 0.6s infinite ease-in-out;
+        }
+
+        .animation-delay-200 {
+          animation-delay: 0.2s;
+        }
+
+        .animation-delay-400 {
+          animation-delay: 0.4s;
+        }
+
+        @keyframes bounce {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-6px);
+          }
+        }
+      `}</style>
+    </span>
+  );
+};
+
 
 const AiChatBox: React.FC<AiChatBoxProps> = ({ selectedChat }) => {
   const { user } = useAuth();
@@ -67,36 +109,66 @@ const AiChatBox: React.FC<AiChatBoxProps> = ({ selectedChat }) => {
     setInput("");
     if (inputRef.current) inputRef.current.value = "";
     setLoading(true);
+    const loadingMessageId = Date.now() + 1;
+    setMessages((prev) => [
+      ...prev,
+      { id: loadingMessageId, sender: "assistant", text: "", loading: true, },
+    ]);
+    const authToken = localStorage.getItem("access_token");
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/chat/${selectedChat?.id}/message`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/ai/chat`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: userMessage.text }),
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": `Bearer ${authToken}`
+          },
+          body: new URLSearchParams({
+            message: userMessage.text
+          })
         }
       );
+      
 
       if (!response.ok) throw new Error("Failed to get AI reply");
       const data = await response.json();
 
-      const assistantMessage: Message = {
-        id: Date.now() + 1,
-        sender: "assistant",
-        text: data.reply,
-      };
+      // const assistantMessage: Message = {
+      //   id: Date.now() + 1,
+      //   sender: "assistant",
+      //   text: data.reply,
+      // };
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      // setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === loadingMessageId
+            ? { id: loadingMessageId, sender: "assistant", text: data.reply }
+            : msg
+        )
+      );
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          sender: "assistant",
-          text: "Sorry, something went wrong.",
-        },
-      ]);
+      // setMessages((prev) => [
+      //   ...prev,
+      //   {
+      //     id: Date.now() + 1,
+      //     sender: "assistant",
+      //     text: "Sorry, something went wrong.",
+      //   },
+      // ]);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === loadingMessageId
+            ? {
+                id: loadingMessageId,
+                sender: "assistant",
+                text: "Sorry, something went wrong.",
+              }
+            : msg
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -110,9 +182,9 @@ const AiChatBox: React.FC<AiChatBoxProps> = ({ selectedChat }) => {
   };
 
   return (
-    <div className="flex flex-col h-full border-gray-700">
+    <div className="flex flex-col h-[calc(100vh-136px)] border-gray-700">
       <div className="flex-1 p-4 overflow-y-auto">
-        {messages.map(({ id, sender, text }) => (
+        {messages.map(({ id, sender, text, loading }) => (
           <div
             key={id}
             className={`flex items-end mb-3 ${
@@ -131,8 +203,8 @@ const AiChatBox: React.FC<AiChatBoxProps> = ({ selectedChat }) => {
                   : "bg-gray-700 text-gray-100 self-start mr-auto"
               }`}
             >
-              {text}
-            </div>
+      {loading ? <LoadingDots /> : text}
+      </div>
             {sender === "user" && user?.avatar ? (
               <img
                 src={user.avatar}
