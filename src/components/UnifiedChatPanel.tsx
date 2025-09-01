@@ -1002,7 +1002,7 @@ const getPinnedMessages = async (chatId = null) => {
     const messageText = inputRef.current.value.trim();
 
     // Check if we have a valid chat selected and it's not "all-channels"
-    if (!selectedChat || selectedChat === "all-channels") {
+    if (!selectedChat) {
       toast({
         title: "No chat selected",
         description: "Please select a specific chat to send messages",
@@ -1285,7 +1285,7 @@ const getPinnedMessages = async (chatId = null) => {
           (a, b) => a.date.getTime() - b.date.getTime()
         );
       });
-      setShouldAutoScroll(true);
+      setShouldAutoScroll(false);
     } catch (e) {
       console.error("DEBUG: refreshLatest error:", e);
     }
