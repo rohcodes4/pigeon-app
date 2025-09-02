@@ -140,12 +140,23 @@ const FiltersPanel = React.memo(function FiltersPanel({
     data: { name: string; channels: number[]; keywords: string[] },
     filterId?: string
   ) => {
-    if (filterId) {
-      await updateFilter(filterId, data);
-    } else {
-      await createFilter(data);
+    try {
+      if (filterId) {
+        // Update existing filter
+        const updatedFilter = await updateFilter(filterId, data);
+        setSmartFilters((prev) =>
+          prev.map((f) => (f.id === filterId ? updatedFilter : f))
+        );
+      } else {
+        // Create new filter
+        const newFilter = await createFilter(data);
+        setSmartFilters((prev) => [...prev, newFilter]);
+      }
+      onFiltersUpdated(); // Notify parent component of changes
+    } catch (error) {
+      console.error("Error saving filter:", error);
+      // You might want to show an error message to the user here
     }
-    onFiltersUpdated(); // Notify parent component of changes
   };
 
   const handleEditorClose = React.useCallback(() => {
@@ -155,9 +166,14 @@ const FiltersPanel = React.memo(function FiltersPanel({
   }, []);
 
   const onDelete = async (id: string) => {
-    await deleteFilter(id);
-    setSmartFilters((prev) => prev.filter((f) => f.id !== id));
-    onFiltersUpdated(); // Notify parent component of changes
+    try {
+      await deleteFilter(id);
+      setSmartFilters((prev) => prev.filter((f) => f.id !== id));
+      onFiltersUpdated(); // Notify parent component of changes
+    } catch (error) {
+      console.error("Error deleting filter:", error);
+      // You might want to show an error message to the user here
+    }
   };
 
   return (

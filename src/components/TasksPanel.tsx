@@ -10,6 +10,7 @@ import {
   FaBellSlash,
   FaArrowDown,
   FaArrowRight,
+  FaGlobe ,
   FaExchangeAlt,
   FaPlus,
 } from "react-icons/fa";
@@ -192,18 +193,18 @@ const TasksPanel = () => {
     const [timeFilter, setTimeFilter] = useState("all");
 
     // Create Task State
-    const [newTask, setNewTask] = useState({
-      name: "",
-      tags: [],
-      due: "",
-      description: "",
-      platform: "telegram",
-      channel: "",
-      server: "",
-      priority: "HIGH",
-      status: "urgent",
-      type: "todo",
-    });
+const [newTask, setNewTask] = useState({
+  name: "",
+  tags: [],
+  due: "",
+  description: "",
+  platform: "telegram",  // <-- This is the default
+  channel: "",
+  server: "",
+  priority: "HIGH",
+  status: "urgent",
+  type: "todo",
+});
     const [newTagInput, setNewTagInput] = useState("");
 
     // Edit states
@@ -307,8 +308,8 @@ const TasksPanel = () => {
             tags: task.tags || [],
             due: task.due|| "3d",
             description: "",
-            platform: task.platform || "telegram",
-            channel: task.chat_title || "Telegram",
+            platform: task.platform ,
+            channel: task.chat_title ,
             server: "MAIN",
             priority: task.priority || "MEDIUM",
             status: task.status === "open" ? "urgent" : task.status,
@@ -492,27 +493,32 @@ const TasksPanel = () => {
       if (!newTask.name.trim()) return;
       
       try {
-        const backendTask = await createTask({
-          name: newTask.name,
-          priority: newTask.priority,
-          status: newTask.status === "urgent" ? "open" : newTask.status,
-          tags: newTask.tags,
-          due_date: newTask.due
-        });
-        
-        const transformedTask = {
-          id: backendTask._id,
-          name: backendTask.text,
-          tags: backendTask.tags || [],
-          due: newTask.due || "3d",
-          description: newTask.description,
-          platform: newTask.platform,
-          channel: newTask.channel??newTask.platform,
-          server: newTask.server,
-          priority: backendTask.priority,
-          status: newTask.status,
-          type: newTask.type,
-        };
+    const backendTask = await createTask({
+      name: newTask.name,
+      priority: newTask.priority,
+      status: newTask.status === "urgent" ? "open" : newTask.status,
+      tags: newTask.tags,
+      due_date: newTask.due
+    });
+    
+    const transformedTask = {
+      id: backendTask._id || backendTask.id,
+      name: backendTask.text,
+      tags: backendTask.tags || [],
+      due: backendTask.due || newTask.due || "3d",
+      description: newTask.description,
+      platform: backendTask.platform || "web", // Use API response platform
+      channel: backendTask.chat_title || null, // Use API response chat_title
+      server: newTask.server,
+      priority: backendTask.priority,
+      status: newTask.status,
+      type: newTask.type,
+      chat_id: backendTask.chat_id,
+      chat_title: backendTask.chat_title,
+      originator_id: backendTask.originator_id,
+      originator_name: backendTask.originator_name,
+      created_at: backendTask.created_at
+    };
         
         setTasks((prev) => [transformedTask, ...prev]);
         setNewTask({
@@ -817,10 +823,24 @@ const TasksPanel = () => {
                                 </span>
                                 <span className="text-[#ffffff72]">{task.name}</span>
                               </div>
-                              <div className={`text-xs text-white flex gap-2 items-center mb-1 w-max rounded-[4px] px-2 py-0.5 ${task.platform=="telegram"?"bg-[#3474ff]":"bg-[#7B5CFA]"}`}>
-                                <div className="">{task.platform==="telegram"?<FaTelegramPlane/>:<FaDiscord/>}</div>
-                                <span>{task.channel || "Telegram"}</span>
-                              </div>
+                <div className={`text-xs text-white flex gap-2 items-center mb-1 w-max rounded-[4px] px-2 py-0.5 ${
+  task.platform === "telegram" 
+    ? "bg-[#3474ff]" 
+    : task.platform === "discord" 
+    ? "bg-[#7B5CFA]" 
+    : "bg-[#6B7280]"
+}`}>
+  <div className="">
+    {task.platform === "telegram" ? (
+      <FaTelegramPlane />
+    ) : task.platform === "discord" ? (
+      <FaDiscord />
+    ) : (
+      <FaGlobe />
+    )}
+  </div>
+<span>{task.chat_title || (task.platform === "web" ? "Web" : task.platform) || "Web"}</span>
+</div>
                             </>
                           )}
                         </div>
