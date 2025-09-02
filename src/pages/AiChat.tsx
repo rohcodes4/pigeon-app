@@ -102,15 +102,15 @@ const AiChat = () => {
     navigate("/", { state: { selectedChat: chat } });
   };
 
-  if (loading || chatsLoading) {
-    return (
-      <div className="min-h-screen bg-[#171717] flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Loading chats...</p>
-        </div>
-      </div>
-    );
-  }
+  // if (loading || chatsLoading) {
+  //   return (
+  //     <div className="min-h-screen bg-[#171717] flex items-center justify-center">
+  //       <div className="text-center">
+  //         <p className="text-gray-600">Loading chats...</p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   if (!user) {
     return null; // Redirect to auth handled above

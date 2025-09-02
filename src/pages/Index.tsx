@@ -285,18 +285,18 @@ const Index = () => {
     });
   };
 
-  if (loading || chatsLoading) {
-    return (
-      <div className="min-h-screen bg-[#171717] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-24 h-24 bg-gradient-to-r rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <img src={AIimg} className="w-20 h-20 text-white" />
-          </div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  // if (loading || chatsLoading) {
+  //   return (
+  //     <div className="min-h-screen bg-[#171717] flex items-center justify-center">
+  //       <div className="text-center">
+  //         <div className="w-24 h-24 bg-gradient-to-r rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+  //           <img src={AIimg} className="w-20 h-20 text-white" />
+  //         </div>
+  //         <p className="text-gray-600">Loading...</p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   if (!user) {
     return null; // Will redirect to auth page
