@@ -212,20 +212,20 @@ const Settings = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="w-24 h-24 bg-gradient-to-r rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-              <SettingsIcon className="w-20 h-20 text-white" />
-            </div>
-            <p className="text-gray-600">Loading...</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+  // if (loading) {
+  //   return (
+  //     <Layout>
+  //       <div className="flex items-center justify-center min-h-screen">
+  //         <div className="text-center">
+  //           <div className="w-24 h-24 bg-gradient-to-r rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+  //             <SettingsIcon className="w-20 h-20 text-white" />
+  //           </div>
+  //           <p className="text-gray-600">Loading...</p>
+  //         </div>
+  //       </div>
+  //     </Layout>
+  //   );
+  // }
 
   if (!user) {
     return null;

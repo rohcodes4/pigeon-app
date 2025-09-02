@@ -34,6 +34,23 @@ interface ChatSyncingProps {
   setTelegramConnected: React.Dispatch<React.SetStateAction<boolean>>;
   discordConnected: boolean;
   setDiscordConnected: React.Dispatch<React.SetStateAction<boolean>>;
+  telegramChats: any[];
+  setTelegramChats: React.Dispatch<React.SetStateAction<any[]>>;
+  syncProgress: { discord: number; telegram: number };
+  setSyncProgress: React.Dispatch<
+    React.SetStateAction<{ discord: number; telegram: number }>
+  >;
+  syncingInProgress: boolean;
+  setSyncingInProgress: React.Dispatch<React.SetStateAction<boolean>>;
+  startSyncPolling: () => Promise<void>;
+  telegramLoading: boolean,
+  setTelegramLoading: (value)=>void,
+  syncComplete: boolean,
+  setSyncComplete: (value)=>void,
+  hasStartedFindingChats: boolean,
+  setHasStartedFindingChats:(value)=>void,
+  initialSyncTriggered: boolean,
+  setInitialSyncTriggered:(value)=>void,
 }
 
 export const ChatSyncing = ({
@@ -45,6 +62,21 @@ export const ChatSyncing = ({
   setTelegramConnected,
   discordConnected,
   setDiscordConnected,
+  telegramChats, 
+  setTelegramChats, 
+  syncProgress,
+  setSyncProgress,
+  syncingInProgress, 
+  setSyncingInProgress,
+  startSyncPolling,
+  telegramLoading,
+  setTelegramLoading,
+  syncComplete,
+  setSyncComplete,
+  hasStartedFindingChats,
+  setHasStartedFindingChats,
+  initialSyncTriggered,
+  setInitialSyncTriggered  
 }: ChatSyncingProps) => {
   const { user } = useAuth();
 
@@ -52,246 +84,259 @@ export const ChatSyncing = ({
     (chat) => chat.platform === "discord"
   );
   // We'll fetch Telegram chats from the backend as before
-  const [telegramChats, setTelegramChats] = useState<any[]>([]);
-  const [telegramLoading, setTelegramLoading] = useState(true);
-  const [syncingInProgress, setSyncingInProgress] = useState(false);
-  const [initialSyncTriggered, setInitialSyncTriggered] = useState(false);
-  const [hasStartedFindingChats, setHasStartedFindingChats] = useState(false);
+  // const [telegramChats, setTelegramChats] = useState<any[]>([]);
+  // const [telegramLoading, setTelegramLoading] = useState(true);
+  // const [syncComplete, setSyncComplete] = useState(false);
+  // const [syncingInProgress, setSyncingInProgress] = useState(false);
+  // const [initialSyncTriggered, setInitialSyncTriggered] = useState(false);
+  // const [hasStartedFindingChats, setHasStartedFindingChats] = useState(false);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const token = localStorage.getItem("access_token");
 
-  useEffect(() => {
-    if (!user) return;
+  // useEffect(() => {
+  //   if (!user) return;
 
-    // Just load existing chats without starting sync
-    const loadExistingChats = async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/ui/chats?include_all=true`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const chats = Array.isArray(data)
-            ? data
-            : Array.isArray(data.chats)
-            ? data.chats
-            : [];
-          if (chats.length > 0) {
-            setTelegramChats(chats);
-            setTelegramLoading(false);
-          } else {
-            setTelegramLoading(false);
-          }
-        } else {
-          setTelegramLoading(false);
-        }
-      } catch (e) {
-        console.error("Error loading existing chats:", e);
-        setTelegramLoading(false);
-        setTelegramChats([]);
-      }
-    };
+  //   // Just load existing chats without starting sync
+  //   const loadExistingChats = async () => {
+  //     try {
+  //       const res = await fetch(`${BACKEND_URL}/ui/chats?include_all=true`, {
+  //         headers: { Authorization: `Bearer ${token}` },
+  //       });
+  //       if (res.ok) {
+  //         const data = await res.json();
+  //         const chats = Array.isArray(data)
+  //           ? data
+  //           : Array.isArray(data.chats)
+  //           ? data.chats
+  //           : [];
+  //         if (chats.length > 0) {
+  //           setTelegramChats(chats);
+  //           setTelegramLoading(false);
+  //         } else {
+  //           setTelegramLoading(false);
+  //         }
+  //       } else {
+  //         setTelegramLoading(false);
+  //       }
+  //     } catch (e) {
+  //       console.error("Error loading existing chats:", e);
+  //       setTelegramLoading(false);
+  //       setTelegramChats([]);
+  //     }
+  //   };
 
-    loadExistingChats();
-  }, [user]);
+  //   loadExistingChats();
+  // }, [user]);
 
-  const [syncProgress, setSyncProgress] = useState({ discord: 0, telegram: 0 });
-  const [syncComplete, setSyncComplete] = useState(false);
+  // const [syncProgress, setSyncProgress] = useState({ discord: 0, telegram: 0 });
 
   // Function to start sync polling
-  const startSyncPolling = async () => {
-    // Start with a small delay to let sync begin
-    await new Promise((r) => setTimeout(r, 1000));
+  // const startSyncPolling = async () => {
+  //   // Start with a small delay to let sync begin
+  //   await new Promise((r) => setTimeout(r, 1000));
 
-    // Track if we've seen significant progress recently
-    let lastSignificantProgress = Date.now();
-    let consecutiveStablePolls = 0;
-    const maxStablePolls = 11; // Stop after 11 consecutive stable polls
+  //   // Track if we've seen significant progress recently
+  //   let lastSignificantProgress = Date.now();
+  //   let consecutiveStablePolls = 0;
+  //   const maxStablePolls = 11; // Stop after 11 consecutive stable polls
 
-    // Continue polling until sync is complete
-    let consecutiveEmptyPolls = 0;
-    const maxConsecutiveEmpty = 8; // Increased tolerance
-    let lastChatCount = telegramChats.length;
-    let stableCountPolls = 0;
-    const requiredStablePolls = 10; // Increased from 5 to 10 for more stability
-    let lastProgressTime = Date.now();
+  //   // Continue polling until sync is complete
+  //   let consecutiveEmptyPolls = 0;
+  //   const maxConsecutiveEmpty = 8; // Increased tolerance
+  //   let lastChatCount = telegramChats.length;
+  //   let stableCountPolls = 0;
+  //   const requiredStablePolls = 10; // Increased from 5 to 10 for more stability
+  //   let lastProgressTime = Date.now();
 
-    for (let i = 0; i < 200; i++) {
-      // Increased max attempts for much longer sync
-      const r2 = await fetch(`${BACKEND_URL}/ui/chats?include_all=true`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  //   let isTimedOut = false;
+  //   const timeout = setTimeout(() => {
+  //     isTimedOut = true;
+  //     setSyncingInProgress(false); // Stop showing sync progress on UI
+  //     setTelegramLoading(false);
+  //     setSyncComplete(true); // Mark UI as "Sync complete"
+  //     console.log('Sync timeout reached (10s), UI transitions to complete.');
+  //     // Optionally, keep polling in background for real sync completion
+  //   }, 10000); // 10 seconds
+  
+  //   for (let i = 0; i < 200; i++) {
+  //     if (isTimedOut) break;
+  //     // Increased max attempts for much longer sync
+  //     const r2 = await fetch(`${BACKEND_URL}/ui/chats?include_all=true`, {
+  //       headers: { Authorization: `Bearer ${token}` },
+  //     });
 
-      if (r2.ok) {
-        const data2 = await r2.json();
-        const chats2 = Array.isArray(data2)
-          ? data2
-          : Array.isArray(data2.chats)
-          ? data2.chats
-          : [];
+  //     if (r2.ok) {
+  //       const data2 = await r2.json();
+  //       const chats2 = Array.isArray(data2)
+  //         ? data2
+  //         : Array.isArray(data2.chats)
+  //         ? data2.chats
+  //         : [];
 
-        // Update chats immediately to show progress
-        setTelegramChats(chats2);
-        console.log(`Poll ${i}: Found ${chats2.length} chats`);
+  //       // Update chats immediately to show progress
+  //       setTelegramChats(chats2);
+  //       console.log(`Poll ${i}: Found ${chats2.length} chats`);
 
-        // If we got chats, reset the empty poll counter
-        if (chats2.length > 0) {
-          if (!hasStartedFindingChats) {
-            setHasStartedFindingChats(true);
-          }
-          consecutiveEmptyPolls = 0;
+  //       // If we got chats, reset the empty poll counter
+  //       if (chats2.length > 0) {
+  //         if (!hasStartedFindingChats) {
+  //           setHasStartedFindingChats(true);
+  //         }
+  //         consecutiveEmptyPolls = 0;
 
-          // Check if chat count is stable (indicating sync might be complete)
-          if (chats2.length === lastChatCount) {
-            stableCountPolls++;
-            consecutiveStablePolls++;
+  //         // Check if chat count is stable (indicating sync might be complete)
+  //         if (chats2.length === lastChatCount) {
+  //           stableCountPolls++;
+  //           consecutiveStablePolls++;
 
-            // Check if we've been stable for too long (indicating sync is likely complete)
-            if (
-              consecutiveStablePolls >= maxStablePolls &&
-              chats2.length >= 50
-            ) {
-              console.log(
-                `Sync appears complete: ${chats2.length} chats found, stable for ${consecutiveStablePolls} consecutive polls`
-              );
-              setSyncingInProgress(false);
-              setTelegramLoading(false);
-              setSyncComplete(true);
-              return;
-            }
+  //           // Check if we've been stable for too long (indicating sync is likely complete)
+  //           if (
+  //             consecutiveStablePolls >= maxStablePolls &&
+  //             chats2.length >= 50
+  //           ) {
+  //             console.log(
+  //               `Sync appears complete: ${chats2.length} chats found, stable for ${consecutiveStablePolls} consecutive polls`
+  //             );
+  //             setSyncingInProgress(false);
+  //             setTelegramLoading(false);
+  //             setSyncComplete(true);
+  //             return;
+  //           }
 
-            // Only consider sync complete if we've been stable for a long time AND have a good number of chats
-            if (
-              stableCountPolls >= requiredStablePolls &&
-              chats2.length >= 50 && // Increased minimum chat requirement
-              i >= 100 // Must have polled for at least 100 iterations
-            ) {
-              // Chat count has been stable for many polls, likely sync is complete
-              console.log(
-                `Sync appears complete: ${chats2.length} chats found, stable for ${stableCountPolls} polls after ${i} iterations`
-              );
-              setSyncingInProgress(false);
-              setTelegramLoading(false);
-              setSyncComplete(true); // Mark as complete
-              return;
-            }
-          } else {
-            // Chat count changed, reset stability counter and update last count
-            stableCountPolls = 0;
-            consecutiveStablePolls = 0; // Reset consecutive stable counter
-            lastChatCount = chats2.length;
-            lastProgressTime = Date.now(); // Reset progress timer
-            lastSignificantProgress = Date.now(); // Reset significant progress timer
-          }
+  //           // Only consider sync complete if we've been stable for a long time AND have a good number of chats
+  //           if (
+  //             stableCountPolls >= requiredStablePolls &&
+  //             chats2.length >= 50 && // Increased minimum chat requirement
+  //             i >= 100 // Must have polled for at least 100 iterations
+  //           ) {
+  //             // Chat count has been stable for many polls, likely sync is complete
+  //             console.log(
+  //               `Sync appears complete: ${chats2.length} chats found, stable for ${stableCountPolls} polls after ${i} iterations`
+  //             );
+  //             setSyncingInProgress(false);
+  //             setTelegramLoading(false);
+  //             setSyncComplete(true); // Mark as complete
+  //             return;
+  //           }
+  //         } else {
+  //           // Chat count changed, reset stability counter and update last count
+  //           stableCountPolls = 0;
+  //           consecutiveStablePolls = 0; // Reset consecutive stable counter
+  //           lastChatCount = chats2.length;
+  //           lastProgressTime = Date.now(); // Reset progress timer
+  //           lastSignificantProgress = Date.now(); // Reset significant progress timer
+  //         }
 
-          // Continue syncing for a much longer time
-          if (i >= 120) {
-            // At least 120 polls (about 4-5 minutes)
-            // Only stop if we have a very good number of chats and they've been stable for a while
-            if (chats2.length >= 100 && stableCountPolls >= 8) {
-              console.log(
-                `Stopping sync after ${i} polls with ${chats2.length} chats and ${stableCountPolls} stable polls`
-              );
-              setSyncingInProgress(false);
-              setTelegramLoading(false);
-              setSyncComplete(true); // Mark as complete
-              return;
-            }
-          }
+  //         // Continue syncing for a much longer time
+  //         if (i >= 120) {
+  //           // At least 120 polls (about 4-5 minutes)
+  //           // Only stop if we have a very good number of chats and they've been stable for a while
+  //           if (chats2.length >= 100 && stableCountPolls >= 8) {
+  //             console.log(
+  //               `Stopping sync after ${i} polls with ${chats2.length} chats and ${stableCountPolls} stable polls`
+  //             );
+  //             setSyncingInProgress(false);
+  //             setTelegramLoading(false);
+  //             setSyncComplete(true); // Mark as complete
+  //             return;
+  //           }
+  //         }
 
-          // Additional check: if no progress for a very long time, consider stopping
-          const timeSinceProgress = Date.now() - lastProgressTime;
-          if (timeSinceProgress > 300000 && i >= 80) {
-            // 5 minutes without progress
-            console.log(
-              `No progress for 5 minutes, stopping sync. Found ${chats2.length} chats`
-            );
-            setSyncingInProgress(false);
-            setTelegramLoading(false);
-            setSyncComplete(true); // Mark as complete
-            return;
-          }
+  //         // Additional check: if no progress for a very long time, consider stopping
+  //         const timeSinceProgress = Date.now() - lastProgressTime;
+  //         if (timeSinceProgress > 300000 && i >= 80) {
+  //           // 5 minutes without progress
+  //           console.log(
+  //             `No progress for 5 minutes, stopping sync. Found ${chats2.length} chats`
+  //           );
+  //           setSyncingInProgress(false);
+  //           setTelegramLoading(false);
+  //           setSyncComplete(true); // Mark as complete
+  //           return;
+  //         }
 
-          // Additional check: if we've been stable for a reasonable time, consider sync complete
-          const timeSinceSignificantProgress =
-            Date.now() - lastSignificantProgress;
-          if (
-            timeSinceSignificantProgress > 120000 &&
-            consecutiveStablePolls >= 10 &&
-            chats2.length >= 50
-          ) {
-            // 2 minutes without significant progress and stable for 10+ polls
-            console.log(
-              `Sync appears complete: ${chats2.length} chats found, stable for ${consecutiveStablePolls} polls, no significant progress for 2 minutes`
-            );
-            setSyncingInProgress(false);
-            setTelegramLoading(false);
-            setSyncComplete(true);
-            return;
-          }
-        } else {
-          consecutiveEmptyPolls++;
+  //         // Additional check: if we've been stable for a reasonable time, consider sync complete
+  //         const timeSinceSignificantProgress =
+  //           Date.now() - lastSignificantProgress;
+  //         if (
+  //           timeSinceSignificantProgress > 120000 &&
+  //           consecutiveStablePolls >= 10 &&
+  //           chats2.length >= 50
+  //         ) {
+  //           // 2 minutes without significant progress and stable for 10+ polls
+  //           console.log(
+  //             `Sync appears complete: ${chats2.length} chats found, stable for ${consecutiveStablePolls} polls, no significant progress for 2 minutes`
+  //           );
+  //           setSyncingInProgress(false);
+  //           setTelegramLoading(false);
+  //           setSyncComplete(true);
+  //           return;
+  //         }
+  //       } else {
+  //         consecutiveEmptyPolls++;
 
-          // If we've had too many empty polls in a row, stop
-          if (consecutiveEmptyPolls >= maxConsecutiveEmpty && i >= 30) {
-            break;
-          }
-        }
-      }
+  //         // If we've had too many empty polls in a row, stop
+  //         if (consecutiveEmptyPolls >= maxConsecutiveEmpty && i >= 30) {
+  //           break;
+  //         }
+  //       }
+  //     }
 
-      // Wait before next poll - shorter intervals for more responsive updates
-      const waitTime = Math.min(600 + i * 30, 1500); // 600ms to 1.5s for faster updates
-      await new Promise((r) => setTimeout(r, waitTime));
+  //     // Wait before next poll - shorter intervals for more responsive updates
+  //     const waitTime = Math.min(600 + i * 30, 1500); // 600ms to 1.5s for faster updates
+  //     await new Promise((r) => setTimeout(r, waitTime));
 
-      // Every 20 polls, check if we should stop (backend might be done)
-      if (i % 20 === 0 && i > 0) {
-        try {
-          // Check if there are any active sync operations by looking at recent activity
-          const syncCheck = await fetch(
-            `${BACKEND_URL}/ui/chats?include_all=true`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-          if (syncCheck.ok) {
-            const syncData = await syncCheck.json();
-            const currentChats = Array.isArray(syncData)
-              ? syncData
-              : Array.isArray(syncData.chats)
-              ? syncData.chats
-              : [];
+  //     // Every 20 polls, check if we should stop (backend might be done)
+  //     if (i % 20 === 0 && i > 0) {
+  //       try {
+  //         // Check if there are any active sync operations by looking at recent activity
+  //         const syncCheck = await fetch(
+  //           `${BACKEND_URL}/ui/chats?include_all=true`,
+  //           {
+  //             headers: { Authorization: `Bearer ${token}` },
+  //           }
+  //         );
+  //         if (syncCheck.ok) {
+  //           const syncData = await syncCheck.json();
+  //           const currentChats = Array.isArray(syncData)
+  //             ? syncData
+  //             : Array.isArray(syncData.chats)
+  //             ? syncData.chats
+  //             : [];
 
-            // If chat count hasn't changed in the last few checks, consider sync complete
-            if (
-              currentChats.length === lastChatCount &&
-              consecutiveStablePolls >= 8
-            ) {
-              console.log(
-                `Sync appears complete: ${currentChats.length} chats found, stable across multiple checks`
-              );
-              setSyncingInProgress(false);
-              setTelegramLoading(false);
-              setSyncComplete(true);
-              return;
-            }
-          }
-        } catch (e) {
-          // Continue polling if check fails
-          console.log("Sync check failed, continuing:", e);
-        }
-      }
-    }
+  //           // If chat count hasn't changed in the last few checks, consider sync complete
+  //           if (
+  //             currentChats.length === lastChatCount &&
+  //             consecutiveStablePolls >= 8
+  //           ) {
+  //             console.log(
+  //               `Sync appears complete: ${currentChats.length} chats found, stable across multiple checks`
+  //             );
+  //             setSyncingInProgress(false);
+  //             setTelegramLoading(false);
+  //             setSyncComplete(true);
+  //             return;
+  //           }
+  //         }
+  //       } catch (e) {
+  //         // Continue polling if check fails
+  //         console.log("Sync check failed, continuing:", e);
+  //       }
+  //     }
+  //   }
+  //   clearTimeout(timeout);
 
-    // If we reach here, sync has been running for a while
-    console.log(
-      `Sync polling completed after ${200} iterations with ${
-        telegramChats.length
-      } chats`
-    );
-    setSyncingInProgress(false);
-    setTelegramLoading(false);
-    setSyncComplete(true); // Mark as complete even if we hit the limit
-  };
+
+  //   // If we reach here, sync has been running for a while
+  //   console.log(
+  //     `Sync polling completed after ${200} iterations with ${
+  //       telegramChats.length
+  //     } chats`
+  //   );
+  //   setSyncingInProgress(false);
+  //   setTelegramLoading(false);
+  //   setSyncComplete(true); // Mark as complete even if we hit the limit
+  // };
 
   //   const [telegramConnected, setTelegramConnected] = useState(false);
   //   const [discordConnected, setDiscordConnected] = useState(false);
@@ -354,7 +399,7 @@ export const ChatSyncing = ({
       } else {
         // Scale progress based on chat count, but be more conservative
         // Assume a reasonable maximum of chats (e.g., 200) for progress calculation
-        const estimatedMaxChats = Math.max(200, telegramChats.length * 1.5);
+        const estimatedMaxChats = Math.max(20, telegramChats.length * 1.5);
         const chatProgress = Math.min(
           (telegramChats.length / estimatedMaxChats) * 60,
           60
@@ -423,7 +468,7 @@ export const ChatSyncing = ({
       !telegramLoading
     ) {
       // Only mark as complete if we have a reasonable number of chats and sync has been stable
-      if (telegramChats.length >= 20) {
+      if (telegramChats.length >= 10) {
         // Increased minimum requirement
         // Add additional delay to ensure sync is really complete
         setTimeout(() => {
@@ -499,7 +544,7 @@ export const ChatSyncing = ({
               <div className="flex flex-col gap-0 mb-1">
                 <span className="text-lg font-semibold mb-1 text-[#ffffff90]">
                   {syncComplete
-                    ? "Sync done."
+                    ? "Synchronization will be done in background!"
                     : syncingInProgress || telegramLoading
                     ? `Sync in progress... (${telegramChats.length} chats found)`
                     : telegramChats.length > 0
@@ -510,7 +555,7 @@ export const ChatSyncing = ({
                   className={`text-xs text-[#ffffff48] rounded-full font-medium`}
                 >
                   {syncComplete
-                    ? "All your chats were processed. "
+                    ? "All your chats are being processed. "
                     : syncingInProgress || telegramLoading
                     ? `Syncing... ${telegramChats.length} chats found so far. Please wait for complete sync.`
                     : telegramChats.length > 0
@@ -613,7 +658,7 @@ export const ChatSyncing = ({
                         startSyncPolling();
                       } catch (e) {
                         console.error("Failed to start sync:", e);
-                        setSyncingInProgress(false);
+                        // setSyncingInProgress(false);
                         setTelegramLoading(false);
                       }
                     }}
@@ -667,7 +712,8 @@ export const ChatSyncing = ({
                     <span className="bg-[#35c220] text-black rounded-full flex items-center justify-center p-1">
                       <Check className="h-3 w-3" />
                     </span>
-                    Synchronization successful! ({telegramChats.length} chats)
+                    {!syncComplete?`Synchronization successful! (${telegramChats.length} chats)`:"Synchronization in progress."}
+                    
                   </span>
                   <span
                     className={`text-xs text-[#ffffff48] rounded-full font-medium`}
