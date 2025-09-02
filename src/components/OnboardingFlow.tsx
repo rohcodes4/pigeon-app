@@ -20,17 +20,54 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface OnboardingFlowProps {
   onComplete: () => void;
+  telegramChats: any[];
+  setTelegramChats: React.Dispatch<React.SetStateAction<any[]>>;
+  syncProgress: { discord: number; telegram: number };
+  setSyncProgress: React.Dispatch<
+    React.SetStateAction<{ discord: number; telegram: number }>
+  >;
+  syncingInProgress: boolean;
+  setSyncingInProgress: React.Dispatch<React.SetStateAction<boolean>>;
+  startSyncPolling: () => Promise<void>;
+  telegramLoading: boolean,
+  setTelegramLoading: (value)=>void,
+  syncComplete: boolean,
+  setSyncComplete: (value)=>void,
+  hasStartedFindingChats: boolean,
+  setHasStartedFindingChats:(value)=>void,
+  initialSyncTriggered: boolean,
+  setInitialSyncTriggered:(value)=>void,
+  currentStep: number,
+  setCurrentStep:(value)=>void,
 }
 
-export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
+export const OnboardingFlow = ({
+  onComplete, 
+  telegramChats, 
+  setTelegramChats, 
+  syncProgress,
+  setSyncProgress,
+  syncingInProgress, 
+  setSyncingInProgress,
+  startSyncPolling,
+  telegramLoading,
+  setTelegramLoading,
+  syncComplete,
+  setSyncComplete,
+  hasStartedFindingChats,
+  setHasStartedFindingChats,
+  initialSyncTriggered,
+  setInitialSyncTriggered,
+currentStep,
+setCurrentStep }: OnboardingFlowProps) => {
   const { user } = useAuth();
-  const [currentStep, setCurrentStep] = useState(0);
+  // const [currentStep, setCurrentStep] = useState(0);
   const [accountsConnected, setAccountsConnected] = useState(false);
   const [chatsSelected, setChatsSelected] = useState(false);
   const [approvedChats, setApprovedChats] = useState([]);
   const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState({ discord: 0, telegram: 0 });
-  const [syncComplete, setSyncComplete] = useState(false);
+  // const [syncProgress, setSyncProgress] = useState({ discord: 0, telegram: 0 });
+  // const [syncComplete, setSyncComplete] = useState(false);
   const [telegramConnected, setTelegramConnected] = useState(false);
   const [discordConnected, setDiscordConnected] = useState(false);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -163,8 +200,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             clearInterval(telegramInterval);
             // Complete syncing after both are done
             setTimeout(() => {
-              setSyncing(false);
-              setSyncComplete(true);
+              // setSyncing(false);
+              // setSyncComplete(true);
             }, 500);
           }
         }, 350);
@@ -240,6 +277,21 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             setTelegramConnected={setTelegramConnected}
             discordConnected={discordConnected}
             setDiscordConnected={setDiscordConnected}
+            telegramChats={telegramChats}
+            setTelegramChats={setTelegramChats}
+            syncProgress={syncProgress}
+            setSyncProgress={setSyncProgress}
+            syncingInProgress={syncingInProgress}
+            setSyncingInProgress={setSyncingInProgress}
+            startSyncPolling={startSyncPolling}
+            telegramLoading={telegramLoading}
+            setTelegramLoading={setTelegramLoading}
+            syncComplete={syncComplete}
+            setSyncComplete={setSyncComplete}
+            hasStartedFindingChats={hasStartedFindingChats}
+            setHasStartedFindingChats={setHasStartedFindingChats}
+            initialSyncTriggered={initialSyncTriggered}
+            setInitialSyncTriggered={setInitialSyncTriggered}
           />
         );
       // case 0:
