@@ -266,9 +266,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             )}
           </div>
         )}
-        <div className="p-2 border rounded-[10px] border-[#ffffff09] inline-flex items-center justify-center cursor-pointer">
+        {/* <div className="p-2 border rounded-[10px] border-[#ffffff09] inline-flex items-center justify-center cursor-pointer">
           <Filter className="h-4 w-4 fill-[#84afff] text-[#84afff]" />
-        </div>
+        </div> */}
         <div className="p-2 border rounded-[10px] border-[#ffffff09] inline-flex items-center justify-center cursor-pointer">
           <Pin
             className="h-4 w-4 fill-[#84afff] text-[#84afff]"

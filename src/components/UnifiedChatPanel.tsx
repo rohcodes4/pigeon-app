@@ -175,6 +175,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const [loading, setLoading] = React.useState(false);
   const [loadingMore, setLoadingMore] = React.useState(false);
   const [hasMoreMessages, setHasMoreMessages] = React.useState(true);
+  const [menuPositions, setMenuPositions] = React.useState({});
   const [shouldAutoScroll, setShouldAutoScroll] = React.useState(true);
   const [pinLoading, setPinLoading] = React.useState({});
 const [pinnedMessages, setPinnedMessages] = React.useState([]);
@@ -203,6 +204,21 @@ const [pinnedMessages, setPinnedMessages] = React.useState([]);
   }
 
   return response.json();
+};
+
+const getMenuPosition = (buttonElement) => {
+  if (!buttonElement) return 'bottom-[110%]';
+  
+  const rect = buttonElement.getBoundingClientRect();
+  const viewportHeight = window.innerHeight;
+  const menuHeight = 500; // Approximate height of your menu
+  
+  // If there's not enough space above, show below
+  if (rect.top < menuHeight) {
+    return 'top-[110%]';
+  }
+  // Otherwise show above
+  return 'bottom-[110%]';
 };
 
 const unpinMessage = async (pinId) => {
@@ -1369,8 +1385,8 @@ React.useEffect(() => {
     <div className="relative h-[calc(100vh-136px)] flex flex-col flex-shrink-0 min-w-0">
       {/* Selected Chat Info */}
       {selectedChat && (
-        <div className="px-6 py-4 border-b border-[#23272f] flex-shrink-0">
-          <div className="flex items-center gap-3">
+        <div className="px-6 py-4 border-b border-[#23272f]  flex-shrink-0 relative z-0">
+          <div className="flex  items-center gap-3">
             {selectedChat === "all-channels" ? (
               <img
                 src={aiAll}
@@ -1406,7 +1422,7 @@ React.useEffect(() => {
               />
             )}
             <div>
-              <h3 className="text-white font-medium">
+              <h3 className="text-white z-0 font-medium">
                 {selectedChat === "all-channels"
                   ? "All Channels"
                   : selectedChat.name}
@@ -1432,7 +1448,7 @@ React.useEffect(() => {
       {/* Message List  */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto px-6 flex flex-col gap-4"
+        className="flex-1 z-20 overflow-y-auto px-6 flex flex-col gap-4"
         onScroll={handleScroll}
       >
         {/* Loading indicator for loading more messages at top */}
@@ -1489,7 +1505,7 @@ React.useEffect(() => {
                   />
 
                   <div className="flex-1 relative">
-                    <div className="absolute right-0 top-0 flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <div className="absolute right-0 top-100 flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
                       <button
                         className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
                         title="Reply"
@@ -1529,82 +1545,91 @@ React.useEffect(() => {
                       >
                         <FaTelegramPlane className="text-[#ffffff] w-3 h-3" />
                       </button>
-                      <button
-                        className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
-                        title="More"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const mid = String(msg.id);
-                          setOpenMenuId(openMenuId === mid ? null : mid);
-                        }}
-                      >
-                        <IoIosMore className="text-[#ffffff] w-3 h-3" />
-                        {/* Popup menu */}
-                        {openMenuId === String(msg.id) && (
-                          <div className="absolute right-0 bottom-[110%] mt-2 bg-[#111111] border border-[#ffffff12] rounded-[10px] shadow-lg z-50 flex flex-col p-2 min-w-max">
-                            <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
-                              <img src={smartIcon} className="w-6 h-6" />
-                              Add to Smart Channels
-                            </button>
-                            <button
-                              className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleBookmark(msg, "bookmark");
-                              }}
-                              disabled={bookmarkLoading[msg.id]}
-                            >
-                              <Heart
-                                className="w-6 h-6"
-                                stroke="currentColor"
-                                fill="currentColor"
-                              />
-                              {bookmarkLoading[msg.id]
-                                ? "Saving..."
-                                : "Save to Favorites"}
-                            </button>
-<button
-  className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+    <button
+  className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
+  title="More"
   onClick={(e) => {
     e.stopPropagation();
-    setOpenMenuId(null);
-    handlePin(msg);
+    const mid = String(msg.id);
+    const newOpenMenuId = openMenuId === mid ? null : mid;
+    
+    if (newOpenMenuId) {
+      // Calculate and store position for this specific menu
+      const position = getMenuPosition(e.currentTarget);
+      setMenuPositions(prev => ({
+        ...prev,
+        [mid]: position
+      }));
+    }
+    
+    setOpenMenuId(newOpenMenuId);
   }}
-  disabled={pinLoading[msg.id]}
 >
-  <Pin
-    className={`w-6 h-6 ${
-      isMessagePinned((msg.originalId || msg.id)?.toString()) 
-        ? "text-blue-400" 
-        : ""
-    }`}
-    stroke="currentColor"
-    fill={isMessagePinned((msg.originalId || msg.id)?.toString()) ? "currentColor" : "none"}
-  />
-  {pinLoading[msg.id] ? 
-    (isMessagePinned((msg.originalId || msg.id)?.toString()) ? "Unpinning..." : "Pinning...") :
-    (isMessagePinned((msg.originalId || msg.id)?.toString()) ? "Unpin Message" : "Pin Message")
-  }
+  <IoIosMore className="text-[#ffffff] w-3 h-3" />
+  {/* Popup menu */}
+  {openMenuId === String(msg.id) && (
+    <div className={`absolute right-0 ${menuPositions[String(msg.id)] || 'bottom-[110%]'} mt-2 bg-[#111111] border border-[#ffffff12] rounded-[10px] shadow-lg z-[9999] flex flex-col p-2 min-w-max`}>
+      <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+        <img src={smartIcon} className="w-6 h-6" />
+        Add to Smart Channels
+      </button>
+      <button
+        className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+        onClick={(e) => {
+          e.stopPropagation();
+          handleBookmark(msg, "bookmark");
+        }}
+        disabled={bookmarkLoading[msg.id]}
+      >
+        <Heart
+          className="w-6 h-6"
+          stroke="currentColor"
+          fill="currentColor"
+        />
+        {bookmarkLoading[msg.id] ? "Saving..." : "Save to Favorites"}
+      </button>
+      <button
+        className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpenMenuId(null);
+          handlePin(msg);
+        }}
+        disabled={pinLoading[msg.id]}
+      >
+        <Pin
+          className={`w-6 h-6 ${
+            isMessagePinned((msg.originalId || msg.id)?.toString()) 
+              ? "text-blue-400" 
+              : ""
+          }`}
+          stroke="currentColor"
+          fill={isMessagePinned((msg.originalId || msg.id)?.toString()) ? "currentColor" : "none"}
+        />
+        {pinLoading[msg.id] ? 
+          (isMessagePinned((msg.originalId || msg.id)?.toString()) ? "Unpinning..." : "Pinning...") :
+          (isMessagePinned((msg.originalId || msg.id)?.toString()) ? "Unpin Message" : "Pin Message")
+        }
+      </button>
+      <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+        <Plus
+          className="w-6 h-6"
+          stroke="currentColor"
+          fill="currentColor"
+        />
+        Add Tags
+      </button>
+      <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#f36363] hover:text-[#f36363] whitespace-nowrap">
+        <VolumeX
+          className="w-6 h-6"
+          stroke="currentColor"
+          fill="currentColor"
+        />
+        Mute Channel
+      </button>
+    </div>
+  )}
 </button>
-                            <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
-                              <Plus
-                                className="w-6 h-6"
-                                stroke="currentColor"
-                                fill="currentColor"
-                              />
-                              Add Tags
-                            </button>
-                            <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#f36363] hover:text-[#f36363] whitespace-nowrap">
-                              <VolumeX
-                                className="w-6 h-6"
-                                stroke="currentColor"
-                                fill="currentColor"
-                              />
-                              Mute Channel
-                            </button>
-                          </div>
-                        )}
-                      </button>
                     </div>
                     <div className="flex items-center justify-start gap-2">
                       <span className="text-[#ffffff72] font-[300]">
@@ -1769,7 +1794,7 @@ React.useEffect(() => {
         {/* Scroll target for auto-scroll */}
         <div ref={messagesEndRef} />
       </div>
-      <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-t from-[#181A20] via-[#181A20ee] to-transparent">
+      <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-t from-[#181A20] via-[#181A20ee] z-20 to-transparent">
         {/* Replying to box */}
         {uploadedFiles.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2">
@@ -1858,7 +1883,7 @@ React.useEffect(() => {
             </button>
           </div>
         )}
-        <div className="flex">
+        <div className="flex z-50">
           <div className="flex grow items-center bg-[#212121] rounded-[10px] px-4 py-2 shadow-lg">
             <div
               ref={attachRef}
@@ -1900,7 +1925,7 @@ React.useEffect(() => {
                   selectedChat?.keywords !== undefined ||
                   isSending
                 ) && (
-                  <div className="absolute bottom-[130%] left-0 mb-2 px-3 py-2 bg-[#2d2d2d] text-white text-sm rounded-lg shadow-lg border border-[#ffffff14] z-50">
+                  <div className="absolute bottom-[130%] left-0 mb-2 px-3 py-2 bg-[#2d2d2d] text-white text-sm rounded-lg shadow-lg border border-[#ffffff14] z-100">
                     {/* Actual file input, hidden */}
                     <input
                       ref={fileInputRef}
