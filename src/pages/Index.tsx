@@ -332,6 +332,7 @@ const Index = () => {
           <ChatPanel
             chats={chats}
             onChatSelect={handleChatSelect}
+            
             selectedChat={selectedChat}
           />
           <div

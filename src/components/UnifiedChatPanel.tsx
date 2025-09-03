@@ -16,6 +16,7 @@ import {
   SmilePlus,
   SmilePlusIcon,
   Heart,
+    ChevronDown, 
   Pin,
   Plus,
   VolumeX,
@@ -175,10 +176,12 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const [loading, setLoading] = React.useState(false);
   const [loadingMore, setLoadingMore] = React.useState(false);
   const [hasMoreMessages, setHasMoreMessages] = React.useState(true);
+  const [isNewChat, setIsNewChat] = React.useState(false);
   const [menuPositions, setMenuPositions] = React.useState({});
   const [shouldAutoScroll, setShouldAutoScroll] = React.useState(true);
   const [pinLoading, setPinLoading] = React.useState({});
 const [pinnedMessages, setPinnedMessages] = React.useState([]);
+const [showScrollToBottom, setShowScrollToBottom] = React.useState(false);
   const [isSending, setIsSending] = React.useState(false);
   // Page size for fetching messages from backend
   const PAGE_SIZE = 100;
@@ -401,18 +404,21 @@ const getPinnedMessages = async (chatId = null) => {
 };
 
   // Auto-scroll to bottom when messages change
-  const scrollToBottom = () => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-    // Scroll the container itself to the bottom. Run twice via rAF to account for late layout (e.g., images loading)
+const scrollToBottom = React.useCallback(() => {
+  const container = messagesContainerRef.current;
+  if (!container) return;
+  
+  // Scroll the container itself to the bottom
+  requestAnimationFrame(() => {
+    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
     requestAnimationFrame(() => {
       container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
-      requestAnimationFrame(() => {
-        container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
-      });
     });
-  };
-
+  });
+  
+  // Hide the scroll button after scrolling
+  setShowScrollToBottom(false);
+}, []);
   const [showAttachMenu, setShowAttachMenu] = React.useState(false);
   const attachRef = React.useRef(null);
   const [uploadedFiles, setUploadedFiles] = React.useState([]);
@@ -511,11 +517,20 @@ const getPinnedMessages = async (chatId = null) => {
     window.open(webUrl, "_blank");
   };
 
-  React.useEffect(() => {
-    if (shouldAutoScroll) {
+React.useEffect(() => {
+  // Only auto-scroll if it's a new chat or shouldAutoScroll is explicitly set
+  if (shouldAutoScroll || isNewChat) {
+    // Use setTimeout to ensure DOM has updated after messages render
+    setTimeout(() => {
       scrollToBottom();
+    }, 100);
+    
+    // Reset the new chat flag after scrolling
+    if (isNewChat) {
+      setIsNewChat(false);
     }
-  }, [messages, shouldAutoScroll]);
+  }
+}, [messages, shouldAutoScroll, isNewChat, scrollToBottom]);
 
   const groupedByDate: { [date: string]: typeof messages } =
     React.useMemo(() => {
@@ -970,32 +985,36 @@ const getPinnedMessages = async (chatId = null) => {
   ]);
 
   // Scroll event handler for infinite loading
-  const handleScroll = React.useCallback(
-    (e: React.UIEvent<HTMLDivElement>) => {
-      const container = e.currentTarget;
-      const scrollTop = container.scrollTop;
-      const threshold = 100; // Load more when within 100px of top
+const handleScroll = React.useCallback(
+  (e: React.UIEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight;
+    const clientHeight = container.clientHeight;
+    const threshold = 100; // Load more when within 100px of top
 
-      const isScrollable =
-        container.scrollHeight > container.clientHeight + threshold;
+    // Check if user has scrolled up from bottom (show scroll button)
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
+    setShowScrollToBottom(!isNearBottom);
 
-      if (
-        scrollTop <= threshold &&
-        hasMoreMessages &&
-        !loadingMore &&
-        !loading &&
-        isScrollable
-      ) {
-        // Capture current dimensions to restore scroll offset after older messages are prepended
-        scrollRestoreRef.current = {
-          prevHeight: container.scrollHeight,
-          prevTop: container.scrollTop,
-        };
-        loadMoreMessages();
-      }
-    },
-    [hasMoreMessages, loadingMore, loading, loadMoreMessages]
-  );
+    const isScrollable = scrollHeight > clientHeight + threshold;
+
+    if (
+      scrollTop <= threshold &&
+      hasMoreMessages &&
+      !loadingMore &&
+      !loading &&
+      isScrollable
+    ) {
+      scrollRestoreRef.current = {
+        prevHeight: container.scrollHeight,
+        prevTop: container.scrollTop,
+      };
+      loadMoreMessages();
+    }
+  },
+  [hasMoreMessages, loadingMore, loading, loadMoreMessages]
+);
 
   // After messages update, restore scroll position when we just prepended older items
   React.useEffect(() => {
@@ -1164,171 +1183,178 @@ const getPinnedMessages = async (chatId = null) => {
   }, [openMenuId]);
 
   // Silent refresh that avoids toggling loading states and only appends new messages
-  const refreshLatest = React.useCallback(async () => {
-    if (USE_DUMMY_DATA) return;
-    try {
-      const token = localStorage.getItem("access_token");
-      let endpoint: string | null = null;
+const refreshLatest = React.useCallback(async () => {
+  if (USE_DUMMY_DATA) return;
+  try {
+    const token = localStorage.getItem("access_token");
+    let endpoint: string | null = null;
 
-      if (selectedChat === "all-channels") {
-        endpoint = `${
-          import.meta.env.VITE_BACKEND_URL
-        }/chats/all/messages?limit=${PAGE_SIZE}`;
-      } else if (
-        selectedChat &&
-        typeof selectedChat === "object" &&
-        (selectedChat as any).id
+    if (selectedChat === "all-channels") {
+      endpoint = `${
+        import.meta.env.VITE_BACKEND_URL
+      }/chats/all/messages?limit=${PAGE_SIZE}`;
+    } else if (
+      selectedChat &&
+      typeof selectedChat === "object" &&
+      (selectedChat as any).id
+    ) {
+      if (
+        (selectedChat as any).name &&
+        (selectedChat as any).keywords !== undefined
       ) {
-        if (
-          (selectedChat as any).name &&
-          (selectedChat as any).keywords !== undefined
-        ) {
-          endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
-            (selectedChat as any).id
-          }/messages?limit=${PAGE_SIZE}`;
-        } else {
-          endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/${
-            (selectedChat as any).id
-          }/messages?limit=${PAGE_SIZE}`;
-        }
+        endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
+          (selectedChat as any).id
+        }/messages?limit=${PAGE_SIZE}`;
       } else {
-        console.log(
-          "DEBUG: No valid selectedChat, skipping refresh",
-          selectedChat
-        );
-        return;
+        endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/${
+          (selectedChat as any).id
+        }/messages?limit=${PAGE_SIZE}`;
       }
-
-      console.log("DEBUG: Refreshing from endpoint:", endpoint);
-      const response = await fetch(endpoint, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (!response.ok) {
-        console.log(
-          "DEBUG: Response not OK:",
-          response.status,
-          response.statusText
-        );
-        return;
-      }
-      const data = await response.json();
-
-      const toChips = (results: any[]) =>
-        results
-          .map((r: any) => {
-            const emoticon =
-              typeof r?.reaction?.emoticon === "string"
-                ? r.reaction.emoticon
-                : typeof r?.reaction === "string"
-                ? r.reaction
-                : null;
-            const normalized =
-              emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
-            return normalized
-              ? { icon: normalized, count: r?.count || 0 }
-              : null;
-          })
-          .filter(Boolean) as Array<{ icon: string; count: number }>;
-
-      const transformed = (data || []).map((msg: any, index: number) => {
-        const reactionResults =
-          ((msg?.message || {}).reactions || {}).results || [];
-        const parsedReactions = Array.isArray(reactionResults)
-          ? toChips(reactionResults)
-          : [];
-        const chatName = msg.chat
-          ? msg.chat.title ||
-            msg.chat.username ||
-            msg.chat.first_name ||
-            "Unknown"
-          : selectedChat && typeof selectedChat === "object"
-          ? (selectedChat as any).name || "Chat"
-          : "Unknown";
-        return {
-          id: msg._id || msg.id || String(index + 1),
-          originalId: msg._id || msg.id,
-          telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
-          name: msg.sender?.first_name || msg.sender?.username || "Unknown",
-          avatar: msg.sender?.id
-            ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
-                msg.sender.id
-              }`
-            : gravatarUrl(
-                msg.sender?.first_name || msg.sender?.username || "Unknown"
-              ),
-          platform: "Telegram" as const,
-          channel: null,
-          server: chatName,
-          date: new Date(msg.timestamp),
-          message: msg.raw_text || "",
-          tags: [],
-          reactions: parsedReactions,
-          hasLink: (msg.raw_text || "").includes("http"),
-          link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
-          replyTo: null as any,
-        } as MessageItem;
-      });
-
-      transformed.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-      console.log("DEBUG: API returned", data.length, "messages");
-      console.log("DEBUG: Transformed", transformed.length, "messages");
-
-      setMessages((prev) => {
-        const idOf = (x: any) => String(x.originalId || x.id);
-        const prevMap = new Map(prev.map((m) => [idOf(m), m]));
-        let changed = false;
-        for (const m of transformed) {
-          const key = idOf(m);
-          if (prevMap.has(key)) {
-            // Update existing entry (reactions/timestamp/etc.)
-            const old = prevMap.get(key)!;
-            // Preserve any local fields (e.g., replyTo)
-            const merged = { ...old, ...m };
-            prevMap.set(key, merged);
-            changed = true;
-          } else {
-            prevMap.set(key, m);
-            changed = true;
-          }
-        }
-        if (!changed) return prev;
-        // Return in chronological order
-        return Array.from(prevMap.values()).sort(
-          (a, b) => a.date.getTime() - b.date.getTime()
-        );
-      });
-      setShouldAutoScroll(true);
-    } catch (e) {
-      console.error("DEBUG: refreshLatest error:", e);
+    } else {
+      console.log(
+        "DEBUG: No valid selectedChat, skipping refresh",
+        selectedChat
+      );
+      return;
     }
-  }, [USE_DUMMY_DATA, selectedChat]);
+
+    console.log("DEBUG: Refreshing from endpoint:", endpoint);
+    const response = await fetch(endpoint, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    if (!response.ok) {
+      console.log(
+        "DEBUG: Response not OK:",
+        response.status,
+        response.statusText
+      );
+      return;
+    }
+    const data = await response.json();
+
+    const toChips = (results: any[]) =>
+      results
+        .map((r: any) => {
+          const emoticon =
+            typeof r?.reaction?.emoticon === "string"
+              ? r.reaction.emoticon
+              : typeof r?.reaction === "string"
+              ? r.reaction
+              : null;
+          const normalized =
+            emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
+          return normalized
+            ? { icon: normalized, count: r?.count || 0 }
+            : null;
+        })
+        .filter(Boolean) as Array<{ icon: string; count: number }>;
+
+    const transformed = (data || []).map((msg: any, index: number) => {
+      const reactionResults =
+        ((msg?.message || {}).reactions || {}).results || [];
+      const parsedReactions = Array.isArray(reactionResults)
+        ? toChips(reactionResults)
+        : [];
+      const chatName = msg.chat
+        ? msg.chat.title ||
+          msg.chat.username ||
+          msg.chat.first_name ||
+          "Unknown"
+        : selectedChat && typeof selectedChat === "object"
+        ? (selectedChat as any).name || "Chat"
+        : "Unknown";
+      return {
+        id: msg._id || msg.id || String(index + 1),
+        originalId: msg._id || msg.id,
+        telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
+        name: msg.sender?.first_name || msg.sender?.username || "Unknown",
+        avatar: msg.sender?.id
+          ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
+              msg.sender.id
+            }`
+          : gravatarUrl(
+              msg.sender?.first_name || msg.sender?.username || "Unknown"
+            ),
+        platform: "Telegram" as const,
+        channel: null,
+        server: chatName,
+        date: new Date(msg.timestamp),
+        message: msg.raw_text || "",
+        tags: [],
+        reactions: parsedReactions,
+        hasLink: (msg.raw_text || "").includes("http"),
+        link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
+        replyTo: null as any,
+        originalChatType: msg.chat?._ || null,
+      } as MessageItem;
+    });
+
+    transformed.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    console.log("DEBUG: API returned", data.length, "messages");
+    console.log("DEBUG: Transformed", transformed.length, "messages");
+
+    setMessages((prev) => {
+      const idOf = (x: any) => String(x.originalId || x.id);
+      const prevMap = new Map(prev.map((m) => [idOf(m), m]));
+      let changed = false;
+      for (const m of transformed) {
+        const key = idOf(m);
+        if (prevMap.has(key)) {
+          // Update existing entry (reactions/timestamp/etc.)
+          const old = prevMap.get(key)!;
+          // Preserve any local fields (e.g., replyTo)
+          const merged = { ...old, ...m };
+          prevMap.set(key, merged);
+          changed = true;
+        } else {
+          prevMap.set(key, m);
+          changed = true;
+        }
+      }
+      if (!changed) return prev;
+      // Return in chronological order
+      return Array.from(prevMap.values()).sort(
+        (a, b) => a.date.getTime() - b.date.getTime()
+      );
+    });
+    
+    // Don't set shouldAutoScroll to true - this prevents auto-scroll during polling
+    // Only scroll when it's a new chat or user explicitly sends a message
+    
+  } catch (e) {
+    console.error("DEBUG: refreshLatest error:", e);
+  }
+}, [USE_DUMMY_DATA, selectedChat]);
 
   // Fetch messages when selectedChat changes or on initial mount
 React.useEffect(() => {
+  // Set flag to indicate this is a new chat (should auto-scroll)
+  setIsNewChat(true);
+  
   if (!USE_DUMMY_DATA) {
     if (selectedChat?.id) {
       if (selectedChat.name && selectedChat.keywords !== undefined) {
         fetchMessages(selectedChat);
-        fetchPinnedMessages(); // Add this line
+        fetchPinnedMessages();
       } else {
         fetchMessages(selectedChat.id);
-        fetchPinnedMessages(selectedChat.id); // Add this line
+        fetchPinnedMessages(selectedChat.id);
         markChatAsRead(selectedChat.id);
       }
     } else if (selectedChat === "all-channels") {
       fetchMessages("all-channels");
-      fetchPinnedMessages(); // Add this line
+      fetchPinnedMessages();
     } else {
       setMessages([]);
-      setPinnedMessages([]); // Add this line
+      setPinnedMessages([]);
     }
   } else {
     setMessages(dummyMessages);
-    setPinnedMessages([]); // Add this line
+    setPinnedMessages([]);
   }
   setShowAttachMenu(false);
   setReplyTo(null);
@@ -1351,7 +1377,7 @@ React.useEffect(() => {
         timer = setTimeout(poll, 10000);
       }
     };
-    timer = setTimeout(poll, 10000);
+    timer = setTimeout(poll, 100);
     return () => {
       if (timer) clearTimeout(timer);
     };
@@ -1794,6 +1820,17 @@ React.useEffect(() => {
         {/* Scroll target for auto-scroll */}
         <div ref={messagesEndRef} />
       </div>
+      {showScrollToBottom && (
+  <div className="absolute bottom-20 right-6 z-30">
+    <button
+      onClick={scrollToBottom}
+      className="flex items-center justify-center w-12 h-12 bg-[#3474ff] hover:bg-[#5389ff] text-white rounded-full shadow-lg transition-all duration-200 hover:scale-105"
+      title="Scroll to bottom"
+    >
+      <ChevronDown className="w-6 h-6" />
+    </button>
+  </div>
+)}
       <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-t from-[#181A20] via-[#181A20ee] z-20 to-transparent">
         {/* Replying to box */}
         {uploadedFiles.length > 0 && (
