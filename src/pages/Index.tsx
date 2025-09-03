@@ -637,6 +637,7 @@ const [currentStep, setCurrentStep] = useState(0);
           <ChatPanel
             chats={chats}
             onChatSelect={handleChatSelect}
+            
             selectedChat={selectedChat}
           />
           <div
