@@ -1047,7 +1047,7 @@ const handleScroll = React.useCallback(
     const messageText = inputRef.current.value.trim();
 
     // Check if we have a valid chat selected and it's not "all-channels"
-    if (!selectedChat || selectedChat === "all-channels") {
+    if (!selectedChat) {
       toast({
         title: "No chat selected",
         description: "Please select a specific chat to send messages",
@@ -1324,6 +1324,7 @@ const refreshLatest = React.useCallback(async () => {
           prevMap.set(key, m);
           changed = true;
         }
+
       }
       if (!changed) return prev;
       // Return in chronological order
@@ -1339,6 +1340,7 @@ const refreshLatest = React.useCallback(async () => {
     console.error("DEBUG: refreshLatest error:", e);
   }
 }, [USE_DUMMY_DATA, selectedChat]);
+
 
   // Fetch messages when selectedChat changes or on initial mount
 React.useEffect(() => {
