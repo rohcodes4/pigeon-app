@@ -96,10 +96,20 @@ function formatDate(date: Date) {
   });
 }
 
-function formatTime(date: Date) {
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
+// function formatTime(date: Date) {
+//   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+// }
 
+function formatTime(dateObj) {
+  // Add 5 hours and 30 minutes (330 minutes total)
+  const adjustedDate = new Date(dateObj.getTime() + (5.5 * 60 * 60 * 1000));
+  
+  return adjustedDate.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
 function gravatarUrl(seed: string) {
   try {
     // Handle Unicode characters safely
@@ -1684,12 +1694,14 @@ React.useEffect(() => {
                           </span>
                         )}
                       </div>
+                
                       <span className="text-xs text-[#fafafa99]">
                         {msg.channel}
                       </span>
-                      <span className="text-xs text-[#ffffff32]">
-                        {formatTime(msg.date)}
-                      </span>
+           <span className="text-xs text-[#ffffff32]">
+  {console.log('Raw msg.date:', msg.date, 'Type:', typeof msg.date)}
+  {formatTime(msg.date)}
+</span>
                       {String(msg.id).startsWith("temp-") && (
                         <span className="text-xs text-[#84afff] italic">
                           sending...

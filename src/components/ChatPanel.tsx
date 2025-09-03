@@ -108,26 +108,61 @@ const sortedChats = [
   ...chatsSortedByTime.filter((chat) => !chat.pinned),
 ];
 
+// function formatChatTime(dateString: string) {
+//   const now = new Date();
+//   const chatDate = new Date(dateString); // Parse directly as a Date object
+
+//   // Handle invalid dates
+//   if (isNaN(chatDate.getTime())) {
+//     console.log("Invalid date string:", dateString);
+//     return "now";
+//   }
+
+//   const diffMs = now.getTime() - chatDate.getTime();
+//   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+//   const diffWeeks = Math.floor(diffDays / 7);
+//   const diffMonths = Math.floor(diffDays / 30);
+
+//   if (diffDays === 0) {
+//     // Same day, show time
+//     return chatDate.toLocaleTimeString([], {
+//       hour: "2-digit",
+//       minute: "2-digit",
+//     });
+//   } else if (diffDays === 1) {
+//     return "1d";
+//   } else if (diffDays < 7) {
+//     return `${diffDays}d`;
+//   } else if (diffWeeks < 4) {
+//     return `${diffWeeks}wk`;
+//   } else {
+//     return `${diffMonths}mo`;
+//   }
+// }
+
 function formatChatTime(dateString: string) {
   const now = new Date();
-  const chatDate = new Date(dateString); // Parse directly as a Date object
-
+  
+  // Parse as UTC by adding 'Z', then it will be properly converted
+  const chatDate = new Date(dateString + 'Z');
+  
   // Handle invalid dates
   if (isNaN(chatDate.getTime())) {
     console.log("Invalid date string:", dateString);
     return "now";
   }
-
+  
   const diffMs = now.getTime() - chatDate.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   const diffWeeks = Math.floor(diffDays / 7);
   const diffMonths = Math.floor(diffDays / 30);
-
+  
   if (diffDays === 0) {
-    // Same day, show time
-    return chatDate.toLocaleTimeString([], {
+    // Same day, show time in IST
+    return chatDate.toLocaleTimeString("en-IN", {
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "Asia/Kolkata"
     });
   } else if (diffDays === 1) {
     return "1d";
@@ -1073,9 +1108,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         </div>
                       </div>
                       <div className="flex flex-col items-center gap-1">
-                        <span className="self-end text-xs text-gray-400">
-                          {formatChatTime(chat.timestamp)}
-                        </span>
+      <span className="self-end text-xs text-gray-400">
+  {console.log('Raw chat.timestamp:', chat.timestamp, 'Type:', typeof chat.timestamp)}
+  {formatChatTime(chat.timestamp)}
+</span>
                         <div className="flex items-center gap-1">
                           {chat.pinned && (
                             <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
