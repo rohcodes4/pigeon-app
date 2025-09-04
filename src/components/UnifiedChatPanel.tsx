@@ -42,7 +42,7 @@ import { toast } from "@/hooks/use-toast";
 
 const LoadingDots: React.FC = () => {
   return (
-    <span aria-label="Loading" role="status" className="inline-flex space-x-1 ml-4 mt-8">
+    <span aria-label="Loading" role="status" className="inline-flex space-x-1 ml-12 my-4">
       <span className="dot animate-bounce">•</span>
       <span className="dot animate-bounce animation-delay-200">•</span>
       <span className="dot animate-bounce animation-delay-400">•</span>
@@ -622,20 +622,20 @@ const scrollToBottom = React.useCallback(() => {
   };
 
 
-React.useEffect(() => {
-  // Only auto-scroll if it's a new chat or shouldAutoScroll is explicitly set
-  if (shouldAutoScroll || isNewChat) {
-    // Use setTimeout to ensure DOM has updated after messages render
-    // setTimeout(() => {
-      scrollToBottom();
-    // }, 100);
-    
-    // Reset the new chat flag after scrolling
-    if (isNewChat) {
-      setIsNewChat(false);
+  React.useEffect(() => {
+    // Only auto-scroll if it's a new chat or shouldAutoScroll is explicitly set
+    if (shouldAutoScroll || isNewChat) {
+      // Use setTimeout to ensure DOM has updated after messages render
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+  
+      // Reset the new chat flag after scrolling
+      if (isNewChat) {
+        setIsNewChat(false);
+      }
     }
-  }
-}, [messages, shouldAutoScroll, isNewChat, scrollToBottom]);
+  }, [messages, shouldAutoScroll, isNewChat, scrollToBottom]);
 
   const groupedByDate: { [date: string]: typeof messages } =
     React.useMemo(() => {
@@ -877,7 +877,7 @@ React.useEffect(() => {
       append = false
     ) => {
       if (!chatId) return;
-
+      console.log('chatId: ', chatId)
       // If using dummy data, don't fetch from API
       if (USE_DUMMY_DATA) {
         setMessages(dummyMessages);
@@ -1057,7 +1057,7 @@ React.useEffect(() => {
         setLoadingMore(false);
       }
     },
-    [selectedChat?.name] // Only depend on the name, not the entire object
+    [selectedChat] // Only depend on the name, not the entire object
   );
 
   // Function to load more messages when scrolling to top
@@ -1146,6 +1146,7 @@ const handleScroll = React.useCallback(
   };
 
   const handleSend = async () => {
+
     if (!inputRef.current || !inputRef.current.value.trim() && uploadedFiles.length === 0) {
       return;
     }
@@ -1156,12 +1157,14 @@ const handleScroll = React.useCallback(
           await sendMediaToChat({
             chatId: selectedChat.id,
             file: fileWrapper.file,
-            caption: "",      // Optional: could set to message text or empty
+            caption: inputRef.current.value.trim(),      // Optional: could set to message text or empty
             fileName: fileWrapper.file.name,
           });
         }
         // Clear uploaded files after successful upload
         setUploadedFiles([]);
+    inputRef.current.value =""
+
       } catch (error) {
         console.error("Error sending media:", error);
         toast({
@@ -1256,14 +1259,14 @@ const handleScroll = React.useCallback(
       // Send message to backend/Telegram
       const replyToId = originalReplyTo?.telegramMessageId;
       const result = await sendMessage(id, messageText, replyToId);
-
+      inputRef.current.value =""
       console.log("Message sent successfully:", result);
 
       // Show success toast
-      toast({
-        title: "Message sent",
-        description: "Your message has been sent successfully",
-      });
+      // toast({
+      //   title: "Message sent",
+      //   description: "Your message has been sent successfully",
+      // });
 
       // Remove optimistic message since the real one will come from the database
       setMessages((prev) =>
@@ -2019,8 +2022,6 @@ React.useEffect(() => {
                   </div>
                 </div>
               ))}
-              {selectedChat.is_typing && <LoadingDots/>
-            }
             </div>
           ))
         )}
@@ -2038,6 +2039,8 @@ React.useEffect(() => {
     </button>
   </div>
 )}
+              {selectedChat.is_typing && <LoadingDots/>}
+
       <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-t from-[#181A20] via-[#181A20ee] z-20 to-transparent">
         {/* Replying to box */}
         {uploadedFiles.length > 0 && (
