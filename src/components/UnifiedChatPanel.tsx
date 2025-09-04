@@ -514,9 +514,9 @@ const scrollToBottom = React.useCallback(() => {
   
   // Scroll the container itself to the bottom
   requestAnimationFrame(() => {
-    // container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
     requestAnimationFrame(() => {
-      // container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
     });
   });
   
@@ -1678,7 +1678,7 @@ React.useEffect(() => {
       <div
         ref={messagesContainerRef}
         className="flex-1 z-20 overflow-y-auto px-6 flex flex-col gap-4"
-        // onScroll={handleScroll}
+        onScroll={handleScroll}
       >
         {/* Loading indicator for loading more messages at top */}
         {loadingMore && (
