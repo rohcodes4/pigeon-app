@@ -131,8 +131,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   return (
     <header className="flex items-center justify-between mr-6 ml-3 py-4">
       <div className="flex items-center gap-3">
+        {/* <p className="font-montserrat text-[#5389ff] font-[600] text-[24px] tracking-[1px]">Pigeon</p> */}
         {/* Logo and Title */}
-        <svg
+        {/* <svg
           width="77"
           height="30"
           viewBox="0 0 77 30"
@@ -179,7 +180,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             d="M66.5443 10.1645H69.821V12.0464C70.5443 11.5076 71.3081 11.0427 72.1125 10.6516C72.9169 10.2604 73.7177 9.96153 74.5147 9.75489L75.4778 12.7549C74.2158 12.8803 73.1051 13.1644 72.1457 13.6072C71.1937 14.0427 70.4188 14.6589 69.821 15.4559V23.227H66.5443V10.1645Z"
             stroke="#3474FF"
           />
-        </svg>
+        </svg> */}
       </div>
       <div className="flex items-center gap-3 relative">
         <div className="relative flex-1 flex items-center bg-[#212121] py-2 px-4 rounded-[12px]">
