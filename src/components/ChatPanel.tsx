@@ -252,6 +252,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [editingFilter, setEditingFilter] = useState<any>(null);
   const [allChannels, setAllChannels] = useState<any[]>([]);
   const [focusChannels, setFocusChannels] = useState<any[]>([]);
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   useEffect(() => {
     // Save topItems to localStorage whenever it changes
@@ -650,7 +651,7 @@ const [isFetchingUsers, setIsFetchingUsers] = useState(false);
     }
 
     const data = await response.json();
-
+    setSearchResults(data)
     console.log("Search results:", data);
     return data;
   } catch (error) {
@@ -668,7 +669,7 @@ useEffect(() => {
 }, [searchTerm]);
 
   
-  const channelsToShow = searchTerm.trim() ? fetchedUsers : isFocus ? focusChannels : displayChannels;
+  const channelsToShow = searchResults?.results?.length>1 ? searchResults : isFocus ? focusChannels : displayChannels;
 
   const markAllRead = async () => {
     try {
@@ -1138,9 +1139,9 @@ useEffect(() => {
                       {/* Avatar */}
                       <div className="relative">
                         <ChatAvatar
-                          name={chat.name}
-                          avatar={chat.photo_url}
-                          backupAvatar={undefined}
+                          name={chat.name || chat.first_name}
+                          avatar={chat.photo_url || `${BACKEND_URL}/chat_photo/${chat.chat_id}`}
+                          backupAvatar={`${BACKEND_URL}/contact_photo/${chat.chat_id}`}
                         />
                         <img
                           src={chat.platform === "Discord" ? discord : telegram}
@@ -1165,12 +1166,12 @@ useEffect(() => {
                             ) : (
                               <FaTelegramPlane className="text-[#3474ff]" />
                             )}
-                            {chat.name}
+                            {chat.name || chat.username}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-[#ffffff32] font-100">
-                            {chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
+                            {chat.is_typing?'Typing...':chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
                               ? chat.lastMessage.slice(0, 23) + "..."
                               : chat.lastMessage}
                           </span>
