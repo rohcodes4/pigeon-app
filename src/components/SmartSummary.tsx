@@ -26,6 +26,7 @@ import {
   Heart,
   MessageCircle,
 } from "lucide-react";
+import ChatAvatar from "./ChatAvatar";
 
 const TIME_OPTIONS = [
   { label: "5 min", value: "5m" },
@@ -195,7 +196,8 @@ console.log(chat_id)
         "Content-Type": "application/json",
       },
     });
-
+console.log('resss')
+console.log(response)
     if (!response.ok) {
       // Fail: fall back to "all tasks"
       throw new Error(`Tasks request failed: ${response.status}`);
@@ -205,14 +207,14 @@ console.log(chat_id)
     return await response.json();
   } catch (error) {
     // On error, run the fallback responseAll request
-    const responseAll = await fetch(`${BACKEND_URL}/tasks`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-    return await responseAll.json();
+    // const responseAll = await fetch(`${BACKEND_URL}/tasks`, {
+    //   method: "GET",
+    //   headers: {
+    //     Authorization: `Bearer ${token}`,
+    //     "Content-Type": "application/json",
+    //   },
+    // });
+    // return await responseAll.json();
   }
 }
 
@@ -414,7 +416,7 @@ const handleFetchMentions = async () => {
     
     // Ensure we have an array
     if (Array.isArray(fetchedMentions)) {
-      setMentions(fetchedMentions);
+      setMentions(fetchedMentions?.all_messages);
     } else {
       console.warn("fetchTasks did not return an array:", fetchedMentions);
       setMentions([]); // Set empty array if not an array
@@ -473,7 +475,55 @@ const token = localStorage.getItem("access_token");
       behavior: "smooth",
     });
   };
+  function readableTimestamp(timestamp) {
+    if (!timestamp) return "";
+  
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return "";
+  
+    // Options for formatting date and time
+    const options = {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    };
+  
+    return date.toLocaleString(undefined, options);
+  }
 
+  function formatDueText(task) {
+
+    console.log(task)
+    const due = task.due
+    
+      if (!due) return null;
+      if (due === "Done") return "Done";
+      if (/Due in \d+/.test(due)) return due;
+    
+      const dueDate = new Date(due);
+      if (isNaN(dueDate.getTime())) return due;
+    
+      const now = new Date();
+      const diffMs = dueDate.getTime() - now.getTime();
+      if (diffMs <= 0) return "Now";
+    
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+    
+      if (diffDays > 0) {
+        return `${diffDays}d`;
+      } else if (diffHours > 0) {
+        return `${diffHours}hr`;
+      } else {
+        return `${diffMins}min`;
+      }
+    }
+  
   // Auto-fetch tasks when Todo filter is selected
   useEffect(() => {
     if (
@@ -790,17 +840,12 @@ const token = localStorage.getItem("access_token");
                       >
                         {task.priority || "Low"}
                       </span>
-                      <span className="bg-[#fafafa10] rounded-[6px] text-center flex items-center justify-center gap-1 text-[12px] px-1 py-1">
-                        <CalendarCogIcon className="w-3 h-3" />
-                        {(() => {
-                          const days = Math.ceil(
-                            (Date.now() - new Date(task.created_at).getTime()) /
-                              (1000 * 60 * 60 * 24)
-                          );
-                          return isNaN(days) ? 3 : days;
-                        })()}
-                        d
-                      </span>
+                      {formatDueText(task) && 
+                      <span className="h-6 flex-shrink-0 flex gap-1 items-center bg-[#fafafa10] text-[#ffffff72] px-2 py-1 rounded-[6px] text-[12px]">
+                                  <CalendarCogIcon className="w-4 h-4"/>
+                                  {formatDueText(task)}
+                                </span>
+                                }
                       {/* Individual task toggle button */}
                       <button
                         onClick={() => handleTaskToggle(task.id)}
@@ -875,41 +920,39 @@ const token = localStorage.getItem("access_token");
               </div>
             ) : (
               <>
-            {mentions.map((todo) => (
+            {mentions.map((mention) => (
               <div
                 className="flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 bg-[#212121]"
-                key={todo.id}
+                key={mention._id}
               >
                 {/* Avatar */}
-                <img
-                  src="https://www.gravatar.com/avatar/example?s=80"
-                  alt="James Steven"
-                  className="w-10 h-10 rounded-full object-cover"
-                />
+             
+                <ChatAvatar name={mention.sender.username} avatar={`${BACKEND_URL}/chat_photo/${mention.sender.id}`} backupAvatar={`${BACKEND_URL}/contact_photo/${mention.sender.id}`}/>
                 {/* Message Content */}
                 <div className="flex-1">
                   <div className="flex items-center justify-start gap-2">
                     <span className="text-[#ffffff] font-[300] text-sm">
-                      James Steven
+                      {mention.sender.first_name} {mention.sender.last_name}
                     </span>
-                    <span className="text-xs text-[#fafafa99]">#general</span>
+                    {/* <span className="text-xs text-[#fafafa99]">#general</span> */}
                     <span className="text-xs text-[#fafafa99]">
-                      03/02/25, 18:49
+                      {readableTimestamp(mention.timestamp)}
                     </span>
                   </div>
                   <div className="flex items-center gap-0 mt-1 bg-[#3474ff] w-max rounded-[6px]">
                     <FaTelegramPlane className="text-[#ffffff] w-3 h-3 ml-1" />
                     <span className="text-xs text-white  rounded pr-2 pl-1 py-0.5">
-                      Alpha Guild
+                      {mention.chat.title}
                     </span>
                   </div>
                   <div className="mt-2 text-sm text-[#e0e0e0]">
-                    <span className="text-[#84afff]">@everyone</span> Stealth
+                    {/* <span className="text-[#84afff]">@everyone</span> Stealth
                     claim just opened. Zero tax, no presale. Contract verified 2
-                    mins ago.
+                    mins ago. */}
+                    {mention.raw_text}
                   </div>
                   {/* Reactions */}
-                  <div className="flex gap-3 mt-2">
+                  {/* <div className="flex gap-3 mt-2">
                     <span className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]">
                       <ThumbsUp className="w-4 h-4" />
                       38
@@ -922,7 +965,7 @@ const token = localStorage.getItem("access_token");
                       <MessageCircle className="w-4 h-4" />
                       16
                     </span>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             ))}
