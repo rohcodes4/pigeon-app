@@ -196,8 +196,7 @@ console.log(chat_id)
         "Content-Type": "application/json",
       },
     });
-console.log('resss')
-console.log(response)
+
     if (!response.ok) {
       // Fail: fall back to "all tasks"
       throw new Error(`Tasks request failed: ${response.status}`);
