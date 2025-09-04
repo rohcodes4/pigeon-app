@@ -1,4 +1,15 @@
-import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +33,7 @@ import telegram from "@/assets/images/telegram.png";
 import discord from "@/assets/images/discord.png";
 import play from "@/assets/images/play.png";
 import { PlatformStatusBadges } from "./PlatformStatusBadges";
+import ConnectTelegram from "./ConnectTelegram";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -45,411 +57,411 @@ interface ChatSelectionProps {
   setDiscordConnected: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const fakeChatGroups: ChatGroup[] = [
-  // Discord groups
-  {
-    id: "discord_1",
-    group_id: "discord_general",
-    group_name: "General Chat",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 156,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_2",
-    group_id: "discord_dev",
-    group_name: "Development Team",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 23,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_3",
-    group_id: "discord_random",
-    group_name: "Random",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 89,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_4",
-    group_id: "discord_announcements",
-    group_name: "Announcements",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 200,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_5",
-    group_id: "discord_support",
-    group_name: "Support",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 45,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_6",
-    group_id: "discord_gaming",
-    group_name: "Gaming",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 120,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_7",
-    group_id: "discord_music",
-    group_name: "Music",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 60,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_8",
-    group_id: "discord_memes",
-    group_name: "Memes",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 80,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_9",
-    group_id: "discord_art",
-    group_name: "Art",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 34,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_10",
-    group_id: "discord_books",
-    group_name: "Book Club",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 27,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_11",
-    group_id: "discord_movies",
-    group_name: "Movies",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 51,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_12",
-    group_id: "discord_coding",
-    group_name: "Coding",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 99,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_13",
-    group_id: "discord_ai",
-    group_name: "AI Enthusiasts",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 77,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_14",
-    group_id: "discord_fitness",
-    group_name: "Fitness",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 40,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_15",
-    group_id: "discord_travel",
-    group_name: "Travel",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 32,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_16",
-    group_id: "discord_food",
-    group_name: "Foodies",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 58,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_17",
-    group_id: "discord_photography",
-    group_name: "Photography",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 29,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_18",
-    group_id: "discord_science",
-    group_name: "Science",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 66,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_19",
-    group_id: "discord_history",
-    group_name: "History Buffs",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 21,
-    is_synced: false,
-    type: "Server",
-  },
-  {
-    id: "discord_20",
-    group_id: "discord_language",
-    group_name: "Language Exchange",
-    group_avatar: null,
-    platform: "discord",
-    member_count: 38,
-    is_synced: false,
-    type: "Server",
-  },
+// const fakeChatGroups: ChatGroup[] = [
+//   // Discord groups
+//   {
+//     id: "discord_1",
+//     group_id: "discord_general",
+//     group_name: "General Chat",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 156,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_2",
+//     group_id: "discord_dev",
+//     group_name: "Development Team",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 23,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_3",
+//     group_id: "discord_random",
+//     group_name: "Random",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 89,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_4",
+//     group_id: "discord_announcements",
+//     group_name: "Announcements",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 200,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_5",
+//     group_id: "discord_support",
+//     group_name: "Support",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 45,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_6",
+//     group_id: "discord_gaming",
+//     group_name: "Gaming",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 120,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_7",
+//     group_id: "discord_music",
+//     group_name: "Music",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 60,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_8",
+//     group_id: "discord_memes",
+//     group_name: "Memes",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 80,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_9",
+//     group_id: "discord_art",
+//     group_name: "Art",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 34,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_10",
+//     group_id: "discord_books",
+//     group_name: "Book Club",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 27,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_11",
+//     group_id: "discord_movies",
+//     group_name: "Movies",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 51,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_12",
+//     group_id: "discord_coding",
+//     group_name: "Coding",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 99,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_13",
+//     group_id: "discord_ai",
+//     group_name: "AI Enthusiasts",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 77,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_14",
+//     group_id: "discord_fitness",
+//     group_name: "Fitness",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 40,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_15",
+//     group_id: "discord_travel",
+//     group_name: "Travel",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 32,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_16",
+//     group_id: "discord_food",
+//     group_name: "Foodies",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 58,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_17",
+//     group_id: "discord_photography",
+//     group_name: "Photography",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 29,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_18",
+//     group_id: "discord_science",
+//     group_name: "Science",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 66,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_19",
+//     group_id: "discord_history",
+//     group_name: "History Buffs",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 21,
+//     is_synced: false,
+//     type: "Server",
+//   },
+//   {
+//     id: "discord_20",
+//     group_id: "discord_language",
+//     group_name: "Language Exchange",
+//     group_avatar: null,
+//     platform: "discord",
+//     member_count: 38,
+//     is_synced: false,
+//     type: "Server",
+//   },
 
-  // Telegram groups (randomized type, capitalized)
-  {
-    id: "telegram_1",
-    group_id: "tg_tech_talk",
-    group_name: "Tech Talk",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 342,
-    is_synced: false,
-    type: "Group",
-  },
-  {
-    id: "telegram_2",
-    group_id: "tg_friends",
-    group_name: "Friends Group",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 12,
-    is_synced: false,
-    type: "Bot",
-  },
-  {
-    id: "telegram_3",
-    group_id: "tg_work",
-    group_name: "Work Updates",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 45,
-    is_synced: false,
-    type: "App",
-  },
-  {
-    id: "telegram_4",
-    group_id: "tg_news",
-    group_name: "Daily News",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 210,
-    is_synced: false,
-    type: "Group",
-  },
-  {
-    id: "telegram_5",
-    group_id: "tg_sports",
-    group_name: "Sports Fans",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 98,
-    is_synced: false,
-    type: "Bot",
-  },
-  {
-    id: "telegram_6",
-    group_id: "tg_movies",
-    group_name: "Movie Club",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 56,
-    is_synced: false,
-    type: "App",
-  },
-  {
-    id: "telegram_7",
-    group_id: "tg_music",
-    group_name: "Music Lovers",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 67,
-    is_synced: false,
-    type: "Group",
-  },
-  {
-    id: "telegram_8",
-    group_id: "tg_gaming",
-    group_name: "Gaming",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 120,
-    is_synced: false,
-    type: "Bot",
-  },
-  {
-    id: "telegram_9",
-    group_id: "tg_art",
-    group_name: "Art & Design",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 34,
-    is_synced: false,
-    type: "App",
-  },
-  {
-    id: "telegram_10",
-    group_id: "tg_books",
-    group_name: "Book Lovers",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 27,
-    is_synced: false,
-    type: "Group",
-  },
-  {
-    id: "telegram_11",
-    group_id: "tg_photography",
-    group_name: "Photography",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 29,
-    is_synced: false,
-    type: "Bot",
-  },
-  {
-    id: "telegram_12",
-    group_id: "tg_fitness",
-    group_name: "Fitness",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 40,
-    is_synced: false,
-    type: "App",
-  },
-  {
-    id: "telegram_13",
-    group_id: "tg_travel",
-    group_name: "Travel",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 32,
-    is_synced: false,
-    type: "Group",
-  },
-  {
-    id: "telegram_14",
-    group_id: "tg_food",
-    group_name: "Foodies",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 58,
-    is_synced: false,
-    type: "Bot",
-  },
-  {
-    id: "telegram_15",
-    group_id: "tg_science",
-    group_name: "Science",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 66,
-    is_synced: false,
-    type: "App",
-  },
-  {
-    id: "telegram_16",
-    group_id: "tg_history",
-    group_name: "History Buffs",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 21,
-    is_synced: false,
-    type: "Group",
-  },
-  {
-    id: "telegram_17",
-    group_id: "tg_language",
-    group_name: "Language Exchange",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 38,
-    is_synced: false,
-    type: "Bot",
-  },
-  {
-    id: "telegram_18",
-    group_id: "tg_memes",
-    group_name: "Memes",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 80,
-    is_synced: false,
-    type: "App",
-  },
-  {
-    id: "telegram_19",
-    group_id: "tg_coding",
-    group_name: "Coding",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 99,
-    is_synced: false,
-    type: "Group",
-  },
-  {
-    id: "telegram_20",
-    group_id: "tg_ai",
-    group_name: "AI Enthusiasts",
-    group_avatar: null,
-    platform: "telegram",
-    member_count: 77,
-    is_synced: false,
-    type: "Bot",
-  },
-];
+//   // Telegram groups (randomized type, capitalized)
+//   {
+//     id: "telegram_1",
+//     group_id: "tg_tech_talk",
+//     group_name: "Tech Talk",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 342,
+//     is_synced: false,
+//     type: "Group",
+//   },
+//   {
+//     id: "telegram_2",
+//     group_id: "tg_friends",
+//     group_name: "Friends Group",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 12,
+//     is_synced: false,
+//     type: "Bot",
+//   },
+//   {
+//     id: "telegram_3",
+//     group_id: "tg_work",
+//     group_name: "Work Updates",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 45,
+//     is_synced: false,
+//     type: "App",
+//   },
+//   {
+//     id: "telegram_4",
+//     group_id: "tg_news",
+//     group_name: "Daily News",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 210,
+//     is_synced: false,
+//     type: "Group",
+//   },
+//   {
+//     id: "telegram_5",
+//     group_id: "tg_sports",
+//     group_name: "Sports Fans",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 98,
+//     is_synced: false,
+//     type: "Bot",
+//   },
+//   {
+//     id: "telegram_6",
+//     group_id: "tg_movies",
+//     group_name: "Movie Club",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 56,
+//     is_synced: false,
+//     type: "App",
+//   },
+//   {
+//     id: "telegram_7",
+//     group_id: "tg_music",
+//     group_name: "Music Lovers",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 67,
+//     is_synced: false,
+//     type: "Group",
+//   },
+//   {
+//     id: "telegram_8",
+//     group_id: "tg_gaming",
+//     group_name: "Gaming",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 120,
+//     is_synced: false,
+//     type: "Bot",
+//   },
+//   {
+//     id: "telegram_9",
+//     group_id: "tg_art",
+//     group_name: "Art & Design",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 34,
+//     is_synced: false,
+//     type: "App",
+//   },
+//   {
+//     id: "telegram_10",
+//     group_id: "tg_books",
+//     group_name: "Book Lovers",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 27,
+//     is_synced: false,
+//     type: "Group",
+//   },
+//   {
+//     id: "telegram_11",
+//     group_id: "tg_photography",
+//     group_name: "Photography",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 29,
+//     is_synced: false,
+//     type: "Bot",
+//   },
+//   {
+//     id: "telegram_12",
+//     group_id: "tg_fitness",
+//     group_name: "Fitness",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 40,
+//     is_synced: false,
+//     type: "App",
+//   },
+//   {
+//     id: "telegram_13",
+//     group_id: "tg_travel",
+//     group_name: "Travel",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 32,
+//     is_synced: false,
+//     type: "Group",
+//   },
+//   {
+//     id: "telegram_14",
+//     group_id: "tg_food",
+//     group_name: "Foodies",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 58,
+//     is_synced: false,
+//     type: "Bot",
+//   },
+//   {
+//     id: "telegram_15",
+//     group_id: "tg_science",
+//     group_name: "Science",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 66,
+//     is_synced: false,
+//     type: "App",
+//   },
+//   {
+//     id: "telegram_16",
+//     group_id: "tg_history",
+//     group_name: "History Buffs",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 21,
+//     is_synced: false,
+//     type: "Group",
+//   },
+//   {
+//     id: "telegram_17",
+//     group_id: "tg_language",
+//     group_name: "Language Exchange",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 38,
+//     is_synced: false,
+//     type: "Bot",
+//   },
+//   {
+//     id: "telegram_18",
+//     group_id: "tg_memes",
+//     group_name: "Memes",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 80,
+//     is_synced: false,
+//     type: "App",
+//   },
+//   {
+//     id: "telegram_19",
+//     group_id: "tg_coding",
+//     group_name: "Coding",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 99,
+//     is_synced: false,
+//     type: "Group",
+//   },
+//   {
+//     id: "telegram_20",
+//     group_id: "tg_ai",
+//     group_name: "AI Enthusiasts",
+//     group_avatar: null,
+//     platform: "telegram",
+//     member_count: 77,
+//     is_synced: false,
+//     type: "Bot",
+//   },
+// ];
 
 export const ChatSelection = ({
   onChatsSelected,
@@ -459,13 +471,66 @@ export const ChatSelection = ({
   discordConnected,
   setDiscordConnected,
 }: ChatSelectionProps) => {
-  const { user } = useAuth();
+  const { user, checkAuth } = useAuth();
   const [chatGroups, setChatGroups] = useState<ChatGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   // const [telegramConnected, setTelegramConnected] = useState(false);
   // const [discordConnected, setDiscordConnected] = useState(false);
 
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchUserChats = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem("access_token");
+        const res = await fetch(`${BACKEND_URL}/api/sync-preferences/chats`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error(`Failed to fetch chats: ${res.status}`);
+
+        const data = await res.json();
+
+        // Map the backend chats into ChatGroup format your UI expects
+        const fetchedChats = (data.chats || []).map((chat) => ({
+          id: String(chat.id),
+          group_id: String(chat.id),
+          group_name: chat.title || `Chat ${chat.id}`,
+          group_avatar: null, // Not provided, can add later if available
+          platform: chat.type?.toLowerCase() === "discord" ? "discord" : "telegram",
+          member_count: null, // Not provided here, optional
+          is_synced: false, // default unselected, load saved selections below
+          type: chat.type || null,
+          username: chat.username || null,
+        }));
+
+        // Load saved selections from localStorage
+        const savedSelections = localStorage.getItem(
+          `chatpilot_chats_${user.id}`
+        );
+        if (savedSelections) {
+          const selections = JSON.parse(savedSelections);
+          fetchedChats.forEach((chat) => {
+            chat.is_synced = selections[chat.id] || false;
+          });
+        }
+
+        setChatGroups(fetchedChats);
+      } catch (error) {
+        toast({
+          title: "Error loading chats",
+          description: error.message,
+          variant: "destructive",
+        });
+        setChatGroups([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserChats();
+  }, [user]);
   // Fetch connected statuses from backend (authoritative source)
   useEffect(() => {
     if (!user) return;
@@ -493,33 +558,91 @@ export const ChatSelection = ({
     fetchStatuses();
   }, [user, setTelegramConnected, setDiscordConnected]);
 
+  const savePreferences = async () => {
+    setSaving(true);
+
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token) throw new Error("User not authenticated");
+
+      // Construct enabled and disabled chat ID strings
+      const enabledChatIds = chatGroups
+        .filter(c => c.is_synced)
+        .map(c => c.id)
+        .join(",");
+
+      const disabledChatIds = chatGroups
+        .filter(c => !c.is_synced)
+        .map(c => c.id)
+        .join(",");
+
+      const formData = new FormData();
+      formData.append("enabled_chats", enabledChatIds);
+      formData.append("disabled_chats", disabledChatIds);
+      // Assuming defaults for sync_groups and sync_channels - you can add checkboxes/UI for these
+      formData.append("sync_groups", "true");
+      formData.append("sync_channels", "true");
+
+      const response = await fetch(`${BACKEND_URL}/api/sync-preferences`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Error ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      toast({
+        title: "Preferences Saved",
+        description: "Your chat sync preferences have been updated.",
+      });
+
+      if (onPreferencesSaved) {
+        onPreferencesSaved(data.preferences);
+      }
+    } catch (error) {
+      toast({
+        title: "Error Saving Preferences",
+        description: error.message || "An error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
   // Load saved chat selections (local, non-authoritative)
-  useEffect(() => {
-    if (!user) return;
-    setTimeout(() => {
-      const savedSelections = localStorage.getItem(
-        `chatpilot_chats_${user.id}`
-      );
-      let updatedGroups = [...fakeChatGroups];
+  // useEffect(() => {
+  //   if (!user) return;
+  //   setTimeout(() => {
+  //     const savedSelections = localStorage.getItem(
+  //       `chatpilot_chats_${user.id}`
+  //     );
+  //     let updatedGroups = [...fakeChatGroups];
 
-      if (savedSelections) {
-        const selections = JSON.parse(savedSelections);
-        updatedGroups = updatedGroups.map((group) => ({
-          ...group,
-          is_synced: selections[group.id] || false,
-        }));
-      }
+  //     if (savedSelections) {
+  //       const selections = JSON.parse(savedSelections);
+  //       updatedGroups = updatedGroups.map((group) => ({
+  //         ...group,
+  //         is_synced: selections[group.id] || false,
+  //       }));
+  //     }
 
-      setChatGroups(updatedGroups);
-      setLoading(false);
+  //     setChatGroups(updatedGroups);
+  //     setLoading(false);
 
-      const hasSelectedChats = updatedGroups.some((group) => group.is_synced);
-      const selectedChats = updatedGroups.filter((group) => group.is_synced);
-      if (hasSelectedChats && onChatsSelected) {
-        onChatsSelected(selectedChats);
-      }
-    }, 1000);
-  }, [user, onChatsSelected]);
+  //     const hasSelectedChats = updatedGroups.some((group) => group.is_synced);
+  //     const selectedChats = updatedGroups.filter((group) => group.is_synced);
+  //     if (hasSelectedChats && onChatsSelected) {
+  //       onChatsSelected(selectedChats);
+  //     }
+  //   }, 1000);
+  // }, [user, onChatsSelected]);
 
   const toggleChatSync = async (
     groupId: string,
@@ -539,10 +662,7 @@ export const ChatSelection = ({
       ),
     };
     updatedSelections[groupId] = !currentSyncStatus;
-    localStorage.setItem(
-      `chatpilot_chats_${user?.id}`,
-      JSON.stringify(updatedSelections)
-    );
+ 
 
     const hasSelectedChats = chatGroups.some((group) =>
       group.id === groupId ? !currentSyncStatus : group.is_synced
@@ -554,7 +674,10 @@ export const ChatSelection = ({
     if (hasSelectedChats && onChatsSelected) {
       onChatsSelected(selectedChats);
     }
-
+    localStorage.setItem(
+      `chatpilot_chats_${user?.id}`,
+      JSON.stringify(updatedSelections)
+    );
     toast({
       title: !currentSyncStatus ? "Chat Added" : "Chat Removed",
       description: !currentSyncStatus
@@ -620,6 +743,211 @@ export const ChatSelection = ({
     (group) => group.platform === "telegram"
   );
   const canContinue = telegramConnected || discordConnected;
+  const [authMethod, setAuthMethod] = useState<"qr" | "phone">("qr");
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [showTelegramQrModal, setShowTelegramQrModal] = useState(false);
+  const [telegramQrCode, setTelegramQrCode] = useState<string | null>(null);
+  const [telegramQrToken, setTelegramQrToken] = useState<string | null>(null);
+  const [loadingPlatform, setLoadingPlatform] = useState({ telegram: false, discord: false });
+  const [pollingIntervalId, setPollingIntervalId] =
+  useState<NodeJS.Timeout | null>(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+
+  const [twoFactorPassword, setTwoFactorPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const connectTelegram = async () => {
+    if (!user) return;
+
+    if (authMethod === "phone") {
+      // For phone auth, we'll show the phone input modal
+      setShowPhoneModal(true);
+      return;
+    }
+
+    // QR code authentication
+    setLoadingPlatform((prev) => ({ ...prev, telegram: true }));
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(`${BACKEND_URL}/auth/qr`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.detail || "Failed to initiate Telegram QR login"
+        );
+      }
+      const data = await response.json();
+      setTelegramQrCode(data.qr);
+      setTelegramQrToken(data.token);
+      setShowTelegramQrModal(true);
+    } catch (error: any) {
+      toast({
+        title: "Telegram Connection Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingPlatform((prev) => ({ ...prev, telegram: false }));
+    }
+  };
+
+  useEffect(() => {
+    if (telegramQrToken && showTelegramQrModal) {
+      const interval = setInterval(async () => {
+        try {
+          const token = localStorage.getItem("access_token");
+          const response = await fetch(
+            `${BACKEND_URL}/auth/qr/${telegramQrToken}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+          let data = null;
+          let isError = false;
+
+          if (response.ok) {
+            data = await response.json();
+          } else {
+            try {
+              data = await response.json();
+            } catch {
+              data = { detail: "Unknown error" };
+            }
+            isError = true;
+          }
+
+          if (data && data.status === "success") {
+            clearInterval(interval);
+            setPollingIntervalId(null);
+            setShowTelegramQrModal(false);
+            setTelegramConnected(true); // Update local state
+            toast({
+              title: "Telegram Connected",
+              description:
+                "Successfully connected to your Telegram account. You can now sync your chats when ready.",
+            });
+          } else if (data && data.status === "password_required") {
+            // 2FA password is required
+            clearInterval(interval);
+            setPollingIntervalId(null);
+            setShowTelegramQrModal(false);
+            setShowPasswordModal(true);
+            toast({
+              title: "Two-Factor Authentication Required",
+              description:
+                "Please enter your Telegram password to complete the connection.",
+            });
+          } else if (
+            data &&
+            (data.status === "error" || data.status === "invalid_token")
+          ) {
+            clearInterval(interval);
+            setPollingIntervalId(null);
+            setShowTelegramQrModal(false);
+            setTelegramQrCode(null);
+            setTelegramQrToken(null);
+            toast({
+              title: "Telegram Connection Failed",
+              description: data.detail || "Please try again.",
+              variant: "destructive",
+            });
+          } else if (isError || (data && data.detail)) {
+            clearInterval(interval);
+            setPollingIntervalId(null);
+            setShowTelegramQrModal(false);
+            setTelegramQrCode(null);
+            setTelegramQrToken(null);
+            toast({
+              title: "Telegram Connection Error",
+              description: data?.detail || "Unexpected response from server.",
+              variant: "destructive",
+            });
+          }
+          // else: still waiting, do nothing
+        } catch (error) {
+          clearInterval(interval);
+          setPollingIntervalId(null);
+          setShowTelegramQrModal(false);
+          setTelegramQrCode(null);
+          setTelegramQrToken(null);
+          toast({
+            title: "Telegram Connection Error",
+            description: "Failed to check Telegram status. Please try again.",
+            variant: "destructive",
+          });
+        }
+      }, 3000); // Poll every 3 seconds
+      setPollingIntervalId(interval);
+
+      return () => {
+        if (pollingIntervalId) {
+          clearInterval(pollingIntervalId);
+          setPollingIntervalId(null);
+        }
+      };
+    }
+  }, [
+    telegramQrToken,
+    showTelegramQrModal,
+    setTelegramConnected,
+  ]);
+
+  const submitTelegramPassword = async () => {
+    if (!telegramQrToken || !twoFactorPassword.trim()) {
+      toast({
+        title: "Password Required",
+        description: "Please enter your Telegram password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const token = localStorage.getItem("access_token");
+      const formData = new FormData();
+      formData.append("password", twoFactorPassword);
+
+      const response = await fetch(
+        `${BACKEND_URL}/auth/qr/${telegramQrToken}/password`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.status === "success") {
+        setShowPasswordModal(false);
+        setTwoFactorPassword("");
+        setTelegramConnected(true);
+
+        toast({
+          title: "Telegram Connected",
+          description:
+            "Successfully connected to your Telegram account. You can now sync your chats when ready.",
+        });
+      } else {
+        throw new Error(data.detail || "Failed to verify password");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Authentication Failed",
+        description: error.message || "Invalid password. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
 
   // if (loading) {
   //   return (
@@ -729,7 +1057,7 @@ export const ChatSelection = ({
                   ))
                 ) : (
                   <p className="text-sm text-gray-500 text-center py-4">
-                    Connect Telegram to see chats
+                    Connect Discord to see chats
                   </p>
                 )}
               </div>
@@ -828,7 +1156,7 @@ export const ChatSelection = ({
             {/* Info Section */}
             <div className="flex-1 text-[#ffffff72]">
               <div className="h-[150px] overflow-y-scroll">
-                {telegramConnected ? (
+                {telegramConnected ? loading? (<p className="text-sm text-gray-500 text-center py-4"> Loading...</p>) : (
                   telegramChats.map((group) => (
                     <div
                       key={group.id}
@@ -875,13 +1203,49 @@ export const ChatSelection = ({
                 </span>
                 {/* Action button */}
                 {telegramConnected ? (
-                  <Button className="bg-[#212121] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none">
+                  <Button
+                    onClick={connectTelegram}
+                    disabled={loadingPlatform.telegram}
+                    className="bg-[#212121] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
+                  >
                     Reconnect
                   </Button>
                 ) : (
-                  <Button className="bg-[#2d2d2d] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none">
-                    {telegramConnected ? "Reconnect" : "Connect"}
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    {/* Authentication Method Toggle */}
+                    <div className="flex gap-1 bg-[#212121] rounded-lg p-1">
+                      <button
+                        onClick={() => setAuthMethod("qr")}
+                        className={`px-3 py-1 text-xs rounded-md transition ${
+                          authMethod === "qr"
+                            ? "bg-[#5389ff] text-white"
+                            : "text-[#ffffff80] hover:text-white"
+                        }`}
+                      >
+                        QR Code
+                      </button>
+                      <button
+                        onClick={() => setAuthMethod("phone")}
+                        className={`px-3 py-1 text-xs rounded-md transition ${
+                          authMethod === "phone"
+                            ? "bg-[#5389ff] text-white"
+                            : "text-[#ffffff80] hover:text-white"
+                        }`}
+                      >
+                        Phone
+                      </button>
+                    </div>
+                    <Button
+                      onClick={connectTelegram}
+                      disabled={loadingPlatform.telegram}
+                      className="bg-[#2d2d2d] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
+                    >
+                      {loadingPlatform.telegram && (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      )}
+                      {telegramConnected ? "Reconnect" : "Connect"}
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
@@ -950,7 +1314,9 @@ export const ChatSelection = ({
                     {/* Action button */}
                     {canContinue && (
                       <Button
-                        onClick={onContinue}
+                        onClick={savePreferences}
+                        disabled={saving}
+
                         className="bg-[#5389ff] hover:bg-[#4170cc] text-black rounded-[12px] px-3 py-2 gap-2 shadow-none"
                       >
                         <img
@@ -970,6 +1336,132 @@ export const ChatSelection = ({
           </CardContent>
         </Card>
       </div>
+      {telegramQrCode && (
+        <AlertDialog
+          open={showTelegramQrModal}
+          onOpenChange={setShowTelegramQrModal}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Connect Telegram</AlertDialogTitle>
+              <AlertDialogDescription>
+                Scan the QR code with your Telegram app to connect your account.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="flex justify-center p-4">
+              <img
+                src={`data:image/png;base64,${telegramQrCode}`}
+                alt="Telegram QR Code"
+                className="w-64 h-64"
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                onClick={() => {
+                  setShowTelegramQrModal(false);
+                  if (pollingIntervalId) {
+                    clearInterval(pollingIntervalId);
+                    setPollingIntervalId(null);
+                  }
+                  setTelegramQrCode(null);
+                  setTelegramQrToken(null);
+                  setLoadingPlatform((prev) => ({ ...prev, telegram: false }));
+                }}
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction disabled>
+                Waiting for Scan...
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {/* 2FA Password Modal */}
+      <AlertDialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Two-Factor Authentication</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your Telegram account has two-factor authentication enabled.
+              Please enter your password to complete the connection.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-col gap-4 p-4">
+            <Input
+              type="password"
+              placeholder="Enter your Telegram password"
+              value={twoFactorPassword}
+              onChange={(e) => setTwoFactorPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !passwordLoading) {
+                  submitTelegramPassword();
+                }
+              }}
+              disabled={passwordLoading}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowPasswordModal(false);
+                setTwoFactorPassword("");
+                setLoadingPlatform((prev) => ({ ...prev, telegram: false }));
+              }}
+              disabled={passwordLoading}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={submitTelegramPassword}
+              disabled={passwordLoading || !twoFactorPassword.trim()}
+            >
+              {passwordLoading && (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              )}
+              Connect
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Phone Authentication Modal */}
+      <AlertDialog open={showPhoneModal} onOpenChange={setShowPhoneModal}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Connect Telegram via Phone</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter your phone number to receive a verification code via
+              Telegram.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="p-4">
+            <ConnectTelegram
+              onConnected={() => {
+                setTelegramConnected(true);
+                // Status is derived from backend
+                toast({
+                  title: "Telegram Connected",
+                  description: "Successfully connected via phone.",
+                });
+                setShowPhoneModal(false);
+              }}
+              checkAuth={checkAuth}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowPhoneModal(false);
+                setLoadingPlatform((prev) => ({ ...prev, telegram: false }));
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

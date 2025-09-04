@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import discord from "@/assets/images/discordColor.png";
 import telegram from "@/assets/images/telegramColor.png";
 import discordWhite from "@/assets/images/discord.png";
@@ -7,6 +7,8 @@ import { FaReply } from "react-icons/fa";
 import telegramWhite from "@/assets/images/telegram.png";
 import { IoIosMore } from "react-icons/io";
 import aiAll from "@/assets/images/aiAll.png";
+import EmojiPicker from "emoji-picker-react";
+import { Theme } from 'emoji-picker-react';
 
 import {
   Link2,
@@ -36,6 +38,47 @@ import {
   createBookmark,
 } from "@/utils/apiHelpers";
 import { toast } from "@/hooks/use-toast";
+
+
+const LoadingDots: React.FC = () => {
+  return (
+    <span aria-label="Loading" role="status" className="inline-flex space-x-1 ml-4 mt-8">
+      <span className="dot animate-bounce">•</span>
+      <span className="dot animate-bounce animation-delay-200">•</span>
+      <span className="dot animate-bounce animation-delay-400">•</span>
+
+      <style jsx>{`
+        .dot {
+          font-size: 22px;
+          line-height: 0;
+          color: #84afff;
+          display: inline-block;
+        }
+
+        .animate-bounce {
+          animation: bounce 0.6s infinite ease-in-out;
+        }
+
+        .animation-delay-200 {
+          animation-delay: 0.2s;
+        }
+
+        .animation-delay-400 {
+          animation-delay: 0.4s;
+        }
+
+        @keyframes bounce {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-6px);
+          }
+        }
+      `}</style>
+    </span>
+  );
+};
 
 // Types
 type ReactionChip = { icon: string; count: number };
@@ -169,6 +212,56 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   // Flag to toggle between real data and dummy data for design inspiration
   const USE_DUMMY_DATA = false; // Set to true to use dummy data, false for real data
   const { user } = useAuth();
+  const [text, setText] = useState("");
+  const [showPicker, setShowPicker] = useState(false);
+  const pickerRef = useRef(null);                    // emoji picker container ref
+
+  React.useEffect(() => {
+    setShouldAutoScroll(true);
+  }, [selectedChat]);
+
+  const handleEmojiClick = (emojiData, event) => {
+    if (!inputRef.current) return;
+    const emoji = emojiData.emoji;
+    const input = inputRef.current;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const newValue =
+      text.slice(0, start) + emoji + text.slice(end);
+    setText(newValue);
+    setText(newValue);
+
+    // Update input value manually since you use both ref and state
+    // input.value = newValue;
+    // Move cursor after inserted emoji
+    setTimeout(() => {
+      input.focus();
+      input.selectionStart = input.selectionEnd = start + emoji.length;
+    }, 0);
+    setShowPicker(false); // Optionally close picker after select
+  };
+
+   // Update input as user types:
+   useEffect(() => {
+    if (inputRef.current && inputRef.current.value !== text) {
+      inputRef.current.value = text;
+    }
+  }, [text]);
+
+  // Close picker on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        showPicker &&
+        pickerRef.current &&
+        !pickerRef.current.contains(event.target)
+      ) {
+        setShowPicker(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showPicker]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -195,10 +288,11 @@ const [showScrollToBottom, setShowScrollToBottom] = React.useState(false);
   const [isSending, setIsSending] = React.useState(false);
   // Page size for fetching messages from backend
   const PAGE_SIZE = 100;
-
-  const pinMessage = async (messageId) => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const token = localStorage.getItem("access_token");
+
+  const pinMessage = async (messageId) => {
+  
 
   const formData = new FormData();
   formData.append("message_id", messageId);
@@ -420,9 +514,9 @@ const scrollToBottom = React.useCallback(() => {
   
   // Scroll the container itself to the bottom
   requestAnimationFrame(() => {
-    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    // container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
     requestAnimationFrame(() => {
-      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      // container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
     });
   });
   
@@ -433,7 +527,7 @@ const scrollToBottom = React.useCallback(() => {
   const attachRef = React.useRef(null);
   const [uploadedFiles, setUploadedFiles] = React.useState([]);
   const fileInputRef = React.useRef(null);
-  console.log("selectedChat", selectedChat);
+  // console.log("selectedChat", selectedChat);
   const getFileType = (file) => {
     if (file.type.startsWith("image/")) return "image";
     if (file.type.startsWith("video/")) return "video";
@@ -527,13 +621,14 @@ const scrollToBottom = React.useCallback(() => {
     window.open(webUrl, "_blank");
   };
 
+
 React.useEffect(() => {
   // Only auto-scroll if it's a new chat or shouldAutoScroll is explicitly set
   if (shouldAutoScroll || isNewChat) {
     // Use setTimeout to ensure DOM has updated after messages render
-    setTimeout(() => {
+    // setTimeout(() => {
       scrollToBottom();
-    }, 100);
+    // }, 100);
     
     // Reset the new chat flag after scrolling
     if (isNewChat) {
@@ -794,6 +889,8 @@ React.useEffect(() => {
       } else {
         setLoading(true);
         setHasMoreMessages(true); // Reset pagination state for new chat
+        setShouldAutoScroll(true);
+
       }
 
       try {
@@ -948,6 +1045,7 @@ React.useEffect(() => {
           // Replace messages for new chat
           setShouldAutoScroll(true); // Enable auto-scroll for new chat
           setMessages(transformedMessages);
+          setShouldAutoScroll(true)
         }
       } catch (error) {
         console.error("Error fetching messages:", error);
@@ -1006,6 +1104,7 @@ const handleScroll = React.useCallback(
     // Check if user has scrolled up from bottom (show scroll button)
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
     setShowScrollToBottom(!isNearBottom);
+    setShouldAutoScroll(isNearBottom);
 
     const isScrollable = scrollHeight > clientHeight + threshold;
 
@@ -1039,11 +1138,41 @@ const handleScroll = React.useCallback(
     }
   }, [messages, loadingMore]);
 
+
+  const getPlatformFromChatId = (chatId: string) => {
+    // Simple heuristic - you might want to store this info in pins
+    // return Math.random() > 0.5 ? 'telegram' : 'discord';
+    return 'telegram';
+  };
+
   const handleSend = async () => {
-    if (!inputRef.current || !inputRef.current.value.trim()) {
+    if (!inputRef.current || !inputRef.current.value.trim() && uploadedFiles.length === 0) {
       return;
     }
-
+    if (uploadedFiles.length > 0) {
+      try {
+        for (const fileWrapper of uploadedFiles) {
+          // fileWrapper.file is File object
+          await sendMediaToChat({
+            chatId: selectedChat.id,
+            file: fileWrapper.file,
+            caption: "",      // Optional: could set to message text or empty
+            fileName: fileWrapper.file.name,
+          });
+        }
+        // Clear uploaded files after successful upload
+        setUploadedFiles([]);
+      } catch (error) {
+        console.error("Error sending media:", error);
+        toast({
+          title: "Send media failed",
+          description: String(error),
+          variant: "destructive",
+        });
+        return; // Stop further sending on failure
+      }
+    }
+  
     const messageText = inputRef.current.value.trim();
 
     // Check if we have a valid chat selected and it's not "all-channels"
@@ -1057,17 +1186,19 @@ const handleScroll = React.useCallback(
     }
 
     // Check if this is a smart filter (not a real chat)
-    if (selectedChat.keywords !== undefined) {
-      toast({
-        title: "Cannot send to smart filter",
-        description: "Please select a real chat instead of a smart filter",
-        variant: "destructive",
-      });
-      return;
-    }
+    // if (selectedChat.keywords !== undefined) {
+    //   toast({
+    //     title: "Cannot send to smart filter",
+    //     description: "Please select a real chat instead of a smart filter",
+    //     variant: "destructive",
+    //   });
+    //   return;
+    // }
 
     const chatId = selectedChat.id;
-    if (!chatId) {
+    console.log('replyTo')
+    console.log(replyTo)
+    if (!chatId && !replyTo) {
       toast({
         title: "Invalid chat",
         description: "The selected chat is not valid",
@@ -1083,6 +1214,7 @@ const handleScroll = React.useCallback(
 
     setIsSending(true);
 
+    
     // Create optimistic message for immediate UI feedback
     const optimisticMessage: MessageItem = {
       id: `temp-${Date.now()}`, // Temporary ID
@@ -1104,6 +1236,7 @@ const handleScroll = React.useCallback(
             id: replyTo.id,
             name: replyTo.name,
             message: replyTo.message,
+            chat_id: replyTo.telegramMessageId
           }
         : null,
     };
@@ -1119,9 +1252,10 @@ const handleScroll = React.useCallback(
     setShouldAutoScroll(true);
 
     try {
+      const id = chatId || replyTo.chat_id
       // Send message to backend/Telegram
       const replyToId = originalReplyTo?.telegramMessageId;
-      const result = await sendMessage(chatId, messageText, replyToId);
+      const result = await sendMessage(id, messageText, replyToId);
 
       console.log("Message sent successfully:", result);
 
@@ -1228,7 +1362,7 @@ const refreshLatest = React.useCallback(async () => {
       return;
     }
 
-    console.log("DEBUG: Refreshing from endpoint:", endpoint);
+    // console.log("DEBUG: Refreshing from endpoint:", endpoint);
     const response = await fetch(endpoint, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -1281,6 +1415,7 @@ const refreshLatest = React.useCallback(async () => {
         originalId: msg._id || msg.id,
         telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
         name: msg.sender?.first_name || msg.sender?.username || "Unknown",
+        chat_id: msg.sender.id,
         avatar: msg.sender?.id
           ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
               msg.sender.id
@@ -1304,8 +1439,8 @@ const refreshLatest = React.useCallback(async () => {
 
     transformed.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-    console.log("DEBUG: API returned", data.length, "messages");
-    console.log("DEBUG: Transformed", transformed.length, "messages");
+    // console.log("DEBUG: API returned", data.length, "messages");
+    // console.log("DEBUG: Transformed", transformed.length, "messages");
 
     setMessages((prev) => {
       const idOf = (x: any) => String(x.originalId || x.id);
@@ -1386,7 +1521,7 @@ React.useEffect(() => {
       } catch (_) {
         // ignore transient polling errors
       } finally {
-        timer = setTimeout(poll, 10000);
+        timer = setTimeout(poll, 1000);
       }
     };
     timer = setTimeout(poll, 100);
@@ -1419,6 +1554,62 @@ React.useEffect(() => {
     }
   };
 
+  async function sendMediaToChat({
+    chatId,
+    file,          // File object (from file input)
+    caption = "",  // Optional string
+    fileName = "file", // Optional, default 'file'
+  }) {
+    const url = `${BACKEND_URL}/api/chats/${chatId}/send_media`;
+  
+    const formData = new FormData();
+    formData.append("file", file, fileName);
+    formData.append("caption", caption);
+    formData.append("file_name", fileName);
+  
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`
+        // Do NOT set Content-Type header, fetch will set it automatically for FormData!
+      },
+      body: formData
+    });
+  
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Failed: ${response.status}`);
+    }
+  
+    return response.json();
+  }
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0) return;
+  
+    const file = event.target.files[0]; // Get first file
+  
+    try {
+      const result = await sendMediaToChat({
+        chatId: selectedChat.id,
+        file,
+        caption: 'Here is my photo',
+        fileName: file.name,
+      });
+  
+      console.log('Media sent:', result);
+      // You might want to refresh messages here to show the new media message
+    } catch (error) {
+      console.error('Error sending media:', error);
+      toast({
+        title: 'Send media failed',
+        description: String(error),
+        variant: 'destructive',
+      });
+    }
+  };
+ 
+  
   return (
     <div className="relative h-[calc(100vh-136px)] flex flex-col flex-shrink-0 min-w-0">
       {/* Selected Chat Info */}
@@ -1487,7 +1678,7 @@ React.useEffect(() => {
       <div
         ref={messagesContainerRef}
         className="flex-1 z-20 overflow-y-auto px-6 flex flex-col gap-4"
-        onScroll={handleScroll}
+        // onScroll={handleScroll}
       >
         {/* Loading indicator for loading more messages at top */}
         {loadingMore && (
@@ -1564,7 +1755,7 @@ React.useEffect(() => {
                       >
                         <FaCopy className="text-[#ffffff] w-3 h-3" />
                       </button>
-                      <button
+                      {getPlatformFromChatId(selectedChat.id) == 'discord' && <button
                         className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
                         title="Open in Discord"
                         onClick={(e) => {
@@ -1572,8 +1763,8 @@ React.useEffect(() => {
                         }}
                       >
                         <FaDiscord className="text-[#ffffff] w-3 h-3" />
-                      </button>
-                      <button
+                      </button>}
+                      {getPlatformFromChatId(selectedChat.id) == 'telegram' && <button
                         className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
                         title="Open in Telegram"
                         onClick={(e) => {
@@ -1582,7 +1773,7 @@ React.useEffect(() => {
                         }}
                       >
                         <FaTelegramPlane className="text-[#ffffff] w-3 h-3" />
-                      </button>
+                      </button>}
     <button
   className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
   title="More"
@@ -1701,7 +1892,7 @@ React.useEffect(() => {
                         {msg.channel}
                       </span>
            <span className="text-xs text-[#ffffff32]">
-  {console.log('Raw msg.date:', msg.date, 'Type:', typeof msg.date)}
+  {/* {console.log('Raw msg.date:', msg.date, 'Type:', typeof msg.date)} */}
   {formatTime(msg.date)}
 </span>
                       {String(msg.id).startsWith("temp-") && (
@@ -1828,6 +2019,8 @@ React.useEffect(() => {
                   </div>
                 </div>
               ))}
+              {selectedChat.is_typing && <LoadingDots/>
+            }
             </div>
           ))
         )}
@@ -1940,10 +2133,10 @@ React.useEffect(() => {
               ref={attachRef}
               className="relative"
               title={
-                selectedChat === "all-channels"
+                (selectedChat === "all-channels" && !replyTo)
                   ? "Select a specific chat to attach files"
-                  : selectedChat?.keywords !== undefined
-                  ? "Cannot attach files to smart filters"
+                  // : selectedChat?.keywords !== undefined
+                  // ? "Cannot attach files to smart filters"
                   : isSending
                   ? "Please wait for current message to send"
                   : "Attach files"
@@ -1951,16 +2144,16 @@ React.useEffect(() => {
             >
               <Plus
                 className={`text-black bg-[#fafafa60] rounded-full mr-2 w-[18px] h-[18px] cursor-pointer ${
-                  selectedChat === "all-channels" ||
-                  selectedChat?.keywords !== undefined ||
+                  (selectedChat === "all-channels" && !replyTo) ||
+                  // selectedChat?.keywords !== undefined ||
                   isSending
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:bg-[#fafafa80]"
                 }`}
                 onClick={() => {
                   if (
-                    selectedChat === "all-channels" ||
-                    selectedChat?.keywords !== undefined ||
+                    (selectedChat === "all-channels" && !replyTo) ||
+                    // selectedChat?.keywords !== undefined ||
                     isSending
                   ) {
                     return;
@@ -1972,7 +2165,7 @@ React.useEffect(() => {
               {/* Popup menu */}
               {showAttachMenu &&
                 !(
-                  selectedChat === "all-channels" ||
+                  (selectedChat === "all-channels" && !replyTo) ||
                   selectedChat?.keywords !== undefined ||
                   isSending
                 ) && (
@@ -2031,19 +2224,21 @@ React.useEffect(() => {
             </div>
             <input
               ref={inputRef}
+              value={text}
+              onChange={e => setText(e.target.value)}
               type="text"
               placeholder={
                 replyTo && replyTo.name
                   ? `Replying to ${replyTo.name}...`
                   : selectedChat === "all-channels"
                   ? "Select a channel on the sidebar to send messages..."
-                  : selectedChat?.keywords !== undefined
-                  ? "Cannot send messages to smart filters..."
+                  // : selectedChat?.keywords !== undefined
+                  // ? "Cannot send messages to smart filters..."
                   : "Type your message..."
               }
               disabled={
-                selectedChat === "all-channels" ||
-                selectedChat?.keywords !== undefined ||
+                (selectedChat === "all-channels" && !replyTo) ||
+                // selectedChat?.keywords !== undefined ||
                 isSending
               }
               className="flex-1 bg-transparent outline-none text-white placeholder-[#ffffff48] text-sm disabled:opacity-50"
@@ -2055,11 +2250,17 @@ React.useEffect(() => {
               }}
             />
           </div>
+           <button onClick={() => setShowPicker(val => !val)}>😊</button>
+    {showPicker && (
+      <div ref={pickerRef} style={{ position: "absolute", bottom: "40px", zIndex: 999 }}>
+        <EmojiPicker theme="dark" onEmojiClick={handleEmojiClick} />
+      </div>
+    )}
           <button
             onClick={handleSend}
             disabled={
-              selectedChat === "all-channels" ||
-              selectedChat?.keywords !== undefined ||
+              (selectedChat === "all-channels" && !replyTo) ||
+              // selectedChat?.keywords !== undefined ||
               isSending
             }
             className="ml-3 p-2 rounded-[10px] bg-[#5389ff] hover:bg-[#5389ff] transition disabled:opacity-50 disabled:cursor-not-allowed"

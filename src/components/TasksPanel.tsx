@@ -77,7 +77,9 @@ function formatDueText(task) {
 
   console.log(task)
   const due = task.due
-    if (!due || due === "Done") return "Done";
+  
+    if (!due) return null;
+    if (due === "Done") return "Done";
     if (/Due in \d+/.test(due)) return due;
   
     const dueDate = new Date(due);
@@ -306,7 +308,7 @@ const [newTask, setNewTask] = useState({
             id: taskId,
             name: task.text || 'Untitled Task',
             tags: task.tags || [],
-            due: task.due|| "3d",
+            due: task.due|| null,
             description: "",
             platform: task.platform ,
             channel: task.chat_title ,
@@ -505,7 +507,7 @@ const [newTask, setNewTask] = useState({
       id: backendTask._id || backendTask.id,
       name: backendTask.text,
       tags: backendTask.tags || [],
-      due: backendTask.due || newTask.due || "3d",
+      due: backendTask.due || newTask.due || null,
       description: newTask.description,
       platform: backendTask.platform || "web", // Use API response platform
       channel: backendTask.chat_title || null, // Use API response chat_title
@@ -817,10 +819,10 @@ const [newTask, setNewTask] = useState({
                                   <img className="h-4 w-4" src={task.type=="todo"?todoIcon2:reminderIcon}/>
                                   {task.type=="todo"?"To-do":"Reminder"}
                                 </span>
-                                <span className="h-6 flex-shrink-0 flex gap-1 items-center bg-[#fafafa10] text-[#ffffff72] px-2 py-1 rounded-[6px]">
+                                {formatDueText(task) && <span className="h-6 flex-shrink-0 flex gap-1 items-center bg-[#fafafa10] text-[#ffffff72] px-2 py-1 rounded-[6px]">
                                   <CalendarCogIcon className="w-4 h-4"/>
                                   {formatDueText(task)}
-                                </span>
+                                </span>}
                                 <span className="text-[#ffffff72]">{task.name}</span>
                               </div>
                 <div className={`text-xs text-white flex gap-2 items-center mb-1 w-max rounded-[4px] px-2 py-0.5 ${
