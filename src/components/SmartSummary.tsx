@@ -574,6 +574,20 @@ const token = localStorage.getItem("access_token");
     };
   }, [dropdownOpen]);
 
+
+  function renderFormattedSummary(text: string) {
+    // Split on **, even indices are normal text, odd indices are bold text
+    const parts = text.split(/(\*\*[^\*]+\*\*)/g).filter(Boolean);
+  
+    return parts.map((part, idx) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={idx}>{part.slice(2, -2)}</strong>;
+      }
+      return <React.Fragment key={idx}>{part}</React.Fragment>;
+    });
+  }
+  
+
   return (
     <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[350px] max-w-[517px] bg-[#111111] text-white rounded-2xl py-2 flex flex-col shadow-lg border border-[#23242a] grow">
       {/* Header */}
@@ -728,7 +742,7 @@ const token = localStorage.getItem("access_token");
               </div>
             ) : summaryData?.summary ? (
               <div className="text-sm text-[#fafafa] whitespace-pre-wrap leading-relaxed">
-                {summaryData.summary}
+  {renderFormattedSummary(summaryData.summary)}
               </div>
             ) : summaryData?.error ? (
               <div className="text-sm text-red-400">{summaryData.error}</div>
