@@ -22,6 +22,7 @@ import { AppHeader } from "@/components/AppHeader";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
 import { SearchPanel } from "@/components/SearchPanel";
+import { ChatSelection } from "@/components/ChatSelection";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -226,6 +227,33 @@ const Settings = () => {
   //     </Layout>
   //   );
   // }
+  const [discordConnected, setDiscordConnected] = useState(false);
+  const [telegramConnected, setTelegramConnected] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchStatuses = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const [tgRes, dcRes] = await Promise.all([
+          fetch(`${BACKEND_URL}/auth/telegram/status`, { headers }),
+          fetch(`${BACKEND_URL}/auth/discord/status`, { headers }),
+        ]);
+        if (tgRes.ok) {
+          const tg = await tgRes.json();
+          setTelegramConnected(!!tg.connected);
+        }
+        if (dcRes.ok) {
+          const dc = await dcRes.json();
+          setDiscordConnected(!!dc.connected);
+        }
+      } catch (e) {
+        // ignore transient errors
+      }
+    };
+    fetchStatuses();
+  }, [user]);
 
   if (!user) {
     return null;
@@ -256,11 +284,11 @@ const Settings = () => {
                 <main className="h-[calc(100vh-72px)] flex pb-0 pr-3 space-x-0 flex max-w-screen justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-hidden">
 
       <div className="flex grow flex-col p-6 bg-gradient-to-br from-[#171717] via-[#1a1a1a] to-[#171717] min-h-screen min-w-0 max-w-full ">
-        <div className="max-w-4xl mx-auto w-full space-y-8">
+        <div className="max-w-8xl px-12 mx-auto w-full space-y-8">
           {/* Header */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-gradient-to-r from-[#3474ff] to-[#7B5CFA] text-white">
+              <div className="p-2 rounded-[6px] bg-gradient-to-r from-[#3474ff] to-[#7B5CFA] text-white">
                 <SettingsIcon className="w-6 h-6" />
               </div>
               <h1 className="text-4xl font-bold text-white">Settings</h1>
@@ -270,16 +298,23 @@ const Settings = () => {
             </p>
           </div>
 
-          <Card className="bg-gradient-to-br from-[#212121] via-[#1f1f1f] to-[#1a1a1a] border-[#333] hover:border-[#444] transition-all duration-300">
+          <Card className="bg-gradient-to-br from-[#212121] via-[#1f1f1f] to-[#1a1a1a] border-[#333] hover:border-[#444] transition-all duration-300 rounded-[6px]">
             <CardContent className="p-6">
               <Tabs defaultValue="profile" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 bg-[#171717] border-[#333]">
+                <TabsList className="grid w-full grid-cols-3 bg-[#171717] border-[#333]">
                   <TabsTrigger
                     value="profile"
                     className="flex items-center gap-2 data-[state=active]:bg-[#3474ff] data-[state=active]:text-white"
                   >
                     <User className="w-4 h-4" />
                     Profile
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="chats"
+                    className="flex items-center gap-2 data-[state=active]:bg-[#3474ff] data-[state=active]:text-white"
+                  >
+                    <User className="w-4 h-4" />
+                    Chats
                   </TabsTrigger>
                   <TabsTrigger
                     value="security"
@@ -379,6 +414,10 @@ const Settings = () => {
                       </Button>
                     </form>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="chats" className="space-y-6 mt-6">
+                  <ChatSelection telegramConnected={telegramConnected} setTelegramConnected={setTelegramConnected} discordConnected={discordConnected} setDiscordConnected={setDiscordConnected}/>
                 </TabsContent>
 
                 <TabsContent value="security" className="space-y-6 mt-6">

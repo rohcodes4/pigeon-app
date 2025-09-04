@@ -4,6 +4,7 @@ import { FaTelegramPlane, FaDiscord } from "react-icons/fa";
 import discord from "@/assets/images/discord.png";
 import telegram from "@/assets/images/telegram.png";
 import smartIcon from "@/assets/images/sidebar/Chat.png";
+import ChatAvatar from "./ChatAvatar";
 
 // API function to fetch notifications
 const fetchNotifications = async (limit: number = 20) => {
@@ -50,6 +51,7 @@ const NotificationPanel = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [groupedNotifications, setGroupedNotifications] = useState<{[key: string]: any[]}>({});
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   // Load notifications on component mount
   useEffect(() => {
@@ -108,7 +110,22 @@ const NotificationPanel = () => {
       });
       setGroupedNotifications(newGrouped);
       
-      // Here you could also call an API to delete the specific notification
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+      const token = localStorage.getItem("access_token");
+    
+      const response = await fetch(`${BACKEND_URL}/notifications/${notificationId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+    
+      if (!response.ok) {
+        throw new Error(`Failed to delete notifications: ${response.status}`);
+      }
+    
+      return response.json();
+      
       console.log('Notification removed:', notificationId);
     } catch (error) {
       console.error('Error removing notification:', error);
@@ -148,33 +165,32 @@ const NotificationPanel = () => {
   };
 
   const getChannelName = (chatId: string) => {
+    
     // You can customize this to show actual chat names
     const notifications = groupedNotifications[chatId];
     if (notifications && notifications.length > 0) {
       // Try to get chat title from notification data
-      return notifications[0].chat_title || `Chat ${chatId}`;
+      return notifications[0].chat_name || `Chat ${chatId}`;
     }
     return `Channel ${chatId}`;
   };
 
   const getPlatformFromChatId = (chatId: string) => {
     // Simple heuristic - you might want to store this info in notifications
-    return Math.random() > 0.5 ? 'telegram' : 'discord';
+    // return Math.random() > 0.5 ? 'telegram' : 'discord';
+    return 'telegram'
   };
 
   const renderNotifications = (notifications: any[], channelKey: string) => {
     if (!notifications || notifications.length <= 0) return null;
-    
+    console.log(notifications)
     return notifications.map((notification) => (
       <div key={notification._id} className="relative flex items-start gap-2 mb-2 bg-[#212121] p-2 rounded-[10px] border border-[#ffffff09]">
         <div className="absolute top-2 right-2 cursor-pointer" onClick={() => removeNotification(notification._id)}>
           <X className="w-4 h-4 text-[#fafafa60] hover:text-[#fafafa]" />
         </div>
         <div className="flex-shrink-0 w-8 flex items-center justify-center">
-          <img
-            src={`https://www.gravatar.com/avatar/${notification.message_id || 'default'}?d=identicon&s=80`}
-            className="w-7 h-7 rounded-full object-cover"
-          />
+          <ChatAvatar name={notification.name} avatar={`${BACKEND_URL}/contact_photo/${notification.chat_id}`} backupAvatar={`${BACKEND_URL}/chat_photo/${notification.chat_id}`} />
         </div>
         <div className="grow rounded-[8px] px-2">
           <div className="flex items-center gap-2">
@@ -197,9 +213,9 @@ const NotificationPanel = () => {
             <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">
               💡 {notification.type}
             </span>
-            {notification.chat_id && (
+            {notification.chat_name && (
               <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">
-                📱 Chat {notification.chat_id}
+                📱 {notification.chat_name}
               </span>
             )}
             <span className="text-xs rounded-full bg-[#ffffff16] px-1 py-1 flex items-center">
@@ -238,9 +254,10 @@ const NotificationPanel = () => {
       </aside>
     );
   }
-
+  console.log('notificationss')
+  console.log(notifications)
   return (
-    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]">
+    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden max-w-[501px] min-w-[400px] 2xl:min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]">
       <div className="text-[#84AFFF] flex items-center justify-between gap-2 p-4">
         <div className="flex items-center gap-2">
           <Bell className="w-4 h-4 fill-[#84AFFF]" />
@@ -270,10 +287,12 @@ const NotificationPanel = () => {
               <div className="flex items-center gap-2" onClick={() => toggleChannel(channelKey)}>
                 {openChannel === channelKey ? <ChevronDown className="text-[#fafafa]" /> : <ChevronRight className="text-[#fafafa]" />}
                 <div className="relative mr-2">
-                  <img
+                  {/* <img
                     src={`https://www.gravatar.com/avatar/${channelKey}?d=identicon&s=80`}
                     className="w-10 h-10 rounded-full object-cover"
-                  />
+                  /> */}
+            <ChatAvatar name={getChannelName(channelKey)} avatar={`${BACKEND_URL}/chat_photo/${channelKey}`} backupAvatar={`${BACKEND_URL}/contact_photo/${channelKey}`}/>
+
                   <img
                     src={getPlatformFromChatId(channelKey) === "discord" ? discord : telegram}
                     className={`
