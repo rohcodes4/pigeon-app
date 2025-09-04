@@ -196,7 +196,8 @@ const PinnedPanel = () => {
 
   const getPlatformFromChatId = (chatId: string) => {
     // Simple heuristic - you might want to store this info in pins
-    return Math.random() > 0.5 ? 'telegram' : 'discord';
+    // return Math.random() > 0.5 ? 'telegram' : 'discord';
+    return 'telegram';
   };
 
   const renderPinnedMessages = (pins: any[], channelKey: string) => {

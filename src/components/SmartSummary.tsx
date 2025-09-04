@@ -180,14 +180,16 @@ async function fetchTasks({ chat_id }) {
   }
 }
 
-async function fetchMentions() {
+
+async function fetchMentions(chat_id) {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const token = localStorage.getItem("access_token");
-
+console.log('chat_id')
+console.log(chat_id)
   try {
     // First, try the primary tasks endpoint for this chat
-    const response = await fetch(`${BACKEND_URL}/mentions`, {
-      method: "POST",
+    const response = await fetch(`${BACKEND_URL}/ui/mentions?chat_id=${chat_id}`, {
+      method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -254,7 +256,9 @@ const SmartSummary = ({ selectedChat, chatId }: SmartSummaryProps) => {
   const [selectedFilter, setSelectedFilter] = useState("All");
   const [selectedTaskIds, setSelectedTaskIds] = useState(new Set());
   const [tasks, setTasks] = useState([]);
+  const [mentions, setMentions] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
+  const [mentionsLoading, setMentionsLoading] = useState(false);
 
   const handleTaskSelection = (taskId) => {
     setSelectedTaskIds((prev) => {
@@ -402,6 +406,27 @@ const handleFetchTasks = async () => {
   }
 };
 
+const handleFetchMentions = async () => {
+  setMentionsLoading(true);
+  try {        
+    const fetchedMentions = await fetchMentions(selectedChat.id);
+    console.log("fetchMentions result:", fetchedMentions);
+    
+    // Ensure we have an array
+    if (Array.isArray(fetchedMentions)) {
+      setMentions(fetchedMentions);
+    } else {
+      console.warn("fetchTasks did not return an array:", fetchedMentions);
+      setMentions([]); // Set empty array if not an array
+    }
+  } catch (error) {
+    console.error("Failed to fetch tasks:", error);
+    setMentions([]); // Set empty array on error
+  } finally {
+    setMentionsLoading(false);
+  }
+};
+
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 const token = localStorage.getItem("access_token");
 
@@ -465,7 +490,7 @@ const token = localStorage.getItem("access_token");
     if (selectedChat && selectedChat !== "all-channels" && selectedChat.id) {
       handleGenerateSummary();
       handleFetchTasks();
-
+      handleFetchMentions()
     }
   }, [selectedChat]); // This will trigger when selectedChat changes
 
@@ -837,7 +862,20 @@ const token = localStorage.getItem("access_token");
             </span>
           </div>
           <div className="bg-[#171717] px-2 py-2 rounded-[16px]">
-            {todos.map((todo) => (
+          {mentionsLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400"></div>
+                <span className="ml-2 text-sm text-[#fafafa60]">
+                  Loading mentions...
+                </span>
+              </div>
+            ) : mentions.length === 0 ? (
+              <div className="text-sm text-[#fafafa60] text-center py-4">
+                No mentions available
+              </div>
+            ) : (
+              <>
+            {mentions.map((todo) => (
               <div
                 className="flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 bg-[#212121]"
                 key={todo.id}
@@ -888,6 +926,8 @@ const token = localStorage.getItem("access_token");
                 </div>
               </div>
             ))}
+            </>
+            )}
           </div>
         </div>
       ) : null}

@@ -239,7 +239,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [searchMore, setSearchMore] = useState(false);
   const [filterFull, setFilterFull] = useState(false);
   const [streamsLimit, setStreamsLimit] = useState(5);
-  const [channelsLimit, setChannelsLimit] = useState(10);
+  const [channelsLimit, setChannelsLimit] = useState(20);
   const [smartFilters, setSmartFilters] = useState<any[]>([]);
   const [isLoadingFilters, setIsLoadingFilters] = useState(false);
   const [filterError, setFilterError] = useState<string | null>(null);
@@ -409,7 +409,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   // Reset limits when search term or filters change
   useEffect(() => {
     setStreamsLimit(5);
-    setChannelsLimit(10);
+    setChannelsLimit(20);
   }, [searchTerm, filters]);
 
   const scroll = (
@@ -437,7 +437,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       setFilters((prev) => [...prev, item]);
       // Reset limits when filters change
       setStreamsLimit(5);
-      setChannelsLimit(10);
+      setChannelsLimit(20);
       setTimeout(bottomArrows.checkScroll, 300);
     }
   };
@@ -627,9 +627,76 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     });
   };
 
-  const channelsToShow = isFocus ? focusChannels : displayChannels;
+  const [fetchedUsers, setFetchedUsers] = useState<any[]>([]);
+const [isFetchingUsers, setIsFetchingUsers] = useState(false);
+
+
+  async function fetchSearchUsers(query = "rohcodes", limit = 10) {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL; // or your backend URL string
+  const token = localStorage.getItem("access_token");
+
+  const url = `${BACKEND_URL}/api/search/users?query=${encodeURIComponent(query)}&limit=${limit}`;
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error fetching users: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    console.log("Search results:", data);
+    return data;
+  } catch (error) {
+    console.error("Fetch search users failed:", error);
+    return null;
+  }
+}
+
+useEffect(() => {
+  if (searchTerm.trim() !== "") {
+    fetchSearchUsers(searchTerm);
+  } else {
+    setFetchedUsers([]);
+  }
+}, [searchTerm]);
 
   
+  const channelsToShow = searchTerm.trim() ? fetchedUsers : isFocus ? focusChannels : displayChannels;
+
+  const markAllRead = async () => {
+    try {
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(`${BACKEND_URL}/api/chats/mark-all-read`, {
+        method: "POST",
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ read: true }),  // if your backend expects a body, adjust accordingly, else omit body
+      });
+  
+      if (!response.ok) {
+        throw new Error(`Failed to mark all as read: ${response.status}`);
+      }
+      setSearchMore(false)
+      // Optionally, refresh chat list or update local read state
+      // alert("All chats marked as read");
+  
+      // For example, refresh chats if you have a method
+      // loadChats();
+    } catch (error) {
+      // alert(`Error marking all as read: ${(error as Error).message}`);
+    }
+  };
+
   return (
     <aside className="h-[calc(100vh-73px)] w-[350px] p-3 pl-0 flex flex-col border-r border-[#23272f] bg-[#111111]">
       <Button
@@ -692,7 +759,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   </div>
                   <div
                     className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
-                    onClick={() => setSearchMore(false)}
+                    onClick={() => {
+                      markAllRead();
+                    }}
                   >
                     <Check className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
                     <span className="text-white">Read All</span>
@@ -1109,7 +1178,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                       </div>
                       <div className="flex flex-col items-center gap-1">
       <span className="self-end text-xs text-gray-400">
-  {console.log('Raw chat.timestamp:', chat.timestamp, 'Type:', typeof chat.timestamp)}
+  {/* {console.log('Raw chat.timestamp:', chat.timestamp, 'Type:', typeof chat.timestamp)} */}
   {formatChatTime(chat.timestamp)}
 </span>
                         <div className="flex items-center gap-1">
@@ -1145,18 +1214,18 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                         )
                       }
                     >
-                      Show {Math.min(20, channels.length - channelsLimit)} more
-                      channels...
+                      Show more channels...
+                      {/* Show {Math.min(20, channels.length - channelsLimit)} more channels... */}
                     </button>
                   )}
 
                 {/* Show Less button when channels are expanded */}
                 {!searchTerm.trim() &&
                   filters.length === 0 &&
-                  channelsLimit > 10 && (
+                  channelsLimit > 20 && (
                     <button
                       className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
-                      onClick={() => setChannelsLimit(10)}
+                      onClick={() => setChannelsLimit(20)}
                     >
                       Show Less
                     </button>
