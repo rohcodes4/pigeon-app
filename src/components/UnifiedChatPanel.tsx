@@ -274,6 +274,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     prevHeight: number;
     prevTop: number;
   } | null>(null);
+  // Track current chat to prevent race conditions
+  const currentChatRef = React.useRef<string | null>(null);
   const [replyTo, setReplyTo] = React.useState<null | MessageItem>(null);
   const [messages, setMessages] = React.useState<MessageItem[]>(
     USE_DUMMY_DATA ? (dummyMessages as unknown as MessageItem[]) : []
@@ -902,6 +904,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
         setLoading(true);
         setHasMoreMessages(true); // Reset pagination state for new chat
         setShouldAutoScroll(true);
+        // CRITICAL: Clear messages immediately when switching chats to prevent mixing
+        setMessages([]);
       }
 
       try {
@@ -1345,11 +1349,13 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     try {
       const token = localStorage.getItem("access_token");
       let endpoint: string | null = null;
+      let currentChatId: string | null = null; // Track which chat we're fetching for
 
       if (selectedChat === "all-channels") {
         endpoint = `${
           import.meta.env.VITE_BACKEND_URL
         }/chats/all/messages?limit=${PAGE_SIZE}`;
+        currentChatId = "all-channels";
       } else if (
         selectedChat &&
         typeof selectedChat === "object" &&
@@ -1362,10 +1368,12 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
             (selectedChat as any).id
           }/messages?limit=${PAGE_SIZE}`;
+          currentChatId = `filter-${(selectedChat as any).id}`;
         } else {
           endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/${
             (selectedChat as any).id
           }/messages?limit=${PAGE_SIZE}`;
+          currentChatId = String((selectedChat as any).id);
         }
       } else {
         console.log(
@@ -1456,6 +1464,22 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       // console.log("DEBUG: Transformed", transformed.length, "messages");
 
       setMessages((prev) => {
+        // CRITICAL: Only update messages if we're still on the same chat
+        // This prevents race conditions when switching between chats rapidly
+        const stillOnSameChat = currentChatId === currentChatRef.current;
+
+        if (!stillOnSameChat) {
+          console.log(
+            "DEBUG: Chat changed during refresh, ignoring stale data",
+            {
+              currentChatId,
+              currentChat: currentChatRef.current,
+              selectedChat,
+            }
+          );
+          return prev; // Don't update if we've switched chats
+        }
+
         const idOf = (x: any) => String(x.originalId || x.id);
         const prevMap = new Map(prev.map((m) => [idOf(m), m]));
         let changed = false;
@@ -1491,6 +1515,19 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   React.useEffect(() => {
     // Set flag to indicate this is a new chat (should auto-scroll)
     setIsNewChat(true);
+
+    // Update current chat ref to help prevent race conditions
+    let chatId = null;
+    if (selectedChat === "all-channels") {
+      chatId = "all-channels";
+    } else if (selectedChat?.id) {
+      if (selectedChat.name && selectedChat.keywords !== undefined) {
+        chatId = `filter-${selectedChat.id}`;
+      } else {
+        chatId = String(selectedChat.id);
+      }
+    }
+    currentChatRef.current = chatId;
 
     if (!USE_DUMMY_DATA) {
       if (selectedChat?.id) {
