@@ -1180,6 +1180,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
         // Clear uploaded files after successful upload
         setUploadedFiles([]);
         inputRef.current.value = "";
+        setText("")
       } catch (error) {
         console.error("Error sending media:", error);
         toast({
@@ -1265,6 +1266,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     const originalValue = inputRef.current.value;
     const originalReplyTo = replyTo;
     inputRef.current.value = "";
+    setText("")
+
     setReplyTo(null);
     setShouldAutoScroll(true);
 
@@ -1274,6 +1277,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       const replyToId = originalReplyTo?.telegramMessageId;
       const result = await sendMessage(id, messageText, replyToId);
       inputRef.current.value = "";
+      setText("")
       console.log("Message sent successfully:", result);
 
       // Show success toast
@@ -1554,6 +1558,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     setReplyTo(null);
     if (inputRef.current) {
       inputRef.current.value = "";
+      setText("")
+
     }
     setUploadedFiles([]);
   }, [
@@ -1663,6 +1669,157 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       });
     }
   };
+
+
+const [isHoveringMenu, setIsHoveringMenu] = useState(false);
+// Use a ref to persist between renders
+const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+const startCloseTimer = () => {
+  if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+  closeTimeoutRef.current = setTimeout(() => {
+    setOpenMenuId(null);
+    setIsHoveringMenu(false);
+    closeTimeoutRef.current = null;
+  }, 180); // 150-200ms works well
+};
+
+useEffect(() => {
+  // Cleanup timer on unmount
+  return () => {
+    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+  };
+}, []);
+
+// Add these state and refs at the top together with your menu states:
+const [isTagsSubmenuOpen, setIsTagsSubmenuOpen] = useState(false);
+const tagsSubmenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+const startTagsSubmenuCloseTimer = () => {
+  if (tagsSubmenuTimeoutRef.current) clearTimeout(tagsSubmenuTimeoutRef.current);
+  tagsSubmenuTimeoutRef.current = setTimeout(() => {
+    setIsTagsSubmenuOpen(false);
+  }, 150);
+};
+
+const cancelTagsSubmenuCloseTimer = () => {
+  if (tagsSubmenuTimeoutRef.current) {
+    clearTimeout(tagsSubmenuTimeoutRef.current);
+    tagsSubmenuTimeoutRef.current = null;
+  }
+};
+
+const [showFiltersPopup, setShowFiltersPopup] = useState(false); // Controls inner popup
+const [filtersList, setFiltersList] = useState([]);
+const [isFetchingFilters, setIsFetchingFilters] = useState(false);
+
+const filtersPopupTimeoutRef = useRef(null);
+
+const startFiltersPopupCloseTimer = () => {
+  if (filtersPopupTimeoutRef.current) clearTimeout(filtersPopupTimeoutRef.current);
+  filtersPopupTimeoutRef.current = setTimeout(() => {
+    setShowFiltersPopup(false);
+  }, 140);
+};
+const cancelFiltersPopupCloseTimer = () => {
+  if (filtersPopupTimeoutRef.current) {
+    clearTimeout(filtersPopupTimeoutRef.current);
+    filtersPopupTimeoutRef.current = null;
+  }
+};
+
+// Fetch filters when opening the popup
+const fetchFilters = async () => {
+  setIsFetchingFilters(true);
+  try {
+    const token = localStorage.getItem("access_token");
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/filters`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) throw new Error("Failed to load filters");
+    const data = await response.json();
+    setFiltersList(data);
+  } catch (e) {
+    setFiltersList([]);
+  } finally {
+    setIsFetchingFilters(false);
+  }
+};
+
+
+const handleAddToSmartChannel = async (msg: any, filter: any) => {
+  if (!filter || !filter.id) {
+    console.error("Invalid filter provided:", filter);
+    return;
+  }
+
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const token = localStorage.getItem("access_token");
+
+  try {
+    const currentChannels = filter.channels || [];
+    const chatIdToToggle = msg.chat_id;
+
+    let updatedChannels: any[];
+    if (currentChannels.includes(chatIdToToggle)) {
+      // Remove chat_id from channels if present
+      updatedChannels = currentChannels.filter((id) => id !== chatIdToToggle);
+    } else {
+      // Add chat_id to channels if not present
+      updatedChannels = [...currentChannels, chatIdToToggle].filter(Boolean);
+    }
+
+    // Prepare URL encoded form data
+    const params = new URLSearchParams();
+    params.append("name", filter.name);
+    params.append("channels", updatedChannels.join(","));
+    if (filter.keywords) {
+      params.append("keywords", (filter.keywords || []).join("\n"));
+    }
+
+    const response = await fetch(`${BACKEND_URL}/filters/${filter.id}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update filter: ${response.status}`);
+    }
+
+    const updatedFilter = await response.json();
+    console.log("Filter updated successfully:", updatedFilter);
+
+    // Update local filters list state if applicable
+    setFiltersList((prev) =>
+      prev.map((f) => (f.id === updatedFilter.id ? updatedFilter : f))
+    );
+
+    toast({
+      title: "Filter updated",
+      description: updatedChannels.includes(chatIdToToggle)
+        ? "Added chat to smart channel successfully"
+        : "Removed chat from smart channel successfully",
+    });
+
+    // Optionally reload filters from backend to ensure UI is fully in sync
+    fetchFilters();
+  } catch (error) {
+    console.error("Error updating filter:", error);
+    toast({
+      title: "Failed to update filter",
+      description: error.message || "Please try again",
+      variant: "destructive",
+    });
+  }
+};
+
+
 
   return (
     <div className="relative h-[calc(100vh-136px)] flex flex-col flex-shrink-0 min-w-0">
@@ -1779,7 +1936,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                       ? "opacity-70 bg-[#1a1a1a]"
                       : ""
                   }`}
-                  onMouseLeave={() => setOpenMenuId(null)}
+                  // onMouseLeave={() => setOpenMenuId(null)}
+                  onMouseLeave={startCloseTimer}
                 >
                   <ChatAvatar
                     name={msg.name}
@@ -1837,20 +1995,22 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                         title="More"
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (closeTimeoutRef.current) {
+                            clearTimeout(closeTimeoutRef.current);
+                            closeTimeoutRef.current = null;
+                          }
                           const mid = String(msg.id);
                           const newOpenMenuId = openMenuId === mid ? null : mid;
-
                           if (newOpenMenuId) {
-                            // Calculate and store position for this specific menu
                             const position = getMenuPosition(e.currentTarget);
                             setMenuPositions((prev) => ({
                               ...prev,
                               [mid]: position,
                             }));
                           }
-
                           setOpenMenuId(newOpenMenuId);
                         }}
+                        
                       >
                         <IoIosMore className="text-[#ffffff] w-3 h-3" />
                         {/* Popup menu */}
@@ -1859,8 +2019,61 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
                             className={`absolute right-0 ${
                               menuPositions[String(msg.id)] || "bottom-[110%]"
                             } mt-2 bg-[#111111] border border-[#ffffff12] rounded-[10px] shadow-lg z-[9999] flex flex-col p-2 min-w-max`}
+                            // onMouseEnter={() => {
+                            //   setShowFiltersPopup(true);
+                            //   cancelFiltersPopupCloseTimer();
+                            //   if (filtersList.length === 0 && !isFetchingFilters) fetchFilters();
+                            // }}
+                            // onMouseLeave={startFiltersPopupCloseTimer}
                           >
-                            <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                            {showFiltersPopup && (
+    <div
+      className="absolute flex-col items-center justify-center -left-2 top-2 w-full pt-4 ml-2 bg-[#17171c] border border-[#222] rounded-[10px] p-3 mt-[-8px] min-w-[220px] shadow-xl z-10"
+      onMouseEnter={() => {
+        setShowFiltersPopup(true);
+        cancelFiltersPopupCloseTimer();
+      }}
+      onMouseLeave={startFiltersPopupCloseTimer}
+    >
+      {isFetchingFilters ? (
+        <div className="text-white/70 px-4 py-2">Loading...</div>
+      ) : filtersList.length === 0 ? (
+        <div className="text-white/70 px-4 py-2">No smart streams found.</div>
+      ) : (
+        filtersList.map((filter) => {
+          // Check if filter.channels contains msg.chat_id
+          const isAdded = filter.channels && msg.chat_id && filter.channels.includes(msg.chat_id);
+        
+          return (
+            <div
+              key={filter.id}
+              className={`block text-left px-3 py-2 rounded-[10px] mb-2 text-sm cursor-pointer ${
+                isAdded ? 'bg-transparent text-[#ffffff]' : 'bg-[#ffffff10] text-white'
+              } hover:bg-[#ffffff10] hover:text-white`}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAddToSmartChannel(msg, filter);
+              }}
+            >
+              {filter.title || filter.name}
+              <p className={`text-xs text-[#ffffff72] `}>
+                {filter.keywords.join(', ')}
+              </p>
+            </div>
+          );
+        })
+        
+      )}
+      <X height={16} width={16} onClick={()=>setShowFiltersPopup(false)} className="w-max mx-auto block"/>
+    </div>
+  )}
+                            <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+                             onClick={e => {
+                              e.stopPropagation();
+                              setShowFiltersPopup(v => !v);
+                              if (filtersList.length === 0 && !isFetchingFilters) fetchFilters();
+                            }}
+                            style={{ position: "relative", zIndex: 2 }}>
                               <img src={smartIcon} className="w-6 h-6" />
                               Add to Smart Channels
                             </button>
@@ -2304,7 +2517,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
             <input
               ref={inputRef}
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => content(e.target.value)}
               type="text"
               placeholder={
                 replyTo && replyTo.name
