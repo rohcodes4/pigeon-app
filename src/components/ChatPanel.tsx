@@ -291,7 +291,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       setFilterError(null);
       const filters = await getSmartFilters();
       setSmartFilters(filters);
-      console.log("Loaded smart filters:", filters);
+      // console.log("Loaded smart filters:", filters);
     } catch (error) {
       console.error("Error loading filters:", error);
       setFilterError(
@@ -503,97 +503,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       ? channels
       : channels.slice(0, channelsLimit); // Use dynamic limit
 
-  if (filterFull) {
-    return (
-      <FiltersPanel
-        onClose={() => setFilterFull(false)}
-        loadFilters={getSmartFilters}
-        createFilter={async (filterData) => {
-          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-          const token = localStorage.getItem("access_token");
-
-          const formData = new FormData();
-          formData.append("name", filterData.name);
-          formData.append("channels", filterData.channels.join(","));
-          formData.append("keywords", filterData.keywords.join("\n"));
-
-          const response = await fetch(`${BACKEND_URL}/filters`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            body: formData,
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to create filter: ${response.status}`);
-          }
-
-          const newFilter = await response.json();
-          setSmartFilters((prev) => [...prev, newFilter]);
-          alert("Filter created successfully!");
-          refreshSmartFilters();
-          return newFilter;
-        }}
-        updateFilter={async (filterId, filterData) => {
-          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-          const token = localStorage.getItem("access_token");
-
-          const formData = new FormData();
-          if (filterData.name) formData.append("name", filterData.name);
-          if (filterData.channels)
-            formData.append("channels", filterData.channels.join(","));
-          if (filterData.keywords)
-            formData.append("keywords", filterData.keywords.join("\n"));
-
-          const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            body: formData,
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to update filter: ${response.status}`);
-          }
-
-          const updatedFilter = await response.json();
-          setSmartFilters((prev) =>
-            prev.map((f) => (f.id === filterId ? updatedFilter : f))
-          );
-          alert("Filter updated successfully!");
-          refreshSmartFilters();
-          return updatedFilter;
-        }}
-        deleteFilter={async (filterId) => {
-          if (!confirm("Are you sure you want to delete this filter?")) {
-            return;
-          }
-          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-          const token = localStorage.getItem("access_token");
-
-          const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to delete filter: ${response.status}`);
-          }
-
-          setSmartFilters((prev) => prev.filter((f) => f.id !== filterId));
-          alert("Filter deleted successfully!");
-          refreshSmartFilters();
-        }}
-        topItems={topItems}
-        onTopItemsReorder={setTopItems}
-        onFiltersUpdated={refreshSmartFilters}
-      />
-    );
-  }
 
   const handleFocusMode = () => {
     setIsFocus((prevIsFocus) => {
@@ -683,7 +592,195 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     }
   };
 
+  function formatUnreadCount(unread) {
+    if (typeof unread !== 'number') return '';
+    return unread > 9 ? '9+' : unread.toString();
+  }
+
+  
+  // if (filterFull) {
+  //   return (
+  //     <FiltersPanel
+  //       onClose={() => setFilterFull(false)}
+  //       loadFilters={getSmartFilters}
+  //       createFilter={async (filterData) => {
+  //         const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  //         const token = localStorage.getItem("access_token");
+
+  //         const formData = new FormData();
+  //         formData.append("name", filterData.name);
+  //         formData.append("channels", filterData.channels.join(","));
+  //         formData.append("keywords", filterData.keywords.join("\n"));
+
+  //         const response = await fetch(`${BACKEND_URL}/filters`, {
+  //           method: "POST",
+  //           headers: {
+  //             Authorization: `Bearer ${token}`,
+  //           },
+  //           body: formData,
+  //         });
+
+  //         if (!response.ok) {
+  //           throw new Error(`Failed to create filter: ${response.status}`);
+  //         }
+
+  //         const newFilter = await response.json();
+  //         setSmartFilters((prev) => [...prev, newFilter]);
+  //         alert("Filter created successfully!");
+  //         refreshSmartFilters();
+  //         return newFilter;
+  //       }}
+  //       updateFilter={async (filterId, filterData) => {
+  //         const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  //         const token = localStorage.getItem("access_token");
+
+  //         const formData = new FormData();
+  //         if (filterData.name) formData.append("name", filterData.name);
+  //         if (filterData.channels)
+  //           formData.append("channels", filterData.channels.join(","));
+  //         if (filterData.keywords)
+  //           formData.append("keywords", filterData.keywords.join("\n"));
+
+  //         const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
+  //           method: "POST",
+  //           headers: {
+  //             Authorization: `Bearer ${token}`,
+  //           },
+  //           body: formData,
+  //         });
+
+  //         if (!response.ok) {
+  //           throw new Error(`Failed to update filter: ${response.status}`);
+  //         }
+
+  //         const updatedFilter = await response.json();
+  //         setSmartFilters((prev) =>
+  //           prev.map((f) => (f.id === filterId ? updatedFilter : f))
+  //         );
+  //         alert("Filter updated successfully!");
+  //         refreshSmartFilters();
+  //         return updatedFilter;
+  //       }}
+  //       deleteFilter={async (filterId) => {
+  //         if (!confirm("Are you sure you want to delete this filter?")) {
+  //           return;
+  //         }
+  //         const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  //         const token = localStorage.getItem("access_token");
+
+  //         const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
+  //           method: "DELETE",
+  //           headers: {
+  //             Authorization: `Bearer ${token}`,
+  //           },
+  //         });
+
+  //         if (!response.ok) {
+  //           throw new Error(`Failed to delete filter: ${response.status}`);
+  //         }
+
+  //         setSmartFilters((prev) => prev.filter((f) => f.id !== filterId));
+  //         alert("Filter deleted successfully!");
+  //         refreshSmartFilters();
+  //       }}
+  //       topItems={topItems}
+  //       onTopItemsReorder={setTopItems}
+  //       onFiltersUpdated={refreshSmartFilters}
+  //     />
+  //   );
+  // }
+
   return (
+    <>
+      {filterFull ? (
+        <FiltersPanel
+        onClose={() => setFilterFull(false)}
+        loadFilters={getSmartFilters}
+        createFilter={async (filterData) => {
+          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+          const token = localStorage.getItem("access_token");
+
+          const formData = new FormData();
+          formData.append("name", filterData.name);
+          formData.append("channels", filterData.channels.join(","));
+          formData.append("keywords", filterData.keywords.join("\n"));
+
+          const response = await fetch(`${BACKEND_URL}/filters`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to create filter: ${response.status}`);
+          }
+
+          const newFilter = await response.json();
+          setSmartFilters((prev) => [...prev, newFilter]);
+          alert("Filter created successfully!");
+          refreshSmartFilters();
+          return newFilter;
+        }}
+        updateFilter={async (filterId, filterData) => {
+          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+          const token = localStorage.getItem("access_token");
+
+          const formData = new FormData();
+          if (filterData.name) formData.append("name", filterData.name);
+          if (filterData.channels)
+            formData.append("channels", filterData.channels.join(","));
+          if (filterData.keywords)
+            formData.append("keywords", filterData.keywords.join("\n"));
+
+          const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to update filter: ${response.status}`);
+          }
+
+          const updatedFilter = await response.json();
+          setSmartFilters((prev) =>
+            prev.map((f) => (f.id === filterId ? updatedFilter : f))
+          );
+          alert("Filter updated successfully!");
+          refreshSmartFilters();
+          return updatedFilter;
+        }}
+        deleteFilter={async (filterId) => {
+          if (!confirm("Are you sure you want to delete this filter?")) {
+            return;
+          }
+          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+          const token = localStorage.getItem("access_token");
+
+          const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to delete filter: ${response.status}`);
+          }
+
+          setSmartFilters((prev) => prev.filter((f) => f.id !== filterId));
+          alert("Filter deleted successfully!");
+          refreshSmartFilters();
+        }}
+        topItems={topItems}
+        onTopItemsReorder={setTopItems}
+        onFiltersUpdated={refreshSmartFilters}
+      />
+      ) : (
     <aside className="h-[calc(100vh-73px)] w-[350px] p-3 pl-0 flex flex-col border-r border-[#23272f] bg-[#111111]">
       <Button
         variant="ghost"
@@ -923,14 +1020,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             }
           }}
         >
-          {/* Avatar */}
           <img
             src={aiAll}
             className="w-10 h-10 rounded-full object-cover"
             loading="lazy"
             decoding="async"
           />
-          {/* Chat Info */}
           <div className="flex-1 text-left">
             <div className="flex justify-between items-center">
               <span className="text-[#fafafa] font-200 flex justify-between items-center w-full">
@@ -947,7 +1042,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              {/* You can add more badges here if needed */}
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-[#fafafa] font-[200] truncate max-w-[170px]">
@@ -1178,13 +1272,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                           )}
                           {!chat.read && chat.unread && chat.unread > 0 && (
                             <div
-                              className={`rounded-full w-5 h-5 text-xs flex items-center justify-center text-center ${
+                              className={`rounded-full w-6 h-6 text-xs flex items-center justify-center text-center ${
                                 chat.platform === "Telegram"
                                   ? "bg-[#3474ff]"
                                   : "bg-[#7b5cfa]"
                               }`}
                             >
-                              {chat.unread}
+                              <span>{formatUnreadCount(chat.unread)}</span>
                             </div>
                           )}
                         </div>
@@ -1238,7 +1332,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         allChannels={allChannels}
       />
     </aside>
-  );
-};
-
+   )}
+   </>
+ );
+}
 export default ChatPanel;

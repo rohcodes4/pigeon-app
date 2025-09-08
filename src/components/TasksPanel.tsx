@@ -27,6 +27,7 @@ const TASK_SECTIONS = [
       color: "red",
       textColor: "#F68989",
       bgColor: "#f03d3d12",
+      category:'URGENT'
     },
     {
       title: "🔥 TODAY'S OPPORTUNITIES",
@@ -34,6 +35,7 @@ const TASK_SECTIONS = [
       color: "yellow",
       textColor: "#FDD868",
       bgColor: "#FCBF0412",
+      category:'OPPORTUNITIES'
     },
     {
       title: "🚀 THIS WEEK'S PREP",
@@ -41,6 +43,7 @@ const TASK_SECTIONS = [
       color: "green",
       textColor: "#7CF6A6",
       bgColor: "#00ff0012",
+      category:'THISWEEK'
     },
     {
         title: "🎉 DONE",
@@ -75,7 +78,7 @@ const getUniqueTags = (tasks) => {
 
 function formatDueText(task) {
 
-  console.log(task)
+  // console.log(task)
   const due = task.due
   
     if (!due) return null;
@@ -226,13 +229,15 @@ const [newTask, setNewTask] = useState({
     const getAuthHeaders = () => {
       const token = localStorage.getItem("access_token");
       return {
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
       };
     };
       
-    async function fetchTasks(chat_id) {
+    async function fetchTasks(chat_id, category = null) {
       const params = new URLSearchParams();
       if (chat_id) params.append("chat_id", chat_id.toString());
+      if (category) params.append("category", category);
 
       const response = await fetch(`${BACKEND_URL}/tasks?${params.toString()}`, {
         method: "GET",
@@ -255,6 +260,30 @@ const [newTask, setNewTask] = useState({
       if (!response.ok) {
         throw new Error(`Failed to toggle task: ${response.status}`);
       }
+      loadTasks()
+
+
+
+      return response.json();
+    }
+
+    async function markTaskAsDone(taskId) {
+      const body = new URLSearchParams();
+      body.append('status', 'done');
+
+      const response = await fetch(`${BACKEND_URL}/tasks/${taskId}`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: body.toString(),
+
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to toggle task: ${response.status}`);
+      }
+
+      loadTasks()
+
 
       return response.json();
     }
@@ -291,39 +320,52 @@ const [newTask, setNewTask] = useState({
       return response.json();
     }
 
-    const loadTasks = async (chatId = null) => {
+    const loadTasks = async (chatId = null, category = null) => {
       try {
         setLoading(true);
-        const fetchedTasks = await fetchTasks(chatId);
-        
+        const fetchedTasks = await fetchTasks(chatId, category);
+    
         console.log('Fetched tasks:', fetchedTasks);
-        
+    
+        // Helper to map category to section status, fallback to 'week' (THISWEEK)
+        const statusFromCategory = (cat) => {
+          const section = TASK_SECTIONS.find((s) => s.category === cat);
+          return section ? section.status : 'week';
+        };
+    
         const transformedTasks = fetchedTasks.map(task => {
           const taskId = task._id || task.id;
           if (!taskId) {
             console.error('Task missing ID:', task);
           }
-          
+    
+          // Use category to determine internal status, fallback to 'week'
+          const normalizedStatus = task.status === "done"
+            ? "done"
+            : statusFromCategory(task.category);
+    
           return {
             id: taskId,
             name: task.text || 'Untitled Task',
             tags: task.tags || [],
-            due: task.due|| null,
+            due: task.due || null,
             description: "",
-            platform: task.platform ,
-            channel: task.chat_title ,
+            platform: task.platform,
+            channel: task.chat_title,
             server: "MAIN",
             priority: task.priority || "MEDIUM",
-            status: task.status === "open" ? "urgent" : task.status,
+            status: normalizedStatus,
             type: "todo",
             chat_id: task.chat_id,
             chat_title: task.chat_title,
             originator_id: task.originator_id,
             originator_name: task.originator_name,
-            created_at: task.created_at
+            created_at: task.created_at,
+            is_muted:task.is_muted,
+      is_favorite:task.is_favorite,
           };
         });
-        
+    
         console.log('Transformed tasks:', transformedTasks);
         setTasks(transformedTasks);
         setError(null);
@@ -334,11 +376,12 @@ const [newTask, setNewTask] = useState({
         setLoading(false);
       }
     };
+    
 
     const markTaskDone = async (id) => {
       try {
         await toggleTask(id);
-        setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: "done" } : t)));
+        setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: "done", category:'done' } : t)));
       } catch (error) {
         console.error('Error marking task as done:', error);
         setError('Failed to update task');
@@ -519,7 +562,9 @@ const [newTask, setNewTask] = useState({
       chat_title: backendTask.chat_title,
       originator_id: backendTask.originator_id,
       originator_name: backendTask.originator_name,
-      created_at: backendTask.created_at
+      created_at: backendTask.created_at,
+      is_muted:backendTask.is_muted,
+      is_favorite:backendTask.is_favorite,
     };
         
         setTasks((prev) => [transformedTask, ...prev]);
@@ -588,7 +633,10 @@ const [newTask, setNewTask] = useState({
 
     const markSelectedAsDone = async () => {
       try {
-        await Promise.all(selectedTasks.map(id => toggleTask(id)));
+      console.log(selectedTasks)
+
+        // await Promise.all(selectedTasks.map(id => toggleTask(id)));
+        await Promise.all(selectedTasks.map(id => markTaskAsDone(id)));
         setTasks((prev) =>
           prev.map((task) =>
             selectedTasks.includes(task.id) ? { ...task, status: "done" } : task
@@ -622,6 +670,61 @@ const [newTask, setNewTask] = useState({
         </div>
       );
     }
+
+    const addToFavorites = async (task) => {
+      try {
+        const body = new URLSearchParams();
+        body.append('favorite', !task.is_favorites);
+    
+        const response = await fetch(`${BACKEND_URL}/tasks/${task.id}/favorite`, {
+          method: "POST",
+          headers: {
+            ...getAuthHeaders(),
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: body.toString(),
+        });
+    
+        if (!response.ok) {
+          throw new Error(`Failed to add to favorites: ${response.status}`);
+        }
+        loadTasks()
+    
+        // Optionally update task state here if needed
+    
+      } catch (error) {
+        console.error('Error adding to favorites:', error);
+        setError('Failed to add to favorites');
+      }
+    };
+    
+    const muteTask = async (task) => {
+      try {
+        const body = new URLSearchParams();
+        body.append('muted', !task.is_muted);
+    
+        const response = await fetch(`${BACKEND_URL}/tasks/${task.id}/mute`, {
+          method: "POST",
+          headers: {
+            ...getAuthHeaders(),
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: body.toString(),
+        });
+    
+        if (!response.ok) {
+          throw new Error(`Failed to mute task: ${response.status}`);
+        }
+        loadTasks()
+    
+        // Optionally update task state here if needed
+    
+      } catch (error) {
+        console.error('Error muting task:', error);
+        setError('Failed to mute task');
+      }
+    };
+    
 
     return (
       <div className="bg-[#171717] text-white flex flex-col h-[calc(100vh-121px)] overflow-y-scroll">
@@ -698,8 +801,15 @@ const [newTask, setNewTask] = useState({
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          {TASK_SECTIONS.map((section) => (
-            <div key={section.status} className="py-2 border border-transparent border-b-[#ffffff09]">
+          {TASK_SECTIONS.map((section) => {
+              const sectionTasks = filteredTasks.filter(t => t.status === section.status);
+
+              // Sort tasks: favorites first
+              const sortedTasks = [...sectionTasks].sort((a, b) => {
+                if (a.is_favorite === b.is_favorite) return 0;
+                return a.is_favorite ? -1 : 1;
+              });
+ return(           <div key={section.status} className="py-2 border border-transparent border-b-[#ffffff09]">
               <div
                   className="flex items-center justify-between font-bold cursor-pointer"
                   style={{              
@@ -752,10 +862,10 @@ const [newTask, setNewTask] = useState({
               </div>
               {!collapsed[section.status] && (
                 <div className="space-y-2 ">
-                  {filteredTasks.filter((t) => t.status === section.status).length === 0 && (
+                  {sortedTasks.filter((t) => t.status === section.status).length === 0 && (
                     <div className="text-gray-500 text-sm">No tasks</div>
                   )}
-                  {filteredTasks
+                  {sortedTasks
                     .filter((t) => t.status === section.status)
                     .map((task) => (
                       <div
@@ -878,7 +988,8 @@ const [newTask, setNewTask] = useState({
                             <Check  className="h-4 w-4"/>
                           </button>
                           <button title="Mute"
-                          className="hover:text-[#84afff] border border-[#ffffff03] p-2">
+                          className={`${task.is_muted ? "text-[#84afff]" : "text-[#ffffff]"} hover:text-[#84afff] border border-[#ffffff03] p-2`}
+                          onClick={()=>muteTask(task)}>
                           <BellOff className="h-4 w-4"/>
                           </button>
                           <button title="chat"
@@ -937,6 +1048,7 @@ const [newTask, setNewTask] = useState({
       className="flex items-center gap-2 px-3 py-2 rounded text-sm text-[#ffffff72] hover:text-[#ffffff] hover:bg-[#23262F]"
       onClick={() => {
         setOpenMoreMenu(null);
+        addToFavorites(task);
       }}
     >
       <FaStar className="" /> Save to Favorites
@@ -959,7 +1071,7 @@ const [newTask, setNewTask] = useState({
                 </div>
               )}
             </div>
-          ))}
+)})}
         </div>
 
         <div className="p-4 flex flex-col gap-2">
