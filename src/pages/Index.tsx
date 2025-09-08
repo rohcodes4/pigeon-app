@@ -478,7 +478,7 @@ const Index = () => {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        // Assuming data.chats is the array of chat objects
+        // Store initial chats - this only runs once on load
         setChats(data.chats || []);
       } catch (error) {
         console.error("Failed to fetch chats:", error);
@@ -495,7 +495,7 @@ const Index = () => {
     fetchChats();
   }, [user]);
 
-  // Lightweight polling: refresh sidebar chats every 30s
+  // Lightweight polling: refresh sidebar chats every 30s with smart merging
   useEffect(() => {
     if (!user) return;
     let timer: any = null;
@@ -512,15 +512,44 @@ const Index = () => {
         );
         if (response.ok) {
           const data = await response.json();
-          setChats(data.chats || []);
+          const newChats = data.chats || [];
+
+          // Smart merge: only update if there are actual changes
+          setChats((prevChats) => {
+            // Create maps for efficient comparison
+            const prevMap = new Map(prevChats.map((chat) => [chat.id, chat]));
+
+            // Check if there are meaningful changes
+            let hasChanges = prevChats.length !== newChats.length;
+
+            if (!hasChanges) {
+              // Check for updates in existing chats
+              for (const newChat of newChats) {
+                const prevChat = prevMap.get(newChat.id);
+                if (
+                  !prevChat ||
+                  prevChat.unread !== newChat.unread ||
+                  prevChat.lastMessage !== newChat.lastMessage ||
+                  prevChat.timestamp !== newChat.timestamp ||
+                  prevChat.is_typing !== newChat.is_typing
+                ) {
+                  hasChanges = true;
+                  break;
+                }
+              }
+            }
+
+            // Only update if there are actual changes
+            return hasChanges ? newChats : prevChats;
+          });
         }
       } catch (_) {
         // ignore transient polling errors
       } finally {
-        timer = setTimeout(poll, 10000);
+        timer = setTimeout(poll, 30000); // Increased to 30s to reduce server load
       }
     };
-    timer = setTimeout(poll, 10000);
+    timer = setTimeout(poll, 30000);
     return () => {
       if (timer) clearTimeout(timer);
     };
