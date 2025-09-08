@@ -142,27 +142,27 @@ const sortedChats = [
 
 function formatChatTime(dateString: string) {
   const now = new Date();
-  
+
   // Parse as UTC by adding 'Z', then it will be properly converted
-  const chatDate = new Date(dateString + 'Z');
-  
+  const chatDate = new Date(dateString + "Z");
+
   // Handle invalid dates
   if (isNaN(chatDate.getTime())) {
     console.log("Invalid date string:", dateString);
     return "now";
   }
-  
+
   const diffMs = now.getTime() - chatDate.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   const diffWeeks = Math.floor(diffDays / 7);
   const diffMonths = Math.floor(diffDays / 30);
-  
+
   if (diffDays === 0) {
     // Same day, show time in IST
     return chatDate.toLocaleTimeString("en-IN", {
       hour: "2-digit",
       minute: "2-digit",
-      timeZone: "Asia/Kolkata"
+      timeZone: "Asia/Kolkata",
     });
   } else if (diffDays === 1) {
     return "1d";
@@ -230,7 +230,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const bottomArrows = useScrollArrows(bottomRowRef);
   const [activeTopItem, setActiveTopItem] = useState(TOP_ITEMS[0]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedId, setSelectedId] = useState<string | number>(selectedChat?.id || "all-channels");
+  const [selectedId, setSelectedId] = useState<string | number>(
+    selectedChat?.id || "all-channels"
+  );
   const [channelSearch, setChannelSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [selectedChannels, setSelectedChannels] = useState([]);
@@ -280,7 +282,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
   // Load channel list for FilterEditor (id/name mapping)
   useEffect(() => {
-  
     loadChannels();
   }, []);
 
@@ -443,37 +444,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     }
   };
 
-  // Sort all chats by time descending (latest first)
-  const chatsSortedByTime = [...(displayChats || [])].sort((a, b) => {
-    // For real chats (from API), prioritize chats with messages first
-    if (chats.length > 0) {
-      const aHasMessages =
-        a?.unread > 0 || (a?.lastMessage && a.lastMessage.trim() !== "");
-      const bHasMessages =
-        b?.unread > 0 || (b?.lastMessage && b.lastMessage.trim() !== "");
-
-      // If one has messages and the other doesn't, prioritize the one with messages
-      if (aHasMessages && !bHasMessages) return -1;
-      if (!aHasMessages && bHasMessages) return 1;
-
-      // If both have same message status, sort by timestamp
-      const aTime = a?.timestamp ? new Date(a.timestamp).getTime() : 0;
-      const bTime = b?.timestamp ? new Date(b.timestamp).getTime() : 0;
-      return bTime - aTime;
-    } else {
-      // For dummy data, use original sorting
-      const aTime = a?.timestamp ? new Date(a.timestamp).getTime() : 0;
-      const bTime = b?.timestamp ? new Date(b.timestamp).getTime() : 0;
-      return bTime - aTime;
-    }
-  });
-
+  // Trust backend sorting - only separate pinned from unpinned
+  // Backend already sorts chats consistently by messages first, then by name
   const sortedDisplayChats = [
-    ...chatsSortedByTime.filter((chat) => chat?.isPinned || chat?.pinned),
-    ...chatsSortedByTime.filter((chat) => !chat?.isPinned && !chat?.pinned),
+    ...(displayChats || []).filter((chat) => chat?.isPinned || chat?.pinned),
+    ...(displayChats || []).filter((chat) => !chat?.isPinned && !chat?.pinned),
   ];
 
   const getFilteredChannels = () => {
+    // Use displayChats directly to maintain backend sorting
     let baseArray = isFocus ? focusChannels : sortedDisplayChats;
     let filtered = baseArray;
 
@@ -617,10 +596,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   }
 
   const handleFocusMode = () => {
-    setIsFocus(prevIsFocus => {
+    setIsFocus((prevIsFocus) => {
       const newIsFocus = !prevIsFocus;
       if (newIsFocus) {
-        setFocusChannels(displayChannels.filter(chat => chat.pinned || chat.isPinned));
+        setFocusChannels(
+          displayChannels.filter((chat) => chat.pinned || chat.isPinned)
+        );
       } else {
         setFocusChannels(displayChannels);
       }
@@ -629,47 +610,51 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
 
   const [fetchedUsers, setFetchedUsers] = useState<any[]>([]);
-const [isFetchingUsers, setIsFetchingUsers] = useState(false);
-
 
   async function fetchSearchUsers(query = "rohcodes", limit = 10) {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL; // or your backend URL string
-  const token = localStorage.getItem("access_token");
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL; // or your backend URL string
+    const token = localStorage.getItem("access_token");
 
-  const url = `${BACKEND_URL}/api/search/users?query=${encodeURIComponent(query)}&limit=${limit}`;
+    const url = `${BACKEND_URL}/api/search/users?query=${encodeURIComponent(
+      query
+    )}&limit=${limit}`;
 
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    if (!response.ok) {
-      throw new Error(`Error fetching users: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Error fetching users: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setSearchResults(data);
+      console.log("Search results:", data);
+      return data;
+    } catch (error) {
+      console.error("Fetch search users failed:", error);
+      return null;
     }
-
-    const data = await response.json();
-    setSearchResults(data)
-    console.log("Search results:", data);
-    return data;
-  } catch (error) {
-    console.error("Fetch search users failed:", error);
-    return null;
   }
-}
 
-useEffect(() => {
-  if (searchTerm.trim() !== "") {
-    fetchSearchUsers(searchTerm);
-  } else {
-    setFetchedUsers([]);
-  }
-}, [searchTerm]);
+  useEffect(() => {
+    if (searchTerm.trim() !== "") {
+      fetchSearchUsers(searchTerm);
+    } else {
+      setFetchedUsers([]);
+    }
+  }, [searchTerm]);
 
-  
-  const channelsToShow = searchResults?.results?.length>1 ? searchResults : isFocus ? focusChannels : displayChannels;
+  const channelsToShow =
+    searchResults?.results?.length > 1
+      ? searchResults
+      : isFocus
+      ? focusChannels
+      : displayChannels;
 
   const markAllRead = async () => {
     try {
@@ -681,16 +666,16 @@ useEffect(() => {
           Authorization: token ? `Bearer ${token}` : "",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ read: true }),  // if your backend expects a body, adjust accordingly, else omit body
+        body: JSON.stringify({ read: true }), // if your backend expects a body, adjust accordingly, else omit body
       });
-  
+
       if (!response.ok) {
         throw new Error(`Failed to mark all as read: ${response.status}`);
       }
-      setSearchMore(false)
+      setSearchMore(false);
       // Optionally, refresh chat list or update local read state
       // alert("All chats marked as read");
-  
+
       // For example, refresh chats if you have a method
       // loadChats();
     } catch (error) {
@@ -1140,7 +1125,10 @@ useEffect(() => {
                       <div className="relative">
                         <ChatAvatar
                           name={chat.name || chat.first_name}
-                          avatar={chat.photo_url || `${BACKEND_URL}/chat_photo/${chat.chat_id}`}
+                          avatar={
+                            chat.photo_url ||
+                            `${BACKEND_URL}/chat_photo/${chat.chat_id}`
+                          }
                           backupAvatar={`${BACKEND_URL}/contact_photo/${chat.chat_id}`}
                         />
                         <img
@@ -1171,17 +1159,19 @@ useEffect(() => {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-[#ffffff32] font-100">
-                            {chat.is_typing?'Typing...':chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
+                            {chat.is_typing
+                              ? "Typing..."
+                              : chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
                               ? chat.lastMessage.slice(0, 23) + "..."
                               : chat.lastMessage}
                           </span>
                         </div>
                       </div>
                       <div className="flex flex-col items-center gap-1">
-      <span className="self-end text-xs text-gray-400">
-  {/* {console.log('Raw chat.timestamp:', chat.timestamp, 'Type:', typeof chat.timestamp)} */}
-  {formatChatTime(chat.timestamp)}
-</span>
+                        <span className="self-end text-xs text-gray-400">
+                          {/* {console.log('Raw chat.timestamp:', chat.timestamp, 'Type:', typeof chat.timestamp)} */}
+                          {formatChatTime(chat.timestamp)}
+                        </span>
                         <div className="flex items-center gap-1">
                           {chat.pinned && (
                             <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
