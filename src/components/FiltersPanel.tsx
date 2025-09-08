@@ -6,7 +6,7 @@ type SmartFilter = {
   id: string;
   name: string;
   channels: number[];
-  keywords: string[];
+  keywords?: string[];
 };
 
 type Channel = { id: number; name: string; platform?: string };
