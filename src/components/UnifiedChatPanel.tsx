@@ -8,7 +8,7 @@ import telegramWhite from "@/assets/images/telegram.png";
 import { IoIosMore } from "react-icons/io";
 import aiAll from "@/assets/images/aiAll.png";
 import EmojiPicker from "emoji-picker-react";
-import { Theme } from 'emoji-picker-react';
+import { Theme } from "emoji-picker-react";
 
 import {
   Link2,
@@ -18,7 +18,7 @@ import {
   SmilePlus,
   SmilePlusIcon,
   Heart,
-    ChevronDown, 
+  ChevronDown,
   Pin,
   Plus,
   VolumeX,
@@ -39,10 +39,13 @@ import {
 } from "@/utils/apiHelpers";
 import { toast } from "@/hooks/use-toast";
 
-
 const LoadingDots: React.FC = () => {
   return (
-    <span aria-label="Loading" role="status" className="inline-flex space-x-1 ml-12 my-4">
+    <span
+      aria-label="Loading"
+      role="status"
+      className="inline-flex space-x-1 ml-12 my-4"
+    >
       <span className="dot animate-bounce">•</span>
       <span className="dot animate-bounce animation-delay-200">•</span>
       <span className="dot animate-bounce animation-delay-400">•</span>
@@ -68,7 +71,8 @@ const LoadingDots: React.FC = () => {
         }
 
         @keyframes bounce {
-          0%, 100% {
+          0%,
+          100% {
             transform: translateY(0);
           }
           50% {
@@ -145,8 +149,8 @@ function formatDate(date: Date) {
 
 function formatTime(dateObj) {
   // Add 5 hours and 30 minutes (330 minutes total)
-  const adjustedDate = new Date(dateObj.getTime() + (5.5 * 60 * 60 * 1000));
-  
+  const adjustedDate = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
+
   return adjustedDate.toLocaleTimeString("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -214,7 +218,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const { user } = useAuth();
   const [text, setText] = useState("");
   const [showPicker, setShowPicker] = useState(false);
-  const pickerRef = useRef(null);                    // emoji picker container ref
+  const pickerRef = useRef(null); // emoji picker container ref
 
   React.useEffect(() => {
     setShouldAutoScroll(true);
@@ -226,8 +230,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     const input = inputRef.current;
     const start = input.selectionStart;
     const end = input.selectionEnd;
-    const newValue =
-      text.slice(0, start) + emoji + text.slice(end);
+    const newValue = text.slice(0, start) + emoji + text.slice(end);
     setText(newValue);
     setText(newValue);
 
@@ -241,8 +244,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     setShowPicker(false); // Optionally close picker after select
   };
 
-   // Update input as user types:
-   useEffect(() => {
+  // Update input as user types:
+  useEffect(() => {
     if (inputRef.current && inputRef.current.value !== text) {
       inputRef.current.value = text;
     }
@@ -271,6 +274,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     prevHeight: number;
     prevTop: number;
   } | null>(null);
+  // Track current chat to prevent race conditions
+  const currentChatRef = React.useRef<string | null>(null);
   const [replyTo, setReplyTo] = React.useState<null | MessageItem>(null);
   const [messages, setMessages] = React.useState<MessageItem[]>(
     USE_DUMMY_DATA ? (dummyMessages as unknown as MessageItem[]) : []
@@ -283,8 +288,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const [menuPositions, setMenuPositions] = React.useState({});
   const [shouldAutoScroll, setShouldAutoScroll] = React.useState(true);
   const [pinLoading, setPinLoading] = React.useState({});
-const [pinnedMessages, setPinnedMessages] = React.useState([]);
-const [showScrollToBottom, setShowScrollToBottom] = React.useState(false);
+  const [pinnedMessages, setPinnedMessages] = React.useState([]);
+  const [showScrollToBottom, setShowScrollToBottom] = React.useState(false);
   const [isSending, setIsSending] = React.useState(false);
   // Page size for fetching messages from backend
   const PAGE_SIZE = 100;
@@ -292,237 +297,247 @@ const [showScrollToBottom, setShowScrollToBottom] = React.useState(false);
   const token = localStorage.getItem("access_token");
 
   const pinMessage = async (messageId) => {
-  
+    const formData = new FormData();
+    formData.append("message_id", messageId);
 
-  const formData = new FormData();
-  formData.append("message_id", messageId);
-
-  const response = await fetch(`${BACKEND_URL}/pins`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || `Pin request failed: ${response.status}`);
-  }
-
-  return response.json();
-};
-
-const getMenuPosition = (buttonElement) => {
-  if (!buttonElement) return 'bottom-[110%]';
-  
-  const rect = buttonElement.getBoundingClientRect();
-  const viewportHeight = window.innerHeight;
-  const menuHeight = 500; // Approximate height of your menu
-  
-  // If there's not enough space above, show below
-  if (rect.top < menuHeight) {
-    return 'top-[110%]';
-  }
-  // Otherwise show above
-  return 'bottom-[110%]';
-};
-
-const unpinMessage = async (pinId) => {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  const token = localStorage.getItem("access_token");
-
-  const response = await fetch(`${BACKEND_URL}/pins/${pinId}`, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || `Unpin request failed: ${response.status}`);
-  }
-
-  return response.json();
-};
-
-const handlePin = async (msg) => {
-  const messageId = msg.originalId || msg.id;
-
-  if (!messageId) {
-    toast({
-      title: "Cannot pin message",
-      description: "This message cannot be pinned",
-      variant: "destructive",
+    const response = await fetch(`${BACKEND_URL}/pins`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
     });
-    return;
-  }
 
-  const isPinned = isMessagePinned(messageId?.toString());
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.detail || `Pin request failed: ${response.status}`
+      );
+    }
 
-  try {
-    setPinLoading((prev) => ({ ...prev, [msg.id]: true }));
+    return response.json();
+  };
 
-    if (isPinned) {
-      // Unpin the message - use pin.id, not pin._id
-      console.log("Attempting to unpin message with ID:", messageId);
-      console.log("All pinned messages:", pinnedMessages);
-      
-      const pinToRemove = pinnedMessages.find(pin => pin.message_id === messageId?.toString());
-      console.log("Pin to remove:", pinToRemove);
-      
-      if (pinToRemove && pinToRemove.id) {
-        console.log("Using pin ID for deletion:", pinToRemove.id);
-        
-        await unpinMessage(pinToRemove.id);
-        
-        // Remove from local pinned messages state using pin.id
-        setPinnedMessages((prev) => prev.filter(pin => pin.id !== pinToRemove.id));
+  const getMenuPosition = (buttonElement) => {
+    if (!buttonElement) return "bottom-[110%]";
 
-        toast({
-          title: "Message unpinned",
-          description: "Message has been unpinned successfully",
-        });
-      } else {
-        // If pin not found in local state, try to fetch latest pins and try again
-        console.log("Pin not found in local state, fetching latest pins...");
-        
-        try {
-          const chatIdForFetch = selectedChat?.id || null;
-          console.log("Fetching pins for chat:", chatIdForFetch);
-          
-          const latestPins = await getPinnedMessages(chatIdForFetch);
-          console.log("Latest pins from server:", latestPins);
-          
-          const serverPin = latestPins.find(pin => pin.message_id === messageId?.toString());
-          console.log("Server pin found:", serverPin);
-          
-          if (serverPin && serverPin.id) {
-            console.log("Using server pin ID for deletion:", serverPin.id);
-            await unpinMessage(serverPin.id);
-            
-            // Update local state with fresh data minus the removed pin
-            setPinnedMessages(latestPins.filter(pin => pin.id !== serverPin.id));
-            
-            toast({
-              title: "Message unpinned",
-              description: "Message has been unpinned successfully",
-            });
-          } else {
-            console.error("Server pin not found or missing id");
+    const rect = buttonElement.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const menuHeight = 500; // Approximate height of your menu
+
+    // If there's not enough space above, show below
+    if (rect.top < menuHeight) {
+      return "top-[110%]";
+    }
+    // Otherwise show above
+    return "bottom-[110%]";
+  };
+
+  const unpinMessage = async (pinId) => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const token = localStorage.getItem("access_token");
+
+    const response = await fetch(`${BACKEND_URL}/pins/${pinId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.detail || `Unpin request failed: ${response.status}`
+      );
+    }
+
+    return response.json();
+  };
+
+  const handlePin = async (msg) => {
+    const messageId = msg.originalId || msg.id;
+
+    if (!messageId) {
+      toast({
+        title: "Cannot pin message",
+        description: "This message cannot be pinned",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const isPinned = isMessagePinned(messageId?.toString());
+
+    try {
+      setPinLoading((prev) => ({ ...prev, [msg.id]: true }));
+
+      if (isPinned) {
+        // Unpin the message - use pin.id, not pin._id
+        console.log("Attempting to unpin message with ID:", messageId);
+        console.log("All pinned messages:", pinnedMessages);
+
+        const pinToRemove = pinnedMessages.find(
+          (pin) => pin.message_id === messageId?.toString()
+        );
+        console.log("Pin to remove:", pinToRemove);
+
+        if (pinToRemove && pinToRemove.id) {
+          console.log("Using pin ID for deletion:", pinToRemove.id);
+
+          await unpinMessage(pinToRemove.id);
+
+          // Remove from local pinned messages state using pin.id
+          setPinnedMessages((prev) =>
+            prev.filter((pin) => pin.id !== pinToRemove.id)
+          );
+
+          toast({
+            title: "Message unpinned",
+            description: "Message has been unpinned successfully",
+          });
+        } else {
+          // If pin not found in local state, try to fetch latest pins and try again
+          console.log("Pin not found in local state, fetching latest pins...");
+
+          try {
+            const chatIdForFetch = selectedChat?.id || null;
+            console.log("Fetching pins for chat:", chatIdForFetch);
+
+            const latestPins = await getPinnedMessages(chatIdForFetch);
+            console.log("Latest pins from server:", latestPins);
+
+            const serverPin = latestPins.find(
+              (pin) => pin.message_id === messageId?.toString()
+            );
+            console.log("Server pin found:", serverPin);
+
+            if (serverPin && serverPin.id) {
+              console.log("Using server pin ID for deletion:", serverPin.id);
+              await unpinMessage(serverPin.id);
+
+              // Update local state with fresh data minus the removed pin
+              setPinnedMessages(
+                latestPins.filter((pin) => pin.id !== serverPin.id)
+              );
+
+              toast({
+                title: "Message unpinned",
+                description: "Message has been unpinned successfully",
+              });
+            } else {
+              console.error("Server pin not found or missing id");
+              toast({
+                title: "Cannot unpin message",
+                description: "Pin not found on server",
+                variant: "destructive",
+              });
+            }
+          } catch (fetchError) {
+            console.error("Failed to fetch latest pins:", fetchError);
             toast({
               title: "Cannot unpin message",
-              description: "Pin not found on server",
+              description: "Failed to fetch pin data: " + fetchError.message,
               variant: "destructive",
             });
           }
-        } catch (fetchError) {
-          console.error("Failed to fetch latest pins:", fetchError);
-          toast({
-            title: "Cannot unpin message", 
-            description: "Failed to fetch pin data: " + fetchError.message,
-            variant: "destructive",
-          });
         }
+      } else {
+        // Pin the message
+        console.log("Attempting to pin message with ID:", messageId);
+
+        const result = await pinMessage(messageId.toString());
+        console.log("Pin result:", result);
+
+        // Update local pinned messages state
+        setPinnedMessages((prev) => [result, ...prev]);
+
+        toast({
+          title: "Message pinned",
+          description: "Message has been pinned successfully",
+        });
       }
-    } else {
-      // Pin the message
-      console.log("Attempting to pin message with ID:", messageId);
-      
-      const result = await pinMessage(messageId.toString());
-      console.log("Pin result:", result);
-      
-      // Update local pinned messages state
-      setPinnedMessages((prev) => [result, ...prev]);
+    } catch (error) {
+      console.error("Error with pin/unpin:", error);
 
-      toast({
-        title: "Message pinned",
-        description: "Message has been pinned successfully",
-      });
+      if (error.message.includes("already pinned")) {
+        toast({
+          title: "Already pinned",
+          description: "This message is already pinned",
+          variant: "destructive",
+        });
+      } else if (error.message.includes("Pin not found")) {
+        toast({
+          title: "Pin not found",
+          description: "This pin may have been removed already",
+          variant: "destructive",
+        });
+      } else {
+        const action = isPinned ? "unpin" : "pin";
+        toast({
+          title: `Failed to ${action} message`,
+          description: error.message || "Please try again",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setPinLoading((prev) => ({ ...prev, [msg.id]: false }));
     }
-  } catch (error) {
-    console.error("Error with pin/unpin:", error);
-    
-    if (error.message.includes("already pinned")) {
-      toast({
-        title: "Already pinned",
-        description: "This message is already pinned",
-        variant: "destructive",
-      });
-    } else if (error.message.includes("Pin not found")) {
-      toast({
-        title: "Pin not found",
-        description: "This pin may have been removed already",
-        variant: "destructive",
-      });
-    } else {
-      const action = isPinned ? "unpin" : "pin";
-      toast({
-        title: `Failed to ${action} message`,
-        description: error.message || "Please try again",
-        variant: "destructive",
-      });
+  };
+  const isMessagePinned = (messageId) => {
+    return pinnedMessages.some((pin) => pin.message_id === messageId);
+  };
+
+  const fetchPinnedMessages = React.useCallback(async (chatId = null) => {
+    try {
+      const pins = await getPinnedMessages(chatId);
+      console.log("Fetched pins:", pins);
+      setPinnedMessages(pins);
+    } catch (error) {
+      console.error("Failed to fetch pinned messages:", error);
     }
-  } finally {
-    setPinLoading((prev) => ({ ...prev, [msg.id]: false }));
-  }
-};
-const isMessagePinned = (messageId) => {
-  return pinnedMessages.some(pin => pin.message_id === messageId);
-};
+  }, []);
 
-const fetchPinnedMessages = React.useCallback(async (chatId = null) => {
-  try {
-    const pins = await getPinnedMessages(chatId);
-    console.log("Fetched pins:", pins);
-    setPinnedMessages(pins);
-  } catch (error) {
-    console.error("Failed to fetch pinned messages:", error);
-  }
-}, []);
+  const getPinnedMessages = async (chatId = null) => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const token = localStorage.getItem("access_token");
 
-const getPinnedMessages = async (chatId = null) => {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  const token = localStorage.getItem("access_token");
+    let url = `${BACKEND_URL}/pins`;
+    if (chatId !== null) {
+      url += `?chat_id=${chatId}`;
+    }
 
-  let url = `${BACKEND_URL}/pins`;
-  if (chatId !== null) {
-    url += `?chat_id=${chatId}`;
-  }
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
 
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
+    if (!response.ok) {
+      throw new Error(`Get pins request failed: ${response.status}`);
+    }
 
-  if (!response.ok) {
-    throw new Error(`Get pins request failed: ${response.status}`);
-  }
-
-  return response.json();
-};
+    return response.json();
+  };
 
   // Auto-scroll to bottom when messages change
-const scrollToBottom = React.useCallback(() => {
-  const container = messagesContainerRef.current;
-  if (!container) return;
-  
-  // Scroll the container itself to the bottom
-  requestAnimationFrame(() => {
-    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+  const scrollToBottom = React.useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    // Scroll the container itself to the bottom
     requestAnimationFrame(() => {
       container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      requestAnimationFrame(() => {
+        container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      });
     });
-  });
-  
-  // Hide the scroll button after scrolling
-  setShowScrollToBottom(false);
-}, []);
+
+    // Hide the scroll button after scrolling
+    setShowScrollToBottom(false);
+  }, []);
   const [showAttachMenu, setShowAttachMenu] = React.useState(false);
   const attachRef = React.useRef(null);
   const [uploadedFiles, setUploadedFiles] = React.useState([]);
@@ -621,7 +636,6 @@ const scrollToBottom = React.useCallback(() => {
     window.open(webUrl, "_blank");
   };
 
-
   React.useEffect(() => {
     // Only auto-scroll if it's a new chat or shouldAutoScroll is explicitly set
     if (shouldAutoScroll || isNewChat) {
@@ -629,7 +643,7 @@ const scrollToBottom = React.useCallback(() => {
       setTimeout(() => {
         scrollToBottom();
       }, 100);
-  
+
       // Reset the new chat flag after scrolling
       if (isNewChat) {
         setIsNewChat(false);
@@ -877,7 +891,7 @@ const scrollToBottom = React.useCallback(() => {
       append = false
     ) => {
       if (!chatId) return;
-      console.log('chatId: ', chatId)
+      console.log("chatId: ", chatId);
       // If using dummy data, don't fetch from API
       if (USE_DUMMY_DATA) {
         setMessages(dummyMessages);
@@ -890,7 +904,8 @@ const scrollToBottom = React.useCallback(() => {
         setLoading(true);
         setHasMoreMessages(true); // Reset pagination state for new chat
         setShouldAutoScroll(true);
-
+        // CRITICAL: Clear messages immediately when switching chats to prevent mixing
+        setMessages([]);
       }
 
       try {
@@ -1045,7 +1060,7 @@ const scrollToBottom = React.useCallback(() => {
           // Replace messages for new chat
           setShouldAutoScroll(true); // Enable auto-scroll for new chat
           setMessages(transformedMessages);
-          setShouldAutoScroll(true)
+          setShouldAutoScroll(true);
         }
       } catch (error) {
         console.error("Error fetching messages:", error);
@@ -1093,37 +1108,37 @@ const scrollToBottom = React.useCallback(() => {
   ]);
 
   // Scroll event handler for infinite loading
-const handleScroll = React.useCallback(
-  (e: React.UIEvent<HTMLDivElement>) => {
-    const container = e.currentTarget;
-    const scrollTop = container.scrollTop;
-    const scrollHeight = container.scrollHeight;
-    const clientHeight = container.clientHeight;
-    const threshold = 100; // Load more when within 100px of top
+  const handleScroll = React.useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const container = e.currentTarget;
+      const scrollTop = container.scrollTop;
+      const scrollHeight = container.scrollHeight;
+      const clientHeight = container.clientHeight;
+      const threshold = 100; // Load more when within 100px of top
 
-    // Check if user has scrolled up from bottom (show scroll button)
-    const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
-    setShowScrollToBottom(!isNearBottom);
-    setShouldAutoScroll(isNearBottom);
+      // Check if user has scrolled up from bottom (show scroll button)
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
+      setShowScrollToBottom(!isNearBottom);
+      setShouldAutoScroll(isNearBottom);
 
-    const isScrollable = scrollHeight > clientHeight + threshold;
+      const isScrollable = scrollHeight > clientHeight + threshold;
 
-    if (
-      scrollTop <= threshold &&
-      hasMoreMessages &&
-      !loadingMore &&
-      !loading &&
-      isScrollable
-    ) {
-      scrollRestoreRef.current = {
-        prevHeight: container.scrollHeight,
-        prevTop: container.scrollTop,
-      };
-      loadMoreMessages();
-    }
-  },
-  [hasMoreMessages, loadingMore, loading, loadMoreMessages]
-);
+      if (
+        scrollTop <= threshold &&
+        hasMoreMessages &&
+        !loadingMore &&
+        !loading &&
+        isScrollable
+      ) {
+        scrollRestoreRef.current = {
+          prevHeight: container.scrollHeight,
+          prevTop: container.scrollTop,
+        };
+        loadMoreMessages();
+      }
+    },
+    [hasMoreMessages, loadingMore, loading, loadMoreMessages]
+  );
 
   // After messages update, restore scroll position when we just prepended older items
   React.useEffect(() => {
@@ -1138,16 +1153,17 @@ const handleScroll = React.useCallback(
     }
   }, [messages, loadingMore]);
 
-
   const getPlatformFromChatId = (chatId: string) => {
     // Simple heuristic - you might want to store this info in pins
     // return Math.random() > 0.5 ? 'telegram' : 'discord';
-    return 'telegram';
+    return "telegram";
   };
 
   const handleSend = async () => {
-
-    if (!inputRef.current || !inputRef.current.value.trim() && uploadedFiles.length === 0) {
+    if (
+      !inputRef.current ||
+      (!inputRef.current.value.trim() && uploadedFiles.length === 0)
+    ) {
       return;
     }
     if (uploadedFiles.length > 0) {
@@ -1157,14 +1173,13 @@ const handleScroll = React.useCallback(
           await sendMediaToChat({
             chatId: selectedChat.id,
             file: fileWrapper.file,
-            caption: inputRef.current.value.trim(),      // Optional: could set to message text or empty
+            caption: inputRef.current.value.trim(), // Optional: could set to message text or empty
             fileName: fileWrapper.file.name,
           });
         }
         // Clear uploaded files after successful upload
         setUploadedFiles([]);
-    inputRef.current.value =""
-
+        inputRef.current.value = "";
       } catch (error) {
         console.error("Error sending media:", error);
         toast({
@@ -1175,7 +1190,7 @@ const handleScroll = React.useCallback(
         return; // Stop further sending on failure
       }
     }
-  
+
     const messageText = inputRef.current.value.trim();
 
     // Check if we have a valid chat selected and it's not "all-channels"
@@ -1199,8 +1214,8 @@ const handleScroll = React.useCallback(
     // }
 
     const chatId = selectedChat.id;
-    console.log('replyTo')
-    console.log(replyTo)
+    console.log("replyTo");
+    console.log(replyTo);
     if (!chatId && !replyTo) {
       toast({
         title: "Invalid chat",
@@ -1217,7 +1232,6 @@ const handleScroll = React.useCallback(
 
     setIsSending(true);
 
-    
     // Create optimistic message for immediate UI feedback
     const optimisticMessage: MessageItem = {
       id: `temp-${Date.now()}`, // Temporary ID
@@ -1239,7 +1253,7 @@ const handleScroll = React.useCallback(
             id: replyTo.id,
             name: replyTo.name,
             message: replyTo.message,
-            chat_id: replyTo.telegramMessageId
+            chat_id: replyTo.telegramMessageId,
           }
         : null,
     };
@@ -1255,11 +1269,11 @@ const handleScroll = React.useCallback(
     setShouldAutoScroll(true);
 
     try {
-      const id = chatId || replyTo.chat_id
+      const id = chatId || replyTo.chat_id;
       // Send message to backend/Telegram
       const replyToId = originalReplyTo?.telegramMessageId;
       const result = await sendMessage(id, messageText, replyToId);
-      inputRef.current.value =""
+      inputRef.current.value = "";
       console.log("Message sent successfully:", result);
 
       // Show success toast
@@ -1330,189 +1344,225 @@ const handleScroll = React.useCallback(
   }, [openMenuId]);
 
   // Silent refresh that avoids toggling loading states and only appends new messages
-const refreshLatest = React.useCallback(async () => {
-  if (USE_DUMMY_DATA) return;
-  try {
-    const token = localStorage.getItem("access_token");
-    let endpoint: string | null = null;
+  const refreshLatest = React.useCallback(async () => {
+    if (USE_DUMMY_DATA) return;
+    try {
+      const token = localStorage.getItem("access_token");
+      let endpoint: string | null = null;
+      let currentChatId: string | null = null; // Track which chat we're fetching for
 
-    if (selectedChat === "all-channels") {
-      endpoint = `${
-        import.meta.env.VITE_BACKEND_URL
-      }/chats/all/messages?limit=${PAGE_SIZE}`;
-    } else if (
-      selectedChat &&
-      typeof selectedChat === "object" &&
-      (selectedChat as any).id
-    ) {
-      if (
-        (selectedChat as any).name &&
-        (selectedChat as any).keywords !== undefined
+      if (selectedChat === "all-channels") {
+        endpoint = `${
+          import.meta.env.VITE_BACKEND_URL
+        }/chats/all/messages?limit=${PAGE_SIZE}`;
+        currentChatId = "all-channels";
+      } else if (
+        selectedChat &&
+        typeof selectedChat === "object" &&
+        (selectedChat as any).id
       ) {
-        endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
-          (selectedChat as any).id
-        }/messages?limit=${PAGE_SIZE}`;
-      } else {
-        endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/${
-          (selectedChat as any).id
-        }/messages?limit=${PAGE_SIZE}`;
-      }
-    } else {
-      console.log(
-        "DEBUG: No valid selectedChat, skipping refresh",
-        selectedChat
-      );
-      return;
-    }
-
-    // console.log("DEBUG: Refreshing from endpoint:", endpoint);
-    const response = await fetch(endpoint, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-    if (!response.ok) {
-      console.log(
-        "DEBUG: Response not OK:",
-        response.status,
-        response.statusText
-      );
-      return;
-    }
-    const data = await response.json();
-
-    const toChips = (results: any[]) =>
-      results
-        .map((r: any) => {
-          const emoticon =
-            typeof r?.reaction?.emoticon === "string"
-              ? r.reaction.emoticon
-              : typeof r?.reaction === "string"
-              ? r.reaction
-              : null;
-          const normalized =
-            emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
-          return normalized
-            ? { icon: normalized, count: r?.count || 0 }
-            : null;
-        })
-        .filter(Boolean) as Array<{ icon: string; count: number }>;
-
-    const transformed = (data || []).map((msg: any, index: number) => {
-      const reactionResults =
-        ((msg?.message || {}).reactions || {}).results || [];
-      const parsedReactions = Array.isArray(reactionResults)
-        ? toChips(reactionResults)
-        : [];
-      const chatName = msg.chat
-        ? msg.chat.title ||
-          msg.chat.username ||
-          msg.chat.first_name ||
-          "Unknown"
-        : selectedChat && typeof selectedChat === "object"
-        ? (selectedChat as any).name || "Chat"
-        : "Unknown";
-      return {
-        id: msg._id || msg.id || String(index + 1),
-        originalId: msg._id || msg.id,
-        telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
-        name: msg.sender?.first_name || msg.sender?.username || "Unknown",
-        chat_id: msg.sender.id,
-        avatar: msg.sender?.id
-          ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
-              msg.sender.id
-            }`
-          : gravatarUrl(
-              msg.sender?.first_name || msg.sender?.username || "Unknown"
-            ),
-        platform: "Telegram" as const,
-        channel: null,
-        server: chatName,
-        date: new Date(msg.timestamp),
-        message: msg.raw_text || "",
-        tags: [],
-        reactions: parsedReactions,
-        hasLink: (msg.raw_text || "").includes("http"),
-        link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
-        replyTo: null as any,
-        originalChatType: msg.chat?._ || null,
-      } as MessageItem;
-    });
-
-    transformed.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-    // console.log("DEBUG: API returned", data.length, "messages");
-    // console.log("DEBUG: Transformed", transformed.length, "messages");
-
-    setMessages((prev) => {
-      const idOf = (x: any) => String(x.originalId || x.id);
-      const prevMap = new Map(prev.map((m) => [idOf(m), m]));
-      let changed = false;
-      for (const m of transformed) {
-        const key = idOf(m);
-        if (prevMap.has(key)) {
-          // Update existing entry (reactions/timestamp/etc.)
-          const old = prevMap.get(key)!;
-          // Preserve any local fields (e.g., replyTo)
-          const merged = { ...old, ...m };
-          prevMap.set(key, merged);
-          changed = true;
+        if (
+          (selectedChat as any).name &&
+          (selectedChat as any).keywords !== undefined
+        ) {
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
+            (selectedChat as any).id
+          }/messages?limit=${PAGE_SIZE}`;
+          currentChatId = `filter-${(selectedChat as any).id}`;
         } else {
-          prevMap.set(key, m);
-          changed = true;
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/${
+            (selectedChat as any).id
+          }/messages?limit=${PAGE_SIZE}`;
+          currentChatId = String((selectedChat as any).id);
+        }
+      } else {
+        console.log(
+          "DEBUG: No valid selectedChat, skipping refresh",
+          selectedChat
+        );
+        return;
+      }
+
+      // console.log("DEBUG: Refreshing from endpoint:", endpoint);
+      const response = await fetch(endpoint, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      if (!response.ok) {
+        console.log(
+          "DEBUG: Response not OK:",
+          response.status,
+          response.statusText
+        );
+        return;
+      }
+      const data = await response.json();
+
+      const toChips = (results: any[]) =>
+        results
+          .map((r: any) => {
+            const emoticon =
+              typeof r?.reaction?.emoticon === "string"
+                ? r.reaction.emoticon
+                : typeof r?.reaction === "string"
+                ? r.reaction
+                : null;
+            const normalized =
+              emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
+            return normalized
+              ? { icon: normalized, count: r?.count || 0 }
+              : null;
+          })
+          .filter(Boolean) as Array<{ icon: string; count: number }>;
+
+      const transformed = (data || []).map((msg: any, index: number) => {
+        const reactionResults =
+          ((msg?.message || {}).reactions || {}).results || [];
+        const parsedReactions = Array.isArray(reactionResults)
+          ? toChips(reactionResults)
+          : [];
+        const chatName = msg.chat
+          ? msg.chat.title ||
+            msg.chat.username ||
+            msg.chat.first_name ||
+            "Unknown"
+          : selectedChat && typeof selectedChat === "object"
+          ? (selectedChat as any).name || "Chat"
+          : "Unknown";
+        return {
+          id: msg._id || msg.id || String(index + 1),
+          originalId: msg._id || msg.id,
+          telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
+          name: msg.sender?.first_name || msg.sender?.username || "Unknown",
+          chat_id: msg.sender.id,
+          avatar: msg.sender?.id
+            ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
+                msg.sender.id
+              }`
+            : gravatarUrl(
+                msg.sender?.first_name || msg.sender?.username || "Unknown"
+              ),
+          platform: "Telegram" as const,
+          channel: null,
+          server: chatName,
+          date: new Date(msg.timestamp),
+          message: msg.raw_text || "",
+          tags: [],
+          reactions: parsedReactions,
+          hasLink: (msg.raw_text || "").includes("http"),
+          link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
+          replyTo: null as any,
+          originalChatType: msg.chat?._ || null,
+        } as MessageItem;
+      });
+
+      transformed.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+      // console.log("DEBUG: API returned", data.length, "messages");
+      // console.log("DEBUG: Transformed", transformed.length, "messages");
+
+      setMessages((prev) => {
+        // CRITICAL: Only update messages if we're still on the same chat
+        // This prevents race conditions when switching between chats rapidly
+        const stillOnSameChat = currentChatId === currentChatRef.current;
+
+        if (!stillOnSameChat) {
+          console.log(
+            "DEBUG: Chat changed during refresh, ignoring stale data",
+            {
+              currentChatId,
+              currentChat: currentChatRef.current,
+              selectedChat,
+            }
+          );
+          return prev; // Don't update if we've switched chats
         }
 
-      }
-      if (!changed) return prev;
-      // Return in chronological order
-      return Array.from(prevMap.values()).sort(
-        (a, b) => a.date.getTime() - b.date.getTime()
-      );
-    });
-    
-    // Don't set shouldAutoScroll to true - this prevents auto-scroll during polling
-    // Only scroll when it's a new chat or user explicitly sends a message
-    
-  } catch (e) {
-    console.error("DEBUG: refreshLatest error:", e);
-  }
-}, [USE_DUMMY_DATA, selectedChat]);
+        const idOf = (x: any) => String(x.originalId || x.id);
+        const prevMap = new Map(prev.map((m) => [idOf(m), m]));
+        let changed = false;
+        for (const m of transformed) {
+          const key = idOf(m);
+          if (prevMap.has(key)) {
+            // Update existing entry (reactions/timestamp/etc.)
+            const old = prevMap.get(key)!;
+            // Preserve any local fields (e.g., replyTo)
+            const merged = { ...old, ...m };
+            prevMap.set(key, merged);
+            changed = true;
+          } else {
+            prevMap.set(key, m);
+            changed = true;
+          }
+        }
+        if (!changed) return prev;
+        // Return in chronological order
+        return Array.from(prevMap.values()).sort(
+          (a, b) => a.date.getTime() - b.date.getTime()
+        );
+      });
 
+      // Don't set shouldAutoScroll to true - this prevents auto-scroll during polling
+      // Only scroll when it's a new chat or user explicitly sends a message
+    } catch (e) {
+      console.error("DEBUG: refreshLatest error:", e);
+    }
+  }, [USE_DUMMY_DATA, selectedChat]);
 
   // Fetch messages when selectedChat changes or on initial mount
-React.useEffect(() => {
-  // Set flag to indicate this is a new chat (should auto-scroll)
-  setIsNewChat(true);
-  
-  if (!USE_DUMMY_DATA) {
-    if (selectedChat?.id) {
+  React.useEffect(() => {
+    // Set flag to indicate this is a new chat (should auto-scroll)
+    setIsNewChat(true);
+
+    // Update current chat ref to help prevent race conditions
+    let chatId = null;
+    if (selectedChat === "all-channels") {
+      chatId = "all-channels";
+    } else if (selectedChat?.id) {
       if (selectedChat.name && selectedChat.keywords !== undefined) {
-        fetchMessages(selectedChat);
+        chatId = `filter-${selectedChat.id}`;
+      } else {
+        chatId = String(selectedChat.id);
+      }
+    }
+    currentChatRef.current = chatId;
+
+    if (!USE_DUMMY_DATA) {
+      if (selectedChat?.id) {
+        if (selectedChat.name && selectedChat.keywords !== undefined) {
+          fetchMessages(selectedChat);
+          fetchPinnedMessages();
+        } else {
+          fetchMessages(selectedChat.id);
+          fetchPinnedMessages(selectedChat.id);
+          markChatAsRead(selectedChat.id);
+        }
+      } else if (selectedChat === "all-channels") {
+        fetchMessages("all-channels");
         fetchPinnedMessages();
       } else {
-        fetchMessages(selectedChat.id);
-        fetchPinnedMessages(selectedChat.id);
-        markChatAsRead(selectedChat.id);
+        setMessages([]);
+        setPinnedMessages([]);
       }
-    } else if (selectedChat === "all-channels") {
-      fetchMessages("all-channels");
-      fetchPinnedMessages();
     } else {
-      setMessages([]);
+      setMessages(dummyMessages);
       setPinnedMessages([]);
     }
-  } else {
-    setMessages(dummyMessages);
-    setPinnedMessages([]);
-  }
-  setShowAttachMenu(false);
-  setReplyTo(null);
-  if (inputRef.current) {
-    inputRef.current.value = "";
-  }
-  setUploadedFiles([]);
-}, [selectedChat?.id, selectedChat, fetchMessages, fetchPinnedMessages, USE_DUMMY_DATA]);
+    setShowAttachMenu(false);
+    setReplyTo(null);
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
+    setUploadedFiles([]);
+  }, [
+    selectedChat?.id,
+    selectedChat,
+    fetchMessages,
+    fetchPinnedMessages,
+    USE_DUMMY_DATA,
+  ]);
 
   // Polling: refresh current view every 30s (no websockets)
   React.useEffect(() => {
@@ -1559,60 +1609,61 @@ React.useEffect(() => {
 
   async function sendMediaToChat({
     chatId,
-    file,          // File object (from file input)
-    caption = "",  // Optional string
+    file, // File object (from file input)
+    caption = "", // Optional string
     fileName = "file", // Optional, default 'file'
   }) {
     const url = `${BACKEND_URL}/api/chats/${chatId}/send_media`;
-  
+
     const formData = new FormData();
     formData.append("file", file, fileName);
     formData.append("caption", caption);
     formData.append("file_name", fileName);
-  
+
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
         // Do NOT set Content-Type header, fetch will set it automatically for FormData!
       },
-      body: formData
+      body: formData,
     });
-  
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.detail || `Failed: ${response.status}`);
     }
-  
+
     return response.json();
   }
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     if (!event.target.files || event.target.files.length === 0) return;
-  
+
     const file = event.target.files[0]; // Get first file
-  
+
     try {
       const result = await sendMediaToChat({
         chatId: selectedChat.id,
         file,
-        caption: 'Here is my photo',
+        caption: "Here is my photo",
         fileName: file.name,
       });
-  
-      console.log('Media sent:', result);
+
+      console.log("Media sent:", result);
       // You might want to refresh messages here to show the new media message
     } catch (error) {
-      console.error('Error sending media:', error);
+      console.error("Error sending media:", error);
       toast({
-        title: 'Send media failed',
+        title: "Send media failed",
         description: String(error),
-        variant: 'destructive',
+        variant: "destructive",
       });
     }
   };
- 
-  
+
   return (
     <div className="relative h-[calc(100vh-136px)] flex flex-col flex-shrink-0 min-w-0">
       {/* Selected Chat Info */}
@@ -1758,110 +1809,135 @@ React.useEffect(() => {
                       >
                         <FaCopy className="text-[#ffffff] w-3 h-3" />
                       </button>
-                      {getPlatformFromChatId(selectedChat.id) == 'discord' && <button
+                      {getPlatformFromChatId(selectedChat.id) == "discord" && (
+                        <button
+                          className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
+                          title="Open in Discord"
+                          onClick={(e) => {
+                            e.stopPropagation(); /* implement share logic */
+                          }}
+                        >
+                          <FaDiscord className="text-[#ffffff] w-3 h-3" />
+                        </button>
+                      )}
+                      {getPlatformFromChatId(selectedChat.id) == "telegram" && (
+                        <button
+                          className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
+                          title="Open in Telegram"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openInTelegram(msg); // Pass the message to open specific message
+                          }}
+                        >
+                          <FaTelegramPlane className="text-[#ffffff] w-3 h-3" />
+                        </button>
+                      )}
+                      <button
                         className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
-                        title="Open in Discord"
-                        onClick={(e) => {
-                          e.stopPropagation(); /* implement share logic */
-                        }}
-                      >
-                        <FaDiscord className="text-[#ffffff] w-3 h-3" />
-                      </button>}
-                      {getPlatformFromChatId(selectedChat.id) == 'telegram' && <button
-                        className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
-                        title="Open in Telegram"
+                        title="More"
                         onClick={(e) => {
                           e.stopPropagation();
-                          openInTelegram(msg); // Pass the message to open specific message
+                          const mid = String(msg.id);
+                          const newOpenMenuId = openMenuId === mid ? null : mid;
+
+                          if (newOpenMenuId) {
+                            // Calculate and store position for this specific menu
+                            const position = getMenuPosition(e.currentTarget);
+                            setMenuPositions((prev) => ({
+                              ...prev,
+                              [mid]: position,
+                            }));
+                          }
+
+                          setOpenMenuId(newOpenMenuId);
                         }}
                       >
-                        <FaTelegramPlane className="text-[#ffffff] w-3 h-3" />
-                      </button>}
-    <button
-  className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
-  title="More"
-  onClick={(e) => {
-    e.stopPropagation();
-    const mid = String(msg.id);
-    const newOpenMenuId = openMenuId === mid ? null : mid;
-    
-    if (newOpenMenuId) {
-      // Calculate and store position for this specific menu
-      const position = getMenuPosition(e.currentTarget);
-      setMenuPositions(prev => ({
-        ...prev,
-        [mid]: position
-      }));
-    }
-    
-    setOpenMenuId(newOpenMenuId);
-  }}
->
-  <IoIosMore className="text-[#ffffff] w-3 h-3" />
-  {/* Popup menu */}
-  {openMenuId === String(msg.id) && (
-    <div className={`absolute right-0 ${menuPositions[String(msg.id)] || 'bottom-[110%]'} mt-2 bg-[#111111] border border-[#ffffff12] rounded-[10px] shadow-lg z-[9999] flex flex-col p-2 min-w-max`}>
-      <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
-        <img src={smartIcon} className="w-6 h-6" />
-        Add to Smart Channels
-      </button>
-      <button
-        className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleBookmark(msg, "bookmark");
-        }}
-        disabled={bookmarkLoading[msg.id]}
-      >
-        <Heart
-          className="w-6 h-6"
-          stroke="currentColor"
-          fill="currentColor"
-        />
-        {bookmarkLoading[msg.id] ? "Saving..." : "Save to Favorites"}
-      </button>
-      <button
-        className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpenMenuId(null);
-          handlePin(msg);
-        }}
-        disabled={pinLoading[msg.id]}
-      >
-        <Pin
-          className={`w-6 h-6 ${
-            isMessagePinned((msg.originalId || msg.id)?.toString()) 
-              ? "text-blue-400" 
-              : ""
-          }`}
-          stroke="currentColor"
-          fill={isMessagePinned((msg.originalId || msg.id)?.toString()) ? "currentColor" : "none"}
-        />
-        {pinLoading[msg.id] ? 
-          (isMessagePinned((msg.originalId || msg.id)?.toString()) ? "Unpinning..." : "Pinning...") :
-          (isMessagePinned((msg.originalId || msg.id)?.toString()) ? "Unpin Message" : "Pin Message")
-        }
-      </button>
-      <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
-        <Plus
-          className="w-6 h-6"
-          stroke="currentColor"
-          fill="currentColor"
-        />
-        Add Tags
-      </button>
-      <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#f36363] hover:text-[#f36363] whitespace-nowrap">
-        <VolumeX
-          className="w-6 h-6"
-          stroke="currentColor"
-          fill="currentColor"
-        />
-        Mute Channel
-      </button>
-    </div>
-  )}
-</button>
+                        <IoIosMore className="text-[#ffffff] w-3 h-3" />
+                        {/* Popup menu */}
+                        {openMenuId === String(msg.id) && (
+                          <div
+                            className={`absolute right-0 ${
+                              menuPositions[String(msg.id)] || "bottom-[110%]"
+                            } mt-2 bg-[#111111] border border-[#ffffff12] rounded-[10px] shadow-lg z-[9999] flex flex-col p-2 min-w-max`}
+                          >
+                            <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                              <img src={smartIcon} className="w-6 h-6" />
+                              Add to Smart Channels
+                            </button>
+                            <button
+                              className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleBookmark(msg, "bookmark");
+                              }}
+                              disabled={bookmarkLoading[msg.id]}
+                            >
+                              <Heart
+                                className="w-6 h-6"
+                                stroke="currentColor"
+                                fill="currentColor"
+                              />
+                              {bookmarkLoading[msg.id]
+                                ? "Saving..."
+                                : "Save to Favorites"}
+                            </button>
+                            <button
+                              className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                handlePin(msg);
+                              }}
+                              disabled={pinLoading[msg.id]}
+                            >
+                              <Pin
+                                className={`w-6 h-6 ${
+                                  isMessagePinned(
+                                    (msg.originalId || msg.id)?.toString()
+                                  )
+                                    ? "text-blue-400"
+                                    : ""
+                                }`}
+                                stroke="currentColor"
+                                fill={
+                                  isMessagePinned(
+                                    (msg.originalId || msg.id)?.toString()
+                                  )
+                                    ? "currentColor"
+                                    : "none"
+                                }
+                              />
+                              {pinLoading[msg.id]
+                                ? isMessagePinned(
+                                    (msg.originalId || msg.id)?.toString()
+                                  )
+                                  ? "Unpinning..."
+                                  : "Pinning..."
+                                : isMessagePinned(
+                                    (msg.originalId || msg.id)?.toString()
+                                  )
+                                ? "Unpin Message"
+                                : "Pin Message"}
+                            </button>
+                            <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                              <Plus
+                                className="w-6 h-6"
+                                stroke="currentColor"
+                                fill="currentColor"
+                              />
+                              Add Tags
+                            </button>
+                            <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#f36363] hover:text-[#f36363] whitespace-nowrap">
+                              <VolumeX
+                                className="w-6 h-6"
+                                stroke="currentColor"
+                                fill="currentColor"
+                              />
+                              Mute Channel
+                            </button>
+                          </div>
+                        )}
+                      </button>
                     </div>
                     <div className="flex items-center justify-start gap-2">
                       <span className="text-[#ffffff72] font-[300]">
@@ -1890,14 +1966,14 @@ React.useEffect(() => {
                           </span>
                         )}
                       </div>
-                
+
                       <span className="text-xs text-[#fafafa99]">
                         {msg.channel}
                       </span>
-           <span className="text-xs text-[#ffffff32]">
-  {/* {console.log('Raw msg.date:', msg.date, 'Type:', typeof msg.date)} */}
-  {formatTime(msg.date)}
-</span>
+                      <span className="text-xs text-[#ffffff32]">
+                        {/* {console.log('Raw msg.date:', msg.date, 'Type:', typeof msg.date)} */}
+                        {formatTime(msg.date)}
+                      </span>
                       {String(msg.id).startsWith("temp-") && (
                         <span className="text-xs text-[#84afff] italic">
                           sending...
@@ -2029,17 +2105,17 @@ React.useEffect(() => {
         <div ref={messagesEndRef} />
       </div>
       {showScrollToBottom && (
-  <div className="absolute bottom-20 right-6 z-30">
-    <button
-      onClick={scrollToBottom}
-      className="flex items-center justify-center w-12 h-12 bg-[#3474ff] hover:bg-[#5389ff] text-white rounded-full shadow-lg transition-all duration-200 hover:scale-105"
-      title="Scroll to bottom"
-    >
-      <ChevronDown className="w-6 h-6" />
-    </button>
-  </div>
-)}
-              {selectedChat.is_typing && <LoadingDots/>}
+        <div className="absolute bottom-20 right-6 z-30">
+          <button
+            onClick={scrollToBottom}
+            className="flex items-center justify-center w-12 h-12 bg-[#3474ff] hover:bg-[#5389ff] text-white rounded-full shadow-lg transition-all duration-200 hover:scale-105"
+            title="Scroll to bottom"
+          >
+            <ChevronDown className="w-6 h-6" />
+          </button>
+        </div>
+      )}
+      {selectedChat.is_typing && <LoadingDots />}
 
       <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-t from-[#181A20] via-[#181A20ee] z-20 to-transparent">
         {/* Replying to box */}
@@ -2136,11 +2212,11 @@ React.useEffect(() => {
               ref={attachRef}
               className="relative"
               title={
-                (selectedChat === "all-channels" && !replyTo)
+                selectedChat === "all-channels" && !replyTo
                   ? "Select a specific chat to attach files"
-                  // : selectedChat?.keywords !== undefined
+                  : // : selectedChat?.keywords !== undefined
                   // ? "Cannot attach files to smart filters"
-                  : isSending
+                  isSending
                   ? "Please wait for current message to send"
                   : "Attach files"
               }
@@ -2228,16 +2304,16 @@ React.useEffect(() => {
             <input
               ref={inputRef}
               value={text}
-              onChange={e => setText(e.target.value)}
+              onChange={(e) => setText(e.target.value)}
               type="text"
               placeholder={
                 replyTo && replyTo.name
                   ? `Replying to ${replyTo.name}...`
                   : selectedChat === "all-channels"
                   ? "Select a channel on the sidebar to send messages..."
-                  // : selectedChat?.keywords !== undefined
-                  // ? "Cannot send messages to smart filters..."
-                  : "Type your message..."
+                  : // : selectedChat?.keywords !== undefined
+                    // ? "Cannot send messages to smart filters..."
+                    "Type your message..."
               }
               disabled={
                 (selectedChat === "all-channels" && !replyTo) ||
@@ -2253,12 +2329,15 @@ React.useEffect(() => {
               }}
             />
           </div>
-           <button onClick={() => setShowPicker(val => !val)}>😊</button>
-    {showPicker && (
-      <div ref={pickerRef} style={{ position: "absolute", bottom: "40px", zIndex: 999 }}>
-        <EmojiPicker theme="dark" onEmojiClick={handleEmojiClick} />
-      </div>
-    )}
+          <button onClick={() => setShowPicker((val) => !val)}>😊</button>
+          {showPicker && (
+            <div
+              ref={pickerRef}
+              style={{ position: "absolute", bottom: "40px", zIndex: 999 }}
+            >
+              <EmojiPicker theme="dark" onEmojiClick={handleEmojiClick} />
+            </div>
+          )}
           <button
             onClick={handleSend}
             disabled={
