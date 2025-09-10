@@ -219,6 +219,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const [text, setText] = useState("");
   const [showPicker, setShowPicker] = useState(false);
   const pickerRef = useRef(null); // emoji picker container ref
+  const hasFetchedFirstMessages = useRef(false);
 
   React.useEffect(() => {
     setShouldAutoScroll(true);
@@ -491,7 +492,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   const fetchPinnedMessages = React.useCallback(async (chatId = null) => {
     try {
       const pins = await getPinnedMessages(chatId);
-      console.log("Fetched pins:", pins);
+      // console.log("Fetched pins:", pins);
       setPinnedMessages(pins);
     } catch (error) {
       console.error("Failed to fetch pinned messages:", error);
@@ -636,20 +637,37 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
     window.open(webUrl, "_blank");
   };
 
-  React.useEffect(() => {
-    // Only auto-scroll if it's a new chat or shouldAutoScroll is explicitly set
-    if (shouldAutoScroll || isNewChat) {
-      // Use setTimeout to ensure DOM has updated after messages render
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
+  // Only run scrollToBottom when shouldAutoScroll is true
+useEffect(() => {
+  if (!shouldAutoScroll && !isNewChat) return; // Don't scroll if user scrolled up
 
-      // Reset the new chat flag after scrolling
-      if (isNewChat) {
-        setIsNewChat(false);
-      }
-    }
-  }, [messages, shouldAutoScroll, isNewChat, scrollToBottom]);
+  if (messages.length === 0) return;
+
+  // delay scroll to bottom after render
+  const timer = setTimeout(() => {
+    // scrollToBottom();
+  }, 100);
+
+  if (isNewChat) setIsNewChat(false);
+
+  return () => clearTimeout(timer);
+}, [messages, shouldAutoScroll, isNewChat]);
+
+
+  // React.useEffect(() => {
+  //   // Only auto-scroll if it's a new chat or shouldAutoScroll is explicitly set
+  //   if (shouldAutoScroll || isNewChat) {
+  //     // Use setTimeout to ensure DOM has updated after messages render
+  //     setTimeout(() => {
+  //       scrollToBottom();
+  //     }, 100);
+
+  //     // Reset the new chat flag after scrolling
+  //     if (isNewChat) {
+  //       setIsNewChat(false);
+  //     }
+  //   }
+  // }, [messages, shouldAutoScroll, isNewChat, scrollToBottom]);
 
   const groupedByDate: { [date: string]: typeof messages } =
     React.useMemo(() => {
@@ -884,6 +902,198 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   };
 
   // Function to fetch messages for a selected chat
+  // const fetchMessages = React.useCallback(
+  //   async (
+  //     chatId: number | string,
+  //     beforeTimestamp?: string,
+  //     append = false
+  //   ) => {
+  //     if (!chatId) return;
+  //     // console.log("chatId: ", chatId);
+  //     // If using dummy data, don't fetch from API
+  //     if (USE_DUMMY_DATA) {
+  //       setMessages(dummyMessages);
+  //       return;
+  //     }
+
+  //     if (append) {
+  //       setLoadingMore(true);
+  //     } else {
+  //       setLoading(true);
+  //       setHasMoreMessages(true); // Reset pagination state for new chat
+  //       setShouldAutoScroll(true);
+  //       // CRITICAL: Clear messages immediately when switching chats to prevent mixing
+  //       setMessages([]);
+  //     }
+
+  //     try {
+  //       const token = localStorage.getItem("access_token");
+
+  //       // Determine the endpoint based on the type of chat selection
+  //       let endpoint: string;
+
+  //       if (chatId === "all-channels") {
+  //         endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/all/messages`;
+  //       } else if (typeof chatId === "object" && chatId && "id" in chatId) {
+  //         // This is a smart filter object
+  //         endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
+  //           (chatId as any).id
+  //         }/messages`;
+  //       } else {
+  //         // This is a regular chat ID
+  //         endpoint = `${
+  //           import.meta.env.VITE_BACKEND_URL
+  //         }/chats/${chatId}/messages`;
+  //       }
+
+  //       // Add pagination parameter if loading older messages
+  //       const params = new URLSearchParams();
+  //       params.append("limit", String(PAGE_SIZE));
+  //       if (beforeTimestamp) {
+  //         params.append("before", beforeTimestamp);
+  //       }
+  //       if (params.toString()) {
+  //         endpoint += `?${params.toString()}`;
+  //       }
+
+  //       const response = await fetch(endpoint, {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //           "Content-Type": "application/json",
+  //         },
+  //       });
+
+  //       if (!response.ok) {
+  //         throw new Error(`HTTP error! status: ${response.status}`);
+  //       }
+
+  //       const data = await response.json();
+
+  //       // Debug: Log the first message's chat object to see what we're getting
+  //       if (data.length > 0) {
+  //         // console.log("First message chat object:", data[0].chat);
+  //       }
+
+  //       // Transform the messages to match our component's expected format
+  //       const transformedMessages = data.map((msg: any, index: number) => {
+  //         // Extract chat name and determine channel from the message data
+  //         let chatName = "Unknown";
+  //         let channelName = null; // Default to null (no channel)
+
+  //         if (chatId === "all-channels" && msg.chat) {
+  //           // For "all-channels", extract chat name based on the chat type
+  //           // For Telegram, always set channel to null since we don't have topic/channel data
+  //           // Discord channels will be handled separately when we add Discord support
+  //           if (msg.chat._ === "Channel") {
+  //             // For Telegram channels, use title or username as chat name
+  //             chatName = msg.chat.title || msg.chat.username || "Unknown";
+  //             channelName = null; // No channel display for Telegram
+  //           } else if (msg.chat._ === "Chat") {
+  //             // For Telegram groups, use title or username as chat name, no channel
+  //             chatName = msg.chat.title || msg.chat.username || "Unknown";
+  //             channelName = null; // No channel for groups
+  //           } else if (msg.chat._ === "User") {
+  //             // For users/bots (direct messages), use first_name or username as chat name, no channel
+  //             chatName = msg.chat.first_name || msg.chat.username || "Unknown";
+  //             channelName = null; // No channel for direct messages
+  //           } else {
+  //             // Fallback
+  //             chatName =
+  //               msg.chat.title ||
+  //               msg.chat.username ||
+  //               msg.chat.first_name ||
+  //               "Unknown";
+  //             channelName = null;
+  //           }
+  //         } else {
+  //           // For specific chats, use the selected chat name
+  //           chatName = selectedChat?.name || "Chat";
+  //           channelName = null; // No channel for specific chat view
+  //         }
+
+  //         // Parse Telegram reactions from message payload if present
+  //         const reactionResults =
+  //           (msg?.message?.reactions && msg.message.reactions.results) || [];
+  //         const parsedReactions = Array.isArray(reactionResults)
+  //           ? (reactionResults
+  //               .map((r: any) => {
+  //                 const emoticon =
+  //                   typeof r?.reaction?.emoticon === "string"
+  //                     ? r.reaction.emoticon
+  //                     : typeof r?.reaction === "string"
+  //                     ? r.reaction
+  //                     : null;
+  //                 const normalized =
+  //                   emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
+  //                 return normalized
+  //                   ? { icon: normalized, count: r?.count || 0 }
+  //                   : null;
+  //               })
+  //               .filter(Boolean) as Array<{ icon: string; count: number }>)
+  //           : [];
+
+  //         return {
+  //           id: msg._id || msg.id || String(index + 1),
+  //           originalId: msg._id || msg.id,
+  //           telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
+  //           name: msg.sender?.first_name || msg.sender?.username || "Unknown",
+  //           avatar: msg.sender?.id
+  //             ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
+  //                 msg.sender.id
+  //               }`
+  //             : gravatarUrl(
+  //                 msg.sender?.first_name || msg.sender?.username || "Unknown"
+  //               ),
+  //           platform: "Telegram" as const,
+  //           channel: channelName, // Will be null for DMs and groups, channel name for channels
+  //           server: chatName, // Always the chat/group/channel name
+  //           date: new Date(msg.timestamp),
+  //           message: msg.raw_text || "",
+  //           tags: [],
+  //           reactions: parsedReactions,
+  //           hasLink: (msg.raw_text || "").includes("http"),
+  //           link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
+  //           replyTo: null as any,
+  //           originalChatType: msg.chat?._ || null,
+  //           // telegramMessageId already set above; keep a single definition only
+  //         };
+  //       });
+
+  //       // Sort messages by date (oldest first) so newest appear at bottom
+  //       transformedMessages.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  //       // Check if we got fewer messages than requested (indicating we've reached the end)
+  //       if (data.length < PAGE_SIZE) {
+  //         setHasMoreMessages(false);
+  //       }
+
+  //       if (append) {
+  //         // Prepend older messages to the existing list
+  //         setShouldAutoScroll(false); // Don't auto-scroll when loading more
+  //         setMessages((prevMessages) => [
+  //           ...transformedMessages,
+  //           ...prevMessages,
+  //         ]);
+  //       } else {
+  //         // Replace messages for new chat
+  //         setShouldAutoScroll(true); // Enable auto-scroll for new chat
+  //         setMessages(transformedMessages);
+  //         setShouldAutoScroll(true);
+  //       }
+        
+
+  //     } catch (error) {
+  //       console.error("Error fetching messages:", error);
+  //       if (!append) {
+  //         setMessages([]); // Set empty array on error only if not appending
+  //       }
+  //     } finally {
+  //       setLoading(false);
+  //       setLoadingMore(false);
+  //     }
+  //   },
+  //   [selectedChat] // Only depend on the name, not the entire object
+  // );
   const fetchMessages = React.useCallback(
     async (
       chatId: number | string,
@@ -891,190 +1101,128 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       append = false
     ) => {
       if (!chatId) return;
-      console.log("chatId: ", chatId);
-      // If using dummy data, don't fetch from API
-      if (USE_DUMMY_DATA) {
-        setMessages(dummyMessages);
-        return;
-      }
-
-      if (append) {
-        setLoadingMore(true);
-      } else {
+  
+      if (!append) {
+        // Reset flag on fresh load
+        hasFetchedFirstMessages.current = false;
+  
         setLoading(true);
-        setHasMoreMessages(true); // Reset pagination state for new chat
-        setShouldAutoScroll(true);
-        // CRITICAL: Clear messages immediately when switching chats to prevent mixing
+        setHasMoreMessages(true);
         setMessages([]);
+      } else {
+        setLoadingMore(true);
       }
-
+  
       try {
         const token = localStorage.getItem("access_token");
-
-        // Determine the endpoint based on the type of chat selection
+  
         let endpoint: string;
-
         if (chatId === "all-channels") {
-          endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/all/messages`;
+          endpoint = `${BACKEND_URL}/chats/all/messages`;
         } else if (typeof chatId === "object" && chatId && "id" in chatId) {
-          // This is a smart filter object
-          endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
-            (chatId as any).id
-          }/messages`;
+          endpoint = `${BACKEND_URL}/filters/${chatId.id}/messages`;
         } else {
-          // This is a regular chat ID
-          endpoint = `${
-            import.meta.env.VITE_BACKEND_URL
-          }/chats/${chatId}/messages`;
+          endpoint = `${BACKEND_URL}/chats/${chatId}/messages`;
         }
-
-        // Add pagination parameter if loading older messages
+  
+        // Add pagination params
         const params = new URLSearchParams();
         params.append("limit", String(PAGE_SIZE));
-        if (beforeTimestamp) {
-          params.append("before", beforeTimestamp);
-        }
-        if (params.toString()) {
-          endpoint += `?${params.toString()}`;
-        }
-
+        if (beforeTimestamp) params.append("before", beforeTimestamp);
+        if (params.toString()) endpoint += `?${params.toString()}`;
+  
         const response = await fetch(endpoint, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
+  
+        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+  
         const data = await response.json();
-
-        // Debug: Log the first message's chat object to see what we're getting
-        if (data.length > 0) {
-          console.log("First message chat object:", data[0].chat);
-        }
-
-        // Transform the messages to match our component's expected format
-        const transformedMessages = data.map((msg: any, index: number) => {
-          // Extract chat name and determine channel from the message data
+  
+        const transformed = data.map((msg: any, index: number) => {
           let chatName = "Unknown";
-          let channelName = null; // Default to null (no channel)
-
+          let channelName: string | null = null;
+  
           if (chatId === "all-channels" && msg.chat) {
-            // For "all-channels", extract chat name based on the chat type
-            // For Telegram, always set channel to null since we don't have topic/channel data
-            // Discord channels will be handled separately when we add Discord support
-            if (msg.chat._ === "Channel") {
-              // For Telegram channels, use title or username as chat name
-              chatName = msg.chat.title || msg.chat.username || "Unknown";
-              channelName = null; // No channel display for Telegram
-            } else if (msg.chat._ === "Chat") {
-              // For Telegram groups, use title or username as chat name, no channel
-              chatName = msg.chat.title || msg.chat.username || "Unknown";
-              channelName = null; // No channel for groups
-            } else if (msg.chat._ === "User") {
-              // For users/bots (direct messages), use first_name or username as chat name, no channel
-              chatName = msg.chat.first_name || msg.chat.username || "Unknown";
-              channelName = null; // No channel for direct messages
-            } else {
-              // Fallback
-              chatName =
-                msg.chat.title ||
-                msg.chat.username ||
-                msg.chat.first_name ||
-                "Unknown";
-              channelName = null;
+            if (msg.chat._ === "Channel" || msg.chat._ === "Chat" || msg.chat._ === "User") {
+              chatName = msg.chat.title || msg.chat.username || msg.chat.first_name || "Unknown";
             }
+            channelName = null;
           } else {
-            // For specific chats, use the selected chat name
-            chatName = selectedChat?.name || "Chat";
-            channelName = null; // No channel for specific chat view
+            chatName = (chatId && typeof chatId === "object" ? chatId.name : (typeof chatId === "string" ? chatId : "")) || "Chat";
           }
-
-          // Parse Telegram reactions from message payload if present
-          const reactionResults =
-            (msg?.message?.reactions && msg.message.reactions.results) || [];
-          const parsedReactions = Array.isArray(reactionResults)
-            ? (reactionResults
-                .map((r: any) => {
-                  const emoticon =
-                    typeof r?.reaction?.emoticon === "string"
-                      ? r.reaction.emoticon
-                      : typeof r?.reaction === "string"
-                      ? r.reaction
-                      : null;
-                  const normalized =
-                    emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
-                  return normalized
-                    ? { icon: normalized, count: r?.count || 0 }
-                    : null;
-                })
-                .filter(Boolean) as Array<{ icon: string; count: number }>)
-            : [];
-
+  
+          // Parse reactions
+          const reactionsData = (msg.message && msg.message.reactions && msg.message.reactions.results) || [];
+          const reactions = ((reactionsData as any[]) ?? [])
+            .map((r) => {
+              const emoticon = typeof r?.reaction === 'string' ? r.reaction : r?.reaction?.emoticon;
+              const normalized = emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
+              return normalized ? { icon: normalized, count: r.count || 0 } : null;
+            })
+            .filter(Boolean);
+  
           return {
             id: msg._id || msg.id || String(index + 1),
             originalId: msg._id || msg.id,
-            telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
+            telegramMessageId: msg.message?.id,
             name: msg.sender?.first_name || msg.sender?.username || "Unknown",
-            avatar: msg.sender?.id
-              ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
-                  msg.sender.id
-                }`
-              : gravatarUrl(
-                  msg.sender?.first_name || msg.sender?.username || "Unknown"
-                ),
+            avatar: msg.sender?.id ? `${BACKEND_URL}/contact_photo/${msg.sender.id}` : gravatarUrl(msg.sender?.first_name || msg.sender?.username || "Unknown"),
             platform: "Telegram" as const,
-            channel: channelName, // Will be null for DMs and groups, channel name for channels
-            server: chatName, // Always the chat/group/channel name
+            channel: channelName,
+            server: chatName,
             date: new Date(msg.timestamp),
             message: msg.raw_text || "",
             tags: [],
-            reactions: parsedReactions,
+            reactions,
             hasLink: (msg.raw_text || "").includes("http"),
             link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
-            replyTo: null as any,
+            replyTo: null,
             originalChatType: msg.chat?._ || null,
-            // telegramMessageId already set above; keep a single definition only
           };
         });
-
-        // Sort messages by date (oldest first) so newest appear at bottom
-        transformedMessages.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-        // Check if we got fewer messages than requested (indicating we've reached the end)
+  
+        transformed.sort((a, b) => a.date.getTime() - b.date.getTime());
+  
         if (data.length < PAGE_SIZE) {
           setHasMoreMessages(false);
         }
-
+  
         if (append) {
-          // Prepend older messages to the existing list
-          setShouldAutoScroll(false); // Don't auto-scroll when loading more
-          setMessages((prevMessages) => [
-            ...transformedMessages,
-            ...prevMessages,
-          ]);
+          setMessages((prev) => [...transformed, ...prev]);
+          setLoadingMore(false);
+          // Don't auto scroll on loading older messages
         } else {
-          // Replace messages for new chat
-          setShouldAutoScroll(true); // Enable auto-scroll for new chat
-          setMessages(transformedMessages);
+          setMessages(transformed);
+          setLoading(false);
           setShouldAutoScroll(true);
         }
-      } catch (error) {
-        console.error("Error fetching messages:", error);
-        if (!append) {
-          setMessages([]); // Set empty array on error only if not appending
+  
+        // Scroll only once after initial load
+        if (!hasFetchedFirstMessages.current && !append) {
+          hasFetchedFirstMessages.current = true;
+          setTimeout(() => {
+            if (messagesContainerRef.current) {
+              messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+            }
+          }, 100); // slight delay for rendering
         }
-      } finally {
-        setLoading(false);
+        
+      } catch (error) {
+        console.error("Failed to fetch messages:", error);
+        if (!append) {
+          setMessages([]);
+          setLoading(false);
+        }
         setLoadingMore(false);
       }
     },
-    [selectedChat] // Only depend on the name, not the entire object
+    [BACKEND_URL, PAGE_SIZE]
   );
-
+  
   // Function to load more messages when scrolling to top
   const loadMoreMessages = React.useCallback(() => {
     if (loadingMore || loading || !hasMoreMessages || messages.length === 0)
@@ -1108,37 +1256,87 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
   ]);
 
   // Scroll event handler for infinite loading
-  const handleScroll = React.useCallback(
-    (e: React.UIEvent<HTMLDivElement>) => {
-      const container = e.currentTarget;
-      const scrollTop = container.scrollTop;
-      const scrollHeight = container.scrollHeight;
-      const clientHeight = container.clientHeight;
-      const threshold = 100; // Load more when within 100px of top
+  // const handleScroll = React.useCallback(
+  //   (e: React.UIEvent<HTMLDivElement>) => {
+  //     const container = e.currentTarget;
+  //     const scrollTop = container.scrollTop;
+  //     const scrollHeight = container.scrollHeight;
+  //     const clientHeight = container.clientHeight;
+  //     const threshold = 100; // Load more when within 100px of top
 
-      // Check if user has scrolled up from bottom (show scroll button)
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
-      setShowScrollToBottom(!isNearBottom);
-      setShouldAutoScroll(isNearBottom);
+  //     // Check if user has scrolled up from bottom (show scroll button)
+  //     const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
+  //     setShowScrollToBottom(!isNearBottom);
+  //     setShouldAutoScroll(isNearBottom);
 
-      const isScrollable = scrollHeight > clientHeight + threshold;
+  //     const isScrollable = scrollHeight > clientHeight + threshold;
 
-      if (
-        scrollTop <= threshold &&
-        hasMoreMessages &&
-        !loadingMore &&
-        !loading &&
-        isScrollable
-      ) {
-        scrollRestoreRef.current = {
-          prevHeight: container.scrollHeight,
-          prevTop: container.scrollTop,
-        };
-        loadMoreMessages();
-      }
-    },
-    [hasMoreMessages, loadingMore, loading, loadMoreMessages]
-  );
+  //     if (
+  //       scrollTop <= threshold &&
+  //       hasMoreMessages &&
+  //       !loadingMore &&
+  //       !loading &&
+  //       isScrollable
+  //     ) {
+  //       scrollRestoreRef.current = {
+  //         prevHeight: container.scrollHeight,
+  //         prevTop: container.scrollTop,
+  //       };
+  //       loadMoreMessages();
+  //     }
+  //   },
+  //   [hasMoreMessages, loadingMore, loading, loadMoreMessages]
+  // );
+  // const handleScroll = React.useCallback((e) => {
+  //   const container = e.currentTarget;
+  //   const scrollTop = container.scrollTop;
+  //   const scrollHeight = container.scrollHeight;
+  //   const clientHeight = container.clientHeight;
+  
+  //   const threshold = 100;
+  //   const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
+  
+  //   setShouldAutoScroll(isNearBottom); // true only if near bottom
+  
+  //   setShowScrollToBottom(!isNearBottom);
+  
+  //   if (
+  //     scrollTop <= threshold &&
+  //     hasMoreMessages &&
+  //     !loadingMore &&
+  //     !loading &&
+  //     scrollHeight > clientHeight + threshold
+  //   ) {
+  //     // User scrolled to top, load older messages
+  //     scrollRestoreRef.current = {
+  //       prevHeight: scrollHeight,
+  //       prevTop: scrollTop,
+  //     };
+  //     loadMoreMessages();
+  //   }
+  // }, [hasMoreMessages, loadingMore, loading, loadMoreMessages]);
+  
+  // In the scroll handler:
+const handleScroll = React.useCallback((e) => {
+  const container = e.currentTarget;
+  const scrollTop = container.scrollTop;
+  const scrollHeight = container.scrollHeight;
+  const clientHeight = container.clientHeight;
+
+  const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
+
+  setShouldAutoScroll(isNearBottom);
+  setShowScrollToBottom(!isNearBottom);
+
+  // If near top, load more messages
+  if (scrollTop <= 100 && hasMoreMessages && !loadingMore && !loading) {
+    scrollRestoreRef.current = {
+      prevHeight: scrollHeight,
+      prevTop: scrollTop,
+    };
+    loadMoreMessages();
+  }
+}, [hasMoreMessages, loadingMore, loading, loadMoreMessages]);
 
   // After messages update, restore scroll position when we just prepended older items
   React.useEffect(() => {
@@ -1394,6 +1592,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
           "Content-Type": "application/json",
         },
       });
+
       if (!response.ok) {
         console.log(
           "DEBUG: Response not OK:",
@@ -1403,6 +1602,8 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
         return;
       }
       const data = await response.json();
+
+      console.log(selectedChat.unread)
 
       const toChips = (results: any[]) =>
         results
@@ -1606,7 +1807,7 @@ const UnifiedChatPanel: React.FC<UnifiedChatPanelProps> = ({
       );
 
       if (response.ok) {
-        console.log(`Chat ${chatId} marked as read`);
+        // console.log(`Chat ${chatId} marked as read`);
       }
     } catch (error) {
       console.error("Failed to mark chat as read:", error);
@@ -1819,6 +2020,114 @@ const handleAddToSmartChannel = async (msg: any, filter: any) => {
   }
 };
 
+const unreadCount = selectedChat?.unread || 0;
+const flatMessages = messages.slice(); // Oldest first already
+const unreadStart = unreadCount > 0 ? flatMessages.length - unreadCount : -1;
+const [hasScrolledToUnread, setHasScrolledToUnread] = useState(false);
+
+const unreadDividerRef = useRef<HTMLDivElement | null>(null);
+
+const container = messagesContainerRef.current;
+const unreadDividerEl = unreadDividerRef.current;
+const unreadEl = unreadDividerRef.current;
+const [isInitialScrolled, setIsInitialScrolled] = useState(false)
+const [hasScrolled, setHasScrolled] = React.useState(false);
+
+React.useEffect(() => {
+  // Reset scroll flag when chat changes
+  setHasScrolled(false);
+}, [selectedChat?.id]);
+
+React.useEffect(() => {
+  if (hasScrolled) return; // Skip if already scrolled once
+
+    const container = messagesContainerRef.current;
+    const unreadEl = unreadDividerRef.current;
+
+  
+  if (!container) return;
+
+  const unreadCount = selectedChat?.unread || 0;
+  
+  // Use requestAnimationFrame to wait for DOM updates
+  requestAnimationFrame(() => {
+    if (unreadCount > 0 && unreadEl) {
+      container.scrollTop = Math.max(0, unreadEl.offsetTop - 400);
+    } else {
+      container.scrollTop = container.scrollHeight - container.clientHeight;
+    }
+    setHasScrolled(true); // Mark as done
+  });
+}, [selectedChat?.id]);
+
+
+
+// useEffect(() => {
+//   const container = messagesContainerRef.current;
+//   if (!container) return;
+
+//   const unreadEl = unreadDividerRef.current;
+
+//   // Sample condition: scroll to unread only if unread messages > 5 (example)
+//   const unreadMessages = selectedChat?.unread || 0;
+
+//   if (unreadEl && unreadMessages > 5) {
+//     const desiredScrollTop = Math.max(0, unreadEl.offsetTop - 400);
+//     container.scrollTop = desiredScrollTop;
+//   } else {
+//     container.scrollTop = container.scrollHeight - container.clientHeight;
+//   }
+// }, [selectedChat?.id, selectedChat?.unread]);
+
+
+// if (container && !hasScrolledToUnread) {
+//   if (unreadDividerEl) {
+//     // Scroll container so unreadDividerEl is at top (or visible)
+//     container.scrollTop = unreadDividerEl.offsetTop;
+//   } else {
+//     // Scroll to bottom if no unread divider
+//     container.scrollTop = container.scrollHeight - container.clientHeight;
+//   }
+// }
+
+
+// useEffect(() => {
+//   const container = messagesContainerRef.current;
+//   const unreadEl = unreadDividerRef.current;
+//   if (!container) return;
+
+//   // Delay scroll to next frame to ensure DOM painted
+//   requestAnimationFrame(() => {
+//     if (unreadEl) {
+//       container.scrollTop = unreadEl.offsetTop - 400;
+//     } else {
+//       container.scrollTop = container.scrollHeight - container.clientHeight;
+//     }
+//   });
+// }, [selectedChat]);
+
+// const [hasScrolledToUnread, setHasScrolledToUnread] = useState(false);
+
+// useEffect(() => {
+//   // Reset on chat change to allow scroll again
+//   setHasScrolledToUnread(false);
+// }, [selectedChat?.id]);
+
+// useEffect(() => {
+//   if (hasScrolledToUnread) return; // Skip if already done
+//   if (!unreadCount) return;
+ 
+//   const unreadEl = unreadDividerRef.current;
+//   if (!container) return;
+
+//   requestAnimationFrame(() => {
+//     if (unreadEl) {
+//       const desiredScrollTop = Math.max(0, unreadEl.offsetTop - 200);
+//       container.scrollTop = desiredScrollTop;
+//       setHasScrolledToUnread(true);
+//     }
+//   });
+// }, [unreadCount, hasScrolledToUnread]);
 
 
   return (
@@ -1928,17 +2237,29 @@ const handleAddToSmartChannel = async (msg: any, filter: any) => {
                 <span className="text-xs text-[#ffffff32] px-2">{date}</span>
                 <hr className="flex-1 border-[#23272f]" />
               </div>
-              {msgs.map((msg) => (
+              {msgs.map((msg) => {
+                const globalIndex = messages.findIndex(m => m.id === msg.id);
+                const showUnreadDivider = unreadStart >= 0 && globalIndex === unreadStart;
+                return(
                 <div
-                  key={String(msg.id)}
-                  className={`flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 group hover:bg-[#212121] ${
-                    String(msg.id).startsWith("temp-")
-                      ? "opacity-70 bg-[#1a1a1a]"
-                      : ""
-                  }`}
+                  key={String(msg.id)}                  
                   // onMouseLeave={() => setOpenMenuId(null)}
                   onMouseLeave={startCloseTimer}
                 >
+                  {showUnreadDivider && (
+        <div className="flex items-center gap-2 my-2" ref={unreadDividerRef}>
+          <hr className="flex-1 border-[#ffffff32]" />
+          <span className="text-xs text-[#ffffff32] font-semibold rounded-full px-3 py-1 shadow">
+            Unread Messages
+          </span>
+          <hr className="flex-1 border-[#ffffff32]" />
+        </div>
+      )}
+      <div className={`flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 group hover:bg-[#212121] ${
+        String(msg.id).startsWith("temp-")
+          ? "opacity-70 bg-[#1a1a1a]"
+          : ""
+      }`}>
                   <ChatAvatar
                     name={msg.name}
                     avatar={msg.avatar}
@@ -2309,8 +2630,9 @@ const handleAddToSmartChannel = async (msg: any, filter: any) => {
                       </div>
                     )}
                   </div>
+                  </div>
                 </div>
-              ))}
+              )})}
             </div>
           ))
         )}
@@ -2517,7 +2839,7 @@ const handleAddToSmartChannel = async (msg: any, filter: any) => {
             <input
               ref={inputRef}
               value={text}
-              onChange={(e) => content(e.target.value)}
+              onChange={(e) => setText(e.target.value)}
               type="text"
               placeholder={
                 replyTo && replyTo.name
