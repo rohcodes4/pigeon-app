@@ -592,10 +592,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     }
   };
 
-  function formatUnreadCount(unread) {
-    if (typeof unread !== 'number') return '';
-    return unread > 9 ? '9+' : unread.toString();
-  }
+  // function formatUnreadCount(unread) {
+  //   if (typeof unread !== 'number') return '';
+  //   return unread > 9 ? '9+' : unread.toString();
+  // }
 
   
   // if (filterFull) {
@@ -1272,13 +1272,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                           )}
                           {!chat.read && chat.unread && chat.unread > 0 && (
                             <div
-                              className={`rounded-full w-6 h-6 text-xs flex items-center justify-center text-center ${
+                              className={`rounded-full min-w-6 w-max px-1 h-6 text-xs flex items-center justify-center text-center ${
                                 chat.platform === "Telegram"
                                   ? "bg-[#3474ff]"
                                   : "bg-[#7b5cfa]"
                               }`}
                             >
-                              <span>{formatUnreadCount(chat.unread)}</span>
+                              {/* <span>{formatUnreadCount(chat.unread)}</span> */}
+                              <span>{chat.unread}</span>
                             </div>
                           )}
                         </div>

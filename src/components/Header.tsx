@@ -11,7 +11,7 @@ export const Header = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Debug: Log user data to see what we're working with
-  console.log("Header user data:", user);
+  // console.log("Header user data:", user);
 
   // Helper function to get user initial for avatar
   const getUserInitial = (user: any) => {

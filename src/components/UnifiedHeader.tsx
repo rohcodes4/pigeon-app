@@ -27,7 +27,7 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   isAI = false,
   selectedChat
 }) => {
-  console.log(selectedChat)
+  // console.log(selectedChat)
   const location = useLocation();
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const authToken = localStorage.getItem("access_token");
