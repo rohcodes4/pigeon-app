@@ -1603,7 +1603,6 @@ const handleScroll = React.useCallback((e) => {
       }
       const data = await response.json();
 
-      console.log(selectedChat.unread)
 
       const toChips = (results: any[]) =>
         results
@@ -2836,7 +2835,7 @@ React.useEffect(() => {
                   </div>
                 )}
             </div>
-            <input
+            <textarea
               ref={inputRef}
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -2855,7 +2854,8 @@ React.useEffect(() => {
                 // selectedChat?.keywords !== undefined ||
                 isSending
               }
-              className="flex-1 bg-transparent outline-none text-white placeholder-[#ffffff48] text-sm disabled:opacity-50"
+              rows={1}
+              className="border-none focus:outline-none focus:ring-0 flex-1 bg-transparent outline-none text-white placeholder-[#ffffff48] text-sm disabled:opacity-50"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
