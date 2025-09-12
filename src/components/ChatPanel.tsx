@@ -148,7 +148,7 @@ function formatChatTime(dateString: string) {
 
   // Handle invalid dates
   if (isNaN(chatDate.getTime())) {
-    console.log("Invalid date string:", dateString);
+    // console.log("Invalid date string:", dateString);
     return "now";
   }
 
@@ -390,12 +390,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   useEffect(() => {
     if (channelSearch.trim() === "") {
-      setSearchResults([]);
+      // setSearchResults([]);
       return;
     }
     // Add null checks to prevent errors
     if (!displayChats || !Array.isArray(displayChats)) {
-      setSearchResults([]);
+      // setSearchResults([]);
       return;
     }
     setSearchResults(
@@ -541,8 +541,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       }
 
       const data = await response.json();
-      setSearchResults(data);
-      console.log("Search results:", data);
+      setSearchResults(data.results);
+      console.log("Search results:", searchResults);
       return data;
     } catch (error) {
       console.error("Fetch search users failed:", error);
@@ -558,13 +558,23 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     }
   }, [searchTerm]);
 
-  const channelsToShow =
-    searchResults?.results?.length > 1
-      ? searchResults
-      : isFocus
-      ? focusChannels
-      : displayChannels;
+  // const channelsToShow =
+  //   searchResults?.length > 1
+  //     ? searchResults
+  //     : isFocus
+  //     ? focusChannels
+  //     : displayChannels;
 
+  //     console.log(channelsToShow)
+
+  const channelsToShow = useMemo(() => {
+    if (searchResults && searchResults.length > 0) {
+      return searchResults;
+    }
+    return isFocus ? focusChannels : displayChannels;
+  }, [searchResults, isFocus, focusChannels, displayChannels]);
+
+  console.log(channelsToShow)
   const markAllRead = async () => {
     try {
       const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
