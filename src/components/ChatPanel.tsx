@@ -551,12 +551,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   }
 
   useEffect(() => {
-    if (searchTerm.trim() !== "") {
-      fetchSearchUsers(searchTerm);
-    } else {
+    if (!searchTerm.trim()) {
       setFetchedUsers([]);
+      return;
     }
+    const handler = setTimeout(() => {
+      fetchSearchUsers(searchTerm);
+    }, 400);
+  
+    return () => {
+      clearTimeout(handler);
+    };
   }, [searchTerm]);
+  
 
   // const channelsToShow =
   //   searchResults?.length > 1
