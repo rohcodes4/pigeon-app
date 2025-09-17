@@ -1,3 +1,4 @@
+# THIS README IS OUTDATED
 # 📁 Project File Structure Guide
 
 This document explains the file and folder structure of the **ChatPilot** project to help new developers quickly understand and collaborate.
