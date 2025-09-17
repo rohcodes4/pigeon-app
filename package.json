@@ -1,14 +1,72 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "Pigeon",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Pigeon Desktop App",
+  "author": "Rohcodes",
   "type": "module",
+  "main": "src/main/electron.cjs",
+  "build": {
+    "appId": "com.domain.pigeon",
+    "productName": "Pigeon",
+    "files": [
+      "dist/**",
+      "src/main/electron.cjs",
+      "src/main/preload.js",
+      "src/main/discordPreload.cjs"
+    ],
+    "asarUnpack": [
+      "**/locales/**"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/electron/dist/locales",
+        "to": "locales"
+      }
+    ],
+    "extraFiles": [
+      "assets/icons/"
+    ],
+    "directories": {
+      "buildResources": "assets/icons"
+    },
+    "win": {
+      "icon": "web-app-manifest-512x512.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        },
+        "portable"
+      ]
+    },
+    "mac": {
+      "icon": "web-app-manifest-512x512.png",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "linux": {
+      "icon": "web-app-manifest-512x512.png",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    }
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev": "concurrently \"cross-env VITE_DEV_SERVER_URL=http://localhost:8080 vite\" \"wait-on http://localhost:8080 && electron .\"",
+    "build": "vite build && electron-builder --mac --win --linux",
+    "build:win": "electron-builder --win --x64 --ia32",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -46,6 +104,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
+    "dotenv": "^17.2.2",
     "embla-carousel-react": "^8.3.0",
     "emoji-picker-react": "^4.13.2",
     "input-otp": "^1.2.4",
@@ -74,6 +133,11 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react-swc": "^3.5.0",
     "autoprefixer": "^10.4.20",
+    "concurrently": "^9.2.1",
+    "cross-env": "^7.0.3",
+    "electron": "^38.1.0",
+    "electron-builder": "^26.0.12",
+    "electron-vite": "^3.1.0",
     "eslint": "^9.9.0",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.9",
@@ -83,6 +147,7 @@
     "tailwindcss": "^3.4.11",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
-    "vite": "^5.4.1"
+    "vite": "^5.4.1",
+    "wait-on": "^8.0.5"
   }
 }
