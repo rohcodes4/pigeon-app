@@ -553,6 +553,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   useEffect(() => {
     if (!searchTerm.trim()) {
       setFetchedUsers([]);
+      setSearchResults([])
       return;
     }
     const handler = setTimeout(() => {
