@@ -1,3 +1,4 @@
+# Electron files are in src/main
 # THIS README IS OUTDATED
 # 📁 Project File Structure Guide
 
