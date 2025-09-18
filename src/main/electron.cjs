@@ -6,10 +6,10 @@ const CryptoJS = require("crypto-js");
 const Store = require("electron-store");
 require("dotenv").config();
 
-const DatabaseManager = require("./database/DatabaseManager");
-const DiscordClient = require("./services/DiscordClient");
-const SecurityManager = require("./security/SecurityManager");
-const SyncManager = require("./sync/SyncManager");
+const DatabaseManager = require("./database/DatabaseManager.cjs");
+const DiscordClient = require("./services/DiscordClient.cjs");
+const SecurityManager = require("./security/SecurityManager.cjs");
+const SyncManager = require("./sync/SyncManager.cjs");
 
 console.log("VITE_DEV_SERVER_URL:", process.env.VITE_DEV_SERVER_URL);
 
@@ -42,7 +42,8 @@ async function initializeApp() {
     console.log("[App] All services initialized successfully");
   } catch (error) {
     console.error("[App] Failed to initialize services:", error);
-    app.quit();
+    // Don't quit the app immediately, let it continue without some services
+    // app.quit();
   }
 }
 
@@ -374,8 +375,10 @@ app.whenReady().then(async () => {
   await initializeApp();
   createWindow();
 
-  // Start sync manager
-  syncManager.startPeriodicSync();
+  // Start sync manager if it was initialized successfully
+  if (syncManager) {
+    syncManager.startPeriodicSync();
+  }
 });
 
 app.on("window-all-closed", () => {

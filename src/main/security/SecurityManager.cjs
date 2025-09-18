@@ -1,10 +1,18 @@
 const CryptoJS = require("crypto-js");
-const Store = require("electron-store");
 const { app } = require("electron");
 const crypto = require("crypto");
 
 class SecurityManager {
   constructor() {
+    this.store = null; // Will be initialized in initialize() method
+    this.masterKey = null;
+    this.isInitialized = false;
+  }
+
+  async initialize() {
+    // Dynamic import for electron-store ES module
+    const { default: Store } = await import("electron-store");
+
     this.store = new Store({
       name: "secure-config",
       encryptionKey: "pigeon-security-key", // TODO: CHANGE THIS IN PROD
@@ -17,13 +25,11 @@ class SecurityManager {
         },
       },
     });
-    this.masterKey = null;
-  }
 
-  async initialize() {
     try {
       // Generate or retrieve master key
       await this.initializeMasterKey();
+      this.isInitialized = true;
       console.log("[Security] Security manager initialized");
     } catch (error) {
       console.error("[Security] Failed to initialize:", error);
