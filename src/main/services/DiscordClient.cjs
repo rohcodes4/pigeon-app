@@ -19,15 +19,21 @@ class DiscordClient extends EventEmitter {
     this.users = new Map();
 
     // Discord endpoints here
-    this.apiBase = "https://discord.com/api/v10";
+    this.apiBase = "https://discord.com/api/v9";
     this.gatewayUrl = "wss://gateway.discord.gg/?v=10&encoding=json";
 
     // Realistic browser headers to avoid detection
     this.userAgent = this.getRealisticUserAgent();
+
+    // Rate limiting
+    this.lastMessageTime = 0;
+    this.messageCount = 0;
+    this.rateLimitWindow = 60000;
+    this.maxMessagesPerMinute = 10;
   }
 
   getRealisticUserAgent() {
-    const chromeVersion = "120.0.0.0";
+    const chromeVersion = "140.0.0.0";
     switch (process.platform) {
       case "darwin":
         return `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
@@ -38,21 +44,66 @@ class DiscordClient extends EventEmitter {
     }
   }
 
+  generateNonce() {
+    const timestamp = Date.now() - 1420070400000; // Discord epoch, different from normal one
+    const random = Math.floor(Math.random() * 4096);
+    return ((BigInt(timestamp) << 22n) | BigInt(random)).toString();
+  }
+
+  // Generate x-super-properties to prevent triggering the captcha thing
+  getSuperProperties() {
+    const props = {
+      os:
+        process.platform === "darwin"
+          ? "Mac OS X"
+          : process.platform === "linux"
+          ? "Linux"
+          : "Windows",
+      browser: "Chrome",
+      device: "",
+      system_locale: "en-US",
+      has_client_mods: false,
+      browser_user_agent: this.getRealisticUserAgent(),
+      browser_version: "140.0.0.0",
+      os_version: process.platform === "darwin" ? "10.15.7" : "10.0.19041",
+      referrer: "",
+      referring_domain: "",
+      referrer_current: "",
+      referring_domain_current: "",
+      release_channel: "stable",
+      client_build_number: 446694,
+      client_event_source: null,
+    };
+    return Buffer.from(JSON.stringify(props)).toString("base64");
+  }
+
+  getContextProperties() {
+    const context = { location: "chat_input" };
+    return Buffer.from(JSON.stringify(context)).toString("base64");
+  }
+
   getRealisticHeaders(additionalHeaders = {}) {
     return {
       "User-Agent": this.userAgent,
-      Accept: "application/json, text/plain, */*",
+      Accept: "*/*",
       "Accept-Language": "en-US,en;q=0.9",
       "Accept-Encoding": "gzip, deflate, br",
       DNT: "1",
       Connection: "keep-alive",
+      Origin: "https://discord.com",
+      Referer: "https://discord.com/channels/@me",
       "Sec-Fetch-Dest": "empty",
       "Sec-Fetch-Mode": "cors",
       "Sec-Fetch-Site": "same-origin",
       "Sec-CH-UA":
-        '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        '"Chromium";v="140", "Not=A?Brand";v="24", "Google Chrome";v="140"',
       "Sec-CH-UA-Mobile": "?0",
       "Sec-CH-UA-Platform": `"${this.getRealisticOSName()}"`,
+      "x-discord-locale": "en-US",
+      "x-discord-timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
+      "x-super-properties": this.getSuperProperties(),
+      "x-context-properties": this.getContextProperties(),
+      "x-debug-options": "bugReporterEnabled",
       ...additionalHeaders,
     };
   }
@@ -61,6 +112,26 @@ class DiscordClient extends EventEmitter {
   async humanDelay() {
     const delay = Math.random() * 1000 + 500; // 500-1500ms
     return new Promise((resolve) => setTimeout(resolve, delay));
+  }
+
+  // Check and enforce rate limiting
+  async checkRateLimit() {
+    const now = Date.now();
+
+    if (now - this.lastMessageTime > this.rateLimitWindow) {
+      this.messageCount = 0;
+      this.lastMessageTime = now;
+    }
+
+    if (this.messageCount >= this.maxMessagesPerMinute) {
+      const waitTime = this.rateLimitWindow - (now - this.lastMessageTime);
+      console.log(`[Discord] Rate limit reached, waiting ${waitTime}ms`);
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+      this.messageCount = 0;
+      this.lastMessageTime = Date.now();
+    }
+
+    this.messageCount++;
   }
 
   async connect(token) {
@@ -522,69 +593,209 @@ class DiscordClient extends EventEmitter {
   }
 
   async sendMessage(channelId, content) {
-    await this.humanDelay();
+    try {
+      // Rate limiting check
+      await this.checkRateLimit();
 
-    return new Promise((resolve, reject) => {
-      const data = JSON.stringify({
-        content: content,
-        tts: false,
-      });
+      // Human-like delay
+      await this.humanDelay();
 
-      const options = {
-        hostname: "discord.com",
-        path: `/api/v10/channels/${channelId}/messages`,
-        method: "POST",
-        headers: this.getRealisticHeaders({
-          Authorization: this.token,
-          "Content-Type": "application/json",
-          "Content-Length": Buffer.byteLength(data),
-        }),
-      };
-
-      const req = https.request(options, (res) => {
-        let responseData = "";
-
-        res.on("data", (chunk) => {
-          responseData += chunk;
+      return new Promise((resolve, reject) => {
+        const nonce = this.generateNonce();
+        const data = JSON.stringify({
+          mobile_network_type: "unknown",
+          content: content,
+          nonce: nonce,
+          tts: false,
+          flags: 0,
         });
 
-        res.on("end", () => {
-          if (res.statusCode === 200 || res.statusCode === 201) {
-            try {
-              const messageData = JSON.parse(responseData);
+        const options = {
+          hostname: "discord.com",
+          path: `/api/v9/channels/${channelId}/messages`,
+          method: "POST",
+          headers: this.getRealisticHeaders({
+            Authorization: this.token,
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(data),
+            Referer: `https://discord.com/channels/@me/${channelId}`,
+          }),
+        };
 
-              // Store sent message in database
-              this.dbManager.createMessage({
-                id: messageData.id,
-                chat_id: messageData.channel_id,
-                user_id: messageData.author.id,
-                content: messageData.content,
-                message_type: "text",
-                timestamp: messageData.timestamp,
-                sync_status: "synced",
-              });
+        const req = https.request(options, (res) => {
+          let responseData = "";
 
-              resolve(messageData);
-            } catch (error) {
-              reject(new Error("Failed to parse response"));
+          res.on("data", (chunk) => {
+            responseData += chunk;
+          });
+
+          res.on("end", () => {
+            console.log(`[Discord] Response status: ${res.statusCode}`);
+            console.log(`[Discord] Response data: ${responseData}`);
+
+            if (res.statusCode === 200 || res.statusCode === 201) {
+              try {
+                const messageData = JSON.parse(responseData);
+
+                // Store sent message in database
+                this.dbManager.createMessage({
+                  id: messageData.id,
+                  chat_id: messageData.channel_id,
+                  user_id: messageData.author.id,
+                  content: messageData.content,
+                  message_type: "text",
+                  timestamp: messageData.timestamp,
+                  sync_status: "synced",
+                });
+
+                resolve(messageData);
+              } catch (error) {
+                reject(new Error("Failed to parse response"));
+              }
+            } else if (res.statusCode === 400) {
+              // Handle CAPTCHA
+              try {
+                const errorData = JSON.parse(responseData);
+                if (
+                  errorData.captcha_key &&
+                  errorData.captcha_key.includes("captcha-required")
+                ) {
+                  const captchaError = new Error("CAPTCHA required");
+                  captchaError.captchaRequired = true;
+                  captchaError.captchaData = {
+                    sitekey: errorData.captcha_sitekey,
+                    service: errorData.captcha_service,
+                    sessionId: errorData.captcha_session_id,
+                    rqdata: errorData.captcha_rqdata,
+                    rqtoken: errorData.captcha_rqtoken,
+                  };
+                  console.log(
+                    "[Discord] CAPTCHA required:",
+                    captchaError.captchaData
+                  );
+
+                  this.emit("captchaRequired", captchaError.captchaData);
+
+                  reject(captchaError);
+                  return;
+                }
+              } catch (parseError) {}
+
+              reject(
+                new Error(
+                  `Message send failed: ${res.statusCode} ${responseData}`
+                )
+              );
+            } else {
+              reject(
+                new Error(
+                  `Message send failed: ${res.statusCode} ${responseData}`
+                )
+              );
             }
-          } else {
-            reject(
-              new Error(
-                `Message send failed: ${res.statusCode} ${responseData}`
-              )
-            );
-          }
+          });
         });
-      });
 
-      req.on("error", (error) => {
-        reject(error);
-      });
+        req.on("error", (error) => {
+          console.error("[Discord] Request error:", error);
+          reject(error);
+        });
 
-      req.write(data);
-      req.end();
-    });
+        req.write(data);
+        req.end();
+      });
+    } catch (error) {
+      console.error("[Discord] Send message error:", error);
+      throw error;
+    }
+  }
+
+  // resend message with CAPTCHA
+  async sendMessageWithCaptcha(channelId, content, captchaToken, captchaData) {
+    try {
+      await this.checkRateLimit();
+
+      await this.humanDelay();
+
+      return new Promise((resolve, reject) => {
+        const nonce = this.generateNonce();
+        const data = JSON.stringify({
+          mobile_network_type: "unknown",
+          content: content,
+          nonce: nonce,
+          tts: false,
+          flags: 0,
+          captcha_key: captchaToken,
+          captcha_rqtoken: captchaData.rqtoken,
+        });
+
+        const options = {
+          hostname: "discord.com",
+          path: `/api/v9/channels/${channelId}/messages`,
+          method: "POST",
+          headers: this.getRealisticHeaders({
+            Authorization: this.token,
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(data),
+            Referer: `https://discord.com/channels/@me/${channelId}`,
+          }),
+        };
+
+        const req = https.request(options, (res) => {
+          let responseData = "";
+
+          res.on("data", (chunk) => {
+            responseData += chunk;
+          });
+
+          res.on("end", () => {
+            console.log(`[Discord] CAPTCHA Response status: ${res.statusCode}`);
+            console.log(`[Discord] CAPTCHA Response data: ${responseData}`);
+
+            if (res.statusCode === 200 || res.statusCode === 201) {
+              try {
+                const messageData = JSON.parse(responseData);
+
+                // Store sent message in database
+                this.dbManager.createMessage({
+                  id: messageData.id,
+                  chat_id: messageData.channel_id,
+                  user_id: messageData.author.id,
+                  content: messageData.content,
+                  message_type: "text",
+                  timestamp: messageData.timestamp,
+                  sync_status: "synced",
+                });
+
+                console.log(
+                  "[Discord] Message sent successfully after CAPTCHA"
+                );
+                resolve(messageData);
+              } catch (error) {
+                reject(new Error("Failed to parse response"));
+              }
+            } else {
+              reject(
+                new Error(
+                  `Message send failed after CAPTCHA: ${res.statusCode} ${responseData}`
+                )
+              );
+            }
+          });
+        });
+
+        req.on("error", (error) => {
+          console.error("[Discord] CAPTCHA Request error:", error);
+          reject(error);
+        });
+
+        req.write(data);
+        req.end();
+      });
+    } catch (error) {
+      console.error("[Discord] Send message with CAPTCHA error:", error);
+      throw error;
+    }
   }
 
   reconnect() {

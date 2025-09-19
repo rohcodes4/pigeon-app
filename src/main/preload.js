@@ -7,14 +7,28 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getDMs: () => ipcRenderer.invoke("discord:get-dms"),
     sendMessage: (chatId, message) =>
       ipcRenderer.invoke("discord:send-message", { chatId, message }),
+    sendMessageWithCaptcha: (chatId, message, captchaToken, captchaData) =>
+      ipcRenderer.invoke("discord:send-message-with-captcha", {
+        chatId,
+        message,
+        captchaToken,
+        captchaData,
+      }),
 
     // Event listeners
     onConnected: (callback) => {
       ipcRenderer.on("discord-connected", (event, data) => callback(data));
     },
 
+    onCaptchaRequired: (callback) => {
+      ipcRenderer.on("discord:captcha-required", (event, captchaData) =>
+        callback(captchaData)
+      );
+    },
+
     removeAllListeners: () => {
       ipcRenderer.removeAllListeners("discord-connected");
+      ipcRenderer.removeAllListeners("discord:captcha-required");
     },
   },
 

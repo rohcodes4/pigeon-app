@@ -36,6 +36,14 @@ async function initializeApp() {
     // Initialize Discord client
     discordClient = new DiscordClient(dbManager, securityManager);
 
+    // Set up Discord client event listeners for CAPTCHA handling
+    discordClient.on("captchaRequired", (captchaData) => {
+      console.log("[App] CAPTCHA required, forwarding to renderer");
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("discord:captcha-required", captchaData);
+      }
+    });
+
     // Initialize sync manager
     syncManager = new SyncManager(dbManager, securityManager);
 
@@ -123,9 +131,40 @@ function setupIPCHandlers() {
       return { success: true, data: result };
     } catch (error) {
       console.error("[IPC] Send message error:", error);
+
+      if (error.captchaRequired) {
+        return {
+          success: false,
+          error: error.message,
+          captchaRequired: true,
+          captchaData: error.captchaData,
+        };
+      }
+
       return { success: false, error: error.message };
     }
   });
+
+  ipcMain.handle(
+    "discord:send-message-with-captcha",
+    async (event, { chatId, message, captchaToken, captchaData }) => {
+      try {
+        if (!discordClient.isConnected()) {
+          return { success: false, error: "Discord not connected" };
+        }
+        const result = await discordClient.sendMessageWithCaptcha(
+          chatId,
+          message,
+          captchaToken,
+          captchaData
+        );
+        return { success: true, data: result };
+      } catch (error) {
+        console.error("[IPC] Send message with CAPTCHA error:", error);
+        return { success: false, error: error.message };
+      }
+    }
+  );
 
   // Database operations
   ipcMain.handle("db:get-chats", async () => {
