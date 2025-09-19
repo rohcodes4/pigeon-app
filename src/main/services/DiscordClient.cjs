@@ -9,7 +9,7 @@ class DiscordClient extends EventEmitter {
     this.securityManager = securityManager;
     this.token = null;
     this.ws = null;
-    this.isConnected = false;
+    this.connected = false;
     this.heartbeatInterval = null;
     this.sessionId = null;
     this.sequenceNumber = null;
@@ -152,11 +152,11 @@ class DiscordClient extends EventEmitter {
       await this.connectToGateway();
 
       console.log("[Discord] Successfully connected");
-      this.isConnected = true;
+      this.connected = true;
       this.emit("connected");
     } catch (error) {
       console.error("[Discord] Connection failed:", error);
-      this.isConnected = false;
+      this.connected = false;
       this.emit("error", error);
       throw error;
     }
@@ -232,21 +232,21 @@ class DiscordClient extends EventEmitter {
 
       this.ws.on("close", (code, reason) => {
         console.log(`[Discord] Gateway connection closed: ${code} ${reason}`);
-        this.isConnected = false;
+        this.connected = false;
         this.emit("disconnected");
         this.cleanup();
       });
 
       this.ws.on("error", (error) => {
         console.error("[Discord] Gateway error:", error);
-        this.isConnected = false;
+        this.connected = false;
         this.emit("error", error);
         reject(error);
       });
 
       // Set connection timeout
       setTimeout(() => {
-        if (!this.isConnected) {
+        if (!this.connected) {
           reject(new Error("Gateway connection timeout"));
         }
       }, 15000);
@@ -825,7 +825,7 @@ class DiscordClient extends EventEmitter {
       this.ws = null;
     }
 
-    this.isConnected = false;
+    this.connected = false;
   }
 
   disconnect() {
@@ -835,7 +835,7 @@ class DiscordClient extends EventEmitter {
   }
 
   isConnected() {
-    return this.isConnected && this.ws && this.ws.readyState === WebSocket.OPEN;
+    return this.connected && this.ws && this.ws.readyState === WebSocket.OPEN;
   }
 }
 
