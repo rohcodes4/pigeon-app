@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Button } from "./ui/button";
+
 import {
   Check,
   ChevronDown,
@@ -255,6 +256,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [allChannels, setAllChannels] = useState<any[]>([]);
   const [focusChannels, setFocusChannels] = useState<any[]>([]);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const abortController = useRef(null);
 
   useEffect(() => {
     // Save topItems to localStorage whenever it changes
@@ -520,51 +522,98 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   const [fetchedUsers, setFetchedUsers] = useState<any[]>([]);
 
-  async function fetchSearchUsers(query = "rohcodes", limit = 10) {
+  // async function fetchSearchUsers(query = "rohcodes", limit = 10) {
+  //   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL; // or your backend URL string
+  //   const token = localStorage.getItem("access_token");
+
+  //   const url = `${BACKEND_URL}/api/search/users?query=${encodeURIComponent(
+  //     query
+  //   )}&limit=${limit}`;
+
+  //   try {
+  //     const response = await fetch(url, {
+  //       method: "GET",
+  //       headers: {
+  //         Authorization: `Bearer ${token}`,
+  //       },
+  //     });
+
+  //     if (!response.ok) {
+  //       throw new Error(`Error fetching users: ${response.status}`);
+  //     }
+
+  //     const data = await response.json();
+  //     setSearchResults(data.results);
+  //     console.log("Search results:", searchResults);
+  //     return data;
+  //   } catch (error) {
+  //     console.error("Fetch search users failed:", error);
+  //     return null;
+  //   }
+  // }
+
+  async function fetchSearchUsers(query = "rohcodes", limit = 10, controller) {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL; // or your backend URL string
     const token = localStorage.getItem("access_token");
-
+  
     const url = `${BACKEND_URL}/api/search/users?query=${encodeURIComponent(
       query
     )}&limit=${limit}`;
-
+  
     try {
       const response = await fetch(url, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        signal: controller.signal, // pass abort signal here
       });
-
+  
       if (!response.ok) {
         throw new Error(`Error fetching users: ${response.status}`);
       }
-
+  
       const data = await response.json();
       setSearchResults(data.results);
-      console.log("Search results:", searchResults);
+      console.log("Search results:", data.results); // log actual data, not stale state
       return data;
     } catch (error) {
-      console.error("Fetch search users failed:", error);
+      if (error.name === "AbortError") {
+        console.log("Fetch aborted");
+      } else {
+        console.error("Fetch search users failed:", error);
+      }
       return null;
     }
   }
 
   useEffect(() => {
     if (!searchTerm.trim()) {
-      setFetchedUsers([]);
-      setSearchResults([])
+      setSearchResults([]);
       return;
     }
+
+    if (abortController.current) {
+      abortController.current.abort(); // cancel previous request
+    }
+
+    abortController.current = new AbortController();
+
     const handler = setTimeout(() => {
-      fetchSearchUsers(searchTerm);
+      fetchSearchUsers(searchTerm, 10, abortController.current).then((data) => {
+        if (data) {
+          setSearchResults(data.results);
+        }
+      });
     }, 400);
-  
+
     return () => {
       clearTimeout(handler);
+      if (abortController.current) {
+        abortController.current.abort();
+      }
     };
   }, [searchTerm]);
-  
 
   // const channelsToShow =
   //   searchResults?.length > 1
