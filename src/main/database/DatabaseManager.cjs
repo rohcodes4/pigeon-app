@@ -266,6 +266,8 @@ class DatabaseManager {
 
   // Message operations
   async createMessage(messageData) {
+    if(!messageData.content)
+      return;
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO messages 
       (id, chat_id, user_id, content, content_encrypted, message_type, reply_to_id, 

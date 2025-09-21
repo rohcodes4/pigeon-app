@@ -107,6 +107,16 @@ function setupIPCHandlers() {
     }
   });
 
+    ipcMain.handle("discord:connect", async (event, token) => {
+    try {
+      await discordClient.connect(token);
+      return { success: true };
+    } catch (error) {
+      console.error("[IPC] Discord login error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // Get Discord DMs
   ipcMain.handle("discord:get-dms", async () => {
     try {
@@ -120,6 +130,8 @@ function setupIPCHandlers() {
       return { success: false, error: error.message };
     }
   });
+
+ 
 
   // Send Discord message
   ipcMain.handle("discord:send-message", async (event, { chatId, message }) => {
@@ -185,6 +197,19 @@ function setupIPCHandlers() {
         return { success: true, data: messages };
       } catch (error) {
         console.error("[IPC] Get messages error:", error);
+        return { success: false, error: error.message };
+      }
+    }
+  );
+
+    ipcMain.handle(
+    "security:get-token",
+    async () => {
+      try {
+        const token = await securityManager.getDiscordToken();
+        return { success: true, data: token };
+      } catch (error) {
+        console.error("[IPC] Get token error:", error);
         return { success: false, error: error.message };
       }
     }

@@ -92,7 +92,8 @@ export const ChatSelection = ({
           group_id: String(chat.id),
           group_name: chat.title || `Chat ${chat.id}`,
           group_avatar: null, // Not provided, can add later if available
-          platform: chat.type?.toLowerCase() === "discord" ? "discord" : "telegram",
+          platform:
+            chat.type?.toLowerCase() === "discord" ? "discord" : "telegram",
           member_count: null, // Not provided here, optional
           is_synced: false, // default unselected, load saved selections below
           type: chat.type || null,
@@ -138,12 +139,10 @@ export const ChatSelection = ({
           const tg = await tgRes.json();
           setTelegramConnected(!!tg.connected);
         }
-        const dcRes = await fetch(`${BACKEND_URL}/auth/discord/status`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (dcRes.ok) {
-          const dc = await dcRes.json();
-          setDiscordConnected(!!dc.connected);
+       
+         const res = await window.electronAPI.security.getDiscordToken();
+        if (res?.success && res?.data) {
+          setDiscordConnected(!!res.success);
         }
       } catch (e) {
         // ignore errors
@@ -161,32 +160,29 @@ export const ChatSelection = ({
 
       // Construct enabled and disabled chat ID strings
       const enabledChatIds = chatGroups
-        .filter(c => c.is_synced)
-        .map(c => c.id)
+        .filter((c) => c.is_synced)
+        .map((c) => c.id)
         .join(",");
 
       const disabledChatIds = chatGroups
-        .filter(c => !c.is_synced)
-        .map(c => c.id)
+        .filter((c) => !c.is_synced)
+        .map((c) => c.id)
         .join(",");
 
-        const body = new URLSearchParams();
-        body.append("enabled_chats", enabledChatIds);
-        body.append("disabled_chats", disabledChatIds);
-        body.append("sync_groups", "true");
-        body.append("sync_channels", "true");
-        
-        const response = await fetch(`${BACKEND_URL}/api/sync-preferences`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            Authorization: `Bearer ${token}`,
-          },
-          body: body.toString(),
-        });
-        
-      
+      const body = new URLSearchParams();
+      body.append("enabled_chats", enabledChatIds);
+      body.append("disabled_chats", disabledChatIds);
+      body.append("sync_groups", "true");
+      body.append("sync_channels", "true");
 
+      const response = await fetch(`${BACKEND_URL}/api/sync-preferences`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Bearer ${token}`,
+        },
+        body: body.toString(),
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -259,7 +255,6 @@ export const ChatSelection = ({
       ),
     };
     updatedSelections[groupId] = !currentSyncStatus;
- 
 
     const hasSelectedChats = chatGroups.some((group) =>
       group.id === groupId ? !currentSyncStatus : group.is_synced
@@ -345,9 +340,12 @@ export const ChatSelection = ({
   const [showTelegramQrModal, setShowTelegramQrModal] = useState(false);
   const [telegramQrCode, setTelegramQrCode] = useState<string | null>(null);
   const [telegramQrToken, setTelegramQrToken] = useState<string | null>(null);
-  const [loadingPlatform, setLoadingPlatform] = useState({ telegram: false, discord: false });
+  const [loadingPlatform, setLoadingPlatform] = useState({
+    telegram: false,
+    discord: false,
+  });
   const [pollingIntervalId, setPollingIntervalId] =
-  useState<NodeJS.Timeout | null>(null);
+    useState<NodeJS.Timeout | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const [twoFactorPassword, setTwoFactorPassword] = useState("");
@@ -390,6 +388,27 @@ export const ChatSelection = ({
     }
   };
 
+  const connectDiscord = async () => {
+      const res = await window.electronAPI.security.getDiscordToken();
+        if (res?.data) {
+          const conncted = await window.electronAPI.discord.connect(res.data);
+          // You already got the token from electron, return early
+          if (!conncted.success) {
+            await window.electronAPI.discord.openLogin();
+            const res = await window.electronAPI.security.getDiscordToken();
+            console.log("Discord token result2:", res);
+            if (res?.data) {
+              const conncted = await window.electronAPI.discord.connect(
+                res.data
+              );
+              setDiscordConnected(!!conncted.success);
+            }
+          } else {
+            console.log(!!conncted.success, "discord connected");
+            setDiscordConnected(!!conncted.success);
+          }
+        }
+  }
   useEffect(() => {
     if (telegramQrToken && showTelegramQrModal) {
       const interval = setInterval(async () => {
@@ -487,11 +506,7 @@ export const ChatSelection = ({
         }
       };
     }
-  }, [
-    telegramQrToken,
-    showTelegramQrModal,
-    setTelegramConnected,
-  ]);
+  }, [telegramQrToken, showTelegramQrModal, setTelegramConnected]);
 
   const submitTelegramPassword = async () => {
     if (!telegramQrToken || !twoFactorPassword.trim()) {
@@ -679,12 +694,22 @@ export const ChatSelection = ({
                   </span>
                 </span>
                 {/* Action button */}
+                   {!discordConnected ? (
+                  <Button
+                    onClick={connectDiscord}
+                    disabled={loadingPlatform.discord}
+                    className="bg-[#212121] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
+                  >
+                    Connect
+                  </Button>
+                ) : (
                 <Button
                   // disabled={loading.discord}
                   className="bg-[#171717] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
                 >
                   Reconnect
                 </Button>
+                )}
               </div>
             </div>
           </CardContent>
@@ -753,30 +778,37 @@ export const ChatSelection = ({
             {/* Info Section */}
             <div className="flex-1 text-[#ffffff72]">
               <div className="h-[150px] overflow-y-scroll">
-                {telegramConnected ? loading? (<p className="text-sm text-gray-500 text-center py-4"> Loading...</p>) : (
-                  telegramChats.map((group) => (
-                    <div
-                      key={group.id}
-                      className="flex items-center justify-between p-2 border-0 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3 w-full">
-                        <Checkbox
-                          checked={group.is_synced}
-                          onCheckedChange={() =>
-                            toggleChatSync(group.id, group.is_synced)
-                          }
-                        />
-                        <div className="flex justify-between w-full">
-                          <p className="font-medium text-sm">
-                            {group.group_name}
-                          </p>
-                          <p className="text-xs text-black bg-[#3589ff] px-2 py-1 rounded-[6px]">
-                            {group.type}
-                          </p>
+                {telegramConnected ? (
+                  loading ? (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      {" "}
+                      Loading...
+                    </p>
+                  ) : (
+                    telegramChats.map((group) => (
+                      <div
+                        key={group.id}
+                        className="flex items-center justify-between p-2 border-0 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3 w-full">
+                          <Checkbox
+                            checked={group.is_synced}
+                            onCheckedChange={() =>
+                              toggleChatSync(group.id, group.is_synced)
+                            }
+                          />
+                          <div className="flex justify-between w-full">
+                            <p className="font-medium text-sm">
+                              {group.group_name}
+                            </p>
+                            <p className="text-xs text-black bg-[#3589ff] px-2 py-1 rounded-[6px]">
+                              {group.type}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    ))
+                  )
                 ) : (
                   <p className="text-sm text-gray-500 text-center py-4">
                     Connect Telegram to see chats
@@ -913,7 +945,6 @@ export const ChatSelection = ({
                       <Button
                         onClick={savePreferences}
                         disabled={saving}
-
                         className="bg-[#5389ff] hover:bg-[#4170cc] text-black rounded-[12px] px-3 py-2 gap-2 shadow-none"
                       >
                         <img

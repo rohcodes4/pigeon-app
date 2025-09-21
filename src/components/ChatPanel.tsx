@@ -1244,11 +1244,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                           backupAvatar={`${BACKEND_URL}/contact_photo/${chat.chat_id}`}
                         />
                         <img
-                          src={chat.platform === "Discord" ? discord : telegram}
+                          src={chat.platform === "discord" ? discord : telegram}
                           className={`
                             absolute -bottom-2 -right-1
                             ${
-                              chat.platform === "Discord"
+                              chat.platform === "discord"
                                 ? "bg-[#7b5cfa]"
                                 : "bg-[#3474ff]"
                             }
@@ -1261,7 +1261,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                       <div className="flex-1 text-left">
                         <div className="flex justify-between items-center">
                           <span className="text-[#ffffff48] font-200 flex items-center gap-1">
-                            {chat.platform === "Discord" ? (
+                            {chat.platform === "discord" ? (
                               <FaDiscord className="text-[#7b5cfa]" />
                             ) : (
                               <FaTelegramPlane className="text-[#3474ff]" />

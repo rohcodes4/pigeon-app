@@ -48,7 +48,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
   };
   const { settings, updateSettings, loading } = useUserSettings();
   const { setTheme: setGlobalTheme } = useTheme(); // Destructure setTheme from useTheme
-const isHelpPage = activePage === "/help";
+  const isHelpPage = activePage === "/help";
   useEffect(() => {
     if (!loading) {
       setTheme(settings.theme);
@@ -152,9 +152,9 @@ const isHelpPage = activePage === "/help";
           const tg = await tgRes.json();
           setTelegramConnected(!!tg.connected);
         }
-        if (dcRes.ok) {
-          const dc = await dcRes.json();
-          setDiscordConnected(!!dc.connected);
+        const res = await window.electronAPI.security.getDiscordToken();
+        if (res?.success && res?.data) {
+          setDiscordConnected(!!res.success);
         }
       } catch (e) {
         // ignore transient errors
@@ -169,9 +169,11 @@ const isHelpPage = activePage === "/help";
 
   const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID;
   const REDIRECT_URI = "http://localhost:8000/auth/discord/callback"; // Or your frontend callback route if you handle tokens client-side
-  const DISCORD_OAUTH_URL = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20email`;
+  const DISCORD_OAUTH_URL = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(
+    REDIRECT_URI
+  )}&response_type=code&scope=identify%20email`;
 
-  const connectDiscord = async () =>{
+  const connectDiscord = async () => {
     try {
       const response = await fetch(`${BACKEND_URL}/auth/discord/start`, {
         method: "POST",
@@ -192,8 +194,7 @@ const isHelpPage = activePage === "/help";
         variant: "destructive",
       });
     }
-  }
-
+  };
 
   // OAuth handlers
   const handleOAuthPopup = (url: string, platform: string) => {
@@ -225,7 +226,10 @@ const isHelpPage = activePage === "/help";
 
       if (type === `${platform.toUpperCase()}_AUTH_SUCCESS`) {
         console.log("OAuth success:", data);
-        console.log("Setting access_token for Discord:", data.discord_access_token);
+        console.log(
+          "Setting access_token for Discord:",
+          data.discord_access_token
+        );
         localStorage.setItem("access_token", data.discord_access_token);
 
         // Verify token was stored
@@ -306,66 +310,21 @@ const isHelpPage = activePage === "/help";
       const params = new URLSearchParams(window.location.hash.substring(1));
       const token = params.get("access_token");
       const type = params.get("token_type");
-      console.log('token')
-      console.log(token)
-      console.log(type)
+      console.log("token");
+      console.log(token);
+      console.log(type);
       // Store token, call Discord API etc.
     }
   }, []);
-  
 
-  const [discordToken, setDiscordToken] = useState(null);
-
-  // useEffect(() => {
-  //   window.electronAPI.onDiscordToken((token) => {
-  //     console.log("Received Discord token:", token);
-  //     setDiscordToken(token);
-  //     // Use the token for your app logic
-  //   });
-  // }, []);
-
-  function getDiscordAccessToken(): Promise<string> {
-    return new Promise((resolve, reject) => {
-      // Listen once for the discord-token event
-      const handler = (event, token) => {
-        console.log('[Vite app] Discord token received:', token);
-        window.electronAPI.offDiscordToken?.(handler); // remove listener if supported
-        resolve(token);
-      };
-  
-      // Add listener for token
-      window.electronAPI.onDiscordToken((token) => {
-        console.log('[Vite app] Discord token received:', token);
-        resolve(token);
-      });
-  
-      // Open Discord login window
-      window.electronAPI.openDiscordLogin();
-  
-      // Optionally set a timeout to reject if no token received in time (e.g., 2 mins)
-      setTimeout(() => {
-        reject(new Error('Discord login timeout - token not received'));
-      }, 2 * 60 * 1000);
-    });
-  }
-  
-  async function loginWithDiscord() {
-    try {
-      const token = await getDiscordAccessToken();
-      console.log('Discord access token:', token);
-      // Use token for API calls or auth flow
-    } catch (e) {
-      console.error('Failed to get Discord token:', e);
-    }
-  }
-  
   // Call loginWithDiscord() on button click or app startup as needed
 
-  
   return (
-    <aside className={`h-screen w-16 flex flex-col items-center py-[18px] min-w-16 overflow-hidden bg-[#171717] flex-shrink-0 ${
-      isHelpPage ? 'fixed left-0 top-0 z-40' : ''
-    }`}>
+    <aside
+      className={`h-screen w-16 flex flex-col items-center py-[18px] min-w-16 overflow-hidden bg-[#171717] flex-shrink-0 ${
+        isHelpPage ? "fixed left-0 top-0 z-40" : ""
+      }`}
+    >
       <img src={logo} alt="AI" className="w-9 h-9 mb-4" />
       <nav className="flex flex-col gap-4 flex-1">
         {/* AI */}
@@ -425,23 +384,23 @@ const isHelpPage = activePage === "/help";
           />
         </button>
         {/* AI Chat */}
-<button
-  className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
+        <button
+          className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
     ${activeNav === "AIChat" ? "bg-[#212121]" : "hover:bg-[#212121]"}`}
-  onClick={() => {
-    setActiveNav("AIChat");
-    navigate("/ai");
-  }}
->
-{activeNav === "AiChat" && (
+          onClick={() => {
+            setActiveNav("AIChat");
+            navigate("/ai");
+          }}
+        >
+          {activeNav === "AiChat" && (
             <span className="absolute left-[-13px] h-full top-0 bottom-2 w-1 rounded bg-[#3474ff]" />
           )}
-  <BotMessageSquare
-  className={`${
-    activeNav === "AiChat" ? "opacity-1" : "opacity-[0.5]"
-  } w-6 h-6`}
-/>
-</button>
+          <BotMessageSquare
+            className={`${
+              activeNav === "AiChat" ? "opacity-1" : "opacity-[0.5]"
+            } w-6 h-6`}
+          />
+        </button>
 
         {/* Users */}
         <button
@@ -486,8 +445,8 @@ const isHelpPage = activePage === "/help";
       </nav>
       <div className="flex flex-col items-center gap-6 mt-auto mb-4">
         {/* Discord Icon with Connected Badge */}
-        <div className="relative bg-[#7B5CFA] rounded-[10px] p-2 group"
-          onClick={() => loginWithDiscord()}
+        <div
+          className="relative bg-[#7B5CFA] rounded-[10px] p-2 group"
         >
           <img src={Discord} alt="Discord" className="w-4 h-4 rounded" />
           <span

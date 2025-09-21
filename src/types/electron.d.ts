@@ -1,6 +1,7 @@
 // Type declarations for Electron IPC API
 export interface ElectronAPI {
   discord: {
+    connect: (token: string) => Promise<{ success: boolean; error?: string }>;
     openLogin: () => Promise<{ success: boolean; error?: string }>;
     getDMs: () => Promise<{
       success: boolean;
@@ -30,6 +31,13 @@ export interface ElectronAPI {
       callback: (data: { success: boolean; error?: string }) => void
     ) => void;
     removeAllListeners: () => void;
+  };
+  security: {
+    getDiscordToken: () => Promise<{
+      success: boolean;
+      data?: string;
+      error?: string;
+    }>;
   };
 
   database: {

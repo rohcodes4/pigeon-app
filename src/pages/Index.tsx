@@ -13,6 +13,7 @@ import SmartSummary from "@/components/SmartSummary";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
 import { useLocation } from "react-router-dom";
+import { mapDiscordToTelegramSchema } from "@/lib/utils";
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -478,8 +479,19 @@ const Index = () => {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        // Store initial chats - this only runs once on load
         setChats(data.chats || []);
+        const res = await window.electronAPI.security.getDiscordToken();
+        if (res?.success && res?.data) {
+          await window.electronAPI.discord.connect(res.data);
+        }
+        const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
+        const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
+        discordChats.sort((a, b) => Number(b.id) - Number(a.id));
+        // Merge both
+        const allChats = [...data.chats, ...discordChats];
+
+        // Store initial chats - this only runs once on load
+        setChats(allChats || []);
       } catch (error) {
         console.error("Failed to fetch chats:", error);
         toast({
@@ -494,6 +506,7 @@ const Index = () => {
     };
     fetchChats();
   }, [user]);
+
 
   // Lightweight polling: refresh sidebar chats every 30s with smart merging
   useEffect(() => {
@@ -513,6 +526,12 @@ const Index = () => {
         if (response.ok) {
           const data = await response.json();
           const newChats = data.chats || [];
+          // Fetch Discord DMs
+          const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
+          const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
+          discordChats.sort((a, b) => Number(b.id) - Number(a.id));
+          // Merge both
+          const allChats = [...newChats, ...discordChats];
 
           // Smart merge: only update if there are actual changes
           setChats((prevChats) => {
@@ -520,11 +539,11 @@ const Index = () => {
             const prevMap = new Map(prevChats.map((chat) => [chat.id, chat]));
 
             // Check if there are meaningful changes
-            let hasChanges = prevChats.length !== newChats.length;
+            let hasChanges = prevChats.length !== allChats.length;
 
             if (!hasChanges) {
               // Check for updates in existing chats
-              for (const newChat of newChats) {
+              for (const newChat of allChats) {
                 const prevChat = prevMap.get(newChat.id);
                 if (
                   !prevChat ||
@@ -540,7 +559,7 @@ const Index = () => {
             }
 
             // Only update if there are actual changes
-            return hasChanges ? newChats : prevChats;
+            return hasChanges ? allChats : prevChats;
           });
         }
       } catch (_) {

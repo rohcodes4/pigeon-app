@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("electronAPI", {
   // Discord operations
   discord: {
+    connect: (token) => ipcRenderer.invoke("discord:connect", token),
     openLogin: () => ipcRenderer.invoke("discord:open-login"),
     getDMs: () => ipcRenderer.invoke("discord:get-dms"),
     sendMessage: (chatId, message) =>
@@ -32,8 +33,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     },
   },
 
+  security: {
+    getDiscordToken: () => ipcRenderer.invoke("security:get-token")
+  },
   // Database operations
-  database: {
+
+    database: {
     getChats: () => ipcRenderer.invoke("db:get-chats"),
     getMessages: (chatId, limit, offset) =>
       ipcRenderer.invoke("db:get-messages", { chatId, limit, offset }),

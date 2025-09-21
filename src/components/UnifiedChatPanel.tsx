@@ -38,6 +38,7 @@ import {
   createBookmark,
 } from "@/utils/apiHelpers";
 import { toast } from "@/hooks/use-toast";
+import { mapDiscordMessageToTelegram } from "@/lib/utils";
 
 const LoadingDots: React.FC = () => {
   return (
@@ -901,199 +902,7 @@ useEffect(() => {
     }
   };
 
-  // Function to fetch messages for a selected chat
-  // const fetchMessages = React.useCallback(
-  //   async (
-  //     chatId: number | string,
-  //     beforeTimestamp?: string,
-  //     append = false
-  //   ) => {
-  //     if (!chatId) return;
-  //     // console.log("chatId: ", chatId);
-  //     // If using dummy data, don't fetch from API
-  //     if (USE_DUMMY_DATA) {
-  //       setMessages(dummyMessages);
-  //       return;
-  //     }
-
-  //     if (append) {
-  //       setLoadingMore(true);
-  //     } else {
-  //       setLoading(true);
-  //       setHasMoreMessages(true); // Reset pagination state for new chat
-  //       setShouldAutoScroll(true);
-  //       // CRITICAL: Clear messages immediately when switching chats to prevent mixing
-  //       setMessages([]);
-  //     }
-
-  //     try {
-  //       const token = localStorage.getItem("access_token");
-
-  //       // Determine the endpoint based on the type of chat selection
-  //       let endpoint: string;
-
-  //       if (chatId === "all-channels") {
-  //         endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/all/messages`;
-  //       } else if (typeof chatId === "object" && chatId && "id" in chatId) {
-  //         // This is a smart filter object
-  //         endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
-  //           (chatId as any).id
-  //         }/messages`;
-  //       } else {
-  //         // This is a regular chat ID
-  //         endpoint = `${
-  //           import.meta.env.VITE_BACKEND_URL
-  //         }/chats/${chatId}/messages`;
-  //       }
-
-  //       // Add pagination parameter if loading older messages
-  //       const params = new URLSearchParams();
-  //       params.append("limit", String(PAGE_SIZE));
-  //       if (beforeTimestamp) {
-  //         params.append("before", beforeTimestamp);
-  //       }
-  //       if (params.toString()) {
-  //         endpoint += `?${params.toString()}`;
-  //       }
-
-  //       const response = await fetch(endpoint, {
-  //         headers: {
-  //           Authorization: `Bearer ${token}`,
-  //           "Content-Type": "application/json",
-  //         },
-  //       });
-
-  //       if (!response.ok) {
-  //         throw new Error(`HTTP error! status: ${response.status}`);
-  //       }
-
-  //       const data = await response.json();
-
-  //       // Debug: Log the first message's chat object to see what we're getting
-  //       if (data.length > 0) {
-  //         // console.log("First message chat object:", data[0].chat);
-  //       }
-
-  //       // Transform the messages to match our component's expected format
-  //       const transformedMessages = data.map((msg: any, index: number) => {
-  //         // Extract chat name and determine channel from the message data
-  //         let chatName = "Unknown";
-  //         let channelName = null; // Default to null (no channel)
-
-  //         if (chatId === "all-channels" && msg.chat) {
-  //           // For "all-channels", extract chat name based on the chat type
-  //           // For Telegram, always set channel to null since we don't have topic/channel data
-  //           // Discord channels will be handled separately when we add Discord support
-  //           if (msg.chat._ === "Channel") {
-  //             // For Telegram channels, use title or username as chat name
-  //             chatName = msg.chat.title || msg.chat.username || "Unknown";
-  //             channelName = null; // No channel display for Telegram
-  //           } else if (msg.chat._ === "Chat") {
-  //             // For Telegram groups, use title or username as chat name, no channel
-  //             chatName = msg.chat.title || msg.chat.username || "Unknown";
-  //             channelName = null; // No channel for groups
-  //           } else if (msg.chat._ === "User") {
-  //             // For users/bots (direct messages), use first_name or username as chat name, no channel
-  //             chatName = msg.chat.first_name || msg.chat.username || "Unknown";
-  //             channelName = null; // No channel for direct messages
-  //           } else {
-  //             // Fallback
-  //             chatName =
-  //               msg.chat.title ||
-  //               msg.chat.username ||
-  //               msg.chat.first_name ||
-  //               "Unknown";
-  //             channelName = null;
-  //           }
-  //         } else {
-  //           // For specific chats, use the selected chat name
-  //           chatName = selectedChat?.name || "Chat";
-  //           channelName = null; // No channel for specific chat view
-  //         }
-
-  //         // Parse Telegram reactions from message payload if present
-  //         const reactionResults =
-  //           (msg?.message?.reactions && msg.message.reactions.results) || [];
-  //         const parsedReactions = Array.isArray(reactionResults)
-  //           ? (reactionResults
-  //               .map((r: any) => {
-  //                 const emoticon =
-  //                   typeof r?.reaction?.emoticon === "string"
-  //                     ? r.reaction.emoticon
-  //                     : typeof r?.reaction === "string"
-  //                     ? r.reaction
-  //                     : null;
-  //                 const normalized =
-  //                   emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
-  //                 return normalized
-  //                   ? { icon: normalized, count: r?.count || 0 }
-  //                   : null;
-  //               })
-  //               .filter(Boolean) as Array<{ icon: string; count: number }>)
-  //           : [];
-
-  //         return {
-  //           id: msg._id || msg.id || String(index + 1),
-  //           originalId: msg._id || msg.id,
-  //           telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
-  //           name: msg.sender?.first_name || msg.sender?.username || "Unknown",
-  //           avatar: msg.sender?.id
-  //             ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
-  //                 msg.sender.id
-  //               }`
-  //             : gravatarUrl(
-  //                 msg.sender?.first_name || msg.sender?.username || "Unknown"
-  //               ),
-  //           platform: "Telegram" as const,
-  //           channel: channelName, // Will be null for DMs and groups, channel name for channels
-  //           server: chatName, // Always the chat/group/channel name
-  //           date: new Date(msg.timestamp),
-  //           message: msg.raw_text || "",
-  //           tags: [],
-  //           reactions: parsedReactions,
-  //           hasLink: (msg.raw_text || "").includes("http"),
-  //           link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
-  //           replyTo: null as any,
-  //           originalChatType: msg.chat?._ || null,
-  //           // telegramMessageId already set above; keep a single definition only
-  //         };
-  //       });
-
-  //       // Sort messages by date (oldest first) so newest appear at bottom
-  //       transformedMessages.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-  //       // Check if we got fewer messages than requested (indicating we've reached the end)
-  //       if (data.length < PAGE_SIZE) {
-  //         setHasMoreMessages(false);
-  //       }
-
-  //       if (append) {
-  //         // Prepend older messages to the existing list
-  //         setShouldAutoScroll(false); // Don't auto-scroll when loading more
-  //         setMessages((prevMessages) => [
-  //           ...transformedMessages,
-  //           ...prevMessages,
-  //         ]);
-  //       } else {
-  //         // Replace messages for new chat
-  //         setShouldAutoScroll(true); // Enable auto-scroll for new chat
-  //         setMessages(transformedMessages);
-  //         setShouldAutoScroll(true);
-  //       }
-        
-
-  //     } catch (error) {
-  //       console.error("Error fetching messages:", error);
-  //       if (!append) {
-  //         setMessages([]); // Set empty array on error only if not appending
-  //       }
-  //     } finally {
-  //       setLoading(false);
-  //       setLoadingMore(false);
-  //     }
-  //   },
-  //   [selectedChat] // Only depend on the name, not the entire object
-  // );
+  
   const fetchMessages = React.useCallback(
     async (
       chatId: number | string,
@@ -1391,7 +1200,6 @@ const handleScroll = React.useCallback((e) => {
     }
 
     const messageText = inputRef.current.value.trim();
-
     // Check if we have a valid chat selected and it's not "all-channels"
     if (!selectedChat) {
       toast({
@@ -1401,16 +1209,6 @@ const handleScroll = React.useCallback((e) => {
       });
       return;
     }
-
-    // Check if this is a smart filter (not a real chat)
-    // if (selectedChat.keywords !== undefined) {
-    //   toast({
-    //     title: "Cannot send to smart filter",
-    //     description: "Please select a real chat instead of a smart filter",
-    //     variant: "destructive",
-    //   });
-    //   return;
-    // }
 
     const chatId = selectedChat.id;
     console.log("replyTo");
@@ -1471,12 +1269,26 @@ const handleScroll = React.useCallback((e) => {
 
     try {
       const id = chatId || replyTo.chat_id;
+       
+  
       // Send message to backend/Telegram
       const replyToId = originalReplyTo?.telegramMessageId;
-      const result = await sendMessage(id, messageText, replyToId);
-      inputRef.current.value = "";
-      setText("")
-      console.log("Message sent successfully:", result);
+      if (selectedChat.platform=='discord') {
+        const result = await window.electronAPI.discord.sendMessage(
+          id,
+          messageText
+        );
+        if(!result.success){
+          const res = await window.electronAPI.security.getDiscordToken();
+          if (res?.success && res?.data) {
+           await window.electronAPI.discord.connect(res.data);
+          }
+        }
+      }else{
+          await sendMessage(id, messageText, replyToId);
+      }
+        inputRef.current.value = "";
+        setText("")
 
       // Show success toast
       // toast({
@@ -1586,22 +1398,30 @@ const handleScroll = React.useCallback((e) => {
       }
 
       // console.log("DEBUG: Refreshing from endpoint:", endpoint);
-      const response = await fetch(endpoint, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      let data = [];
+      if(selectedChat?.platform=='discord'){
+        const chatID= selectedChat.id || replyTo.chat_id;
+        const msg = await window.electronAPI.database.getMessages(chatID,50,0);
+          data=msg.data.map(mapDiscordMessageToTelegram);
+      }else{
+        const response = await fetch(endpoint, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+  
+        if (!response.ok) {
+          console.log(
+            "DEBUG: Response not OK:",
+            response.status,
+            response.statusText
+          );
+          return;
+        }
+         data = await response.json();
 
-      if (!response.ok) {
-        console.log(
-          "DEBUG: Response not OK:",
-          response.status,
-          response.statusText
-        );
-        return;
       }
-      const data = await response.json();
 
 
       const toChips = (results: any[]) =>
@@ -1648,7 +1468,7 @@ const handleScroll = React.useCallback((e) => {
             : gravatarUrl(
                 msg.sender?.first_name || msg.sender?.username || "Unknown"
               ),
-          platform: "Telegram" as const,
+          platform: selectedChat.platform=='discord'? "Discord" : "Telegram" as const,
           channel: null,
           server: chatName,
           date: new Date(msg.timestamp),

@@ -261,7 +261,7 @@ const Settings = () => {
 
   return (
     <Layout>
-      <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-screen overflow-auto">
       <AppHeader
           isNotificationPanel={openPanel === "notification"}
           setIsNotificationPanel={(open) =>
@@ -281,7 +281,7 @@ const Settings = () => {
           selectedOptions={selectedOptions}
           setSelectedOptions={setSelectedOptions}
         />
-                <main className="h-[calc(100vh-72px)] flex pb-0 pr-3 space-x-0 flex max-w-screen justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-hidden">
+                <main className="h-[calc(100vh-72px)] flex pb-0 pr-3 space-x-0 flex max-w-screen justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-auto">
 
       <div className="flex grow flex-col p-6 bg-gradient-to-br from-[#171717] via-[#1a1a1a] to-[#171717] min-h-screen min-w-0 max-w-full ">
         <div className="max-w-8xl px-12 mx-auto w-full space-y-8">
