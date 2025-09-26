@@ -79,7 +79,7 @@ export const ChatSelection = ({
       setLoading(true);
       try {
         const token = localStorage.getItem("access_token");
-        const res = await fetch(`${BACKEND_URL}/api/sync-preferences/chats`, {
+        const res = await fetch(`${BACKEND_URL}/api/sync-preferences`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (!res.ok) throw new Error(`Failed to fetch chats: ${res.status}`);
@@ -88,27 +88,26 @@ export const ChatSelection = ({
 
         // Map the backend chats into ChatGroup format your UI expects
         const fetchedChats = (data.chats || []).map((chat) => ({
-          id: String(chat.id),
-          group_id: String(chat.id),
+          id: chat.id,
           group_name: chat.title || `Chat ${chat.id}`,
-          group_avatar: null, // Not provided, can add later if available
+          group_avatar: chat.photo_url?? null,
           platform: chat.type?.toLowerCase() === "discord" ? "discord" : "telegram",
-          member_count: null, // Not provided here, optional
-          is_synced: false, // default unselected, load saved selections below
+          // member_count: null, // Not provided here, optional
+          is_synced: chat.sync_enabled, // default unselected, load saved selections below
           type: chat.type || null,
           username: chat.username || null,
         }));
 
         // Load saved selections from localStorage
-        const savedSelections = localStorage.getItem(
-          `chatpilot_chats_${user.id}`
-        );
-        if (savedSelections) {
-          const selections = JSON.parse(savedSelections);
-          fetchedChats.forEach((chat) => {
-            chat.is_synced = selections[chat.id] || false;
-          });
-        }
+        // const savedSelections = localStorage.getItem(
+        //   `chatpilot_chats_${user.id}`
+        // );
+        // if (savedSelections) {
+        //   const selections = JSON.parse(savedSelections);
+        //   fetchedChats.forEach((chat) => {
+        //     chat.is_synced = selections[chat.id] || false;
+        //   });
+        // }
 
         setChatGroups(fetchedChats);
       } catch (error) {
@@ -253,12 +252,12 @@ export const ChatSelection = ({
       )
     );
 
-    const updatedSelections = {
-      ...JSON.parse(
-        localStorage.getItem(`chatpilot_chats_${user?.id}`) || "{}"
-      ),
-    };
-    updatedSelections[groupId] = !currentSyncStatus;
+    // const updatedSelections = {
+    //   ...JSON.parse(
+    //     localStorage.getItem(`chatpilot_chats_${user?.id}`) || "{}"
+    //   ),
+    // };
+    // updatedSelections[groupId] = !currentSyncStatus;
  
 
     const hasSelectedChats = chatGroups.some((group) =>
@@ -271,16 +270,16 @@ export const ChatSelection = ({
     if (hasSelectedChats && onChatsSelected) {
       onChatsSelected(selectedChats);
     }
-    localStorage.setItem(
-      `chatpilot_chats_${user?.id}`,
-      JSON.stringify(updatedSelections)
-    );
-    toast({
-      title: !currentSyncStatus ? "Chat Added" : "Chat Removed",
-      description: !currentSyncStatus
-        ? "Chat will now appear in your unified inbox"
-        : "Chat removed from unified inbox",
-    });
+    // localStorage.setItem(
+    //   `chatpilot_chats_${user?.id}`,
+    //   JSON.stringify(updatedSelections)
+    // );
+    // toast({
+    //   title: !currentSyncStatus ? "Chat Added" : "Chat Removed",
+    //   description: !currentSyncStatus
+    //     ? "Chat will now appear in your unified inbox"
+    //     : "Chat removed from unified inbox",
+    // });
   };
 
   const selectAllByPlatform = (platform: string) => {
@@ -300,18 +299,18 @@ export const ChatSelection = ({
     setChatGroups(newChatGroups);
 
     // Update localStorage as well
-    const updatedSelections = {
-      ...JSON.parse(
-        localStorage.getItem(`chatpilot_chats_${user?.id}`) || "{}"
-      ),
-    };
-    newChatGroups.forEach((group) => {
-      updatedSelections[group.id] = group.is_synced;
-    });
-    localStorage.setItem(
-      `chatpilot_chats_${user?.id}`,
-      JSON.stringify(updatedSelections)
-    );
+    // const updatedSelections = {
+    //   ...JSON.parse(
+    //     localStorage.getItem(`chatpilot_chats_${user?.id}`) || "{}"
+    //   ),
+    // };
+    // newChatGroups.forEach((group) => {
+    //   updatedSelections[group.id] = group.is_synced;
+    // });
+    // localStorage.setItem(
+    //   `chatpilot_chats_${user?.id}`,
+    //   JSON.stringify(updatedSelections)
+    // );
   };
 
   const saveAllChanges = async () => {

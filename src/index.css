@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css?family=Montserrat:100,200,300,400,500,600,700,800,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -92,9 +92,16 @@
   body {
     @apply text-foreground;
     background-color: #171717;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
     transition: background-color 0.3s ease, color 0.3s ease;
     font-size: 16px; /* Prevent zoom on iOS */
-    overflow:
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11'; /* Inter font features for better readability */
+    overflow: hidden;
+  }
+
+  /* Apply Inter to all text elements */
+  h1, h2, h3, h4, h5, h6, p, span, div, button, input, textarea, select, label {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   }
 
   /* Prevent zoom on form inputs on mobile */
@@ -176,6 +183,22 @@ input:focus {
   
   .touch-pan-y {
     touch-action: pan-y;
+  }
+
+  /* Inter font utilities */
+  .font-inter {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  }
+
+  .font-inter-tight {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  .font-inter-display {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
+    letter-spacing: -0.02em;
   }
 }
 

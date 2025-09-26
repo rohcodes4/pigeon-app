@@ -565,9 +565,14 @@ setCurrentStep }: OnboardingFlowProps) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br">
+      <style>{`
+      body{
+      overflow-y: scroll;
+      }
+      `}</style>
       <Header />
 
-      <div className="container mx-auto p-6 max-w-[1600px] mt-6">
+      <div className="container mx-auto p-6 max-w-[1600px]">
         <Card className="w-full border-0 bg-[#171717]">
           <CardHeader>
             <div className="space-y-6">

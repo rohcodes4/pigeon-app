@@ -48,7 +48,8 @@ const FiltersPanel = React.memo(function FiltersPanel({
   const [editingFilter, setEditingFilter] = useState<SmartFilter | null>(null); // To pass to FilterEditor
   const [allChannels, setAllChannels] = useState<Channel[]>([]);
   const [localTopItems, setLocalTopItems] = useState<string[]>(topItems);
-
+const [showLabelModal, setShowLabelModal] = useState(false);
+const [newLabelName, setNewLabelName] = useState('');
   useEffect(() => {
     setLocalTopItems(topItems);
   }, [topItems]);
@@ -75,6 +76,13 @@ const FiltersPanel = React.memo(function FiltersPanel({
     setLocalTopItems(newItems);
     onTopItemsReorder(newItems);
   };
+
+const handleCreateLabel = async () => {
+  console.log('Creating label:', newLabelName);
+  // Dummy function - replace with actual API call
+  setNewLabelName('');
+  setShowLabelModal(false);
+};
 
   useEffect(() => {
     const load = async () => {
@@ -272,7 +280,7 @@ const FiltersPanel = React.memo(function FiltersPanel({
         </div>
       </div>
 
-      <div className="px-3 mb-4">
+      {/* <div className="px-3 mb-4">
         <span className="text-[#ffffff80] text-sm">Smart Labels</span>
         <div className="mt-2 flex flex-wrap gap-2">
           {unionSmartLabels.length === 0 ? (
@@ -288,7 +296,41 @@ const FiltersPanel = React.memo(function FiltersPanel({
             ))
           )}
         </div>
+      </div> */}
+
+{/* <div className="px-3 mb-4">
+  <div className="flex justify-start items-center gap-4">
+    <span className="text-[#ffffff80] text-sm">Labels</span>
+    <button
+      onClick={() => setShowLabelModal(true)}
+      className="hover:bg-[#2d2d2d] rounded-full p-1"
+    >
+      <Plus className="text-white w-4 h-4" />
+    </button>
+  </div>
+  <div className="mt-2 flex flex-wrap gap-2">
+    {[
+      'Work',
+      'Personal',
+      'Important',
+      'Follow-up',
+      'Meeting',
+      'Project Alpha',
+      'Bug Report',
+      'Feature Request',
+      'Documentation',
+      'Review'
+    ].map((label) => (
+      <div
+        key={label}
+        className="flex items-center gap-1 bg-[#2d2d2d] text-white text-xs px-3 py-1.5 rounded-full cursor-pointer hover:bg-[#3d3d3d] transition-colors border border-[#404040]"
+      >
+        <div className="w-2 h-2 rounded-full bg-[#3474ff]"></div>
+        {label}
       </div>
+    ))}
+  </div>
+</div> */}
 
       {/* Wrap FilterEditor in useMemo to prevent unnecessary re-renders */}
       {React.useMemo(
@@ -309,6 +351,66 @@ const FiltersPanel = React.memo(function FiltersPanel({
           allChannels,
         ]
       )}
+      {showLabelModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-[#161717] border border-[#333] rounded-xl  p-6 w-96 mx-4">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-white font-semibold">Add New Label</h3>
+        <button
+          onClick={() => {
+            setShowLabelModal(false);
+            setNewLabelName('');
+          }}
+          className="text-[#ffffff80] hover:text-white"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      
+      <div className="mb-4">
+        <label className="block text-[#ffffff80] text-sm mb-2">
+          Label Name
+        </label>
+        <input
+          type="text"
+          value={newLabelName}
+          onChange={(e) => setNewLabelName(e.target.value)}
+          placeholder="Enter label name"
+          className="w-full bg-[#2A2D36] border border-[#333] rounded px-3 py-2 text-white placeholder-[#ffffff60] focus:outline-none focus:border-[#3474ff]"
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && newLabelName.trim()) {
+              handleCreateLabel();
+            }
+            if (e.key === 'Escape') {
+              setShowLabelModal(false);
+              setNewLabelName('');
+            }
+          }}
+        />
+      </div>
+      
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={() => {
+            setShowLabelModal(false);
+            setNewLabelName('');
+          }}
+          className="px-4 py-2 text-[#ffffff80] hover:text-white transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleCreateLabel}
+          disabled={!newLabelName.trim()}
+          className="px-4 py-2 bg-[#3474ff] text-white rounded hover:bg-[#2563eb] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Add Label
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </aside>
   );
 });
