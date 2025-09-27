@@ -1779,8 +1779,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           );
           return;
         }
-
-            let data = [];
+    let data = [];
       if(selectedChat?.platform=='discord'){
         const chatID= selectedChat.id || replyTo.chat_id;
         const msg = await window.electronAPI.database.getMessages(chatID,50,0);
@@ -1801,6 +1800,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           );
           return;
         }
+      }
          data = await response.json();
 
         const toChips = (results: any[]) =>
@@ -1939,6 +1939,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             (a, b) => a.date.getTime() - b.date.getTime()
           );
         });
+    
 
         // Don't set shouldAutoScroll to true - this prevents auto-scroll during polling
         // Only scroll when it's a new chat or user explicitly sends a message
