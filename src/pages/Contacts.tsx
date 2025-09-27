@@ -154,6 +154,7 @@ const Contacts = () => {
         console.error("Failed to mark chat as read:", error);
       }
     }
+    navigate("/", { state: { selectedChat:chat}});
   };
 
   // ✅ UPDATE: Include chatsLoading in the loading check

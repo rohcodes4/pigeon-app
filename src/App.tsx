@@ -17,6 +17,7 @@ import Help from "./pages/Help";
 import Settings from "./pages/Settings";
 import { DashboardSettings } from "./components/DashboardSettings";
 import AiChat from "./pages/AiChat";
+import TaskTrackerWrapper from "./components/taskTrackerWrapper";
 
 const queryClient = new QueryClient();
 
@@ -29,13 +30,13 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/smart-tasks" element={<SmartTasks />} />
-              <Route path="/bookmarks" element={<Bookmarks />} />
-              <Route path="/contacts" element={<Contacts />} />
-              <Route path="/ai" element={<AiChat />} />
-              <Route path="/help" element={<Help />} />
-              <Route path="/settings" element={<Settings />} />
+              <Route path="/" element={<TaskTrackerWrapper><Index /></TaskTrackerWrapper>} />
+              <Route path="/smart-tasks" element={<TaskTrackerWrapper><SmartTasks /></TaskTrackerWrapper>} />
+              <Route path="/bookmarks" element={<TaskTrackerWrapper><Bookmarks /></TaskTrackerWrapper>} />
+              <Route path="/contacts" element={<TaskTrackerWrapper><Contacts /></TaskTrackerWrapper>} />
+              <Route path="/ai" element={<TaskTrackerWrapper><AiChat /></TaskTrackerWrapper>} />
+              <Route path="/help" element={<TaskTrackerWrapper><Help /></TaskTrackerWrapper>} />
+              <Route path="/settings" element={<TaskTrackerWrapper><Settings /></TaskTrackerWrapper>} />
               <Route
                 path="/dashboard-settings"
                 element={<DashboardSettings />}

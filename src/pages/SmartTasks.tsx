@@ -209,7 +209,7 @@ const SmartTasks = () => {
               }
             />
             {/* <UnifiedChatPanel/> */}
-            <TasksPanel />
+          <TasksPanel />
           </div>
 
           {openPanel === "smartTask" && <SmartTask />}

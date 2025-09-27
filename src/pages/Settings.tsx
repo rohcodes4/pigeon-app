@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Camera, X, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +24,7 @@ import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
 import { SearchPanel } from "@/components/SearchPanel";
 import { ChatSelection } from "@/components/ChatSelection";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -33,13 +35,153 @@ const Settings = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isOAuthUser, setIsOAuthUser] = useState(false);
-
+const [profilePicture, setProfilePicture] = useState<string | null>(null);
+const [profilePicturePreview, setProfilePicturePreview] = useState<string | null>(null);
+const [isUploadingPicture, setIsUploadingPicture] = useState(false);
   // Profile form state
   const [profileForm, setProfileForm] = useState({
     username: "",
     full_name: "",
     email: "",
   });
+
+  const [incognitoModeEnabled, setIncognitoModeEnabled] = useState(false);
+
+
+
+const handleProfilePictureUpload = async (file: File) => {
+  if (!file) return;
+
+  console.log("Uploading file:", {
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    backend_url: BACKEND_URL
+  });
+
+  // Validate file type
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!allowedTypes.includes(file.type)) {
+    toast({
+      title: "Invalid File Type",
+      description: "Please upload a JPEG, PNG, WebP, or GIF image.",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  // Validate file size (5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    toast({
+      title: "File Too Large",
+      description: "Please upload an image smaller than 5MB.",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  setIsUploadingPicture(true);
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    console.log("Making request to:", `${BACKEND_URL}/auth/profile-picture`);
+
+    const response = await fetch(`${BACKEND_URL}/auth/profile-picture`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+      },
+      body: formData,
+    });
+
+    console.log("Response status:", response.status);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.log("Error response:", errorData);
+      throw new Error(errorData.detail || "Failed to upload profile picture");
+    }
+
+    const result = await response.json();
+    console.log("Success response:", result);
+    
+    setProfilePicture(result.profile_picture);
+    setProfilePicturePreview(null);
+
+    toast({
+      title: "Success",
+      description: "Profile picture updated successfully.",
+    });
+  } catch (error) {
+    console.log("Upload error:", error);
+    toast({
+      title: "Upload Failed",
+      description:
+        error instanceof Error
+          ? error.message
+          : "Failed to upload profile picture. Please try again.",
+      variant: "destructive",
+    });
+  } finally {
+    setIsUploadingPicture(false);
+  }
+};
+
+const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (file) {
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setProfilePicturePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+    
+    // Upload immediately
+    handleProfilePictureUpload(file);
+  }
+};
+
+const handleProfilePictureDelete = async () => {
+  setIsUploadingPicture(true);
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/auth/profile-picture`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Failed to delete profile picture");
+    }
+
+    setProfilePicture(null);
+    setProfilePicturePreview(null);
+
+    toast({
+      title: "Success",
+      description: "Profile picture deleted successfully.",
+    });
+  } catch (error) {
+    toast({
+      title: "Delete Failed",
+      description:
+        error instanceof Error
+          ? error.message
+          : "Failed to delete profile picture. Please try again.",
+      variant: "destructive",
+    });
+  } finally {
+    setIsUploadingPicture(false);
+  }
+};
+
+
 
   // Password form state
   const [passwordForm, setPasswordForm] = useState({
@@ -83,19 +225,49 @@ const Settings = () => {
       navigate("/auth");
     }
   }, [user, loading, navigate]);
-
-  useEffect(() => {
-    if (user) {
-      setProfileForm({
-        username: user.username || "",
-        full_name: user.full_name || "",
-        email: user.email || "",
+  const fetchIncognitoMode = async () => {
+    try {
+      const token = localStorage.getItem("access_token");
+  
+      const response = await fetch(`${BACKEND_URL}/user/seen_messages`, {
+        method: "GET", // Use GET to fetch current state
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
-
-      // Check if user is OAuth user
-      checkIfOAuthUser();
+  
+      if (!response.ok) throw new Error(`Failed to fetch incognito mode status`);
+  
+      const data = await response.json();
+  
+      // Invert the fetched value to match UI toggle logic
+      setIncognitoModeEnabled(!(data.enabled ?? false));
+    } catch (error) {
+      console.error("Error fetching incognito mode setting:", error);
+      setIncognitoModeEnabled(false);
     }
-  }, [user]);
+  };
+  
+
+useEffect(() => {
+  if (user) {
+    setProfileForm({
+      username: user.username || "",
+      full_name: user.full_name || "",
+      email: user.email || "",
+    });
+
+    // Set profile picture from user object if it exists
+    if (user.profile_picture) {
+      setProfilePicture(user.profile_picture);
+    }
+
+    // Check if user is OAuth user
+    checkIfOAuthUser();
+
+    fetchIncognitoMode();
+  }
+}, [user]);
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,7 +278,18 @@ const Settings = () => {
       formData.append("username", profileForm.username);
       formData.append("email", profileForm.email);
       formData.append("full_name", profileForm.full_name);
+      
+      await fetch(`${BACKEND_URL}/user/seen_messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
+        body: JSON.stringify({ enabled: !incognitoModeEnabled }),
+      });
+      
 
+      
       const response = await fetch(`${BACKEND_URL}/auth/update-profile`, {
         method: "POST",
         headers: {
@@ -261,7 +444,7 @@ const Settings = () => {
 
   return (
     <Layout>
-      <div className="flex-1 flex flex-col min-h-screen overflow-auto">
+      <div className="flex-1 flex flex-col min-h-screen overflow-hidden overflow-y-scroll">
       <AppHeader
           isNotificationPanel={openPanel === "notification"}
           setIsNotificationPanel={(open) =>
@@ -281,7 +464,7 @@ const Settings = () => {
           selectedOptions={selectedOptions}
           setSelectedOptions={setSelectedOptions}
         />
-                <main className="h-[calc(100vh-72px)] flex pb-0 pr-3 space-x-0 flex max-w-screen justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-auto">
+                <main className="h-[calc(100vh-72px)] flex pb-0 pr-3 space-x-0 flex max-w-screen justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-hidden overflow-y-scroll">
 
       <div className="flex grow flex-col p-6 bg-gradient-to-br from-[#171717] via-[#1a1a1a] to-[#171717] min-h-screen min-w-0 max-w-full ">
         <div className="max-w-8xl px-12 mx-auto w-full space-y-8">
@@ -394,6 +577,110 @@ const Settings = () => {
                           placeholder="Enter your email"
                         />
                       </div>
+                      
+                      
+                      <div className="space-y-2">
+  <div className="flex items-center gap-3 cursor-pointer">
+    <Checkbox
+      checked={incognitoModeEnabled}
+      onCheckedChange={(checked) => setIncognitoModeEnabled(!!checked)}
+      id="incognito-mode"
+    />
+    <Label htmlFor="incognito-mode" className="text-white font-semibold cursor-pointer">
+      Enable Incognito Mode
+    </Label>
+  </div>
+  <p className="text-[#ffffff72] text-sm max-w-md">
+    Enable Incognito Mode to prevent Telegram from marking your messages as read.
+  </p>
+</div>
+<div className="space-y-4">
+  <h3 className="text-xl font-semibold text-white">Profile Picture</h3>
+  
+  <div className="flex items-center gap-6">
+    {/* Profile Picture Display */}
+    <div className="relative">
+      <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-r from-[#3474ff] to-[#7B5CFA] flex items-center justify-center">
+        {profilePicture || profilePicturePreview ? (
+          <img
+            src={
+              profilePicturePreview || 
+              `${BACKEND_URL}/static/profile_photos/${profilePicture}`
+            }
+            alt="Profile"
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <User className="w-12 h-12 text-white" />
+        )}
+      </div>
+      
+      {/* Loading overlay */}
+      {isUploadingPicture && (
+        <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      )}
+    </div>
+
+    {/* Upload/Delete Controls */}
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-3">
+        <label htmlFor="profile-picture-upload">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="bg-[#2A2D36] border-[#333] text-white hover:bg-[#333] hover:border-[#444] cursor-pointer"
+            disabled={isUploadingPicture}
+            asChild
+          >
+            <div className="flex items-center gap-2">
+              {isUploadingPicture ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Camera className="w-4 h-4" />
+                  {profilePicture ? "Change" : "Upload"}
+                </>
+              )}
+            </div>
+          </Button>
+        </label>
+        
+        {profilePicture && !isUploadingPicture && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleProfilePictureDelete}
+            className="bg-red-600 border-red-500 text-white hover:bg-red-700 hover:border-red-600"
+          >
+            <X className="w-4 h-4" />
+            Remove
+          </Button>
+        )}
+      </div>
+      
+      <p className="text-sm text-[#ffffff72]">
+        Upload a photo (JPG, PNG, WebP, GIF - max 5MB)
+      </p>
+    </div>
+
+    {/* Hidden file input */}
+    <input
+      id="profile-picture-upload"
+      type="file"
+      accept="image/jpeg,image/png,image/webp,image/gif"
+      onChange={handleFileSelect}
+      className="hidden"
+      disabled={isUploadingPicture}
+    />
+  </div>
+</div>
 
                       <Button
                         type="submit"

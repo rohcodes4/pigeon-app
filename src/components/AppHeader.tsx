@@ -64,21 +64,21 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       filters: ["user", "channel"],
       label: "Mentions",
     },
-    {
-      value: "filter_channel_or_user",
-      filters: ["user", "channel"],
-      label: "Filter: a channel or user",
-    },
-    {
-      value: "todo_task",
-      filters: ["todo_task"],
-      label: "To-do: a task or reminder",
-    },
-    {
-      value: "favourite_message_or_task",
-      filters: ["favourite_message_or_task"],
-      label: "Favourite: a message or task",
-    },
+    // {
+    //   value: "filter_channel_or_user",
+    //   filters: ["user", "channel"],
+    //   label: "Filter: a channel or user",
+    // },
+    // {
+    //   value: "todo_task",
+    //   filters: ["todo_task"],
+    //   label: "To-do: a task or reminder",
+    // },
+    // {
+    //   value: "favourite_message_or_task",
+    //   filters: ["favourite_message_or_task"],
+    //   label: "Favourite: a message or task",
+    // },
   ];
 
   useEffect(() => {
@@ -183,7 +183,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </svg> */}
       </div>
       <div className="flex items-center gap-3 relative">
-        <div className="relative flex-1 flex items-center bg-[#212121] py-2 px-4 rounded-[12px]">
+        <div className="relative flex-1 flex items-center bg-[#212121] py-2 px-4 rounded-[8px]">
           <Search className="w-5 h-5 text-[#ffffff48] absolute left-2" />
           <input
             type="text"
@@ -194,7 +194,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               setIsSearchOpen(e.target.value !== "");
             }}
             placeholder="Search message"
-            className="bg-transparent outline-none text-white flex-1 placeholder:text-[#ffffff48] pl-8 pr-8"
+            className="bg-transparent outline-none text-white flex-1 placeholder:text-[#ffffff48] pl-4 pr-8"
           />
           {searchTerm && (
             <button

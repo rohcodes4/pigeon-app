@@ -101,11 +101,58 @@ async function fetchChatSummary({
   const token = localStorage.getItem("access_token");
 
   const params = new URLSearchParams();
-  if (hours) params.append("hours", hours.toString());
+  // if (hours) params.append("hours", hours.toString());
+  console.log('hourss: hours')
+  console.log('hourss: ',hours)
+  if (hours !== undefined) {
+    if (hours === 5 || hours === 30) {
+      params.append("minutes", hours.toString());
+    } else {
+      params.append("minutes", (hours * 60).toString());
+    }
+  }
   if (limit !== undefined) params.append("limit", limit.toString());
 
   const response = await fetch(
     `${BACKEND_URL}/chats/${chat_id}/summary?${params.toString()}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Summary request failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function fetchAllSummary({
+  hours,
+  platform,
+}: {
+  hours?: number;
+  platform?: string;
+}) {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const token = localStorage.getItem("access_token");
+  const params = new URLSearchParams();
+  // if (hours) params.append("minutes", (hours * 60).toString());
+  if (hours !== undefined) {
+    if (hours === 5 || hours === 30) {
+      params.append("minutes", hours.toString());
+    } else {
+      params.append("minutes", (hours * 60).toString());
+    }
+  }
+  if (platform) params.append("platform", platform);
+
+  const response = await fetch(
+    `${BACKEND_URL}/api/smart-summary?${params.toString()}`,
     {
       method: "GET",
       headers: {
@@ -129,27 +176,35 @@ async function fetchTasks({ chat_id }) {
 
   try {
     // First, extract tasks from the chat (this creates/updates tasks)
-    const extractResponse = await fetch(`${BACKEND_URL}/chats/${chat_id}/extract_tasks`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    const extractResponse = await fetch(
+      `${BACKEND_URL}/chats/${chat_id}/extract_tasks`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     if (extractResponse.ok) {
       const extractResult = await extractResponse.json();
-      console.log(`Extracted ${extractResult.extracted} tasks from chat ${chat_id}`);
+      console.log(
+        `Extracted ${extractResult.extracted} tasks from chat ${chat_id}`
+      );
     }
-    
+
     // Then fetch the actual tasks for this chat
-    const tasksResponse = await fetch(`${BACKEND_URL}/tasks?chat_id=${chat_id}`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    const tasksResponse = await fetch(
+      `${BACKEND_URL}/tasks?chat_id=${chat_id}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     if (!tasksResponse.ok) {
       throw new Error(`Tasks fetch failed: ${tasksResponse.status}`);
@@ -157,8 +212,8 @@ async function fetchTasks({ chat_id }) {
 
     return await tasksResponse.json();
   } catch (error) {
-    console.error('Error in fetchTasks:', error);
-    
+    console.error("Error in fetchTasks:", error);
+
     // Fallback: fetch all tasks
     try {
       const responseAll = await fetch(`${BACKEND_URL}/tasks`, {
@@ -168,34 +223,36 @@ async function fetchTasks({ chat_id }) {
           "Content-Type": "application/json",
         },
       });
-      
+
       if (!responseAll.ok) {
         throw new Error(`Fallback tasks fetch failed: ${responseAll.status}`);
       }
-      
+
       return await responseAll.json();
     } catch (fallbackError) {
-      console.error('Fallback tasks fetch also failed:', fallbackError);
+      console.error("Fallback tasks fetch also failed:", fallbackError);
       return []; // Return empty array as final fallback
     }
   }
 }
 
-
 async function fetchMentions(chat_id) {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const token = localStorage.getItem("access_token");
-console.log('chat_id')
-console.log(chat_id)
+  console.log("chat_id");
+  console.log(chat_id);
   try {
     // First, try the primary tasks endpoint for this chat
-    const response = await fetch(`${BACKEND_URL}/ui/mentions?chat_id=${chat_id}`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    const response = await fetch(
+      `${BACKEND_URL}/ui/mentions?chat_id=${chat_id}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     if (!response.ok) {
       // Fail: fall back to "all tasks"
@@ -216,7 +273,6 @@ console.log(chat_id)
     // return await responseAll.json();
   }
 }
-
 
 async function toggleTask(taskId: string) {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -240,9 +296,14 @@ async function toggleTask(taskId: string) {
 interface SmartSummaryProps {
   selectedChat?: any;
   chatId?: any;
+  autoFetch?: boolean;
 }
 
-const SmartSummary = ({ selectedChat, chatId }: SmartSummaryProps) => {
+const SmartSummary = ({
+  selectedChat,
+  chatId,
+  autoFetch = false,
+}: SmartSummaryProps) => {
   const [summaryData, setSummaryData] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [selectedTime, setSelectedTime] = useState(TIME_OPTIONS[4]);
@@ -326,19 +387,26 @@ const SmartSummary = ({ selectedChat, chatId }: SmartSummaryProps) => {
     }));
   };
 
-  const handleGenerateSummary = async () => {
-    if (!selectedChat || selectedChat === "all-channels") {
-      return; // Don't show error, just don't generate
-    }
-
+  const handleGenerateSummary = async (timeOption = selectedTime) => {
     setSummaryLoading(true);
     try {
-      const summary = await fetchChatSummary({
-        chat_id: selectedChat.id,
-        hours: parseInt(selectedTime.value.replace(/\D/g, "")) || 24, // Extract number from selectedTime
-        limit: 20,
-      });
-      setSummaryData(summary);
+      let summary;
+
+      if (autoFetch) {
+        summary = await fetchAllSummary({
+          hours: parseInt(timeOption.value.replace(/\D/g, "")) || 24,
+          platform: "telegram",
+        });
+        setTasks(summary?.tasks.recent_tasks || []);
+        setSummaryData(summary.chat_summaries || []);
+      } else {
+        summary = await fetchChatSummary({
+          chat_id: selectedChat.id,
+          hours: parseInt(timeOption.value.replace(/\D/g, "")) || 24, // Extract number from selectedTime
+          limit: 20,
+        });
+        setSummaryData(summary);
+      }
     } catch (error) {
       console.error("Failed to generate summary:", error);
       setSummaryData({ error: "Failed to generate summary" });
@@ -386,54 +454,54 @@ const SmartSummary = ({ selectedChat, chatId }: SmartSummaryProps) => {
     }
   };
 
-const handleFetchTasks = async () => {
-  setTasksLoading(true);
-  try {        
-    const fetchedTasks = await fetchTasks({chat_id: selectedChat.id});
-    console.log("fetchTasks result:", fetchedTasks);
-    
-    // Ensure we have an array
-    if (Array.isArray(fetchedTasks)) {
-      setTasks(fetchedTasks);
-    } else {
-      console.warn("fetchTasks did not return an array:", fetchedTasks);
-      setTasks([]); // Set empty array if not an array
+  const handleFetchTasks = async () => {
+    setTasksLoading(true);
+    try {
+      const fetchedTasks = await fetchTasks({ chat_id: selectedChat.id });
+      console.log("fetchTasks result:", fetchedTasks);
+
+      // Ensure we have an array
+      if (Array.isArray(fetchedTasks)) {
+        setTasks(fetchedTasks);
+      } else {
+        console.warn("fetchTasks did not return an array:", fetchedTasks);
+        setTasks([]); // Set empty array if not an array
+      }
+    } catch (error) {
+      console.error("Failed to fetch tasks:", error);
+      setTasks([]); // Set empty array on error
+    } finally {
+      setTasksLoading(false);
     }
-  } catch (error) {
-    console.error("Failed to fetch tasks:", error);
-    setTasks([]); // Set empty array on error
-  } finally {
-    setTasksLoading(false);
-  }
-};
+  };
 
-const handleFetchMentions = async () => {
-  setMentionsLoading(true);
-  try {        
-    const fetchedMentions = await fetchMentions(selectedChat.id);
-    console.log("fetchMentions result:", fetchedMentions);
-    
-    // Ensure we have an array
-    if (Array.isArray(fetchedMentions)) {
-      setMentions(fetchedMentions?.all_messages);
-    } else {
-      console.warn("fetchTasks did not return an array:", fetchedMentions);
-      setMentions([]); // Set empty array if not an array
+  const handleFetchMentions = async () => {
+    setMentionsLoading(true);
+    try {
+      const fetchedMentions = await fetchMentions(selectedChat.id);
+      console.log("fetchMentions result:", fetchedMentions);
+
+      // Ensure we have an array
+      if (Array.isArray(fetchedMentions)) {
+        setMentions(fetchedMentions?.all_messages);
+      } else {
+        console.warn("fetchTasks did not return an array:", fetchedMentions);
+        setMentions([]); // Set empty array if not an array
+      }
+    } catch (error) {
+      console.error("Failed to fetch tasks:", error);
+      setMentions([]); // Set empty array on error
+    } finally {
+      setMentionsLoading(false);
     }
-  } catch (error) {
-    console.error("Failed to fetch tasks:", error);
-    setMentions([]); // Set empty array on error
-  } finally {
-    setMentionsLoading(false);
-  }
-};
+  };
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-const token = localStorage.getItem("access_token");
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const token = localStorage.getItem("access_token");
 
-  const getAutoTaskStatus = async (chatId) =>{
-    console.log("selectedChat")
-    console.log(chatId)
+  const getAutoTaskStatus = async (chatId) => {
+    console.log("selectedChat");
+    console.log(chatId);
     const response = await fetch(`${BACKEND_URL}/chats/${chatId}/auto_tasks`, {
       method: "GET",
       headers: {
@@ -442,11 +510,12 @@ const token = localStorage.getItem("access_token");
       },
     });
 
-    console.log('autotask')
-    console.log(response)
-  }
+    console.log("autotask");
+    console.log(response);
+  };
 
   useEffect(() => {
+    handleGenerateSummary();
     const checkScroll = () => {
       const el = tabScrollRef.current;
       if (!el) return;
@@ -476,10 +545,10 @@ const token = localStorage.getItem("access_token");
   };
   function readableTimestamp(timestamp) {
     if (!timestamp) return "";
-  
+
     const date = new Date(timestamp);
     if (isNaN(date.getTime())) return "";
-  
+
     // Options for formatting date and time
     const options = {
       year: "numeric",
@@ -490,39 +559,37 @@ const token = localStorage.getItem("access_token");
       second: "2-digit",
       hour12: false,
     };
-  
     return date.toLocaleString(undefined, options);
   }
 
   function formatDueText(task) {
+    console.log(task);
+    const due = task.due;
 
-    console.log(task)
-    const due = task.due
-    
-      if (!due) return null;
-      if (due === "Done") return "Done";
-      if (/Due in \d+/.test(due)) return due;
-    
-      const dueDate = new Date(due);
-      if (isNaN(dueDate.getTime())) return due;
-    
-      const now = new Date();
-      const diffMs = dueDate.getTime() - now.getTime();
-      if (diffMs <= 0) return "Now";
-    
-      const diffMins = Math.floor(diffMs / (1000 * 60));
-      const diffHours = Math.floor(diffMins / 60);
-      const diffDays = Math.floor(diffHours / 24);
-    
-      if (diffDays > 0) {
-        return `${diffDays}d`;
-      } else if (diffHours > 0) {
-        return `${diffHours}hr`;
-      } else {
-        return `${diffMins}min`;
-      }
+    if (!due) return null;
+    if (due === "Done") return "Done";
+    if (/Due in \d+/.test(due)) return due;
+
+    const dueDate = new Date(due);
+    if (isNaN(dueDate.getTime())) return due;
+
+    const now = new Date();
+    const diffMs = dueDate.getTime() - now.getTime();
+    if (diffMs <= 0) return "Now";
+
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) {
+      return `${diffDays}d`;
+    } else if (diffHours > 0) {
+      return `${diffHours}hr`;
+    } else {
+      return `${diffMins}min`;
     }
-  
+  }
+
   // Auto-fetch tasks when Todo filter is selected
   useEffect(() => {
     if (
@@ -539,7 +606,7 @@ const token = localStorage.getItem("access_token");
     if (selectedChat && selectedChat !== "all-channels" && selectedChat.id) {
       handleGenerateSummary();
       handleFetchTasks();
-      handleFetchMentions()
+      handleFetchMentions();
     }
   }, [selectedChat]); // This will trigger when selectedChat changes
 
@@ -574,11 +641,10 @@ const token = localStorage.getItem("access_token");
     };
   }, [dropdownOpen]);
 
-
   function renderFormattedSummary(text: string) {
     // Split on **, even indices are normal text, odd indices are bold text
     const parts = text.split(/(\*\*[^\*]+\*\*)/g).filter(Boolean);
-  
+
     return parts.map((part, idx) => {
       if (part.startsWith("**") && part.endsWith("**")) {
         return <strong key={idx}>{part.slice(2, -2)}</strong>;
@@ -586,36 +652,39 @@ const token = localStorage.getItem("access_token");
       return <React.Fragment key={idx}>{part}</React.Fragment>;
     });
   }
-  
 
   return (
-    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[350px] max-w-[517px] bg-[#111111] text-white rounded-2xl py-2 flex flex-col shadow-lg border border-[#23242a] grow">
+    <aside className="rounded-[10px] h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[700px] max-w-[900px] bg-[#111111] text-white   flex flex-col shadow-lg border border-[#23242a] grow">
       {/* Header */}
-      <div className="flex items-center justify-between pb-2 px-2 border-b">
-        <span className="font-[200] text-[#ffffff72]">Smart Summary</span>
+      <div className="flex items-center justify-left gap-4 px-2  py-3 border-b">
+        <div className="flex items-center justify-center">       
+          <span className="font-meidum text-[13px] text-[#ffffff72]">Smart Summary</span>
+          </div>
+ 
         <div className="flex items-center gap-2">
           {/* Dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
-              className="flex items-center justify-evenly gap-1 bg-[#23242a] px-2 py-1 rounded-[6px] text-xs font-medium"
+              className="flex items-center justify-center gap-1 bg-[#212121] px-2 py-1 rounded-[6px] text-xs font-medium"
               onClick={() => setDropdownOpen((open) => !open)}
             >
               <CalendarCog className="h-4 w-4 " />
               {selectedTime.label} <FaChevronDown className="ml-1 text-xs" />
             </button>
             {dropdownOpen && (
-              <div className="absolute right-0 mt-1 w-24 bg-[#23242a] border border-[#333] rounded-[6px] overflow-hidden shadow-lg z-10">
+              <div className="absolute right-0 mt-1 w-24 bg-[#212121] border border-[#333] rounded-[6px] overflow-hidden shadow-lg z-10">
                 {TIME_OPTIONS.map((option) => (
                   <button
                     key={option.value}
-                    className={`block w-full text-left px-3 py-1 text-xs hover:bg-[#333] ${
+                    className={`block w-full text-left px-2 py-1  text-xs hover:bg-[#333] ${
                       selectedTime.value === option.value
                         ? "text-blue-400"
                         : "text-white"
                     }`}
                     onClick={() => {
-                      setSelectedTime(option);
+                      setSelectedTime(option);                      
                       setDropdownOpen(false);
+                      handleGenerateSummary(option);
                     }}
                   >
                     {option.label}
@@ -625,12 +694,12 @@ const token = localStorage.getItem("access_token");
             )}
           </div>
 
-          <button 
+          <button
             onClick={handleGenerateSummary}
             disabled={
               summaryLoading || !selectedChat || selectedChat === "all-channels"
             }
-            className="p-1.5 px-3 my-1 flex gap-2 text-[11px] items-center rounded-[10px] cursor-pointer text-[#84afff] bg-[#3474ff12] hover:text-[#ffffff] hover:bg-[#3474ff] transition"
+            className="py-1 px-2 my-1 flex gap-2 text-[11px] items-center rounded-[10px] cursor-pointer text-[#84afff] bg-[#3474ff12] hover:text-[#ffffff] hover:bg-[#3474ff] transition"
           >
             {summaryLoading ? "Generating..." : "Summarize"}
           </button>
@@ -740,9 +809,28 @@ const token = localStorage.getItem("access_token");
                   Generating summary...
                 </span>
               </div>
+            ) : summaryData?.length ? (
+              summaryData.map((summary) => (
+                <>
+                  <div className="mt-4">
+                    {" "}
+                    <ChatAvatar
+                      name={summary.chat_title}
+                      avatar={
+                        summary.photo_url ||
+                        `${BACKEND_URL}/chat_photo/${summary.chat_id}`
+                      }
+                      backupAvatar={`${BACKEND_URL}/contact_photo/${summary.chat_id}`}
+                    />{" "} {summary.chat_title}
+                  </div>{" "}
+                  <div className="text-sm text-[#fafafa] whitespace-pre-wrap leading-relaxed">
+                    {renderFormattedSummary(summary.summary)}
+                  </div>
+                </>
+              ))
             ) : summaryData?.summary ? (
               <div className="text-sm text-[#fafafa] whitespace-pre-wrap leading-relaxed">
-  {renderFormattedSummary(summaryData.summary)}
+                {renderFormattedSummary(summaryData.summary)}
               </div>
             ) : summaryData?.error ? (
               <div className="text-sm text-red-400">{summaryData.error}</div>
@@ -827,7 +915,7 @@ const token = localStorage.getItem("access_token");
                             : "text-[#fafafa]"
                         }`}
                       >
-                        {task.text}
+                   <p className="mt-2"> {task.text}</p>    
                       </div>
                       <span className="text-xs text-[#fafafa60] flex gap-1 items-center mt-1">
                         {task.chat_title && <span>{task.chat_title}</span>}
@@ -836,14 +924,14 @@ const token = localStorage.getItem("access_token");
                             const dateStr = new Date(
                               task.created_at
                             ).toLocaleDateString();
-                            return dateStr === "Invalid Date" ? '' : dateStr;
+                            return dateStr === "Invalid Date" ? "" : dateStr;
                           })()}
                         </span>
                       </span>
                     </div>
                     <div className="flex flex-col gap-1">
                       <span
-                        className={`rounded-[6px] px-2 py-1 text-xs ${
+                        className={`rounded-[6px] text-center px-2 py-1 text-xs ${
                           task.priority === "HIGH"
                             ? "bg-[#F03D3D12] text-[#F68989]"
                             : task.priority === "MEDIUM"
@@ -853,12 +941,12 @@ const token = localStorage.getItem("access_token");
                       >
                         {task.priority || "Low"}
                       </span>
-                      {formatDueText(task) && 
-                      <span className="h-6 flex-shrink-0 flex gap-1 items-center bg-[#fafafa10] text-[#ffffff72] px-2 py-1 rounded-[6px] text-[12px]">
-                                  <CalendarCogIcon className="w-4 h-4"/>
-                                  {formatDueText(task)}
-                                </span>
-                                }
+                      {formatDueText(task) && (
+                        <span className="h-6 flex-shrink-0 flex gap-1 items-center bg-[#fafafa10] text-[#ffffff72] px-2 py-1 rounded-[6px] text-[12px]">
+                          <CalendarCogIcon className="w-4 h-4" />
+                          {formatDueText(task)}
+                        </span>
+                      )}
                       {/* Individual task toggle button */}
                       <button
                         onClick={() => handleTaskToggle(task.id)}
@@ -920,7 +1008,7 @@ const token = localStorage.getItem("access_token");
             </span>
           </div>
           <div className="bg-[#171717] px-2 py-2 rounded-[16px]">
-          {mentionsLoading ? (
+            {mentionsLoading ? (
               <div className="flex items-center justify-center py-4">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400"></div>
                 <span className="ml-2 text-sm text-[#fafafa60]">
@@ -933,39 +1021,43 @@ const token = localStorage.getItem("access_token");
               </div>
             ) : (
               <>
-            {mentions.map((mention) => (
-              <div
-                className="flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 bg-[#212121]"
-                key={mention._id}
-              >
-                {/* Avatar */}
-             
-                <ChatAvatar name={mention.sender.username} avatar={`${BACKEND_URL}/chat_photo/${mention.sender.id}`} backupAvatar={`${BACKEND_URL}/contact_photo/${mention.sender.id}`}/>
-                {/* Message Content */}
-                <div className="flex-1">
-                  <div className="flex items-center justify-start gap-2">
-                    <span className="text-[#ffffff] font-[300] text-sm">
-                      {mention.sender.first_name} {mention.sender.last_name}
-                    </span>
-                    {/* <span className="text-xs text-[#fafafa99]">#general</span> */}
-                    <span className="text-xs text-[#fafafa99]">
-                      {readableTimestamp(mention.timestamp)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-0 mt-1 bg-[#3474ff] w-max rounded-[6px]">
-                    <FaTelegramPlane className="text-[#ffffff] w-3 h-3 ml-1" />
-                    <span className="text-xs text-white  rounded pr-2 pl-1 py-0.5">
-                      {mention.chat.title}
-                    </span>
-                  </div>
-                  <div className="mt-2 text-sm text-[#e0e0e0]">
-                    {/* <span className="text-[#84afff]">@everyone</span> Stealth
+                {mentions.map((mention) => (
+                  <div
+                    className="flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 bg-[#212121]"
+                    key={mention._id}
+                  >
+                    {/* Avatar */}
+
+                    <ChatAvatar
+                      name={mention.sender.username}
+                      avatar={`${BACKEND_URL}/chat_photo/${mention.sender.id}`}
+                      backupAvatar={`${BACKEND_URL}/contact_photo/${mention.sender.id}`}
+                    />
+                    {/* Message Content */}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-start gap-2">
+                        <span className="text-[#ffffff] font-[300] text-sm">
+                          {mention.sender.first_name} {mention.sender.last_name}
+                        </span>
+                        {/* <span className="text-xs text-[#fafafa99]">#general</span> */}
+                        <span className="text-xs text-[#fafafa99]">
+                          {readableTimestamp(mention.timestamp)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-0 mt-1 bg-[#3474ff] w-max rounded-[6px]">
+                        <FaTelegramPlane className="text-[#ffffff] w-3 h-3 ml-1" />
+                        <span className="text-xs text-white  rounded pr-2 pl-1 py-0.5">
+                          {mention.chat.title}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-sm text-[#e0e0e0]">
+                        {/* <span className="text-[#84afff]">@everyone</span> Stealth
                     claim just opened. Zero tax, no presale. Contract verified 2
                     mins ago. */}
-                    {mention.raw_text}
-                  </div>
-                  {/* Reactions */}
-                  {/* <div className="flex gap-3 mt-2">
+                        {mention.raw_text}
+                      </div>
+                      {/* Reactions */}
+                      {/* <div className="flex gap-3 mt-2">
                     <span className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff]">
                       <ThumbsUp className="w-4 h-4" />
                       38
@@ -979,10 +1071,10 @@ const token = localStorage.getItem("access_token");
                       16
                     </span>
                   </div> */}
-                </div>
-              </div>
-            ))}
-            </>
+                    </div>
+                  </div>
+                ))}
+              </>
             )}
           </div>
         </div>

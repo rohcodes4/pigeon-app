@@ -174,7 +174,7 @@ const Index = () => {
 
           // Additional check: if no progress for a very long time, consider stopping
           const timeSinceProgress = Date.now() - lastProgressTime;
-          if (timeSinceProgress > 300000 && i >= 80) {
+          if (timeSinceProgress > 3000 && i >= 80) {
             // 5 minutes without progress
             console.log(
               `No progress for 5 minutes, stopping sync. Found ${chats2.length} chats`
@@ -507,7 +507,6 @@ const Index = () => {
     fetchChats();
   }, [user]);
 
-
   // Lightweight polling: refresh sidebar chats every 30s with smart merging
   useEffect(() => {
     if (!user) return;
@@ -659,15 +658,20 @@ const Index = () => {
           selectedOptions={selectedOptions}
           setSelectedOptions={setSelectedOptions}
         />
-        <main className="h-[calc(100vh-72px)] flex pb-0 pr-3 space-x-0 flex max-w-screen justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-hidden">
+      <main className="h-[calc(100vh-72px)] flex flex-row pb-0  space-x-0 max-w-screen justify-stretch border border-[FFFFFF17] rounded-tl-[12px] overflow-hidden">
+          {/* Left Side - Chat Panel (Fixed) */}
           <ChatPanel
             chats={chats}
             onChatSelect={handleChatSelect}
             selectedChat={selectedChat}
           />
+          
+          {/* Middle - Main Content Area (Flexible) */}
           <div
-            className={`h-[calc(100vh-72px)] min-w-0 flex flex-col flex-grow ${
-              openPanel !== null ? "max-w-[calc(100vw_-_914px)]" : "max-w-full"
+            className={`h-[calc(100vh-72px)] min-w-0 flex flex-col transition-all duration-300 ${
+              openPanel !== null 
+                ? "flex-1" // Takes remaining space when panel is open
+                : "flex-grow" // Takes all available space when no panel
             }`}
           >
             <UnifiedHeader
@@ -683,22 +687,24 @@ const Index = () => {
             />
             <UnifiedChatPanel selectedChat={selectedChat} />
           </div>
+          
+          {/* Right Side - Panels Container */}
           {openPanel === "smartSummary" && (
             <SmartSummary
               selectedChat={selectedChat}
               chatId={selectedChat.id}
             />
           )}
-          {openPanel === "notification" && <NotificationsPanel />}
-          {openPanel === "pinned" && <PinnedPanel />}
-          {openPanel === "search" && (
-            <SearchPanel
-              searchQuery={searchTerm}
-              selectedSource={selectedSource}
-              setSelectedSource={setSelectedSource}
-              selectedOptions={selectedOptions}
-            />
-          )}
+              {openPanel === "notification" && <NotificationsPanel />}
+              {openPanel === "pinned" && <PinnedPanel />}
+              {openPanel === "search" && (
+                <SearchPanel
+                  searchQuery={searchTerm}
+                  selectedSource={selectedSource}
+                  setSelectedSource={setSelectedSource}
+                  selectedOptions={selectedOptions}
+                />
+              )}
         </main>
       </div>
     </Layout>

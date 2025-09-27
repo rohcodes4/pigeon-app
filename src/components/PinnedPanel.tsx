@@ -200,48 +200,60 @@ const PinnedPanel = () => {
     return 'telegram';
   };
 
-  const renderPinnedMessages = (pins: any[], channelKey: string) => {
-    if (!pins || pins.length <= 0) return null;
-    
-    return pins.map((pin) => (
-      <div key={pin.id} className="relative flex items-start gap-2 mb-2 bg-[#212121] p-2 rounded-[10px] border border-[#ffffff09]">
-        <div className="absolute top-2 right-2 cursor-pointer" onClick={() => handleUnpinMessage(pin.id)}>
-          <X className="w-4 h-4 text-[#fafafa60] hover:text-[#fafafa]" />
+const renderPinnedMessages = (pins: any[], channelKey: string) => {
+  if (!pins || pins.length <= 0) return null;
+       
+  return pins.map((pin) => (
+    <div 
+      key={pin.id} 
+      className="relative flex items-start gap-2 mb-2 bg-[#212121] p-2 rounded-[10px] border border-[#ffffff09]"
+    >
+      <div 
+        className="absolute top-2 right-2 cursor-pointer" 
+        onClick={() => handleUnpinMessage(pin.id)}
+      >
+        <X className="w-4 h-4 text-[#fafafa60] hover:text-[#fafafa]" />
+      </div>
+      
+      <div className="flex-shrink-0 w-8 flex items-center justify-center">
+        <img
+          src={`https://www.gravatar.com/avatar/${pin.message_id || 'default'}?d=identicon&s=80`}
+          className="w-7 h-7 rounded-full object-cover"
+        />
+      </div>
+      
+      {/* Fixed: Added min-w-0 and proper text constraints */}
+      <div className="flex-1 min-w-0 rounded-[8px] px-2">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm text-[#fafafa] font-medium">
+            Pinned Message
+          </span>
+          <span className="text-xs text-[#FAFAFA60]">
+            {formatDate(pin.created_at)}
+          </span>
+          <Pin className="w-3 h-3 text-[#84AFFF] fill-[#84AFFF]" />
         </div>
-        <div className="flex-shrink-0 w-8 flex items-center justify-center">
-          <img
-            src={`https://www.gravatar.com/avatar/${pin.message_id || 'default'}?d=identicon&s=80`}
-            className="w-7 h-7 rounded-full object-cover"
-          />
+        
+        {/* Fixed: Proper text wrapping with overflow handling */}
+        <div className="text-sm text-[#fafafa] break-words overflow-wrap-anywhere hyphens-auto mb-2">
+   {pin.text}
         </div>
-        <div className="grow rounded-[8px] px-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-[#fafafa] font-medium">
-              Pinned Message
-            </span>
-            <span className="text-xs text-[#FAFAFA60]">
-              {formatDate(pin.created_at)}
-            </span>
-            <Pin className="w-3 h-3 text-[#84AFFF] fill-[#84AFFF]" />
-          </div>
-          <div className="text-sm text-[#fafafa] break-words w-full">
-            {pin.text || 'No text available'}
-          </div>
-          <div className="flex space-x-2 mt-2">
-            <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">
-              📌 Pinned
-            </span>
-            <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">
-              💬 {pin.chat_id}
-            </span>
-            <span className="text-xs rounded-full bg-[#ffffff16] px-1 py-1 flex items-center">
-              <SmilePlus className="w-3 h-3" />
-            </span>
-          </div>
+        
+        <div className="flex flex-wrap gap-1 mt-2">
+          <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">
+            📌 Pinned
+          </span>
+          <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">
+            💬 {pin.chat_id}
+          </span>
+          <span className="text-xs rounded-full bg-[#ffffff16] px-1 py-1 flex items-center">
+            <SmilePlus className="w-3 h-3" />
+          </span>
         </div>
       </div>
-    ));
-  };
+    </div>
+  ));
+};
 
   if (isLoading) {
     return (
@@ -259,7 +271,7 @@ const PinnedPanel = () => {
 
   if (error) {
     return (
-      <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]">
+      <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]">
         <div className="text-[#84AFFF] flex items-center gap-2 p-4">
           <Pin className="w-4 h-4 fill-[#84AFFF]" />
           <span>Pinned Messages</span>
@@ -272,7 +284,7 @@ const PinnedPanel = () => {
   }
 
   return (
-    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]">
+    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[400px] w-[200px] bg-[#111111] 2xl:max-w-[600px] text-white flex flex-col shadow-lg border border-[#23242a]">
       <div className="text-[#84AFFF] flex items-center justify-between gap-2 p-4">
         <div className="flex items-center gap-2">
           <Pin className="w-4 h-4 fill-[#84AFFF]" />
@@ -336,10 +348,10 @@ const PinnedPanel = () => {
                         <Pin className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
                         Unpin All Messages
                       </button>
-                      <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                      {/* <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
                         <Plus className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
                         Add Tags
-                      </button>
+                      </button> */}
                       <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#f36363] hover:text-[#f36363] whitespace-nowrap">
                         <VolumeX className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
                         Mute Channel

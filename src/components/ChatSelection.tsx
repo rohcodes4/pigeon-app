@@ -79,7 +79,7 @@ export const ChatSelection = ({
       setLoading(true);
       try {
         const token = localStorage.getItem("access_token");
-        const res = await fetch(`${BACKEND_URL}/api/sync-preferences/chats`, {
+        const res = await fetch(`${BACKEND_URL}/api/sync-preferences`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (!res.ok) throw new Error(`Failed to fetch chats: ${res.status}`);
@@ -88,28 +88,26 @@ export const ChatSelection = ({
 
         // Map the backend chats into ChatGroup format your UI expects
         const fetchedChats = (data.chats || []).map((chat) => ({
-          id: String(chat.id),
-          group_id: String(chat.id),
+          id: chat.id,
           group_name: chat.title || `Chat ${chat.id}`,
-          group_avatar: null, // Not provided, can add later if available
-          platform:
-            chat.type?.toLowerCase() === "discord" ? "discord" : "telegram",
-          member_count: null, // Not provided here, optional
-          is_synced: false, // default unselected, load saved selections below
+          group_avatar: chat.photo_url?? null,
+          platform: chat.type?.toLowerCase() === "discord" ? "discord" : "telegram",
+          // member_count: null, // Not provided here, optional
+          is_synced: chat.sync_enabled, // default unselected, load saved selections below
           type: chat.type || null,
           username: chat.username || null,
         }));
 
         // Load saved selections from localStorage
-        const savedSelections = localStorage.getItem(
-          `chatpilot_chats_${user.id}`
-        );
-        if (savedSelections) {
-          const selections = JSON.parse(savedSelections);
-          fetchedChats.forEach((chat) => {
-            chat.is_synced = selections[chat.id] || false;
-          });
-        }
+        // const savedSelections = localStorage.getItem(
+        //   `chatpilot_chats_${user.id}`
+        // );
+        // if (savedSelections) {
+        //   const selections = JSON.parse(savedSelections);
+        //   fetchedChats.forEach((chat) => {
+        //     chat.is_synced = selections[chat.id] || false;
+        //   });
+        // }
 
         setChatGroups(fetchedChats);
       } catch (error) {
@@ -160,29 +158,32 @@ export const ChatSelection = ({
 
       // Construct enabled and disabled chat ID strings
       const enabledChatIds = chatGroups
-        .filter((c) => c.is_synced)
-        .map((c) => c.id)
+        .filter(c => c.is_synced)
+        .map(c => c.id)
         .join(",");
 
       const disabledChatIds = chatGroups
-        .filter((c) => !c.is_synced)
-        .map((c) => c.id)
+        .filter(c => !c.is_synced)
+        .map(c => c.id)
         .join(",");
 
-      const body = new URLSearchParams();
-      body.append("enabled_chats", enabledChatIds);
-      body.append("disabled_chats", disabledChatIds);
-      body.append("sync_groups", "true");
-      body.append("sync_channels", "true");
+        const body = new URLSearchParams();
+        body.append("enabled_chats", enabledChatIds);
+        body.append("disabled_chats", disabledChatIds);
+        body.append("sync_groups", "true");
+        body.append("sync_channels", "true");
+        
+        const response = await fetch(`${BACKEND_URL}/api/sync-preferences`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Bearer ${token}`,
+          },
+          body: body.toString(),
+        });
+        
+      
 
-      const response = await fetch(`${BACKEND_URL}/api/sync-preferences`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Bearer ${token}`,
-        },
-        body: body.toString(),
-      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -249,12 +250,13 @@ export const ChatSelection = ({
       )
     );
 
-    const updatedSelections = {
-      ...JSON.parse(
-        localStorage.getItem(`chatpilot_chats_${user?.id}`) || "{}"
-      ),
-    };
-    updatedSelections[groupId] = !currentSyncStatus;
+    // const updatedSelections = {
+    //   ...JSON.parse(
+    //     localStorage.getItem(`chatpilot_chats_${user?.id}`) || "{}"
+    //   ),
+    // };
+    // updatedSelections[groupId] = !currentSyncStatus;
+ 
 
     const hasSelectedChats = chatGroups.some((group) =>
       group.id === groupId ? !currentSyncStatus : group.is_synced
@@ -266,16 +268,16 @@ export const ChatSelection = ({
     if (hasSelectedChats && onChatsSelected) {
       onChatsSelected(selectedChats);
     }
-    localStorage.setItem(
-      `chatpilot_chats_${user?.id}`,
-      JSON.stringify(updatedSelections)
-    );
-    toast({
-      title: !currentSyncStatus ? "Chat Added" : "Chat Removed",
-      description: !currentSyncStatus
-        ? "Chat will now appear in your unified inbox"
-        : "Chat removed from unified inbox",
-    });
+    // localStorage.setItem(
+    //   `chatpilot_chats_${user?.id}`,
+    //   JSON.stringify(updatedSelections)
+    // );
+    // toast({
+    //   title: !currentSyncStatus ? "Chat Added" : "Chat Removed",
+    //   description: !currentSyncStatus
+    //     ? "Chat will now appear in your unified inbox"
+    //     : "Chat removed from unified inbox",
+    // });
   };
 
   const selectAllByPlatform = (platform: string) => {
@@ -295,18 +297,18 @@ export const ChatSelection = ({
     setChatGroups(newChatGroups);
 
     // Update localStorage as well
-    const updatedSelections = {
-      ...JSON.parse(
-        localStorage.getItem(`chatpilot_chats_${user?.id}`) || "{}"
-      ),
-    };
-    newChatGroups.forEach((group) => {
-      updatedSelections[group.id] = group.is_synced;
-    });
-    localStorage.setItem(
-      `chatpilot_chats_${user?.id}`,
-      JSON.stringify(updatedSelections)
-    );
+    // const updatedSelections = {
+    //   ...JSON.parse(
+    //     localStorage.getItem(`chatpilot_chats_${user?.id}`) || "{}"
+    //   ),
+    // };
+    // newChatGroups.forEach((group) => {
+    //   updatedSelections[group.id] = group.is_synced;
+    // });
+    // localStorage.setItem(
+    //   `chatpilot_chats_${user?.id}`,
+    //   JSON.stringify(updatedSelections)
+    // );
   };
 
   const saveAllChanges = async () => {
@@ -340,12 +342,9 @@ export const ChatSelection = ({
   const [showTelegramQrModal, setShowTelegramQrModal] = useState(false);
   const [telegramQrCode, setTelegramQrCode] = useState<string | null>(null);
   const [telegramQrToken, setTelegramQrToken] = useState<string | null>(null);
-  const [loadingPlatform, setLoadingPlatform] = useState({
-    telegram: false,
-    discord: false,
-  });
+  const [loadingPlatform, setLoadingPlatform] = useState({ telegram: false, discord: false });
   const [pollingIntervalId, setPollingIntervalId] =
-    useState<NodeJS.Timeout | null>(null);
+  useState<NodeJS.Timeout | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const [twoFactorPassword, setTwoFactorPassword] = useState("");
@@ -506,7 +505,11 @@ export const ChatSelection = ({
         }
       };
     }
-  }, [telegramQrToken, showTelegramQrModal, setTelegramConnected]);
+  }, [
+    telegramQrToken,
+    showTelegramQrModal,
+    setTelegramConnected,
+  ]);
 
   const submitTelegramPassword = async () => {
     if (!telegramQrToken || !twoFactorPassword.trim()) {
@@ -778,37 +781,30 @@ export const ChatSelection = ({
             {/* Info Section */}
             <div className="flex-1 text-[#ffffff72]">
               <div className="h-[150px] overflow-y-scroll">
-                {telegramConnected ? (
-                  loading ? (
-                    <p className="text-sm text-gray-500 text-center py-4">
-                      {" "}
-                      Loading...
-                    </p>
-                  ) : (
-                    telegramChats.map((group) => (
-                      <div
-                        key={group.id}
-                        className="flex items-center justify-between p-2 border-0 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3 w-full">
-                          <Checkbox
-                            checked={group.is_synced}
-                            onCheckedChange={() =>
-                              toggleChatSync(group.id, group.is_synced)
-                            }
-                          />
-                          <div className="flex justify-between w-full">
-                            <p className="font-medium text-sm">
-                              {group.group_name}
-                            </p>
-                            <p className="text-xs text-black bg-[#3589ff] px-2 py-1 rounded-[6px]">
-                              {group.type}
-                            </p>
-                          </div>
+                {telegramConnected ? loading? (<p className="text-sm text-gray-500 text-center py-4"> Loading...</p>) : (
+                  telegramChats.map((group) => (
+                    <div
+                      key={group.id}
+                      className="flex items-center justify-between p-2 border-0 rounded-lg"
+                    >
+                      <div className="flex items-center gap-3 w-full">
+                        <Checkbox
+                          checked={group.is_synced}
+                          onCheckedChange={() =>
+                            toggleChatSync(group.id, group.is_synced)
+                          }
+                        />
+                        <div className="flex justify-between w-full">
+                          <p className="font-medium text-sm">
+                            {group.group_name}
+                          </p>
+                          <p className="text-xs text-black bg-[#3589ff] px-2 py-1 rounded-[6px]">
+                            {group.type}
+                          </p>
                         </div>
                       </div>
-                    ))
-                  )
+                    </div>
+                  ))
                 ) : (
                   <p className="text-sm text-gray-500 text-center py-4">
                     Connect Telegram to see chats

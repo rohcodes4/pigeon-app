@@ -149,7 +149,7 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
     <header className="flex flex-shrink-0 items-center justify-between px-6 py-1 border-b border-[#23272f] rounded-tl-[12px] py-2">
       {/* Left: Title and subtitle */}
       <div className="flex gap-2 items-center">
-        <h1 className="text-[15px] text-[#ffffff72]">{title}</h1>
+        {selectedChat==="all-channels" && <h1 className="text-[15px] text-[#ffffff72]">{title}</h1>}
 
         {telegramConnected && <span className="p-1.5 rounded-[6px] text-[11px] text-[#bfd6ff] bg-[#3474ff]">
           Telegram
@@ -191,10 +191,10 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {isReadAll && (
-            <button className="p-1.5 my-1 flex gap-2 text-[11px] items-center rounded-[6px] cursor-pointer bg-[#ffffff06] border border-[#ffffff03] text-[#ffffff32] hover:text-[#ffffff64] hover:bg-[#ffffff32] transition">
-              <CheckCheck className="w-5 h-5" /> <span>Read All</span>
+            <button className="p-1 font-[600] px-3 flex gap-2 text-[11px] items-center rounded-[6px] cursor-pointer bg-[#ffffff06] border border-[#ffffff03] text-[#ffffff32] hover:text-[#ffffff64] hover:bg-[#ffffff32] transition">
+              <CheckCheck className="w-5 h-5" /> <p>Read All</p>
             </button>
           )}
           {showSmartButton && (
@@ -202,7 +202,7 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
               onClick={() =>
                 setIsSmartSummary && setIsSmartSummary(!isSmartSummary)
               }
-              className="p-1.5 px-3 my-1 flex gap-2 text-[11px] items-center rounded-[6px] cursor-pointer text-[#84afff] bg-[#3474ff12] hover:text-[#ffffff] hover:bg-[#3474ff] transition"
+              className="p-1 font-[600]  px-3 flex gap-2 text-[11px] items-center rounded-[6px] cursor-pointer text-[#84afff] bg-[#3474ff12] hover:text-[#ffffff] hover:bg-[#3474ff] transition"
             >
               <img src={aiIMG} className="w-5 h-5" />
               <span>{smartText}</span>

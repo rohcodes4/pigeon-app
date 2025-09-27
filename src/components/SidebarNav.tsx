@@ -1,4 +1,3 @@
-import { toast } from "@/hooks/use-toast";
 // ... existing code ...
 import AI from "@/assets/images/aiBlue.png";
 import Chat from "@/assets/images/sidebar/Chat.png";
@@ -23,7 +22,7 @@ import {
   BotMessageSquare,
   Users,
 } from "lucide-react";
-import logo from "@/assets/images/sidebarLogo.png";
+import logo from "@/assets/images/logo.svg";
 import { useNavigate } from "react-router-dom";
 // import { supabase } from "@/integrations/supabase/client"; // Removed Supabase import
 import { useUserSettings } from "@/hooks/useUserSettings";
@@ -35,8 +34,6 @@ interface SidebarNavProps {
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
-  const { user, checkAuth } = useAuth(); // Destructure checkAuth
-
   const navMap: { [key: string]: string } = {
     "/": "AI",
     "/smart-tasks": "Tasks",
@@ -48,7 +45,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
   };
   const { settings, updateSettings, loading } = useUserSettings();
   const { setTheme: setGlobalTheme } = useTheme(); // Destructure setTheme from useTheme
-  const isHelpPage = activePage === "/help";
+const isHelpPage = activePage === "/help";
   useEffect(() => {
     if (!loading) {
       setTheme(settings.theme);
@@ -122,6 +119,9 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
 
   // Helper function to get user avatar
   const getUserAvatar = (user: any) => {
+    if(user?.profile_picture){
+      return `${BACKEND_URL}/static/profile_photos/${user.profile_picture}`
+    }
     if (user?.username) {
       return gravatarUrl(user.username);
     }
@@ -166,167 +166,12 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
   const logOut = async () => {
     await signOut(); // Call signOut from useAuth
   };
-
-  const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID;
-  const REDIRECT_URI = "http://localhost:8000/auth/discord/callback"; // Or your frontend callback route if you handle tokens client-side
-  const DISCORD_OAUTH_URL = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(
-    REDIRECT_URI
-  )}&response_type=code&scope=identify%20email`;
-
-  const connectDiscord = async () => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/auth/discord/start`, {
-        method: "POST",
-      });
-      const data = await response.json();
-
-      if (response.ok) {
-        handleOAuthPopup(data.oauth_url, "discord");
-      } else {
-        throw new Error(
-          data.detail || "Failed to start Discord authentication"
-        );
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  // OAuth handlers
-  const handleOAuthPopup = (url: string, platform: string) => {
-    const popup = window.open(
-      url,
-      `${platform}_oauth`,
-      "width=500,height=600,scrollbars=yes,resizable=yes"
-    );
-
-    const handleMessage = async (event: MessageEvent) => {
-      // Allow messages from the backend (localhost:8000) to frontend (localhost:8080)
-      const allowedOrigins = [
-        window.location.origin, // Frontend origin (localhost:8080)
-        import.meta.env.VITE_BACKEND_URL || "http://localhost:8000", // Backend origin
-      ];
-
-      console.log("OAuth message received:", {
-        origin: event.origin,
-        allowedOrigins,
-        data: event.data,
-      });
-
-      if (!allowedOrigins.includes(event.origin)) {
-        console.log("Message origin not allowed:", event.origin);
-        return;
-      }
-
-      const { type, data, error } = event.data;
-
-      if (type === `${platform.toUpperCase()}_AUTH_SUCCESS`) {
-        console.log("OAuth success:", data);
-        console.log(
-          "Setting access_token for Discord:",
-          data.discord_access_token
-        );
-        localStorage.setItem("access_token", data.discord_access_token);
-
-        // Verify token was stored
-        const storedToken = localStorage.getItem("access_token");
-        console.log("Stored token:", storedToken ? "exists" : "missing");
-
-        toast({
-          title: "Welcome!",
-          description: `You have been signed in with ${platform}.`,
-        });
-
-        console.log("Calling checkAuth...");
-        await checkAuth();
-
-        try {
-          // Mark Discord connected in onboarding storage, if applicable
-          const meRes = await fetch(`${BACKEND_URL}/auth/me`, {
-            headers: { Authorization: `Bearer ${data.access_token}` },
-          });
-          const me = meRes.ok ? await meRes.json() : null;
-          if (me && me.id) {
-            const key = `chatpilot_accounts_${me.id}`;
-            const existing = JSON.parse(localStorage.getItem(key) || "{}");
-            const updated = { ...existing };
-            updated.discord = true;
-            localStorage.setItem(key, JSON.stringify(updated));
-          }
-        } catch (e) {
-          console.log("Failed to set Discord connected flag:", e);
-        }
-        console.log("checkAuth completed");
-
-        popup?.close();
-        window.removeEventListener("message", handleMessage);
-        clearInterval(checkClosed);
-        clearTimeout(timeout);
-      } else if (type === `${platform.toUpperCase()}_AUTH_ERROR`) {
-        console.log("OAuth error:", error);
-        toast({
-          title: "Authentication Error",
-          description: error || `Failed to sign in with ${platform}`,
-          variant: "destructive",
-        });
-        popup?.close();
-        window.removeEventListener("message", handleMessage);
-        clearInterval(checkClosed);
-        clearTimeout(timeout);
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-
-    // Check if popup is closed manually
-    const checkClosed = setInterval(() => {
-      if (popup?.closed) {
-        window.removeEventListener("message", handleMessage);
-        clearInterval(checkClosed);
-        clearTimeout(timeout);
-      }
-    }, 1000);
-
-    // Add timeout for OAuth flow (5 minutes)
-    const timeout = setTimeout(() => {
-      console.log("OAuth timeout reached");
-      popup?.close();
-      window.removeEventListener("message", handleMessage);
-      clearInterval(checkClosed);
-      toast({
-        title: "Authentication Timeout",
-        description: `${platform} authentication timed out. Please try again.`,
-        variant: "destructive",
-      });
-    }, 5 * 60 * 1000);
-  };
-
-  useEffect(() => {
-    if (window.location.hash.includes("access_token")) {
-      const params = new URLSearchParams(window.location.hash.substring(1));
-      const token = params.get("access_token");
-      const type = params.get("token_type");
-      console.log("token");
-      console.log(token);
-      console.log(type);
-      // Store token, call Discord API etc.
-    }
-  }, []);
-
-  // Call loginWithDiscord() on button click or app startup as needed
-
   return (
-    <aside
-      className={`h-screen w-16 flex flex-col items-center py-[18px] min-w-16 overflow-hidden bg-[#171717] flex-shrink-0 ${
-        isHelpPage ? "fixed left-0 top-0 z-40" : ""
-      }`}
-    >
+    <aside className={`h-screen w-16 flex flex-col items-center py-[18px] min-w-16 overflow-hidden bg-[#171717] flex-shrink-0 ${
+      isHelpPage ? 'fixed left-0 top-0 z-40' : ''
+    }`}>
       <img src={logo} alt="AI" className="w-9 h-9 mb-4" />
-      <nav className="flex flex-col gap-4 flex-1">
+      <nav className="flex flex-col gap-4 flex-1 mt-5">
         {/* AI */}
         <button
           className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
@@ -384,23 +229,23 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
           />
         </button>
         {/* AI Chat */}
-        <button
-          className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
+<button
+  className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
     ${activeNav === "AIChat" ? "bg-[#212121]" : "hover:bg-[#212121]"}`}
-          onClick={() => {
-            setActiveNav("AIChat");
-            navigate("/ai");
-          }}
-        >
-          {activeNav === "AiChat" && (
+  onClick={() => {
+    setActiveNav("AIChat");
+    navigate("/ai");
+  }}
+>
+{activeNav === "AiChat" && (
             <span className="absolute left-[-13px] h-full top-0 bottom-2 w-1 rounded bg-[#3474ff]" />
           )}
-          <BotMessageSquare
-            className={`${
-              activeNav === "AiChat" ? "opacity-1" : "opacity-[0.5]"
-            } w-6 h-6`}
-          />
-        </button>
+  <BotMessageSquare
+  className={`${
+    activeNav === "AiChat" ? "opacity-1" : "opacity-[0.5]"
+  } w-6 h-6`}
+/>
+</button>
 
         {/* Users */}
         <button
@@ -445,9 +290,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
       </nav>
       <div className="flex flex-col items-center gap-6 mt-auto mb-4">
         {/* Discord Icon with Connected Badge */}
-        <div
-          className="relative bg-[#7B5CFA] rounded-[10px] p-2 group"
-        >
+        <div className="relative bg-[#7B5CFA] rounded-[10px] p-2 group">
           <img src={Discord} alt="Discord" className="w-4 h-4 rounded" />
           <span
             className={`absolute -bottom-0.5 -right-0.5 block w-2 h-2 rounded-full ${

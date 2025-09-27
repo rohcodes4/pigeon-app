@@ -18,6 +18,8 @@ import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
 import smartTodo from "@/assets/images/smartTodo.png";
 import CustomCheckbox from "./CustomCheckbox";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
+import { mapToFullChat } from "@/lib/utils";
 
 interface SearchPanelProps {
   searchQuery: string;
@@ -92,7 +94,9 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({
   const [selectedTasks, setSelectedTasks] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState("All");
   const [isSourceOpen, setIsSourceOpen] = useState(false);
+  const [hoveredId, setHoveredId] = useState(null);
 
+  const navigate = useNavigate();
   const sources = [
     { label: "All sources", icon: null },
     {
@@ -255,7 +259,14 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({
   //     reactions: { thumbsUp: 38, heart: 21, message: 16 },
   //   },
   // ];
-
+  const handleSend = (message) => {
+    message.photo_url = message.chat?.id
+      ? `${BACKEND_URL}/chat_photo/${message.chat.id}`
+      : `https://www.gravatar.com/avatar/${
+          message.sender?.id || "example"
+        }?s=80`;
+    navigate("/", { state: { selectedChat: mapToFullChat(message) } });
+  };
   const handleSearch = () => {
     if (!searchQuery.trim()) return;
 
@@ -385,19 +396,17 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({
           : msg
       )
     );
-    // try {
-    //   await fetch(`${BACKEND_URL}/messages/${msgId}/react`, {
-    //     method: "POST",
-    //     headers: {
-    //       "Content-Type": "application/json",
-    //       Authorization: `Bearer ${token}`,
-    //     },
-    //     body: JSON.stringify({ reaction: type }),
-    //   });
-    // } catch (error) {
-    //   console.error("Error sending reaction:", error);
-    // }
   };
+
+  const handleJump = (msg)=>{
+          msg.photo_url = msg.chat.id
+      ? `${BACKEND_URL}/chat_photo/${msg.chat.id}`
+      : `https://www.gravatar.com/avatar/${
+          msg.sender?.id || "example"
+        }?s=80`;
+    navigate("/", { state: { selectedChat: mapToFullChat(msg), selectedMessageId:msg.id } });
+    
+  }
 
   return (
     <div className="bg-[#171717] text-white min-w-[500px] border-l h-[calc(100vh-72px)] overflow-y-scroll">
@@ -538,8 +547,23 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({
               return (
                 <div
                   key={msg._id}
-                  className=" flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 bg-[#222327] border border-[#fafafa10]"
+                  className="relative flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 bg-[#222327] border border-[#fafafa10]"
+                  // onClick={handleSend.bind(this, msg)}
+                  onMouseEnter={() => setHoveredId(msg._id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  onClick={() => handleJump(msg)}
                 >
+                  {hoveredId === msg._id && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // prevent bubbling to div onClick
+                handleJump(msg);
+              }}
+              className="absolute top-2 right-2 bg-blue-600 text-white px-2 py-1 rounded text-xs"
+            >
+              Jump
+            </button>
+          )}
                   {/* Avatar — if backend has sender avatar URL use it, else fallback */}
                   <img
                     src={
