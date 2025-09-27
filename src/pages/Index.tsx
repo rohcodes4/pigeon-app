@@ -13,6 +13,7 @@ import SmartSummary from "@/components/SmartSummary";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
 import { useLocation } from "react-router-dom";
+import { mapDiscordToTelegramSchema } from "@/lib/utils";
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -173,7 +174,7 @@ const Index = () => {
 
           // Additional check: if no progress for a very long time, consider stopping
           const timeSinceProgress = Date.now() - lastProgressTime;
-          if (timeSinceProgress > 300000 && i >= 80) {
+          if (timeSinceProgress > 3000 && i >= 80) {
             // 5 minutes without progress
             console.log(
               `No progress for 5 minutes, stopping sync. Found ${chats2.length} chats`
@@ -478,8 +479,19 @@ const Index = () => {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        // Store initial chats - this only runs once on load
         setChats(data.chats || []);
+        const res = await window.electronAPI.security.getDiscordToken();
+        if (res?.success && res?.data) {
+          await window.electronAPI.discord.connect(res.data);
+        }
+        const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
+        const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
+        discordChats.sort((a, b) => Number(b.id) - Number(a.id));
+        // Merge both
+        const allChats = [...data.chats, ...discordChats];
+
+        // Store initial chats - this only runs once on load
+        setChats(allChats || []);
       } catch (error) {
         console.error("Failed to fetch chats:", error);
         toast({
@@ -513,6 +525,12 @@ const Index = () => {
         if (response.ok) {
           const data = await response.json();
           const newChats = data.chats || [];
+          // Fetch Discord DMs
+          const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
+          const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
+          discordChats.sort((a, b) => Number(b.id) - Number(a.id));
+          // Merge both
+          const allChats = [...newChats, ...discordChats];
 
           // Smart merge: only update if there are actual changes
           setChats((prevChats) => {
@@ -520,11 +538,11 @@ const Index = () => {
             const prevMap = new Map(prevChats.map((chat) => [chat.id, chat]));
 
             // Check if there are meaningful changes
-            let hasChanges = prevChats.length !== newChats.length;
+            let hasChanges = prevChats.length !== allChats.length;
 
             if (!hasChanges) {
               // Check for updates in existing chats
-              for (const newChat of newChats) {
+              for (const newChat of allChats) {
                 const prevChat = prevMap.get(newChat.id);
                 if (
                   !prevChat ||
@@ -540,7 +558,7 @@ const Index = () => {
             }
 
             // Only update if there are actual changes
-            return hasChanges ? newChats : prevChats;
+            return hasChanges ? allChats : prevChats;
           });
         }
       } catch (_) {
@@ -640,15 +658,20 @@ const Index = () => {
           selectedOptions={selectedOptions}
           setSelectedOptions={setSelectedOptions}
         />
-        <main className="h-[calc(100vh-72px)] flex pb-0 pr-3 space-x-0 flex max-w-screen justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] overflow-hidden">
+      <main className="h-[calc(100vh-72px)] flex flex-row pb-0  space-x-0 max-w-screen justify-stretch border border-[FFFFFF17] rounded-tl-[12px] overflow-hidden">
+          {/* Left Side - Chat Panel (Fixed) */}
           <ChatPanel
             chats={chats}
             onChatSelect={handleChatSelect}
             selectedChat={selectedChat}
           />
+          
+          {/* Middle - Main Content Area (Flexible) */}
           <div
-            className={`h-[calc(100vh-72px)] min-w-0 flex flex-col flex-grow ${
-              openPanel !== null ? "max-w-[calc(100vw_-_914px)]" : "max-w-full"
+            className={`h-[calc(100vh-72px)] min-w-0 flex flex-col transition-all duration-300 ${
+              openPanel !== null 
+                ? "flex-1" // Takes remaining space when panel is open
+                : "flex-grow" // Takes all available space when no panel
             }`}
           >
             <UnifiedHeader
@@ -664,22 +687,24 @@ const Index = () => {
             />
             <UnifiedChatPanel selectedChat={selectedChat} />
           </div>
+          
+          {/* Right Side - Panels Container */}
           {openPanel === "smartSummary" && (
             <SmartSummary
               selectedChat={selectedChat}
               chatId={selectedChat.id}
             />
           )}
-          {openPanel === "notification" && <NotificationsPanel />}
-          {openPanel === "pinned" && <PinnedPanel />}
-          {openPanel === "search" && (
-            <SearchPanel
-              searchQuery={searchTerm}
-              selectedSource={selectedSource}
-              setSelectedSource={setSelectedSource}
-              selectedOptions={selectedOptions}
-            />
-          )}
+              {openPanel === "notification" && <NotificationsPanel />}
+              {openPanel === "pinned" && <PinnedPanel />}
+              {openPanel === "search" && (
+                <SearchPanel
+                  searchQuery={searchTerm}
+                  selectedSource={selectedSource}
+                  setSelectedSource={setSelectedSource}
+                  selectedOptions={selectedOptions}
+                />
+              )}
         </main>
       </div>
     </Layout>

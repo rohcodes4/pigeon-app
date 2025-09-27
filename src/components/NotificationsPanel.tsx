@@ -180,52 +180,68 @@ const NotificationPanel = () => {
     // return Math.random() > 0.5 ? 'telegram' : 'discord';
     return 'telegram'
   };
-
-  const renderNotifications = (notifications: any[], channelKey: string) => {
-    if (!notifications || notifications.length <= 0) return null;
-    console.log(notifications)
-    return notifications.map((notification) => (
-      <div key={notification._id} className="relative flex items-start gap-2 mb-2 bg-[#212121] p-2 rounded-[10px] border border-[#ffffff09]">
-        <div className="absolute top-2 right-2 cursor-pointer" onClick={() => removeNotification(notification._id)}>
-          <X className="w-4 h-4 text-[#fafafa60] hover:text-[#fafafa]" />
-        </div>
-        <div className="flex-shrink-0 w-8 flex items-center justify-center">
-          <ChatAvatar name={notification.name} avatar={`${BACKEND_URL}/contact_photo/${notification.chat_id}`} backupAvatar={`${BACKEND_URL}/chat_photo/${notification.chat_id}`} />
-        </div>
-        <div className="grow rounded-[8px] px-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-[#fafafa] font-medium">
-              {notification.type === 'summary' ? 'Summary' : 'Notification'}
+const renderNotifications = (notifications: any[], channelKey: string) => {
+  if (!notifications || notifications.length <= 0) return null;
+  console.log(notifications);
+  
+  return notifications.map((notification) => (
+    <div 
+      key={notification._id} 
+      className="relative flex items-start gap-2 mb-2 bg-[#212121] p-2 rounded-[10px] border border-[#ffffff09]"
+    >
+      <div 
+        className="absolute top-2 right-2 cursor-pointer" 
+        onClick={() => removeNotification(notification._id)}
+      >
+        <X className="w-4 h-4 text-[#fafafa60] hover:text-[#fafafa]" />
+      </div>
+      
+      <div className="flex-shrink-0 w-8 flex items-center justify-center">
+        <ChatAvatar 
+          name={notification.name} 
+          avatar={`${BACKEND_URL}/contact_photo/${notification.chat_id}`} 
+          backupAvatar={`${BACKEND_URL}/chat_photo/${notification.chat_id}`} 
+        />
+      </div>
+      
+      {/* Fixed: Added min-w-0 and proper text constraints */}
+      <div className="flex-1 min-w-0 rounded-[8px] px-2">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm text-[#fafafa] font-medium">
+            {notification.type === 'summary' ? 'Summary' : 'Notification'}
+          </span>
+          <span className="text-xs text-[#FAFAFA60]">
+            {formatDate(notification.created_at)}
+          </span>
+          {notification.importance && (
+            <span className="text-xs bg-[#3474ff] text-white px-2 py-0.5 rounded-full">
+              {(notification.importance * 100).toFixed(0)}%
             </span>
-            <span className="text-xs text-[#FAFAFA60]">
-              {formatDate(notification.created_at)}
-            </span>
-            {notification.importance && (
-              <span className="text-xs bg-[#3474ff] text-white px-2 py-0.5 rounded-full">
-                {(notification.importance * 100).toFixed(0)}%
-              </span>
-            )}
-          </div>
-          <div className="text-sm text-[#fafafa] break-words w-full">
-            {notification.text}
-          </div>
-          <div className="flex space-x-2 mt-2">
+          )}
+        </div>
+        
+        {/* Fixed: Proper text wrapping with overflow handling */}
+<div className="text-sm text-[#fafafa] break-words overflow-wrap-anywhere hyphens-auto mb-2">
+  {notification.text.length > 300 ? notification.text.slice(0, 300) + " .........." : notification.text}
+</div>
+        
+        <div className="flex flex-wrap gap-1 mt-2">
+          <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">
+            💡 {notification.type}
+          </span>
+          {notification.chat_name && (
             <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">
-              💡 {notification.type}
+              📱 {notification.chat_name}
             </span>
-            {notification.chat_name && (
-              <span className="text-xs rounded-full bg-[#ffffff16] px-2 py-1">
-                📱 {notification.chat_name}
-              </span>
-            )}
-            <span className="text-xs rounded-full bg-[#ffffff16] px-1 py-1 flex items-center">
-              <SmilePlus className="w-3 h-3" />
-            </span>
-          </div>
+          )}
+          <span className="text-xs rounded-full bg-[#ffffff16] px-1 py-1 flex items-center">
+            <SmilePlus className="w-3 h-3" />
+          </span>
         </div>
       </div>
-    ));
-  };
+    </div>
+  ));
+};
 
   if (isLoading) {
     return (
@@ -257,7 +273,7 @@ const NotificationPanel = () => {
   console.log('notificationss')
   console.log(notifications)
   return (
-    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden max-w-[501px] min-w-[400px] 2xl:min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]">
+    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden max-w-[501px] min-w-[400px] 2xl:min-w-[500px] rounded-2xl bg-[#111111] text-white  flex flex-col shadow-lg border-[#23242a] border ">
       <div className="text-[#84AFFF] flex items-center justify-between gap-2 p-4">
         <div className="flex items-center gap-2">
           <Bell className="w-4 h-4 fill-[#84AFFF]" />
@@ -330,10 +346,10 @@ const NotificationPanel = () => {
                         <Pin className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
                         Pin Message
                       </button>
-                      <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
+                      {/* <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
                         <Plus className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
                         Add Tags
-                      </button>
+                      </button> */}
                       <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#f36363] hover:text-[#f36363] whitespace-nowrap">
                         <VolumeX className="w-6 h-6" stroke="currentColor" fill="currentColor"/>                        
                         Mute Channel

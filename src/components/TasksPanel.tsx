@@ -297,6 +297,7 @@ const [newTask, setNewTask] = useState({
       if (updates.text !== undefined) formData.append('text', updates.text);
       if (updates.priority !== undefined) formData.append('priority', updates.priority);
       if (updates.status !== undefined) formData.append('status', updates.status);
+      if (updates.due !== undefined) formData.append('due', updates.due);
       if (updates.tags !== undefined) {
         formData.append('tags', Array.isArray(updates.tags) ? updates.tags.join(',') : updates.tags);
       }
@@ -446,12 +447,18 @@ const [newTask, setNewTask] = useState({
       if (!editingTask || !editForm.name.trim()) return;
       
       try {
-        await updateTask(editingTask, { text: editForm.name });
+        await updateTask(editingTask, { text: editForm.name, priority:editForm.priority, due: editForm.due });
         
         const currentTask = tasks.find(t => t.id === editingTask);
-        if (currentTask && editForm.priority !== currentTask.priority) {
-          await updateTask(editingTask, { priority: editForm.priority });
-        }
+        // if (currentTask && editForm.priority !== currentTask.priority) {
+        //   await updateTask(editingTask, { priority: editForm.priority });
+        // }
+
+        // if (currentTask && editForm.due !== currentTask.due) {
+        //   await updateTask(editingTask, { due: editForm.due });
+        // }
+        
+     
         
         setTasks((prev) =>
           prev.map((t) =>

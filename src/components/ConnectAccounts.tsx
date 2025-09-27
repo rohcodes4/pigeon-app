@@ -60,7 +60,7 @@ export const ConnectAccounts = ({
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [twoFactorPassword, setTwoFactorPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
-  const [authMethod, setAuthMethod] = useState<"qr" | "phone">("qr");
+  const [authMethod, setAuthMethod] = useState<"qr" | "phone">("phone");
   const [showPhoneModal, setShowPhoneModal] = useState(false);
 
   const checkAllConnected = useCallback(() => {

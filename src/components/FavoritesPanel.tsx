@@ -3,10 +3,12 @@ import { Heart, X, MessageCircle } from "lucide-react";
 import { FaTelegramPlane, FaDiscord } from "react-icons/fa";
 import { deleteBookmark } from "@/utils/apiHelpers";
 import { toast } from "@/hooks/use-toast";
+import { mapToFullChat } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 // API function to fetch favorite messages (bookmarks with type "bookmark")
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 const fetchFavoriteMessages = async () => {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const token = localStorage.getItem("access_token");
 
   const response = await fetch(`${BACKEND_URL}/bookmarks?type=bookmark`, {
@@ -28,6 +30,7 @@ const FavoritesPanel = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const navigate = useNavigate();
   // Load favorite messages on component mount
   useEffect(() => {
     const loadFavorites = async () => {
@@ -73,6 +76,15 @@ const FavoritesPanel = () => {
     }
   };
 
+   const handleJump = (msg)=>{
+      msg.photo_url = msg.chat_id
+      ? `${BACKEND_URL}/chat_photo/${msg.chat_id}`
+      : `https://www.gravatar.com/avatar/${
+          msg.sender?.id || "example"
+        }?s=80`;
+      navigate("/", { state: { selectedChat: mapToFullChat(msg), selectedMessageId:msg.id } });
+      
+    }
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -134,11 +146,12 @@ const FavoritesPanel = () => {
           </div>
         </div>
       ) : (
-        <div className="px-4 space-y-3">
+        <div className="px-4 space-y-3" >
           {favoriteMessages.map((favorite) => (
             <div
               key={favorite.id}
               className="relative bg-[#212121] p-3 rounded-[10px] border border-[#ffffff09]"
+               onClick={() => handleJump(favorite)}
             >
               <div
                 className="absolute top-2 right-2 cursor-pointer"

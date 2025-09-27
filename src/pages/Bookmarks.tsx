@@ -225,6 +225,7 @@ const Bookmarks = () => {
     fetchChats();
   }, [user]);
 
+  
   // ✅ ADD: Missing chat selection handler
   const handleChatSelect = async (chat) => {
     setSelectedChat(chat);
@@ -255,8 +256,10 @@ const Bookmarks = () => {
         console.error("Failed to mark chat as read:", error);
       }
     }
+    navigate("/", { state: { selectedChat:chat}});
   };
 
+  
   // ✅ UPDATE: Include chatsLoading in the loading check
   // if (loading || chatsLoading) {
   //   return (

@@ -170,6 +170,7 @@ class DiscordClient extends EventEmitter {
         method: "GET",
         headers: this.getRealisticHeaders({
           Authorization: this.token,
+          "Accept-Encoding": "identity"
         }),
       };
 
@@ -457,6 +458,9 @@ class DiscordClient extends EventEmitter {
             type: "dm",
             name: recipient.global_name || recipient.username,
             participant_count: 2,
+            avatar_url: recipient.avatar
+              ? `https://cdn.discordapp.com/avatars/${recipient.id}/${recipient.avatar}.png`
+              : null,
           });
         }
       } else if (channel.type === 3) {
@@ -591,7 +595,16 @@ class DiscordClient extends EventEmitter {
       throw error;
     }
   }
-
+  
+async getMessages(chatId, limit = 50, offset = 0 ) {
+    try {
+      const msg = await this.dbManager.getMessages(chatId, limit, offset);
+      return msg
+    } catch (error) {
+      console.error("[Discord] Failed to get DMs:", error);
+      throw error;
+    }
+  }
   async sendMessage(channelId, content) {
     try {
       // Rate limiting check
@@ -619,6 +632,7 @@ class DiscordClient extends EventEmitter {
             "Content-Type": "application/json",
             "Content-Length": Buffer.byteLength(data),
             Referer: `https://discord.com/channels/@me/${channelId}`,
+            "Accept-Encoding": "identity"
           }),
         };
 
