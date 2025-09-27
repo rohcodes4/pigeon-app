@@ -1304,7 +1304,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                         msg.sender?.username ||
                         "Unknown"
                     ),
-                platform: "Telegram" as const,
+                platform: selectedChat.platform=='discord'? "Discord" : "Telegram" as const,
                 channel: channelName,
                 server: chatName,
                 date: new Date(msg.timestamp),
@@ -1598,7 +1598,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         telegramMessageId: undefined,
         name: user?.username || user?.first_name || "You",
         avatar: user?.photo_url || gravatarUrl(user?.username || "You"),
-        platform: "Telegram" as const,
+        platform: selectedChat.platform=='discord'? "Discord" : "Telegram" as const,
         channel: selectedChat.channel || null,
         server: selectedChat.name || "Chat",
         date: new Date(),

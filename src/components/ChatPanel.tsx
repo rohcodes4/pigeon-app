@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Pin, PinOff } from "lucide-react";
 import aiAll from "@/assets/images/aiAll.png";
+import { mapDiscordToTelegramSchema } from "@/lib/utils";
 import discord from "@/assets/images/discord.png";
 import telegram from "@/assets/images/telegram.png";
 import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
@@ -341,6 +342,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
 
   useEffect(() => {
+    console.log(chats,"chats")
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         closeContextMenu();
@@ -380,14 +382,18 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       if (resp.ok) {
         const chats = await resp.json();
         const chans = chats.chats;
-        
+              const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
+                  const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
+                  discordChats.sort((a, b) => Number(b.id) - Number(a.id));
+                  // Merge both
+                  const allChats = [...chans, ...discordChats];
         // const chans = (chats.chats || []).map((c: any) => ({
         //   id: c?.id ?? c?._id,
         //   name: c?.title || c?.username || String(c?.id ?? c?._id),
         //   platform: c?.platform,
         // }));
         // console.log(chans)
-        setAllChannels(chans.filter((c: any) => c.id != null));
+        setAllChannels(allChats.filter((c: any) => c.id != null));
       }
     } catch (_) {
       // ignore
@@ -1493,7 +1499,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                 className={`
                             absolute -bottom-2 -right-1
                             ${
-                              chat.platform === "Discord"
+                              chat.platform === "discord"
                                 ? "bg-[#7b5cfa]"
                                 : "bg-[#3474ff]"
                             }
