@@ -1633,12 +1633,26 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         const id = chatId || replyTo.chat_id;
         // Send message to backend/Telegram
         const replyToId = originalReplyTo?.telegramMessageId;
-        const result = await sendMessage(id, messageText, replyToId);
+
+            if (selectedChat.platform=='discord') {
+        const result = await window.electronAPI.discord.sendMessage(
+          id,
+          messageText
+        );
+        if(!result.success){
+          const res = await window.electronAPI.security.getDiscordToken();
+          if (res?.success && res?.data) {
+           await window.electronAPI.discord.connect(res.data);
+          }
+        }
+      }else{
+      await sendMessage(id, messageText, replyToId);
+      }
         if (inputRef.current) {
           inputRef.current.value = "";
         }
         setText("");
-        console.log("Message sent successfully:", result);
+       
         await refreshLatest();
         scrollToBottom();
         setTimeout(() => {
@@ -1766,15 +1780,19 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           return;
         }
 
-        // console.log("DEBUG: Refreshing from endpoint:", endpoint);
+            let data = [];
+      if(selectedChat?.platform=='discord'){
+        const chatID= selectedChat.id || replyTo.chat_id;
+        const msg = await window.electronAPI.database.getMessages(chatID,50,0);
+          data=msg.data.map(mapDiscordMessageToTelegram);
+      }else{
         const response = await fetch(endpoint, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          signal: abortController.signal
         });
-
+  
         if (!response.ok) {
           console.log(
             "DEBUG: Response not OK:",
@@ -1783,7 +1801,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           );
           return;
         }
-        const data = await response.json();
+         data = await response.json();
 
         const toChips = (results: any[]) =>
           results
@@ -1842,7 +1860,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                 : gravatarUrl(
                     msg.sender?.first_name || msg.sender?.username || "Unknown"
                   ),
-              platform: "Telegram" as const,
+              platform: selectedChat.platform=='discord'? "Discord" : "Telegram" as const,
               channel: null,
               server: chatName,
               date: new Date(msg.timestamp),
