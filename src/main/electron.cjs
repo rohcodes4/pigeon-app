@@ -79,11 +79,12 @@ function createWindow() {
     }
   );
 
-  if (process.env.VITE_NODE_ENV === "development") {
+  if (process.env.VITE_NODE_ENV === "development" && process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
     mainWindow.webContents.openDevTools();
   } else {
-    const indexPath = path.join(process.resourcesPath, "dist", "index.html");
+    // This should resolve correctly both unpackaged and in ASAR
+    const indexPath = path.join(__dirname, '..', '..', 'dist', 'index.html');
     mainWindow.loadFile(indexPath);
   }
 

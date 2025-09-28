@@ -13,11 +13,19 @@
       "dist/**",
       "src/main/electron.cjs",
       "src/main/preload.js",
-      "src/main/discordPreload.cjs"
+      "src/main/discordPreload.cjs",
+      "src/main/database/**",
+      "src/main/services/**",
+      "src/main/security/**",
+      "src/main/sync/**"
     ],
     "asarUnpack": [
-      "**/locales/**"
-    ],
+  "src/main/database/**",
+  "src/main/services/**",
+  "src/main/security/**",
+  "src/main/sync/**"
+],
+
     "extraResources": [
       {
         "from": "node_modules/electron/dist/locales",
@@ -31,7 +39,7 @@
       "buildResources": "assets/icons"
     },
     "win": {
-      "icon": "web-app-manifest-512x512.png",
+      "icon": "logo.png",
       "target": [
         {
           "target": "nsis",
@@ -44,14 +52,14 @@
       ]
     },
     "mac": {
-      "icon": "web-app-manifest-512x512.png",
+      "icon": "logo.png",
       "target": [
         "dmg",
         "zip"
       ]
     },
     "linux": {
-      "icon": "web-app-manifest-512x512.png",
+      "icon": "logo.png",
       "target": [
         "AppImage",
         "deb"
