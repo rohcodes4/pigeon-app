@@ -239,7 +239,6 @@ export interface UnifiedChatPanelRef {
 }
 const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
   ({ selectedChat = "all-channels" }, ref) => {
-    console.log('selected chat: ', selectedChat)
     const location = useLocation();
     const locationStateChat = location.state?.selectedChat;
     const [selectedMessageId, setSelectedMessageId] = useState(location.state?.selectedMessageId ?? null)
@@ -1230,6 +1229,10 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               "Content-Type": "application/json",
             },
           });
+          if(selectedChat?.platform=='discord'){
+            const discordSelectedChat = await window.electronAPI.discord.getChatHistory(selectedChat.id);
+            console.log("discordSelectedChat",discordSelectedChat);
+          }
 
           if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
@@ -1791,14 +1794,15 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             }/messages?limit=${PAGE_SIZE}`;
             currentChatId = `filter-${(selectedChat as any).id}`;
           } else {
-            const params = new URLSearchParams();
-            const afterTimestamp = messages[0].timestamp;
-          // if (afterTimestamp) params.append("after", afterTimestamp);
             endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/${
               (selectedChat as any).id
             }/messages?limit=${PAGE_SIZE}`;
             // if (params.toString()) endpoint += `?${params.toString()}`;
             currentChatId = String((selectedChat as any).id);
+            if(selectedChat?.platform=='discord'){
+            const discordSelectedChat = await window.electronAPI.discord.getChatHistory(selectedChat.id);
+            console.log("discordSelectedChat",discordSelectedChat);
+          }
           }
         } else {
           console.log(
@@ -2004,7 +2008,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             fetchMessages(selectedChat);
             fetchPinnedMessages();
           } else {
-            console.log(messages)
             if(messages.length>0){
               fetchMessages(selectedChat.id,null,null,messages[0]?.timestamp??null);
             } else{
@@ -2090,10 +2093,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       fileName = "file", // Optional, default 'file'
     }) {
       const url = `${BACKEND_URL}/api/chats/${chatId}/send_media`;
-console.log(chatId)
-console.log(file) 
-console.log(caption)
-console.log(fileName)
       const formData = new FormData();
       formData.append("file", file, fileName);
       formData.append("caption", caption);

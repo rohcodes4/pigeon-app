@@ -426,6 +426,8 @@ class DiscordClient extends EventEmitter {
             name: `#${channel.name} (${guild.name})`,
             description: channel.topic,
             participant_count: guild.member_count,
+            last_message_id: channel?.last_message_id,
+            last_message_timestamp: channel?.last_message_timestamp
           });
         }
       }
@@ -461,6 +463,9 @@ class DiscordClient extends EventEmitter {
             avatar_url: recipient.avatar
               ? `https://cdn.discordapp.com/avatars/${recipient.id}/${recipient.avatar}.png`
               : null,
+               last_message_id: channel?.last_message_id,
+            last_message_timestamp: channel?.last_message_timestamp,
+
           });
         }
       } else if (channel.type === 3) {
@@ -473,6 +478,9 @@ class DiscordClient extends EventEmitter {
           type: "group",
           name: channel.name || names,
           participant_count: channel.recipients.length + 1,
+           last_message_id: channel?.last_message_id,
+            last_message_timestamp: channel?.last_message_timestamp
+
         });
 
         // Store all recipients
@@ -566,6 +574,9 @@ class DiscordClient extends EventEmitter {
         participant_count: channelData.recipients
           ? channelData.recipients.length + 1
           : 2,
+           last_message_id: channel?.last_message_id,
+            last_message_timestamp: channel?.last_message_timestamp
+
       });
     }
   }
@@ -713,6 +724,120 @@ class DiscordClient extends EventEmitter {
         });
 
         req.write(data);
+        req.end();
+      });
+    } catch (error) {
+      console.error("[Discord] Send message error:", error);
+      throw error;
+    } 
+  }
+
+   async getChatHistory(channelId,limit = 50, beforeMessageId = null) {
+    try {
+      // Rate limiting check
+      await this.checkRateLimit();
+
+      // Human-like delay
+      await this.humanDelay();
+
+      return new Promise((resolve, reject) => {
+    
+       
+        let url=`/api/v9/channels/${channelId}/messages?limit=${limit}`;
+        if(beforeMessageId){
+          url+=`&before=${beforeMessageId}`;
+        }
+        const options = {
+          hostname: "discord.com",
+          path: url,
+          method: "GET",
+          headers: this.getRealisticHeaders({
+            Authorization: this.token,
+            "Content-Type": "application/json",
+        
+            Referer: `https://discord.com/channels/@me/${channelId}`,
+            "Accept-Encoding": "identity",
+          }),
+        };
+
+        const req = https.request(options, (res) => {
+          let responseData = "";
+
+          res.on("data", (chunk) => {
+            responseData += chunk;
+          });
+
+          res.on("end", () => {
+            console.log(`[Discord] Response status: ${res.statusCode}`);
+            console.log(`[Discord] Response data: ${responseData}`);
+
+            if (res.statusCode === 200 || res.statusCode === 201) {
+              try {
+                const chatHistory = JSON.parse(responseData);
+
+                // Store sent message in database
+                // this.dbManager.createMessage({
+                //   id: messageData.id,
+                //   chat_id: messageData.channel_id,
+                //   user_id: messageData.author.id,
+                //   content: messageData.content,
+                //   message_type: "text",
+                //   timestamp: messageData.timestamp,
+                //   sync_status: "synced",
+                // });
+
+                resolve(chatHistory);
+              } catch (error) {
+                reject(new Error("Failed to parse response"));
+              }
+            } else if (res.statusCode === 400) {
+              // Handle CAPTCHA
+              try {
+                const errorData = JSON.parse(responseData);
+                if (
+                  errorData.captcha_key &&
+                  errorData.captcha_key.includes("captcha-required")
+                ) {
+                  const captchaError = new Error("CAPTCHA required");
+                  captchaError.captchaRequired = true;
+                  captchaError.captchaData = {
+                    sitekey: errorData.captcha_sitekey,
+                    service: errorData.captcha_service,
+                    sessionId: errorData.captcha_session_id,
+                    rqdata: errorData.captcha_rqdata,
+                    rqtoken: errorData.captcha_rqtoken,
+                  };
+                  console.log(
+                    "[Discord] CAPTCHA required:",
+                    captchaError.captchaData
+                  );
+
+                  this.emit("captchaRequired", captchaError.captchaData);
+
+                  reject(captchaError);
+                  return;
+                }
+              } catch (parseError) {}
+
+              reject(
+                new Error(
+                  `chathistory retrieve failed: ${res.statusCode} ${responseData}`
+                )
+              );
+            } else {
+              reject(
+                new Error(
+                  `chathistory retrieve send failed: ${res.statusCode} ${responseData}`
+                )
+              );
+            }
+          });
+        });
+
+        req.on("error", (error) => {
+          console.error("[Discord] Request error:", error);
+          reject(error);
+        });
         req.end();
       });
     } catch (error) {

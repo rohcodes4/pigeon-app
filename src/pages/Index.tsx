@@ -486,10 +486,11 @@ const Index = () => {
         }
         const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
         const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
-        discordChats.sort((a, b) => Number(b.id) - Number(a.id));
+     
         // Merge both
         const allChats = [...data.chats, ...discordChats];
-
+         allChats.sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
+       
         // Store initial chats - this only runs once on load
         setChats(allChats || []);
       } catch (error) {

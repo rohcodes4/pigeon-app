@@ -23,7 +23,7 @@ export function mapDiscordToTelegramSchema(d: any) {
     read: true, // Discord object doesn’t have read status
     summary: d.description || "",
     sync_enabled: null,
-    timestamp: d.last_message_timestamp || d.updated_at || null,
+    timestamp: snowflakeToDate(d.last_message_id) || d.updated_at || null,
     unread: null, // no unread count
     _id: d.id ? String(d.id) : null,
   };
@@ -159,3 +159,19 @@ export const mapToFullChat = (obj: any): FullChatObject => {
     _id: chatId,
   };
 };
+
+export function snowflakeToDate(id) {
+  if (!id) return null;
+  const discordEpoch = 1420070400000n;
+  const utcMs = Number((BigInt(id) >> 22n) + discordEpoch);
+
+  // Create a Date in UTC
+  const date = new Date(utcMs);
+
+  // Format to IST (shifted)
+  const istOffsetMs = 5.5 * 60 * 60 * 1000;
+  const istDate = new Date(date.getTime() - istOffsetMs);
+
+  // Format like "YYYY-MM-DDTHH:mm:ss"
+  return istDate.toISOString().slice(0, 19);
+}

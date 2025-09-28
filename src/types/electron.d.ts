@@ -19,6 +19,17 @@ export interface ElectronAPI {
       chatId: string,
       files: Array<any>
     ) => Promise<{ success: boolean; data?: any; error?: string }>;
+
+    getChatHistory: (
+      chatId: string,
+      limit?: number,
+      beforeMessageId?: string
+    ) => Promise<{
+      success: boolean;
+      data?: Array<any>;
+      error?: string;
+    }>;
+    
     sendMessage: (
       chatId: string,
       message: string,

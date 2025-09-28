@@ -131,6 +131,19 @@ function setupIPCHandlers() {
       return { success: false, error: error.message };
     }
   });
+  // Get Discord chat history
+  ipcMain.handle("discord:get-chat-history", async (event, { chatId, limit = 50, beforeMessageId }) => {
+    try { 
+      if (!discordClient.isConnected()) {
+        return { success: false, error: "Discord not connected" };
+      }
+      const chatHistory = await discordClient.getChatHistory(chatId, limit,beforeMessageId);
+      return { success: true, data: chatHistory };
+    } catch (error) {
+      console.error("[IPC] Get chat history error:", error);
+      return { success: false, error: error.message };
+    }
+  });
 
    // Send Discord message
   ipcMain.handle("discord:attachments", async (event, { chatId, files }) => {
