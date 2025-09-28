@@ -79,11 +79,12 @@ function createWindow() {
     }
   );
 
-  if (process.env.VITE_NODE_ENV === "development") {
+  if (process.env.VITE_NODE_ENV === "development" && process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
     mainWindow.webContents.openDevTools();
   } else {
-    const indexPath = path.join(process.resourcesPath, "dist", "index.html");
+    // This should resolve correctly both unpackaged and in ASAR
+    const indexPath = path.join(__dirname, '..', '..', 'dist', 'index.html');
     mainWindow.loadFile(indexPath);
   }
 
@@ -131,15 +132,39 @@ function setupIPCHandlers() {
     }
   });
 
- 
-
-  // Send Discord message
-  ipcMain.handle("discord:send-message", async (event, { chatId, message }) => {
+   // Send Discord message
+  ipcMain.handle("discord:attachments", async (event, { chatId, files }) => {
     try {
       if (!discordClient.isConnected()) {
         return { success: false, error: "Discord not connected" };
       }
-      const result = await discordClient.sendMessage(chatId, message);
+      const result = await discordClient.attachments(chatId, files);
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("[IPC] Send attachments error:", error);
+
+      if (error.captchaRequired) {
+        return {
+          success: false,
+          error: error.message,
+          captchaRequired: true,
+          captchaData: error.captchaData,
+        };
+      }
+
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Send Discord message
+  ipcMain.handle("discord:send-message", async (event, { chatId, message,attachments }) => {
+    try {
+      if (!discordClient.isConnected()) {
+        return { success: false, error: "Discord not connected" };
+      }
+   console.log(attachments)
+
+      const result = await discordClient.sendMessage(chatId, message,attachments);
       return { success: true, data: result };
     } catch (error) {
       console.error("[IPC] Send message error:", error);

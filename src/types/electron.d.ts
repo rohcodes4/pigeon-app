@@ -15,9 +15,14 @@ export interface ElectronAPI {
       }>;
       error?: string;
     }>;
+    attachments: (
+      chatId: string,
+      files: Array<any>
+    ) => Promise<{ success: boolean; data?: any; error?: string }>;
     sendMessage: (
       chatId: string,
-      message: string
+      message: string,
+      attachments?: Array<{ id: string; filename: string; uploaded_filename: string }>
     ) => Promise<{
       success: boolean;
       data?: {

@@ -345,6 +345,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const [pinnedMessages, setPinnedMessages] = React.useState([]);
     const [showScrollToBottom, setShowScrollToBottom] = React.useState(false);
     const [isSending, setIsSending] = React.useState(false);
+    const [attachments, setAttachments] = React.useState([]);
     // Page size for fetching messages from backend
     const PAGE_SIZE = 100;
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -1518,14 +1519,40 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       }
       if (uploadedFiles.length > 0) {
         try {
+          let index=0
           for (const fileWrapper of uploadedFiles) {
+            
             // fileWrapper.file is File object
+            if(selectedChat.platform=='discord'){
+
+         
+            const result = await window.electronAPI.discord.attachments(selectedChat.id, [{id:"0", filename: fileWrapper.file.name, file_size: fileWrapper.file.size, is_clip: false}]);
+            console.log(result,"uploadedattachments");
+            if(result.success && result.data){
+            setAttachments(result.data);
+
+           const resp= await uploadFileToDiscord(
+             result.data.attachments[0].upload_url,
+             fileWrapper.file
+            );
+            console.log("File uploaded to Discord CDN", resp);
+            const res = await window.electronAPI.discord.sendMessage(
+              selectedChat.id,
+              inputRef.current.value.trim(),
+              [{id:"0", filename: fileWrapper.file.name, uploaded_filename: result.data.attachments[0].upload_filename}]
+            );
+            index++;
+            console.log(res,[{id:String(index), filename: fileWrapper.file.name, uploaded_filename: result.data.attachments[0].upload_filename}]);
+          }
+          
+            }else{
             await sendMediaToChat({
               chatId: selectedChat.id,
               file: fileWrapper.file,
               caption: inputRef.current.value.trim(), // Optional: could set to message text or empty
               fileName: fileWrapper.file.name,
             });
+          }
           }
           // Clear uploaded files after successful upload
           setUploadedFiles([]);
@@ -1637,7 +1664,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             if (selectedChat.platform=='discord') {
         const result = await window.electronAPI.discord.sendMessage(
           id,
-          messageText
+          messageText,
+        
         );
         if(!result.success){
           const res = await window.electronAPI.security.getDiscordToken();
@@ -1800,8 +1828,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           );
           return;
         }
+        data = await response.json();
       }
-         data = await response.json();
 
         const toChips = (results: any[]) =>
           results
@@ -2063,13 +2091,39 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     }) {
       const url = `${BACKEND_URL}/api/chats/${chatId}/send_media`;
 console.log(chatId)
-console.log(file)
+console.log(file) 
 console.log(caption)
 console.log(fileName)
       const formData = new FormData();
       formData.append("file", file, fileName);
       formData.append("caption", caption);
       formData.append("file_name", fileName);
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          // Do NOT set Content-Type header, fetch will set it automatically for FormData!
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed: ${response.status}`);
+      }
+
+      return response.json();
+    }
+
+
+    async function uploadFileToDiscord(
+    uploadUrl: string, file: File
+    ) {
+      const url = `${BACKEND_URL}/api/discord/proxy-upload`;
+    const formData = new FormData();
+  formData.append("upload_url", uploadUrl);
+  formData.append("file", file);
 
       const response = await fetch(url, {
         method: "POST",
@@ -3393,17 +3447,21 @@ const jumpToReply=(msg)=>{
                         type="file"
                         style={{ display: "none" }}
                         multiple
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []).map(
-                            (file) => ({
-                              file,
-                              type: getFileType(file),
-                              preview: file.type.startsWith("image/")
-                                ? URL.createObjectURL(file)
-                                : null,
-                              status: "uploading",
-                            })
-                          );
+                        onChange={async(e) => {const selectedFiles = Array.from(e.target.files || []);
+  const files = await Promise.all(
+    selectedFiles.map(async (file) => {
+      const arrayBuffer = await file.arrayBuffer(); // raw binary
+      return {
+        file,
+        type: getFileType(file),
+        preview: file.type.startsWith("image/")
+          ? URL.createObjectURL(file)
+          : null,
+        status: "uploading",
+        content: arrayBuffer, // this is what you'll PUT to Discord
+      };
+    })
+  )
                           setUploadedFiles((prev) => [...prev, ...files]);
                           setShowAttachMenu(false);
 
