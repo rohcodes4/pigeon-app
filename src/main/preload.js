@@ -6,8 +6,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     connect: (token) => ipcRenderer.invoke("discord:connect", token),
     openLogin: () => ipcRenderer.invoke("discord:open-login"),
     getDMs: () => ipcRenderer.invoke("discord:get-dms"),
-    sendMessage: (chatId, message) =>
-      ipcRenderer.invoke("discord:send-message", { chatId, message }),
+    attachments: (chatId,files) => ipcRenderer.invoke("discord:attachments", { chatId,files }),   
+    sendMessage: (chatId, message,attachments) =>
+      ipcRenderer.invoke("discord:send-message", { chatId, message,attachments }),
     sendMessageWithCaptcha: (chatId, message, captchaToken, captchaData) =>
       ipcRenderer.invoke("discord:send-message-with-captcha", {
         chatId,
