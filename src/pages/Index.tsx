@@ -479,20 +479,34 @@ const Index = () => {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        setChats(data.chats || []);
+        // setChats(data.chats || []);
         const res = await window.electronAPI.security.getDiscordToken();
         if (res?.success && res?.data) {
           await window.electronAPI.discord.connect(res.data);
         }
         const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
-        const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
-     
-        // Merge both
-        const allChats = [...data.chats, ...discordChats];
-         allChats.sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
-       
-        // Store initial chats - this only runs once on load
-        setChats(allChats || []);
+        if (dms.success) {
+          const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
+
+          // Merge both
+          const allChats = [...data.chats, ...discordChats];
+          allChats.sort((a, b) => {
+            if (!a.timestamp && !b.timestamp) return 0; // both null → equal
+            if (!a.timestamp) return 1; // a is null → after b
+            if (!b.timestamp) return -1; // b is null → after a
+
+            return (
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            );
+          });
+
+          // Store initial chats - this only runs once on load
+          setChats(allChats || []);
+          console.log("Loaded chats fetchchats:", allChats);
+        }
+        // else{
+        //   setChats(data.chats || []);
+        // }
       } catch (error) {
         console.error("Failed to fetch chats:", error);
         toast({
@@ -526,13 +540,25 @@ const Index = () => {
         if (response.ok) {
           const data = await response.json();
           const newChats = data.chats || [];
+          let allChats = newChats;
           // Fetch Discord DMs
           const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
-          const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
-          discordChats.sort((a, b) => Number(b.id) - Number(a.id));
-          // Merge both
-          const allChats = [...newChats, ...discordChats];
+          if (dms.success) {
+            const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
+            // Merge both
+            allChats = [...newChats, ...discordChats];
+            allChats.sort((a, b) => {
+              if (!a.timestamp && !b.timestamp) return 0; // both null → equal
+              if (!a.timestamp) return 1; // a is null → after b
+              if (!b.timestamp) return -1; // b is null → after a
 
+              return (
+                new Date(b.timestamp).getTime() -
+                new Date(a.timestamp).getTime()
+              );
+            });
+            console.log("Loaded chats useEffects:", allChats);
+          }
           // Smart merge: only update if there are actual changes
           setChats((prevChats) => {
             // Create maps for efficient comparison
@@ -659,18 +685,18 @@ const Index = () => {
           selectedOptions={selectedOptions}
           setSelectedOptions={setSelectedOptions}
         />
-      <main className="h-[calc(100vh-72px)] flex flex-row pb-0  space-x-0 max-w-screen justify-stretch border border-[FFFFFF17] rounded-tl-[12px] overflow-hidden">
+        <main className="h-[calc(100vh-72px)] flex flex-row pb-0  space-x-0 max-w-screen justify-stretch border border-[FFFFFF17] rounded-tl-[12px] overflow-hidden">
           {/* Left Side - Chat Panel (Fixed) */}
           <ChatPanel
             chats={chats}
             onChatSelect={handleChatSelect}
             selectedChat={selectedChat}
           />
-          
+
           {/* Middle - Main Content Area (Flexible) */}
           <div
             className={`h-[calc(100vh-72px)] min-w-0 flex flex-col transition-all duration-300 ${
-              openPanel !== null 
+              openPanel !== null
                 ? "flex-1" // Takes remaining space when panel is open
                 : "flex-grow" // Takes all available space when no panel
             }`}
@@ -688,7 +714,7 @@ const Index = () => {
             />
             <UnifiedChatPanel selectedChat={selectedChat} />
           </div>
-          
+
           {/* Right Side - Panels Container */}
           {openPanel === "smartSummary" && (
             <SmartSummary
@@ -696,16 +722,16 @@ const Index = () => {
               chatId={selectedChat.id}
             />
           )}
-              {openPanel === "notification" && <NotificationsPanel />}
-              {openPanel === "pinned" && <PinnedPanel />}
-              {openPanel === "search" && (
-                <SearchPanel
-                  searchQuery={searchTerm}
-                  selectedSource={selectedSource}
-                  setSelectedSource={setSelectedSource}
-                  selectedOptions={selectedOptions}
-                />
-              )}
+          {openPanel === "notification" && <NotificationsPanel />}
+          {openPanel === "pinned" && <PinnedPanel />}
+          {openPanel === "search" && (
+            <SearchPanel
+              searchQuery={searchTerm}
+              selectedSource={selectedSource}
+              setSelectedSource={setSelectedSource}
+              selectedOptions={selectedOptions}
+            />
+          )}
         </main>
       </div>
     </Layout>
