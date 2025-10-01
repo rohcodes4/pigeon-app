@@ -37,7 +37,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   security: {
-    getDiscordToken: () => ipcRenderer.invoke("security:get-token")
+    getDiscordToken: () => ipcRenderer.invoke("security:get-token"),
+    clearDiscordToken: () => ipcRenderer.invoke("security:set-token", null)
   },
   // Database operations
 

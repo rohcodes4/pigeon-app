@@ -155,6 +155,7 @@ const isHelpPage = activePage === "/help";
         const res = await window.electronAPI.security.getDiscordToken();
         if (res?.success && res?.data) {
           setDiscordConnected(!!res.success);
+          await window.electronAPI.discord.connect(res.data);
         }
       } catch (e) {
         // ignore transient errors

@@ -1207,6 +1207,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         try {
           const token = localStorage.getItem("access_token");
 
+          if(selectedChat?.platform=='discord'){
+            return
+          }
           let endpoint: string;
           if (chatId === "all-channels") {
             endpoint = `${BACKEND_URL}/chats/all/messages`;
@@ -1229,14 +1232,12 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               "Content-Type": "application/json",
             },
           });
-          if(selectedChat?.platform=='discord'){
-            const discordSelectedChat = await window.electronAPI.discord.getChatHistory(selectedChat.id);
-            console.log("discordSelectedChat",discordSelectedChat);
-          }
+         
 
           if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
           const data = await response.json();
+      
 
           const transformed = await Promise.all(
             data.map(async (msg: any, index: number) => {
@@ -1814,8 +1815,17 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     let data = [];
       if(selectedChat?.platform=='discord'){
         const chatID= selectedChat.id || replyTo.chat_id;
-        const msg = await window.electronAPI.database.getMessages(chatID,50,0);
-          data=msg.data.map(mapDiscordMessageToTelegram);
+        // const msg = await window.electronAPI.database.getMessages(chatID,50,0);
+        const discordSelectedChat = await window.electronAPI.discord.getChatHistory(selectedChat.id);
+        if(discordSelectedChat.success)
+          data=discordSelectedChat.data.map(mapDiscordMessageToTelegram);
+      
+        else{
+          const res = await window.electronAPI.security.getDiscordToken();
+          if (res?.success && res?.data) {
+           await window.electronAPI.discord.connect(res.data);
+          }
+        }
       }else{
         const response = await fetch(endpoint, {
           headers: {
@@ -1863,6 +1873,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               ? msg.chat.title ||
                 msg.chat.username ||
                 msg.chat.first_name ||
+                selectedChat.name ||
                 "Unknown"
               : selectedChat && typeof selectedChat === "object"
               ? (selectedChat as any).name || "Chat"

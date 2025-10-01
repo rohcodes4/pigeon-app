@@ -49,12 +49,12 @@ export function mapDiscordMessageToTelegram(discordMsg) {
       has_photo: false,
       has_video: false,
       has_voice: false,
-      has_sticker: false
+      has_sticker: false,
     },
     sender: {
       id: discordMsg.user_id || null,
-      username: discordMsg.username || null,
-      first_name: discordMsg.display_name || null,
+      username: discordMsg.author.username || null,
+      first_name: discordMsg.author.global_name || null,
       last_name: null,
       phone: null,
       is_bot: false, // Discord API has bot flag, but your object doesn’t
