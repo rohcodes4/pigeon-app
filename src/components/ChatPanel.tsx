@@ -923,7 +923,7 @@ useEffect(() => {
    }
   };
 
-console.log('channelsToShow: ',channelsToShow)
+
 
   return (
     <>
