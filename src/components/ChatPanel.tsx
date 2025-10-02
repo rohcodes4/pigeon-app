@@ -228,12 +228,74 @@ interface ChatPanelProps {
   chats?: any[]; // Define the chats prop
   onChatSelect?: (chat: any) => void; // Chat selection handler
   selectedChat?: any; // Currently selected chat
+  selectedDiscordServer: string | null;
+  onBack: () => void;
 }
+
+const dummyChannels = {
+  "1": [
+    { id: "ch1", name: "general" },
+    { id: "ch2", name: "random" },
+    { id: "ch3", name: "announcements" },
+  ],
+  "2": [
+    { id: "ch4", name: "chat" },
+    { id: "ch5", name: "bot-commands" },
+  ],
+  "3": [
+    { id: "ch1", name: "general" },
+    { id: "ch2", name: "random" },
+    { id: "ch3", name: "announcements" },
+  ],
+  "4": [
+    { id: "ch4", name: "chat" },
+    { id: "ch5", name: "bot-commands" },
+  ],
+  "5": [
+    { id: "ch1", name: "general" },
+    { id: "ch2", name: "random" },
+    { id: "ch3", name: "announcements" },
+  ],
+  "6": [
+    { id: "ch4", name: "chat" },
+    { id: "ch5", name: "bot-commands" },
+  ],
+  "7": [
+    { id: "ch1", name: "general" },
+    { id: "ch2", name: "random" },
+    { id: "ch3", name: "announcements" },
+  ],
+  "8": [
+    { id: "ch4", name: "chat" },
+    { id: "ch5", name: "bot-commands" },
+  ],
+  "9": [
+    { id: "ch1", name: "general" },
+    { id: "ch2", name: "random" },
+    { id: "ch3", name: "announcements" },
+  ],
+  "10": [
+    { id: "ch4", name: "chat" },
+    { id: "ch5", name: "bot-commands" },
+  ],
+  "11": [
+    { id: "ch1", name: "general" },
+    { id: "ch2", name: "random" },
+    { id: "ch3", name: "announcements" },
+  ],
+  "12": [
+    { id: "ch4", name: "chat" },
+    { id: "ch5", name: "bot-commands" },
+  ],
+};
+
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({
   chats = [],
   onChatSelect,
   selectedChat,
+  selectedDiscordServer,
+  onBack
 }) => {
   // Use ONLY real chats; never fall back to dummy/sample data
   const displayChats = chats;
@@ -889,7 +951,10 @@ useEffect(() => {
     
     allChannels.forEach((channel) => {
       const prevMessage = prevLastMessages.current[channel.id];
-      if (prevMessage !== channel.last_message) {
+      console.log('testing')
+      console.log(prevMessage)
+      console.log(channel.last_message)
+      if (prevMessage && channel.last_message && prevMessage !== channel.last_message) {
         // last_message changed for this channel, trigger notification
         if (channel.last_message && channel.unread && !(channel.last_message.toLowerCase().includes("typing"))) {
           playBeepSound();  
@@ -923,7 +988,28 @@ useEffect(() => {
    }
   };
 
+  const discordChannels = dummyChannels[selectedDiscordServer] || [];
 
+  if (selectedDiscordServer && discordChannels.length>0) {
+    return (
+      <div className="h-[calc(100vh-73px)] min-w-[350px] p-3 flex flex-col border-r border-[#23272f] bg-[#111111]">
+      <button
+        onClick={onBack}
+        className="mb-4 bg-gray-800 hover:bg-gray-700 text-white py-1 px-3 rounded"
+      >
+        &larr; Back to Chats
+      </button>
+      <h3 className="mb-3 text-lg font-bold">Channels</h3>
+      <ul>
+        {discordChannels.map((channel) => (
+          <li key={channel.id} className="py-2 pl-2 cursor-pointer rounded-[12px] hover:bg-[#212121]">
+            # {channel.name}
+          </li>
+        ))}
+      </ul>
+    </div>
+    );
+  }
 
   return (
     <>

@@ -634,6 +634,12 @@ const Index = () => {
   //   );
   // }
 
+  const [selectedDiscordServer, setSelectedDiscordServer] = useState<string | null>(null);
+
+  const handleSelectDiscordServer = (serverId: string | null) => {
+    setSelectedDiscordServer(serverId);
+  };
+
   if (!user) {
     return null; // Will redirect to auth page
   }
@@ -664,7 +670,9 @@ const Index = () => {
   }
 
   return (
-    <Layout>
+    <Layout 
+    selectedDiscordServer={selectedDiscordServer}
+    onSelectDiscordServer={handleSelectDiscordServer}>
       <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
         <AppHeader
           isNotificationPanel={openPanel === "notification"}
@@ -691,6 +699,8 @@ const Index = () => {
             chats={chats}
             onChatSelect={handleChatSelect}
             selectedChat={selectedChat}
+            selectedDiscordServer={selectedDiscordServer}
+            onBack={() => setSelectedDiscordServer(null)}
           />
 
           {/* Middle - Main Content Area (Flexible) */}

@@ -171,12 +171,21 @@ const Contacts = () => {
   //   );
   // }
 
+
+  const [selectedDiscordServer, setSelectedDiscordServer] = useState<string | null>(null);
+
+  const handleSelectDiscordServer = (serverId: string | null) => {
+    setSelectedDiscordServer(serverId);
+  };
+  
   if (!user) {
     return null; // Will redirect to auth page
   }
 
   return (
-    <Layout>
+    <Layout
+    selectedDiscordServer={selectedDiscordServer}
+    onSelectDiscordServer={handleSelectDiscordServer}>
       <div className="flex-1 flex flex-col">
         <AppHeader
           isNotificationPanel={openPanel === "notification"}
@@ -203,6 +212,8 @@ const Contacts = () => {
             chats={chats}
             onChatSelect={handleChatSelect}
             selectedChat={selectedChat}
+            selectedDiscordServer={selectedDiscordServer}
+            onBack={() => setSelectedDiscordServer(null)}
           />
           <div className="w-full">
             <UnifiedHeader
@@ -210,6 +221,7 @@ const Contacts = () => {
               smartText="Smart Tasks"
               isReadAll={false}
               isContact={true}
+              selectedChat={selectedChat}
               isSmartSummary={openPanel === "friend"}
               setIsSmartSummary={(open) =>
                 setOpenPanel(open ? "friend" : null)
