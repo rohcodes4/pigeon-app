@@ -923,7 +923,7 @@ useEffect(() => {
    }
   };
 
-
+console.log('channelsToShow: ',channelsToShow)
 
   return (
     <>
@@ -1440,7 +1440,7 @@ useEffect(() => {
                       </div>
                     ) : (
                       channelsToShow.map((chat) => (
-                        <>
+                        <div key={chat.id}>
                           {contextMenu && (
                             <ul
                               ref={menuRef}
@@ -1577,7 +1577,7 @@ useEffect(() => {
                               </div>
                             </div>
                           </button>
-                        </>
+                        </div>
                       ))
                     )}
 
