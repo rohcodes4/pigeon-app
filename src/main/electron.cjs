@@ -100,8 +100,8 @@ function setupIPCHandlers() {
   // Discord authentication
   ipcMain.handle("discord:open-login", async () => {
     try {
-      await openDiscordLogin();
-      return { success: true };
+      const data = await openDiscordLogin();
+      return data;
     } catch (error) {
       console.error("[IPC] Discord login error:", error);
       return { success: false, error: error.message };
@@ -128,6 +128,19 @@ function setupIPCHandlers() {
       return { success: true, data: dms };
     } catch (error) {
       console.error("[IPC] Get DMs error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+  // Get Discord chat history
+  ipcMain.handle("discord:get-chat-history", async (event, { chatId, limit = 50, beforeMessageId }) => {
+    try { 
+      if (!discordClient.isConnected()) {
+        return { success: false, error: "Discord not connected" };
+      }
+      const chatHistory = await discordClient.getChatHistory(chatId, limit,beforeMessageId);
+      return { success: true, data: chatHistory };
+    } catch (error) {
+      console.error("[IPC] Get chat history error:", error);
       return { success: false, error: error.message };
     }
   });
@@ -240,6 +253,18 @@ function setupIPCHandlers() {
     }
   );
 
+   ipcMain.handle(
+    "security:set-token",
+    async (event,token) => {
+      try {
+        const data = await securityManager.clearDiscordToken(token);
+        return { success: true, data: data };
+      } catch (error) {
+        console.error("[IPC] Set token error:", error);
+        return { success: false, error: error.message };
+      }
+    }
+  );
   // Sync operations
   ipcMain.handle("sync:manual", async () => {
     try {
@@ -326,6 +351,7 @@ function setupIPCHandlers() {
 }
 
 async function openDiscordLogin() {
+  return new Promise((resolve, reject) => {
   if (discordWindow) {
     discordWindow.focus();
     return;
@@ -369,7 +395,15 @@ async function openDiscordLogin() {
     console.log("[DiscordWindow] ready-to-show");
     discordWindow.show();
   });
+   ipcMain.once("send-discord-token", (event, token) => {
+      console.log("[DiscordWindow] Got token from preload: 2", token);
+      resolve({ success: true, data: token });
 
+      if (discordWindow) {
+        discordWindow.close();
+        discordWindow = null;
+      }
+    });
   const pollTokenScript = `
   (function pollToken() {
     let token = null;
@@ -427,6 +461,8 @@ async function openDiscordLogin() {
     console.log("[DiscordWindow] closed");
     discordWindow = null;
   });
+}
+  )
 }
 
 // Listen for the token sent by discordPreload.js from Discord window

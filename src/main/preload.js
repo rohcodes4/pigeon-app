@@ -6,7 +6,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     connect: (token) => ipcRenderer.invoke("discord:connect", token),
     openLogin: () => ipcRenderer.invoke("discord:open-login"),
     getDMs: () => ipcRenderer.invoke("discord:get-dms"),
-    attachments: (chatId,files) => ipcRenderer.invoke("discord:attachments", { chatId,files }),   
+    attachments: (chatId,files) => ipcRenderer.invoke("discord:attachments", { chatId,files }), 
+    getChatHistory: (chatId, limit,beforeMessageId) =>
+      ipcRenderer.invoke("discord:get-chat-history", { chatId, limit,beforeMessageId }),  
     sendMessage: (chatId, message,attachments) =>
       ipcRenderer.invoke("discord:send-message", { chatId, message,attachments }),
     sendMessageWithCaptcha: (chatId, message, captchaToken, captchaData) =>
@@ -35,7 +37,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   security: {
-    getDiscordToken: () => ipcRenderer.invoke("security:get-token")
+    getDiscordToken: () => ipcRenderer.invoke("security:get-token"),
+    clearDiscordToken: () => ipcRenderer.invoke("security:set-token", null)
   },
   // Database operations
 

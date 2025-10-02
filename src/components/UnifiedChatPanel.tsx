@@ -239,7 +239,6 @@ export interface UnifiedChatPanelRef {
 }
 const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
   ({ selectedChat = "all-channels" }, ref) => {
-    console.log('selected chat: ', selectedChat)
     const location = useLocation();
     const locationStateChat = location.state?.selectedChat;
     const [selectedMessageId, setSelectedMessageId] = useState(location.state?.selectedMessageId ?? null)
@@ -1208,6 +1207,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         try {
           const token = localStorage.getItem("access_token");
 
+          if(selectedChat?.platform=='discord'){
+            return
+          }
           let endpoint: string;
           if (chatId === "all-channels") {
             endpoint = `${BACKEND_URL}/chats/all/messages`;
@@ -1230,10 +1232,12 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               "Content-Type": "application/json",
             },
           });
+         
 
           if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
           const data = await response.json();
+      
 
           const transformed = await Promise.all(
             data.map(async (msg: any, index: number) => {
@@ -1791,14 +1795,15 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             }/messages?limit=${PAGE_SIZE}`;
             currentChatId = `filter-${(selectedChat as any).id}`;
           } else {
-            const params = new URLSearchParams();
-            const afterTimestamp = messages[0].timestamp;
-          // if (afterTimestamp) params.append("after", afterTimestamp);
             endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/${
               (selectedChat as any).id
             }/messages?limit=${PAGE_SIZE}`;
             // if (params.toString()) endpoint += `?${params.toString()}`;
             currentChatId = String((selectedChat as any).id);
+            if(selectedChat?.platform=='discord'){
+            const discordSelectedChat = await window.electronAPI.discord.getChatHistory(selectedChat.id);
+            console.log("discordSelectedChat",discordSelectedChat);
+          }
           }
         } else {
           console.log(
@@ -1810,8 +1815,17 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     let data = [];
       if(selectedChat?.platform=='discord'){
         const chatID= selectedChat.id || replyTo.chat_id;
-        const msg = await window.electronAPI.database.getMessages(chatID,50,0);
-          data=msg.data.map(mapDiscordMessageToTelegram);
+        // const msg = await window.electronAPI.database.getMessages(chatID,50,0);
+        const discordSelectedChat = await window.electronAPI.discord.getChatHistory(selectedChat.id);
+        if(discordSelectedChat.success)
+          data=discordSelectedChat.data.map(mapDiscordMessageToTelegram);
+      
+        else{
+          const res = await window.electronAPI.security.getDiscordToken();
+          if (res?.success && res?.data) {
+           await window.electronAPI.discord.connect(res.data);
+          }
+        }
       }else{
         const response = await fetch(endpoint, {
           headers: {
@@ -1859,6 +1873,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               ? msg.chat.title ||
                 msg.chat.username ||
                 msg.chat.first_name ||
+                selectedChat.name ||
                 "Unknown"
               : selectedChat && typeof selectedChat === "object"
               ? (selectedChat as any).name || "Chat"
@@ -2004,7 +2019,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             fetchMessages(selectedChat);
             fetchPinnedMessages();
           } else {
-            console.log(messages)
             if(messages.length>0){
               fetchMessages(selectedChat.id,null,null,messages[0]?.timestamp??null);
             } else{
@@ -2090,10 +2104,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       fileName = "file", // Optional, default 'file'
     }) {
       const url = `${BACKEND_URL}/api/chats/${chatId}/send_media`;
-console.log(chatId)
-console.log(file) 
-console.log(caption)
-console.log(fileName)
       const formData = new FormData();
       formData.append("file", file, fileName);
       formData.append("caption", caption);
@@ -2740,7 +2750,7 @@ const jumpToReply=(msg)=>{
                       key={String(msg.id)}
                       id={`msg-${msg.telegramMessageId}`}
                       data-hasmedia={msg.hasMedia ? "true" : "false"}
-                      data-msgId={msg.id}
+                      data-msgid={msg.id}
                       // onMouseLeave={() => setOpenMenuId(null)}
                       onMouseLeave={startCloseTimer}
                       className={`rounded-[10px] message-item ${

@@ -226,8 +226,8 @@ class DatabaseManager {
   async createChat(chatData) {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO chats 
-      (id, platform, type, name, description, avatar_url, participant_count, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      (id, platform, type, name, description, avatar_url, participant_count,last_message_id, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?,?, CURRENT_TIMESTAMP)
     `);
     return stmt.run(
       chatData.id,
@@ -236,7 +236,8 @@ class DatabaseManager {
       chatData.name,
       chatData.description,
       chatData.avatar_url,
-      chatData.participant_count
+      chatData.participant_count,
+      chatData.last_message_id
     );
   }
 

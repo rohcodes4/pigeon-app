@@ -153,6 +153,12 @@ const SmartTasks = () => {
     navigate("/", { state: { selectedChat:chat}});
   };
 
+  const [selectedDiscordServer, setSelectedDiscordServer] = useState<string | null>(null);
+
+  const handleSelectDiscordServer = (serverId: string | null) => {
+    setSelectedDiscordServer(serverId);
+  };
+
   // if (loading || chatsLoading) {
   //   return (
   //     <div className="min-h-screen bg-[#171717] flex items-center justify-center">
@@ -171,7 +177,9 @@ const SmartTasks = () => {
   }
 
   return (
-    <Layout>
+    <Layout
+    selectedDiscordServer={selectedDiscordServer}
+    onSelectDiscordServer={handleSelectDiscordServer}>
       <div className="flex-1 flex flex-col">
         <AppHeader
           isNotificationPanel={openPanel === "notification"}
@@ -197,12 +205,15 @@ const SmartTasks = () => {
             chats={chats}
             onChatSelect={handleChatSelect}
             selectedChat={selectedChat}
+            selectedDiscordServer={selectedDiscordServer}
+            onBack={() => setSelectedDiscordServer(null)}
           />
           <div className="w-full">
             <UnifiedHeader
               title="Tasks Center"
               smartText="Smart Tasks"
               isReadAll={false}
+              selectedChat={selectedChat}
               isSmartSummary={openPanel === "smartTask"}
               setIsSmartSummary={(open) =>
                 setOpenPanel(open ? "smartTask" : null)

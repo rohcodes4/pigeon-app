@@ -140,6 +140,7 @@ export const ChatSelection = ({
        
          const res = await window.electronAPI.security.getDiscordToken();
         if (res?.success && res?.data) {
+          await window.electronAPI.discord.connect(res.data);
           setDiscordConnected(!!res.success);
         }
       } catch (e) {
@@ -406,7 +407,15 @@ export const ChatSelection = ({
             console.log(!!conncted.success, "discord connected");
             setDiscordConnected(!!conncted.success);
           }
+        }else{
+            const data= await window.electronAPI.discord.openLogin();
+            if(data.success && data.data)
+            setDiscordConnected(true);
         }
+  }
+  const disconnectDiscord = async () => {
+    await window.electronAPI.security.clearDiscordToken();
+     setDiscordConnected(false);
   }
   useEffect(() => {
     if (telegramQrToken && showTelegramQrModal) {
@@ -705,13 +714,22 @@ export const ChatSelection = ({
                   >
                     Connect
                   </Button>
-                ) : (
+                ) : (<>
+               
                 <Button
                   // disabled={loading.discord}
                   className="bg-[#171717] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
                 >
                   Reconnect
                 </Button>
+                 <Button
+                  // disabled={loading.discord}
+                  className="bg-[#171717] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
+                
+                  onClick={disconnectDiscord}> 
+                  Disconnect
+                </Button>
+                </>
                 )}
               </div>
             </div>

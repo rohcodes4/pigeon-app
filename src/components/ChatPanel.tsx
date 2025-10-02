@@ -53,7 +53,7 @@ const gravatarUrl = (seed: string) => {
 
 // Helper to generate random chat data
 const chatTypes = ["Group", "DM", "Server"] as const;
-const platforms = ["Discord", "Telegram"] as const;
+const platforms = ["discord", "Telegram"] as const;
 const sampleMessages = [
   "Hey, how are you? Hey, how are you? Hey, how are you? Hey, how are you? Hey, how are you?",
   "Let's catch up later.",
@@ -228,12 +228,74 @@ interface ChatPanelProps {
   chats?: any[]; // Define the chats prop
   onChatSelect?: (chat: any) => void; // Chat selection handler
   selectedChat?: any; // Currently selected chat
+  selectedDiscordServer: string | null;
+  onBack: () => void;
 }
+
+const dummyChannels = {
+  "1": [
+    { id: "ch1", name: "general" },
+    { id: "ch2", name: "random" },
+    { id: "ch3", name: "announcements" },
+  ],
+  "2": [
+    { id: "ch4", name: "chat" },
+    { id: "ch5", name: "bot-commands" },
+  ],
+  "3": [
+    { id: "ch1", name: "general" },
+    { id: "ch2", name: "random" },
+    { id: "ch3", name: "announcements" },
+  ],
+  "4": [
+    { id: "ch4", name: "chat" },
+    { id: "ch5", name: "bot-commands" },
+  ],
+  "5": [
+    { id: "ch1", name: "general" },
+    { id: "ch2", name: "random" },
+    { id: "ch3", name: "announcements" },
+  ],
+  "6": [
+    { id: "ch4", name: "chat" },
+    { id: "ch5", name: "bot-commands" },
+  ],
+  "7": [
+    { id: "ch1", name: "general" },
+    { id: "ch2", name: "random" },
+    { id: "ch3", name: "announcements" },
+  ],
+  "8": [
+    { id: "ch4", name: "chat" },
+    { id: "ch5", name: "bot-commands" },
+  ],
+  "9": [
+    { id: "ch1", name: "general" },
+    { id: "ch2", name: "random" },
+    { id: "ch3", name: "announcements" },
+  ],
+  "10": [
+    { id: "ch4", name: "chat" },
+    { id: "ch5", name: "bot-commands" },
+  ],
+  "11": [
+    { id: "ch1", name: "general" },
+    { id: "ch2", name: "random" },
+    { id: "ch3", name: "announcements" },
+  ],
+  "12": [
+    { id: "ch4", name: "chat" },
+    { id: "ch5", name: "bot-commands" },
+  ],
+};
+
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({
   chats = [],
   onChatSelect,
   selectedChat,
+  selectedDiscordServer,
+  onBack
 }) => {
   // Use ONLY real chats; never fall back to dummy/sample data
   const displayChats = chats;
@@ -361,6 +423,24 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       document.removeEventListener("scroll", handleScroll, true);
     };
   }, []);
+
+  // Inside your ChatPanel or the top-level channel context/provider
+useEffect(() => {
+  // Try to restore channels from localStorage first for instant render
+  const cachedChannels = localStorage.getItem('channels');
+  if (cachedChannels) {
+    setAllChannels(JSON.parse(cachedChannels));
+  }
+}, []);
+
+useEffect(() => {
+  if (allChannels) {
+    // Save channels to localStorage whenever new data is fetched/updated
+    localStorage.setItem('channels', JSON.stringify(allChannels));
+  }
+}, [allChannels]);
+
+
 
   useEffect(() => {
     // Save topItems to localStorage whenever it changes
@@ -601,7 +681,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     if (activeTopItem === "Telegram") {
       filtered = filtered.filter((chat) => chat.platform === "Telegram");
     }
-    if (activeTopItem === "discord") {
+    if (activeTopItem === "Discord") {
       filtered = filtered.filter((chat) => chat.platform === "discord");
     }
     if (activeTopItem === "Unread") {
@@ -629,7 +709,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       allChannels,
     ]
   );
-
   // UI behavior: when "Filtered Streams" is selected in TOP_ITEMS,
   // show only the Filtered Streams section (expanded) and hide Channels
   const showChannelsSection = activeTopItem !== "Filtered Streams";
@@ -872,9 +951,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     
     allChannels.forEach((channel) => {
       const prevMessage = prevLastMessages.current[channel.id];
-      if (prevMessage !== channel.last_message) {
+      console.log('testing')
+      console.log(prevMessage)
+      console.log(channel.last_message)
+      if (prevMessage && channel.last_message && prevMessage !== channel.last_message) {
         // last_message changed for this channel, trigger notification
-        if (channel.last_message && !(channel.last_message.toLowerCase().includes("typing"))) {
+        if (channel.last_message && channel.unread && !(channel.last_message.toLowerCase().includes("typing"))) {
           playBeepSound();  
           new Notification("New message", {
             body: `New message in ${channel.name}: ${channel.last_message}`,
@@ -885,6 +967,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       }
     });
   }, [allChannels]);
+  console.log('channelsToShow',channelsToShow)
 
   const playBeepSound = () => {
    try {
@@ -905,7 +988,28 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
    }
   };
 
+  const discordChannels = dummyChannels[selectedDiscordServer] || [];
 
+  if (selectedDiscordServer && discordChannels.length>0) {
+    return (
+      <div className="h-[calc(100vh-73px)] min-w-[350px] p-3 flex flex-col border-r border-[#23272f] bg-[#111111]">
+      <button
+        onClick={onBack}
+        className="mb-4 bg-gray-800 hover:bg-gray-700 text-white py-1 px-3 rounded"
+      >
+        &larr; Back to Chats
+      </button>
+      <h3 className="mb-3 text-lg font-bold">Channels</h3>
+      <ul>
+        {discordChannels.map((channel) => (
+          <li key={channel.id} className="py-2 pl-2 cursor-pointer rounded-[12px] hover:bg-[#212121]">
+            # {channel.name}
+          </li>
+        ))}
+      </ul>
+    </div>
+    );
+  }
 
   return (
     <>
@@ -1422,7 +1526,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                       </div>
                     ) : (
                       channelsToShow.map((chat) => (
-                        <>
+                        <div key={chat.id}>
                           {contextMenu && (
                             <ul
                               ref={menuRef}
@@ -1559,7 +1663,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                               </div>
                             </div>
                           </button>
-                        </>
+                        </div>
                       ))
                     )}
 
