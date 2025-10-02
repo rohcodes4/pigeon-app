@@ -53,7 +53,7 @@ const gravatarUrl = (seed: string) => {
 
 // Helper to generate random chat data
 const chatTypes = ["Group", "DM", "Server"] as const;
-const platforms = ["Discord", "Telegram"] as const;
+const platforms = ["discord", "Telegram"] as const;
 const sampleMessages = [
   "Hey, how are you? Hey, how are you? Hey, how are you? Hey, how are you? Hey, how are you?",
   "Let's catch up later.",
@@ -619,7 +619,7 @@ useEffect(() => {
     if (activeTopItem === "Telegram") {
       filtered = filtered.filter((chat) => chat.platform === "Telegram");
     }
-    if (activeTopItem === "discord") {
+    if (activeTopItem === "Discord") {
       filtered = filtered.filter((chat) => chat.platform === "discord");
     }
     if (activeTopItem === "Unread") {
@@ -647,7 +647,6 @@ useEffect(() => {
       allChannels,
     ]
   );
-
   // UI behavior: when "Filtered Streams" is selected in TOP_ITEMS,
   // show only the Filtered Streams section (expanded) and hide Channels
   const showChannelsSection = activeTopItem !== "Filtered Streams";
@@ -903,6 +902,7 @@ useEffect(() => {
       }
     });
   }, [allChannels]);
+  console.log('channelsToShow',channelsToShow)
 
   const playBeepSound = () => {
    try {
