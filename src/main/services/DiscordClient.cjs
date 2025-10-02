@@ -607,6 +607,16 @@ class DiscordClient extends EventEmitter {
     }
   }
 
+   async getGuilds() {
+    try {
+      return this.guilds;
+    }
+    catch (error) { 
+      console.error("[Discord] Failed to get Guilds:", error);
+      throw error;
+    } 
+  }
+
   async getMessages(chatId, limit = 50, offset = 0) {
     try {
       const msg = await this.dbManager.getMessages(chatId, limit, offset);

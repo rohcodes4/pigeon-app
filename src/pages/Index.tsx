@@ -543,6 +543,8 @@ const Index = () => {
           let allChats = newChats;
           // Fetch Discord DMs
           const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
+          const guilds = await window.electronAPI.discord.getGuilds(); // fetch guilds
+          console.log("Polled guilds:", guilds);
           if (dms.success) {
             const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
             // Merge both

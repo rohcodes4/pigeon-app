@@ -15,6 +15,11 @@ export interface ElectronAPI {
       }>;
       error?: string;
     }>;
+    getGuilds: () => Promise<{
+      success: boolean;
+      data?: Array<any>;
+      error?: string;
+    }>; 
     attachments: (
       chatId: string,
       files: Array<any>

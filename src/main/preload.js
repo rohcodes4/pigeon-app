@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     connect: (token) => ipcRenderer.invoke("discord:connect", token),
     openLogin: () => ipcRenderer.invoke("discord:open-login"),
     getDMs: () => ipcRenderer.invoke("discord:get-dms"),
+    getGuilds: () => ipcRenderer.invoke("discord:get-guilds"),
     attachments: (chatId,files) => ipcRenderer.invoke("discord:attachments", { chatId,files }), 
     getChatHistory: (chatId, limit,beforeMessageId) =>
       ipcRenderer.invoke("discord:get-chat-history", { chatId, limit,beforeMessageId }),  

@@ -131,6 +131,19 @@ function setupIPCHandlers() {
       return { success: false, error: error.message };
     }
   });
+
+  ipcMain.handle("discord:get-guilds", async () => {
+    try {
+      if (!discordClient.isConnected()) {
+        return { success: false, error: "Discord not connected" };
+      }
+      const guilds = await discordClient.getGuilds();
+      return { success: true, data: guilds };
+    } catch (error) {     
+      console.error("[IPC] Get Guilds error:", error);
+      return { success: false, error: error.message };  
+    }
+  });
   // Get Discord chat history
   ipcMain.handle("discord:get-chat-history", async (event, { chatId, limit = 50, beforeMessageId }) => {
     try { 
