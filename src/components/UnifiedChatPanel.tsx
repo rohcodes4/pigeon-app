@@ -1300,6 +1300,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                 id: msg._id || msg.id || String(index + 1),
                 originalId: msg._id || msg.id,
                 telegramMessageId: msg.message?.id,
+                mentions: msg?.message?.mentions ?? [],
                 name:
                   msg.sender?.first_name || msg.sender?.username || "Unknown",
                 avatar: msg.sender?.id
@@ -1802,7 +1803,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             currentChatId = String((selectedChat as any).id);
             if(selectedChat?.platform=='discord'){
             const discordSelectedChat = await window.electronAPI.discord.getChatHistory(selectedChat.id);
-            console.log("discordSelectedChat",discordSelectedChat);
+            console.log("discordSelectedChat",discordSelectedChat.data);
           }
           }
         } else {
@@ -1894,6 +1895,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               id: msg._id || msg.id || String(index + 1),
               originalId: msg._id || msg.id,
               telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
+              mentions: msg?.message?.mentions ?? [],
               name: msg.sender?.first_name || msg.sender?.username || "Unknown",
               chat_id: msg.sender.id,
               avatar: msg.sender?.id
@@ -2597,17 +2599,35 @@ const clearAudio = () =>{
   setAudioChunks([]);
 
 }
-const linkify = (text: string) => {
-  if (!text) return null;
 
-  // Regex to find URLs in text
+const linkify = (msg) => {
+  const text = msg.message;
+  if (!text) return null;
+  console.log(msg)
+  // console.log("🔹 Original text:", text);
+  // console.log("🔹 Mentions array:", msg.message.mentions);
+
+  // 1. Replace <@12345> with @username
+  const mentionRegex = /<@(\d+)>/g;
+  let parsedText = text.replace(mentionRegex, (match, id) => {
+    console.log("👉 Found mention:", match, "with id:", id);
+    const mention = msg?.mentions?.find((m) => m.id === id);
+    console.log("🔎 Matched mention object:", mention);
+    return mention ? `@${mention.username}` : match; // fallback if not found
+  });
+
+  // console.log("✅ After mention replacement:", parsedText);
+
+  // 2. Regex to find URLs
   const urlRegex = /(\bhttps?:\/\/[^\s]+)/g;
 
-  // Split text by URLs, preserving URLs in the result
-  const parts = text.split(urlRegex);
+  // 3. Split text by URLs, preserving URLs
+  const parts = parsedText.split(urlRegex);
+  // console.log("🧩 Split parts:", parts);
 
   return parts.map((part, index) => {
     if (part.match(urlRegex)) {
+      // console.log("🌐 Found URL:", part);
       return (
         <a
           key={index}
@@ -2620,10 +2640,12 @@ const linkify = (text: string) => {
         </a>
       );
     } else {
+      // console.log("📄 Text part:", part);
       return part;
     }
   });
 };
+
 
 const jumpToReply=(msg)=>{
   // console.log('jump reply')
@@ -3189,7 +3211,7 @@ const jumpToReply=(msg)=>{
                                 )}
                               </>
                             )}
-                            {linkify(msg.message)}
+                            {linkify(msg)}
                             {/* {msg.hasLink && msg.link && (
                               <a
                                 href={msg.link}
