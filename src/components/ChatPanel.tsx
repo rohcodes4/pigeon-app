@@ -362,6 +362,24 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     };
   }, []);
 
+  // Inside your ChatPanel or the top-level channel context/provider
+useEffect(() => {
+  // Try to restore channels from localStorage first for instant render
+  const cachedChannels = localStorage.getItem('channels');
+  if (cachedChannels) {
+    setAllChannels(JSON.parse(cachedChannels));
+  }
+}, []);
+
+useEffect(() => {
+  if (allChannels) {
+    // Save channels to localStorage whenever new data is fetched/updated
+    localStorage.setItem('channels', JSON.stringify(allChannels));
+  }
+}, [allChannels]);
+
+
+
   useEffect(() => {
     // Save topItems to localStorage whenever it changes
     localStorage.setItem("topItemsOrder", JSON.stringify(topItems));
