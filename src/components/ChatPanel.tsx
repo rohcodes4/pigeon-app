@@ -891,7 +891,7 @@ useEffect(() => {
       const prevMessage = prevLastMessages.current[channel.id];
       if (prevMessage !== channel.last_message) {
         // last_message changed for this channel, trigger notification
-        if (channel.last_message && !(channel.last_message.toLowerCase().includes("typing"))) {
+        if (channel.last_message && channel.unread && !(channel.last_message.toLowerCase().includes("typing"))) {
           playBeepSound();  
           new Notification("New message", {
             body: `New message in ${channel.name}: ${channel.last_message}`,
