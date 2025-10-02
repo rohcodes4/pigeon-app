@@ -2750,7 +2750,7 @@ const jumpToReply=(msg)=>{
                       key={String(msg.id)}
                       id={`msg-${msg.telegramMessageId}`}
                       data-hasmedia={msg.hasMedia ? "true" : "false"}
-                      data-msgId={msg.id}
+                      data-msgid={msg.id}
                       // onMouseLeave={() => setOpenMenuId(null)}
                       onMouseLeave={startCloseTimer}
                       className={`rounded-[10px] message-item ${

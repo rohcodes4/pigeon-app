@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -43,6 +44,8 @@ const TaskTrackerWrapper = ({ children }: { children: React.ReactNode }) => {
   const [notified, setNotified] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const location = useLocation();
+  const { user } = useAuth();
+
 
 
 //   console.log(location.pathname, "path");
@@ -66,7 +69,9 @@ const TaskTrackerWrapper = ({ children }: { children: React.ReactNode }) => {
 
   // Fetch tasks initially
   useEffect(() => {
-    fetchTasks();
+    if(user){
+      fetchTasks();
+    }
   }, [location.pathname]);
 
   // Check every 10 seconds for due tasks

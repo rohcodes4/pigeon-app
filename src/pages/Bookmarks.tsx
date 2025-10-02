@@ -260,6 +260,13 @@ const Bookmarks = () => {
   };
 
   
+  const [selectedDiscordServer, setSelectedDiscordServer] = useState<string | null>(null);
+
+  const handleSelectDiscordServer = (serverId: string | null) => {
+    setSelectedDiscordServer(serverId);
+  };
+
+
   // ✅ UPDATE: Include chatsLoading in the loading check
   // if (loading || chatsLoading) {
   //   return (
@@ -279,7 +286,9 @@ const Bookmarks = () => {
   }
 
   return (
-    <Layout>
+    <Layout
+    selectedDiscordServer={selectedDiscordServer}
+    onSelectDiscordServer={handleSelectDiscordServer}>
       <div className="flex-1 flex flex-col">
         <AppHeader
           isNotificationPanel={openPanel === "notification"}
@@ -304,7 +313,8 @@ const Bookmarks = () => {
             chats={favoriteChats}
             onChatSelect={handleChatSelect}
             selectedChat={selectedId}
-
+            selectedDiscordServer={selectedDiscordServer}
+            onBack={() => setSelectedDiscordServer(null)}
             // chats={chats} // RC/FixesNew
             // onChatSelect={handleChatSelect} // RC/FixesNew
             // selectedChat={selectedChat} // RC/FixesNew
@@ -313,6 +323,7 @@ const Bookmarks = () => {
             <UnifiedHeader
               title="Bookmarks"
               smartText="Smart Tasks"
+              selectedChat={selectedChat}
               isReadAll={false}
               isSmartSummary={openPanel === "smartTask"}
               setIsSmartSummary={(open) =>

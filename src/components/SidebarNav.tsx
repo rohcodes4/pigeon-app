@@ -27,13 +27,32 @@ import { useNavigate } from "react-router-dom";
 // import { supabase } from "@/integrations/supabase/client"; // Removed Supabase import
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useTheme, Theme } from "@/hooks/useTheme"; // Correctly import Theme
+import ChatAvatar from "./ChatAvatar";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 interface SidebarNavProps {
   activePage: string;
+  onSelectDiscordServer: (serverId: string | null) => void;
+  selectedDiscordServer: string | null;
 }
 
-export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage }) => {
+const dummyServers = [
+  { id: "1", name: "Discord Server One" },
+  { id: "2", name: "Discord Server Two" },
+  { id: "3", name: "Discord Server Three" },
+  { id: "4", name: "Discord Server Four" },
+  { id: "5", name: "Discord Server Five" },
+  { id: "6", name: "Discord Server Six" },
+  { id: "7", name: "Discord Server Seven" },
+  { id: "8", name: "Discord Server Eight" },
+  { id: "9", name: "Discord Server Nine" },
+  { id: "10", name: "Discord Server Ten" },
+  { id: "11", name: "Discord Server Eleven" },
+  { id: "12", name: "Discord Server Twelve" },
+];
+
+export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage,  onSelectDiscordServer, selectedDiscordServer }) => {
+  const [discordServers, setDiscordServers] = useState(dummyServers);
   const navMap: { [key: string]: string } = {
     "/": "AI",
     "/smart-tasks": "Tasks",
@@ -289,6 +308,30 @@ const isHelpPage = activePage === "/help";
           />
         </button>
       </nav>
+      <div className="discord-servers my-4 overflow-y-scroll">
+        {discordServers.map((server) => (
+          <button
+            key={server.id}
+            className={`block w-full text-left py-2 px-3 rounded ${
+              selectedDiscordServer === server.id
+                ? "bg-blue-600"
+                : "hover:bg-gray-700"
+            }`}
+            onClick={() => onSelectDiscordServer(server.id)}
+          >
+            {/* <img src="https://www.gravatar.com/avatar/default?d=identicon&s=80" className="w-6 h-6 rounded-full"/> */}
+            <img src={gravatarUrl(server.name)} className="w-6 h-6 rounded-full"/>
+          </button>
+        ))}
+        {/* {selectedDiscordServer && (
+          <button
+            onClick={() => onSelectDiscordServer(null)}
+            className="mt-3 w-full bg-red-600 py-2 rounded hover:bg-red-700"
+          >
+            Back
+          </button>
+        )} */}
+      </div>
       <div className="flex flex-col items-center gap-6 mt-auto mb-4">
         {/* Discord Icon with Connected Badge */}
         <div className="relative bg-[#7B5CFA] rounded-[10px] p-2 group">
