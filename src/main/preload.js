@@ -12,6 +12,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("discord:get-chat-history", { chatId, limit,beforeMessageId }),  
     sendMessage: (chatId, message,attachments) =>
       ipcRenderer.invoke("discord:send-message", { chatId, message,attachments }),
+    addReaction: (chatId, messageId, emoji) =>
+      ipcRenderer.invoke("discord:add-reaction", { chatId, messageId, emoji }),
+    removeReaction: (chatId, messageId, emoji) =>
+      ipcRenderer.invoke("discord:remove-reaction", { chatId, messageId, emoji }),
+    // New method to send message with captcha
     sendMessageWithCaptcha: (chatId, message, captchaToken, captchaData) =>
       ipcRenderer.invoke("discord:send-message-with-captcha", {
         chatId,

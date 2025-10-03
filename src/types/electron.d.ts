@@ -48,6 +48,22 @@ export interface ElectronAPI {
       };
       error?: string;
     }>;
+    addReaction: (
+      chatId: string,
+      messageId: string,
+      emoji: string
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+    }>;
+    removeReaction: ( 
+      chatId: string,
+      messageId: string,
+      emoji: string
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+    }>;
     onConnected: (
       callback: (data: { success: boolean; error?: string }) => void
     ) => void;
