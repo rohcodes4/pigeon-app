@@ -144,6 +144,33 @@ function setupIPCHandlers() {
       return { success: false, error: error.message };  
     }
   });
+
+  ipcMain.handle("discord:add-reaction", async (event, { chatId, messageId, emoji }) => {
+    try {
+      if (!discordClient.isConnected()) {   
+        return { success: false, error: "Discord not connected" };
+      } 
+      const result = await discordClient.addReaction(chatId, messageId, emoji);
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("[IPC] Add reaction error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("discord:remove-reaction", async (event, { chatId, messageId, emoji }) => {
+    try {
+      if (!discordClient.isConnected()) {
+        return { success: false, error: "Discord not connected" };
+      }
+      const result = await discordClient.removeReaction(chatId, messageId, emoji);
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("[IPC] Remove reaction error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // Get Discord chat history
   ipcMain.handle("discord:get-chat-history", async (event, { chatId, limit = 50, beforeMessageId }) => {
     try { 

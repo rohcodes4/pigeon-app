@@ -975,6 +975,215 @@ class DiscordClient extends EventEmitter {
     }
   }
 
+  async addReaction(channelId, messageId, emoji) {
+    try {
+      // Rate limiting check
+      await this.checkRateLimit();
+
+      // Human-like delay
+      await this.humanDelay();
+
+      return new Promise((resolve, reject) => {
+  
+        const options = {
+          hostname: "discord.com",
+          path: `/api/v9/channels/${channelId}/messages/${messageId}/reactions/${encodeURIComponent(emoji)}/@me?location=Message%20Hover%20Bar&type=0`,
+          method: "PUT",
+          headers: this.getRealisticHeaders({
+            Authorization: this.token,
+            "Content-Type": "application/json",
+            "Content-Length": 0,
+            Referer: `https://discord.com/channels/@me/${channelId}`,
+            "Accept-Encoding": "identity",
+          }),
+        };
+
+        const req = https.request(options, (res) => {
+          let responseData = "";
+
+          res.on("data", (chunk) => {
+            responseData += chunk;
+          });
+
+          res.on("end", () => {
+            console.log(`[Discord] Response status: ${res.statusCode}`);
+            console.log(`[Discord] Response data: ${responseData}`);
+
+            if (res.statusCode === 200 || res.statusCode === 201) {
+              try {
+                const messageData = JSON.parse(responseData);
+
+                // Store sent message in database
+              
+
+                resolve(messageData);
+              } catch (error) {
+                reject(new Error("Failed to parse response"));
+              }
+            } else if (res.statusCode === 400) {
+              // Handle CAPTCHA
+              try {
+                const errorData = JSON.parse(responseData);
+                if (
+                  errorData.captcha_key &&
+                  errorData.captcha_key.includes("captcha-required")
+                ) {
+                  const captchaError = new Error("CAPTCHA required");
+                  captchaError.captchaRequired = true;
+                  captchaError.captchaData = {
+                    sitekey: errorData.captcha_sitekey,
+                    service: errorData.captcha_service,
+                    sessionId: errorData.captcha_session_id,
+                    rqdata: errorData.captcha_rqdata,
+                    rqtoken: errorData.captcha_rqtoken,
+                  };
+                  console.log(
+                    "[Discord] CAPTCHA required:",
+                    captchaError.captchaData
+                  );
+
+                  this.emit("captchaRequired", captchaError.captchaData);
+
+                  reject(captchaError);
+                  return;
+                }
+              } catch (parseError) {}
+
+              reject(
+                new Error(
+                  `add reaction failed: ${res.statusCode} ${responseData}`
+                )
+              );
+            } else {
+              reject(
+                new Error(
+                  `add reaction failed: ${res.statusCode} ${responseData}`
+                )
+              );
+            }
+          });
+        });
+
+        req.on("error", (error) => {
+          console.error("[Discord] Request error:", error);
+          reject(error);
+        });
+        req.end();
+      });
+    } catch (error) {
+      console.error("[Discord] add reaction message error:", error);
+      throw error;
+    }
+  }
+
+  async removeReaction(channelId, messageId, emoji) {
+    try {
+      // Rate limiting check
+      await this.checkRateLimit();
+
+      // Human-like delay
+      await this.humanDelay();
+
+      return new Promise((resolve, reject) => {
+        const options = {
+          hostname: "discord.com",
+          path: `/api/v9/channels/${channelId}/messages/${messageId}/reactions/${encodeURIComponent(emoji)}/@me?location=Message%20Inline%20Button&burt=false`,
+          method: "PUT",
+          headers: this.getRealisticHeaders({
+            Authorization: this.token,
+            "Content-Type": "application/json",
+            "Content-Length": 0,
+            Referer: `https://discord.com/channels/@me/${channelId}`,
+            "Accept-Encoding": "identity",
+          }),
+        };
+
+        const req = https.request(options, (res) => {
+          let responseData = "";
+
+          res.on("data", (chunk) => {
+            responseData += chunk;
+          });
+
+          res.on("end", () => {
+            console.log(`[Discord] Response status: ${res.statusCode}`);
+            console.log(`[Discord] Response data: ${responseData}`);
+
+            if (res.statusCode === 200 || res.statusCode === 201) {
+              try {
+                const messageData = JSON.parse(responseData);
+
+                // Store sent message in database
+                this.dbManager.createMessage({
+                  id: messageData.id,
+                  chat_id: messageData.channel_id,
+                  user_id: messageData.author.id,
+                  content: messageData.content,
+                  message_type: "text",
+                  timestamp: messageData.timestamp,
+                  sync_status: "synced",
+                });
+
+                resolve(messageData);
+              } catch (error) {
+                reject(new Error("Failed to parse response"));
+              }
+            } else if (res.statusCode === 400) {
+              // Handle CAPTCHA
+              try {
+                const errorData = JSON.parse(responseData);
+                if (
+                  errorData.captcha_key &&
+                  errorData.captcha_key.includes("captcha-required")
+                ) {
+                  const captchaError = new Error("CAPTCHA required");
+                  captchaError.captchaRequired = true;
+                  captchaError.captchaData = {
+                    sitekey: errorData.captcha_sitekey,
+                    service: errorData.captcha_service,
+                    sessionId: errorData.captcha_session_id,
+                    rqdata: errorData.captcha_rqdata,
+                    rqtoken: errorData.captcha_rqtoken,
+                  };
+                  console.log(
+                    "[Discord] CAPTCHA required:",
+                    captchaError.captchaData
+                  );
+
+                  this.emit("captchaRequired", captchaError.captchaData);
+
+                  reject(captchaError);
+                  return;
+                }
+              } catch (parseError) {}
+
+              reject(
+                new Error(
+                  `remove reaction failed: ${res.statusCode} ${responseData}`
+                )
+              );
+            } else {
+              reject(
+                new Error(
+                  `remove reaction failed: ${res.statusCode} ${responseData}`
+                )
+              );
+            }
+          });
+        });
+
+        req.on("error", (error) => {
+          console.error("[Discord] Request error:", error);
+          reject(error);
+        });
+
+        req.end();
+      });
+    } catch (error) {
+      console.error("[Discord] remove reaction message error:", error);
+      throw error;
+    }
+  }
   // resend message with CAPTCHA
   async sendMessageWithCaptcha(channelId, content, captchaToken, captchaData) {
     try {

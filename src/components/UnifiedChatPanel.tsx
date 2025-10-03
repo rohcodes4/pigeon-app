@@ -771,6 +771,12 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         console.log(
           `Reaction attempt: messageId="${messageId}", isObjectId=${isObjectId}, emoji="${emoji}"`
         );
+        if(selectedChat.platform === "discord") {
+              // For Discord, we need to map the message to Telegram format first
+              const res = await window.electronAPI.discord.addReaction(selectedChat.id, messageId, emoji);
+              console.log("Discord reaction result:", res);
+              return
+            }
         if (isObjectId) {
           // Create rollback snapshot visible to catch
           let rollbackSnapshot = messages;
@@ -820,9 +826,12 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               })
             );
 
-            const res = await sendReaction(messageId, emoji, {
-              clear: already,
-            });
+            let res = null;
+            if(selectedChat.platform === "Telegram") {
+               res = await sendReaction(messageId, emoji, {
+                clear: already,
+              });
+            } 
             console.log(
               `Reaction ${emoji} sent to backend for message ${messageId} (sent_to_telegram=${res?.sent_to_telegram})`
             );
