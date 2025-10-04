@@ -997,8 +997,6 @@ useEffect(() => {
       }
     });
   }, [allChannels]);
-  // console.log('channelsToShow',channelsToShow)
-console.log(selectedId)
   const playBeepSound = () => {
    try {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();

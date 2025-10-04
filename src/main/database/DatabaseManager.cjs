@@ -2,12 +2,14 @@ const Database = require("better-sqlite3");
 const path = require("path");
 const { app } = require("electron");
 const CryptoJS = require("crypto-js");
-
+const fs = require("fs");
 class DatabaseManager {
   constructor(securityManager) {
     this.securityManager = securityManager;
     this.db = null;
-    this.dbPath = path.join(app.getPath("userData"), "pigeon.db");
+    this.dbPath = !app.isPackaged
+  ? path.join(__dirname, "pigeon.db")  // fixed file in project folder
+  : path.join(app.getPath("userData"), "pigeon.db"); // production
   }
 
   async initialize() {
@@ -76,7 +78,6 @@ class DatabaseManager {
         sync_status TEXT DEFAULT 'pending', -- 'pending', 'synced', 'failed'
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE,
         FOREIGN KEY (user_id) REFERENCES users(id)
       )`,
 
@@ -461,6 +462,7 @@ class DatabaseManager {
 
   close() {
     if (this.db) {
+      this.db.pragma("wal_checkpoint(FULL)");
       this.db.close();
       console.log("[DB] Database connection closed");
     }

@@ -34,7 +34,9 @@ export interface ElectronAPI {
       data?: Array<any>;
       error?: string;
     }>;
-    
+    onNewMessage: (
+      callback: (data: any) => void
+    ) => () => void;
     sendMessage: (
       chatId: string,
       message: string,

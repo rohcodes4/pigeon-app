@@ -53,12 +53,14 @@ import {
   createBookmark,
 } from "@/utils/apiHelpers";
 import { toast } from "@/hooks/use-toast";
-import { mapDiscordMessageToTelegram } from "@/lib/utils";
+import { mapDiscordMessageToItem, mapDiscordMessageToTelegram } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
 import { mapToFullChat } from "@/lib/utils";
 import AudioWaveform from "./AudioWaveForm";
 import LiveAudioWaveform from "./LiveAudioWaveForm";
 import { timeStamp } from "console";
+import { useDiscordMessages } from "@/hooks/useDiscord";
+
 
 const LoadingDots: React.FC = () => {
   return (
@@ -1770,7 +1772,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         return () => window.removeEventListener("click", handleClick);
       }
     }, [openMenuId]);
-
+    // Use custom hook to get Discord messages
+    const { messagesList} = useDiscordMessages(selectedChat?.id);
+    console.log(messagesList,"livediscordmessages");
     // Silent refresh that avoids toggling loading states and only appends new messages
     const refreshLatest = React.useCallback(async () => {
       if (USE_DUMMY_DATA) return;
@@ -1810,10 +1814,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             }/messages?limit=${PAGE_SIZE}`;
             // if (params.toString()) endpoint += `?${params.toString()}`;
             currentChatId = String((selectedChat as any).id);
-            if(selectedChat?.platform=='discord'){
-            const discordSelectedChat = await window.electronAPI.discord.getChatHistory(selectedChat.id);
-            console.log("discordSelectedChat",discordSelectedChat.data);
-          }
           }
         } else {
           console.log(
@@ -2612,7 +2612,7 @@ const clearAudio = () =>{
 const linkify = (msg) => {
   const text = msg.message;
   if (!text) return null;
-  console.log(msg)
+
   // console.log("🔹 Original text:", text);
   // console.log("🔹 Mentions array:", msg.message.mentions);
 
