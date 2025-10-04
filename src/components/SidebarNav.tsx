@@ -34,6 +34,7 @@ interface SidebarNavProps {
   activePage: string;
   onSelectDiscordServer: (serverId: string | null) => void;
   selectedDiscordServer: string | null;
+  guilds: any[] | null;
 }
 
 const dummyServers = [
@@ -51,8 +52,104 @@ const dummyServers = [
   { id: "12", name: "Discord Server Twelve" },
 ];
 
-export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage,  onSelectDiscordServer, selectedDiscordServer }) => {
-  const [discordServers, setDiscordServers] = useState(dummyServers);
+export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage,  onSelectDiscordServer, selectedDiscordServer, guilds }) => {
+  // console.log(Object.values(guilds))
+  const [guild, setGuild] = useState([])
+  // if(guilds.length>0){
+  //   setGuild(Object.values(guild))
+  // } 
+
+
+  useEffect(() => {
+    // Try to load guilds from localStorage first
+    const cachedGuilds = localStorage.getItem("discordGuilds");
+    console.log("[localguild][localStorage] raw:", cachedGuilds);
+  
+    if (cachedGuilds) {
+      try {
+        const parsed = JSON.parse(cachedGuilds);
+        console.log("[localguild][localStorage] parsed:", parsed);
+  
+        if (Array.isArray(parsed)) {
+          setDiscordServers(parsed);
+          console.log("[localguild][localStorage] setGuilds:", parsed);
+        }
+      } catch (err) {
+        console.error("[localguild][localStorage] parse error:", err);
+        // fail silently, will refetch
+      }
+    }
+  
+    // Always fetch fresh from Discord and update cache
+    async function fetchGuilds() {
+      const guilds = await window.electronAPI.discord.getGuilds();
+      console.log("[localguild][discord API] raw:", guilds);
+  
+      // convert object of objects to array of objects with id
+      let arr = [];
+      if (guilds.data && typeof guilds.data === "object") {
+        arr = [...guilds.data.entries()].map(([key, value]) => ({
+        id: key,
+        ...value,
+      }));   
+        console.log("[localguild][discord API] mapped array:", arr);
+      }
+      if(arr.length>0){
+        setDiscordServers(arr);
+        localStorage.setItem("discordGuilds", JSON.stringify(arr));
+        console.log("[localguild][discord API] saved to localStorage");
+      }
+      
+    }
+    setTimeout(()=>{
+      fetchGuilds();
+    },5000)
+    
+  }, []);
+  
+
+  useEffect(()=>{
+    let timer: any = null;
+    const poll = async () => {
+      const guilds = await window.electronAPI.discord.getGuilds(); 
+      console.log("gggg",guilds.data)
+      // const guildArray = Array.from(guilds.data);   
+      const guildArray = [...guilds.data.entries()].map(([key, value]) => ({
+        id: key,
+        ...value,
+      }));   
+      console.log("ggg",guildArray)
+      setGuild(guildArray)
+      localStorage.setItem("discordGuilds", JSON.stringify(guildArray));
+      setDiscordServers(guildArray)
+    }
+    timer = setTimeout(poll, 30000);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  },[])
+  
+  useEffect(()=>{
+    console.log("gg",guild)
+  },[guild])
+
+  const [discordServers, setDiscordServers] = useState([]);
+
+  
+  // useEffect(() => {
+  //   // define async function inside effect
+  //   async function fetchGuilds() {
+  //     const guilds = await window.electronAPI.discord.getGuilds();
+  //     console.log('guilds:',guilds)
+  //     if(guilds.success){
+  //       const guildArray = Object.values(guilds.data);
+  //       if(guildArray.length>0) setDiscordServers(guildArray)      
+  //     }      
+  //   }
+  //   fetchGuilds();
+  // }, []);
+
+  
   const navMap: { [key: string]: string } = {
     "/": "AI",
     "/smart-tasks": "Tasks",
@@ -308,30 +405,35 @@ const isHelpPage = activePage === "/help";
           />
         </button>
       </nav>
-      <div className="discord-servers my-4 overflow-y-scroll">
-        {discordServers.map((server) => (
-          <button
-            key={server.id}
-            className={`block w-full text-left py-2 px-3 rounded ${
-              selectedDiscordServer === server.id
-                ? "bg-blue-600"
-                : "hover:bg-gray-700"
-            }`}
-            onClick={() => onSelectDiscordServer(server.id)}
-          >
-            {/* <img src="https://www.gravatar.com/avatar/default?d=identicon&s=80" className="w-6 h-6 rounded-full"/> */}
-            <img src={gravatarUrl(server.name)} className="w-6 h-6 rounded-full"/>
-          </button>
-        ))}
-        {/* {selectedDiscordServer && (
-          <button
-            onClick={() => onSelectDiscordServer(null)}
-            className="mt-3 w-full bg-red-600 py-2 rounded hover:bg-red-700"
-          >
-            Back
-          </button>
-        )} */}
-      </div>
+      <div className="discord-servers my-4 pl-2 overflow-y-auto w-full flex flex-col items-center">
+  {discordServers.length > 0 &&
+    discordServers.map((server) => (
+      <button
+        key={server.id}
+        className={`block w-9 h-9 mb-2 rounded-full flex items-center justify-center focus:outline-none ${
+          selectedDiscordServer === server.id
+            ? "border-2 border-blue-600"
+            : "hover:bg-gray-700"
+        }`}
+        onClick={() => onSelectDiscordServer(server.id)}
+        type="button"
+      >
+        {server.icon ? (
+          <img
+            src={`https://cdn.discordapp.com/icons/${server.id}/${server.icon}.png?size=64`}
+            alt={server.name}
+            className="w-8 h-8 rounded-full"
+            draggable={false}
+          />
+        ) : (
+          <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center text-xs text-white select-none">
+            {server.name.charAt(0).toUpperCase()}
+          </div>
+        )}
+      </button>
+    ))}
+</div>
+
       <div className="flex flex-col items-center gap-6 mt-auto mb-4">
         {/* Discord Icon with Connected Badge */}
         <div className="relative bg-[#7B5CFA] rounded-[10px] p-2 group">

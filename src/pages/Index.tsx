@@ -49,6 +49,7 @@ const Index = () => {
   const [hasStartedFindingChats, setHasStartedFindingChats] = useState(false);
   const [initialSyncTriggered, setInitialSyncTriggered] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [discordGuilds, setGuilds] = useState([]);
 
   const handleOpenSmartSummary = () => setOpenPanel("smartSummary");
   const handleOpenNotificationPanel = () => setOpenPanel("notification");
@@ -522,6 +523,55 @@ const Index = () => {
     fetchChats();
   }, [user]);
 
+  useEffect(() => {
+    // Try to load guilds from localStorage first
+    const cachedGuilds = localStorage.getItem("discordGuilds");
+    console.log("[localguild][localStorage] raw:", cachedGuilds);
+  
+    if (cachedGuilds) {
+      try {
+        const parsed = JSON.parse(cachedGuilds);
+        console.log("[localguild][localStorage] parsed:", parsed);
+  
+        if (Array.isArray(parsed)) {
+          setGuilds(parsed);
+          console.log("[localguild][localStorage] setGuilds:", parsed);
+        }
+      } catch (err) {
+        console.error("[localguild][localStorage] parse error:", err);
+        // fail silently, will refetch
+      }
+    }
+  
+    // Always fetch fresh from Discord and update cache
+    async function fetchGuilds() {
+      const guilds = await window.electronAPI.discord.getGuilds();
+      console.log("[localguild][discord API] raw:", guilds);
+  
+      // convert object of objects to array of objects with id
+      let arr = [];
+      if (guilds.data && typeof guilds.data === "object") {
+        arr = [...guilds.data.entries()].map(([key, value]) => ({
+        id: key,
+        ...value,
+      }));   
+        console.log("[localguild][discord API] mapped array:", arr);
+      }
+      if(arr.length>0){
+        setGuilds(arr);
+        localStorage.setItem("discordGuilds", JSON.stringify(arr));
+        console.log("[localguild][discord API] saved to localStorage");
+      }
+      
+    }
+    setTimeout(()=>{
+      fetchGuilds();
+    },5000)
+    
+  }, []);
+  
+
+  
   // Lightweight polling: refresh sidebar chats every 30s with smart merging
   useEffect(() => {
     if (!user) return;
@@ -544,7 +594,8 @@ const Index = () => {
           // Fetch Discord DMs
           const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
           const guilds = await window.electronAPI.discord.getGuilds(); // fetch guilds
-          console.log("Polled guilds:", guilds);
+          console.log("Polled guilds:", guilds.data);
+          setGuilds(guilds.data)
           if (dms.success) {
             const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
             // Merge both
@@ -674,7 +725,8 @@ const Index = () => {
   return (
     <Layout 
     selectedDiscordServer={selectedDiscordServer}
-    onSelectDiscordServer={handleSelectDiscordServer}>
+    onSelectDiscordServer={handleSelectDiscordServer}
+    guilds={discordGuilds}>
       <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
         <AppHeader
           isNotificationPanel={openPanel === "notification"}
