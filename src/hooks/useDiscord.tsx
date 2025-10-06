@@ -29,6 +29,7 @@ interface Message {
 type ReactionChip = { icon: string; count: number };
 type MessageItem = {
   id: any;
+  chat_id?: string;
   originalId: any;
   timestamp: string;
   telegramMessageId?: number; // Telegram message ID for replies
@@ -320,15 +321,18 @@ export function useDiscordChatHistory(chatId: string | null) {
         100,
         beforeMessageId
       );
-
+      
       if (response.success) {
         const messages = response.data;
+        console.log('history res', response)
         
         if (messages.length === 0) {
           setHasMore(false);
         } else {
           setHistory(prev => beforeMessageId ? [...prev, ...messages] : messages);
+          setHasMore(true)
         }
+      } else {
       }
     } catch (err) {
       console.error('Failed to load chat history:', err);
@@ -336,6 +340,10 @@ export function useDiscordChatHistory(chatId: string | null) {
       setLoading(false);
     }
   }, [chatId, loading]);
+
+  useEffect(()=>{
+    console.log('history',history)
+  },[history])
 
   const loadMore = useCallback(() => {
     if (history.length > 0 && hasMore) {

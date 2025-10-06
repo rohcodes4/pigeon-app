@@ -1046,7 +1046,8 @@ useEffect(() => {
   const RenderChannels = ({ channels }) => {
     return (
       <ul>
-        {channels.map(channel => (
+        {channels.map(channel => {
+          return(
           <li key={channel.id} className={`${channel.type===4?"mt-4":""}`} >
             <div onClick={()=>{
               if(channel.type===4) return;
@@ -1064,7 +1065,8 @@ useEffect(() => {
               <RenderChannels channels={channel.children} />
             )}
           </li>
-        ))}
+        )}
+        )}
       </ul>
     );
   };

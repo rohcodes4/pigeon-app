@@ -11,6 +11,7 @@ type ReactionChip = {
 
 type MessageItem = {
   id: any;
+  chat_id?:string;
   originalId: any;
   timestamp: string;
   telegramMessageId?: number; // Telegram message ID for replies
@@ -21,6 +22,7 @@ type MessageItem = {
   server: string;
   date: Date;
   message: string;
+  mentions: any;
   tags: string[];
   reactions: ReactionChip[];
   hasLink: boolean;
@@ -32,9 +34,9 @@ type MessageItem = {
 
 // Mapper for Discord message → MessageItem
 export function mapDiscordMessageToItem(discordMsg: any): MessageItem {
-  const attachments = JSON.parse(discordMsg.attachments || "[]");
-  const embeds = JSON.parse(discordMsg.embeds || "[]");
-  const reactions = JSON.parse(discordMsg.reactions || "[]");
+  const attachments = Array.isArray(discordMsg.attachments)?discordMsg.attachments:JSON.parse(discordMsg.attachments || "[]");
+  const embeds = Array.isArray(discordMsg.embeds)?discordMsg.embeds: JSON.parse(discordMsg.embeds || "[]");
+  const reactions = Array.isArray(discordMsg.reactions)?discordMsg.reactions: JSON.parse(discordMsg.reactions || "[]");
 
   // Extract if message has link
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -42,10 +44,11 @@ export function mapDiscordMessageToItem(discordMsg: any): MessageItem {
 
   return {
     id: discordMsg.id,
+    chat_id: discordMsg.chat_id,
     originalId: discordMsg.id,
     timestamp: discordMsg.timestamp,
-    name: discordMsg.display_name || discordMsg.username,
-    avatar: discordMsg.user_avatar,
+    name: discordMsg.display_name || discordMsg.username || discordMsg.name || discordMsg?.author?.global_name || discordMsg?.author?.username,
+    avatar: discordMsg.user_avatar || discordMsg.avatar || discordMsg?.author?.avatar,
     platform: "Discord",
     channel: discordMsg.chat_id || discordMsg.channel_id || null,
     server: "Discord", // or pass actual guild name if available
@@ -56,6 +59,7 @@ export function mapDiscordMessageToItem(discordMsg: any): MessageItem {
       emoji: r.emoji?.name || r.emoji,
       count: r.count || 1,
     })),
+    mentions:discordMsg.mentions,
     hasLink,
     hasMedia: attachments.length > 0 || embeds.length > 0,
     media: attachments.length || embeds.length ? [...attachments, ...embeds] : null,
@@ -90,6 +94,9 @@ export function mapDiscordToTelegramSchema(d: any) {
 }
 
 export function mapDiscordMessageToTelegram(discordMsg) {
+  const attachments = discordMsg.attachments || [];
+  const embeds = discordMsg.embeds || [];
+  const reactions = discordMsg.reactions || [];
   return {
     _id: discordMsg.id || null,
     timestamp: discordMsg.timestamp || null,
@@ -103,7 +110,7 @@ export function mapDiscordMessageToTelegram(discordMsg) {
       reply_to: discordMsg.reply_to_id || null,
       forward: null,
       edited: discordMsg.is_edited === 1,
-      media: null, // Discord attachments can be mapped here
+      media: attachments.length || embeds.length ? [...attachments, ...embeds] : null,
       has_media: (discordMsg.attachments && discordMsg.attachments.length > 0) || false,
       has_document: false,
       has_photo: false,

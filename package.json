@@ -20,12 +20,11 @@
       "src/main/sync/**"
     ],
     "asarUnpack": [
-  "src/main/database/**",
-  "src/main/services/**",
-  "src/main/security/**",
-  "src/main/sync/**"
-],
-
+      "src/main/database/**",
+      "src/main/services/**",
+      "src/main/security/**",
+      "src/main/sync/**"
+    ],
     "extraResources": [
       {
         "from": "node_modules/electron/dist/locales",

@@ -719,10 +719,10 @@ class DiscordClient extends EventEmitter {
         method,
         headers: this.getRealisticHeaders({
           Authorization: this.token,
+          "Accept-Encoding": "identity",
           ...(body && {
             "Content-Type": "application/json",
             "Content-Length": Buffer.byteLength(body),
-            "Accept-Encoding": "identity",
           }),
           ...(channelId && {
             Referer: `https://discord.com/channels/@me/${channelId}`,
