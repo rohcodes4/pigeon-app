@@ -321,10 +321,9 @@ export function useDiscordChatHistory(chatId: string | null) {
         100,
         beforeMessageId
       );
-      
+      console.log('history res',response)
       if (response.success) {
         const messages = response.data;
-        console.log('history res', response)
         
         if (messages.length === 0) {
           setHasMore(false);

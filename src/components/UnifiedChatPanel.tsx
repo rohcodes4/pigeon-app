@@ -259,6 +259,10 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const [enlargedMedia, setEnlargedMedia] = useState(null);
     const { history, loadMore, loading:dcHookLoading } = useDiscordChatHistory(selectedChat?.id);
 
+    useEffect(()=>{
+      setLoadingMore(dcHookLoading)
+    },[dcHookLoading])
+
     const openMedia = (media) => {
       setEnlargedMedia(media);
     };
@@ -1390,7 +1394,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       console.log('loading2...')
 
       if(selectedChat.platform==='discord'){
-        console.log('calling dc load more')        
+        console.log('calling dc load more')   
+        setLoadingMore(true)     
           loadMore()
           setMessages(prev =>
             [
@@ -1401,6 +1406,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                 Number(new Date(a.timestamp).getTime()) - Number(new Date(b.timestamp).getTime())
             )
           );
+        setLoadingMore(false)     
           return;
       }
       // Get the timestamp of the oldest message
@@ -1799,12 +1805,15 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       }
       setLoading(false)
       setLoadingMore(false)
-      if(container){
+      if(container && !hasScrolled){
         container.scrollTop = container.scrollHeight;
       }
+      if(!hasScrolled){
         scrollToBottom()
         setHasScrolled(true)
-    },[selectedChat])
+      }
+        
+    },[selectedChat, history])
 
     const { messagesList} = useDiscordMessages(selectedChat?.id);
     console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
