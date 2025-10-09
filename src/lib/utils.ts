@@ -4,6 +4,70 @@ import { twMerge } from "tailwind-merge"
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
+type ReactionChip = {
+  icon: string;
+  count: number;
+};
+
+type MessageItem = {
+  id: any;
+  chat_id?:string;
+  originalId: any;
+  timestamp: string;
+  telegramMessageId?: number; // Telegram message ID for replies
+  name: string;
+  avatar: string;
+  platform: "Discord" | "Telegram";
+  channel: string | null;
+  server: string;
+  date: Date;
+  message: string;
+  mentions: any;
+  tags: string[];
+  reactions: ReactionChip[];
+  hasLink: boolean;
+  hasMedia: boolean;
+  media: any;
+  link: string | null;
+  replyTo: any;
+};
+
+// Mapper for Discord message → MessageItem
+export function mapDiscordMessageToItem(discordMsg: any): MessageItem {
+  const attachments = Array.isArray(discordMsg.attachments)?discordMsg.attachments:JSON.parse(discordMsg.attachments || "[]");
+  const embeds = Array.isArray(discordMsg.embeds)?discordMsg.embeds: JSON.parse(discordMsg.embeds || "[]");
+  const reactions = Array.isArray(discordMsg.reactions)?discordMsg.reactions: JSON.parse(discordMsg.reactions || "[]");
+
+  // Extract if message has link
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const hasLink = urlRegex.test(discordMsg.content);
+
+  return {
+    id: discordMsg.id,
+    chat_id: discordMsg.chat_id,
+    originalId: discordMsg.id,
+    timestamp: discordMsg.timestamp,
+    name: discordMsg.display_name || discordMsg.username || discordMsg.name || discordMsg?.author?.global_name || discordMsg?.author?.username,
+    avatar: discordMsg.user_avatar || discordMsg.avatar || discordMsg?.author?.avatar,
+    platform: "Discord",
+    channel: discordMsg.chat_id || discordMsg.channel_id || null,
+    server: "Discord", // or pass actual guild name if available
+    date: new Date(discordMsg.timestamp),
+    message: discordMsg.content,
+    tags: [], // you can plug in logic for hashtags/keywords
+    reactions: reactions.map((r: any) => ({
+      emoji: r.emoji?.name || r.emoji,
+      count: r.count || 1,
+    })),
+    mentions:discordMsg.mentions,
+    hasLink,
+    hasMedia: attachments.length > 0 || embeds.length > 0,
+    media: attachments.length || embeds.length ? [...attachments, ...embeds] : null,
+    link: hasLink ? discordMsg.content.match(urlRegex)?.[0] ?? null : null,
+    replyTo: discordMsg.reply_to_id,
+  };
+}
+
 export function mapDiscordToTelegramSchema(d: any) {
   return {
     chat: null, // Telegram-only
@@ -16,20 +80,23 @@ export function mapDiscordToTelegramSchema(d: any) {
     lastMessage: null, // not provided
     last_message: null,
     last_seen: null,
-    last_ts: d.last_message_timestamp || d.updated_at || null,
+    last_ts:  snowflakeToDate(d.last_message_id)  || null,
     name: d.name || "Unknown",
     photo_url: d.avatar_url || null,
     platform: "discord",
     read: true, // Discord object doesn’t have read status
     summary: d.description || "",
     sync_enabled: null,
-    timestamp: snowflakeToDate(d.last_message_id) || d.updated_at || null,
+    timestamp: snowflakeToDate(d.last_message_id) || null,
     unread: null, // no unread count
     _id: d.id ? String(d.id) : null,
   };
 }
 
 export function mapDiscordMessageToTelegram(discordMsg) {
+  const attachments = discordMsg.attachments || [];
+  const embeds = discordMsg.embeds || [];
+  const reactions = discordMsg.reactions || [];
   return {
     _id: discordMsg.id || null,
     timestamp: discordMsg.timestamp || null,
@@ -43,7 +110,7 @@ export function mapDiscordMessageToTelegram(discordMsg) {
       reply_to: discordMsg.reply_to_id || null,
       forward: null,
       edited: discordMsg.is_edited === 1,
-      media: null, // Discord attachments can be mapped here
+      media: attachments.length || embeds.length ? [...attachments, ...embeds] : null,
       has_media: (discordMsg.attachments && discordMsg.attachments.length > 0) || false,
       has_document: false,
       has_photo: false,
@@ -53,8 +120,8 @@ export function mapDiscordMessageToTelegram(discordMsg) {
     },
     sender: {
       id: discordMsg.user_id || null,
-      username: discordMsg.author.username || null,
-      first_name: discordMsg.author.global_name || null,
+      username: discordMsg?.author?.username || discordMsg.username|| null,
+      first_name: discordMsg?.author?.global_name || discordMsg.display_name || null,
       last_name: null,
       phone: null,
       is_bot: false, // Discord API has bot flag, but your object doesn’t
@@ -169,9 +236,6 @@ export function snowflakeToDate(id) {
   const date = new Date(utcMs);
 
   // Format to IST (shifted)
-  const istOffsetMs = 5.5 * 60 * 60 * 1000;
-  const istDate = new Date(date.getTime() - istOffsetMs);
-
   // Format like "YYYY-MM-DDTHH:mm:ss"
-  return istDate.toISOString().slice(0, 19);
+  return date.toISOString().slice(0, 19);
 }

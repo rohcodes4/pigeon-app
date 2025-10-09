@@ -232,8 +232,9 @@ interface ChatPanelProps {
   onBack: () => void;
 }
 
+
 const dummyChannels = {
-  "1": [
+  "757451025673224192": [
     { id: "ch1", name: "general" },
     { id: "ch2", name: "random" },
     { id: "ch3", name: "announcements" },
@@ -334,8 +335,40 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [focusChannels, setFocusChannels] = useState<any[]>([]);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [contextMenu, setContextMenu] = useState(null);
+  const [dcChannels, setDcChannels] = useState({});
   const menuRef = useRef(null);
 
+
+
+
+  useEffect(()=>{
+  const cachedGuilds = localStorage.getItem("discordGuilds");
+  console.log("[localguild][localStorage] raw:", cachedGuilds);
+
+  if (cachedGuilds) {
+    try {
+      const parsed = JSON.parse(cachedGuilds);
+      console.log("[localguild][localStorage] parsed:", parsed);
+const tempDCchannel={}
+      if (Array.isArray(parsed) && parsed.length>0) {
+        parsed.forEach(guild => {
+          if (guild.channels && Array.isArray(guild.channels)) {
+            tempDCchannel[guild.id] = guild.channels;
+          }
+        });
+
+        setDcChannels(tempDCchannel)
+        
+        console.log("[localguild][localStorage] parse channels:", parsed);
+        console.log('[localguild]dcChannels', dcChannels)
+        console.log('[localguild]dcChannels', dummyChannels)
+      }
+    } catch (err) {
+      console.error("[localguild][localStorage] parse error:", err);
+      // fail silently, will refetch
+    }
+  }
+},[])
   // Close on mouse leave from menu
   const handleMenuMouseLeave = () => {
     closeContextMenu();
@@ -951,9 +984,6 @@ useEffect(() => {
     
     allChannels.forEach((channel) => {
       const prevMessage = prevLastMessages.current[channel.id];
-      console.log('testing')
-      console.log(prevMessage)
-      console.log(channel.last_message)
       if (prevMessage && channel.last_message && prevMessage !== channel.last_message) {
         // last_message changed for this channel, trigger notification
         if (channel.last_message && channel.unread && !(channel.last_message.toLowerCase().includes("typing"))) {
@@ -967,8 +997,6 @@ useEffect(() => {
       }
     });
   }, [allChannels]);
-  console.log('channelsToShow',channelsToShow)
-
   const playBeepSound = () => {
    try {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -987,30 +1015,97 @@ useEffect(() => {
     console.log('beep error: ',error)
    }
   };
+  function groupChannelsFlat(channels) {
+    const channelMap = new Map();
+    const roots = [];
+    const orphans = [];
+  
+    // Initialize map entries
+    channels.forEach(channel => {
+      channel.children = [];
+      channelMap.set(channel.id, channel);
+    });
+  
+    channels.forEach(channel => {
+      if (channel.parent_id && channelMap.has(channel.parent_id)) {
+        // Add to parent's children if parent exists
+        channelMap.get(channel.parent_id).children.push(channel);
+      } else if (!channel.parent_id) {
+        // No parent, so top-level root
+        roots.push(channel);
+      } else {
+        // parent_id exists but parent channel missing, consider orphan
+        // orphans.push(channel);
+      }
+    });
+  
+    // Return roots followed by orphan channels at the end
+    return [...roots, ...orphans];
+  }
 
-  const discordChannels = dummyChannels[selectedDiscordServer] || [];
+  const RenderChannels = ({ channels }) => {
+    return (
+      <ul>
+        {channels.map(channel => {
+          return(
+          <li key={channel.id} className={`${channel.type===4?"mt-4":""}`} >
+            <div onClick={()=>{
+              if(channel.type===4) return;
+            onChatSelect({id:channel.id,platform:'discord',name:channel.name,photo_url:channel.avatar_url});
+            setSelectedId(channel.id)  
+          }}
+          className="hover:bg-[#212121] cursor-pointer px-4 py-2 rounded-[12px]">              
+              {channel.type === 4 && <strong className="flex gap-2">{channel.name}<ChevronRight/></strong>}
+              {channel.type === 0 && <># {channel.name}</>}
+              {channel.type === 2 && <>🔊 {channel.name}</>}
+              {channel.type === 15 && <>📝 {channel.name}</>}
+              {!([0, 2, 4, 15].includes(channel.type)) && channel.name}
+            </div>
+            {channel.children && channel.children.length > 0 && (
+              <RenderChannels channels={channel.children} />
+            )}
+          </li>
+        )}
+        )}
+      </ul>
+    );
+  };
+  
+  const discordChannels = dcChannels[selectedDiscordServer] || [];
+  // const grouped = groupChannels(discordChannels);
+  // const headingIds = grouped.filter(c => c.type === 4).map(c => c.id);
+  // const [open, setOpen] = useState(headingIds.reduce((acc, id) => ({ ...acc, [id]: true }), {}));
+  // const toggle = (id) => setOpen((prev) => ({ ...prev, [id]: !prev[id] }));
+  // const sortedChannels = [...discordChannels].sort((a, b) => a.position - b.position);
+  const sortedChannels = groupChannelsFlat(discordChannels);
+  const headingIds = sortedChannels.filter(c => c.type === 4).map(c => c.id);
+  const [open, setOpen] = useState(headingIds.reduce((acc, id) => ({ ...acc, [id]: true }), {}));
 
-  if (selectedDiscordServer && discordChannels.length>0) {
+console.log('discordChannels',discordChannels)
+  if (selectedDiscordServer && sortedChannels.length>0) {
     return (
       <div className="h-[calc(100vh-73px)] min-w-[350px] p-3 flex flex-col border-r border-[#23272f] bg-[#111111]">
       <button
-        onClick={onBack}
+        onClick={()=>{onBack();onChatSelect("all-channels");setSelectedId("all-channels")}}
         className="mb-4 bg-gray-800 hover:bg-gray-700 text-white py-1 px-3 rounded"
       >
         &larr; Back to Chats
       </button>
       <h3 className="mb-3 text-lg font-bold">Channels</h3>
-      <ul>
+      <div className="overflow-y-scroll h-full">
+     <RenderChannels channels={sortedChannels}/>
+     </div>
+      {/* <ul>
         {discordChannels.map((channel) => (
           <li key={channel.id} className="py-2 pl-2 cursor-pointer rounded-[12px] hover:bg-[#212121]">
             # {channel.name}
           </li>
         ))}
-      </ul>
+      </ul> */}
     </div>
     );
   }
-
+console.log('channelsToShow: ',channelsToShow)
   return (
     <>
       {filterFull ? (

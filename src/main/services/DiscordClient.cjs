@@ -7,79 +7,75 @@ class DiscordClient extends EventEmitter {
     super();
     this.dbManager = dbManager;
     this.securityManager = securityManager;
+
+    // Connection state
     this.token = null;
     this.ws = null;
     this.connected = false;
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 5;
+    this.reconnectDelay = 5000;
+
+    // Session management
     this.heartbeatInterval = null;
+    this.heartbeatAcknowledged = true;
     this.sessionId = null;
     this.sequenceNumber = null;
     this.userId = null;
+
+    // Data stores
     this.guilds = new Map();
     this.channels = new Map();
     this.users = new Map();
 
-    // Discord endpoints here
-    this.apiBase = "https://discord.com/api/v9";
+    // API configuration
+    this.apiBase = "https://discord.com/api/v10";
     this.gatewayUrl = "wss://gateway.discord.gg/?v=10&encoding=json";
-
-    // Realistic browser headers to avoid detection
     this.userAgent = this.getRealisticUserAgent();
 
-    // Rate limiting
-    this.lastMessageTime = 0;
-    this.messageCount = 0;
-    this.rateLimitWindow = 60000;
-    this.maxMessagesPerMinute = 10;
+    // Rate limiting - more conservative
+    this.rateLimits = {
+      message: { count: 0, lastReset: Date.now(), perMinute: 15 },
+      general: { count: 0, lastReset: Date.now(), perSecond: 5 },
+    };
   }
 
   getRealisticUserAgent() {
     const chromeVersion = "140.0.0.0";
-    switch (process.platform) {
-      case "darwin":
-        return `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
-      case "linux":
-        return `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
-      default: // Windows
-        return `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
-    }
+    const platforms = {
+      darwin: `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`,
+      linux: `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`,
+      win32: `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`,
+    };
+    return platforms[process.platform] || platforms.win32;
   }
 
   generateNonce() {
-    const timestamp = Date.now() - 1420070400000; // Discord epoch, different from normal one
+    const timestamp = Date.now() - 1420070400000;
     const random = Math.floor(Math.random() * 4096);
     return ((BigInt(timestamp) << 22n) | BigInt(random)).toString();
   }
 
-  // Generate x-super-properties to prevent triggering the captcha thing
   getSuperProperties() {
-    const props = {
-      os:
-        process.platform === "darwin"
-          ? "Mac OS X"
-          : process.platform === "linux"
-          ? "Linux"
-          : "Windows",
-      browser: "Chrome",
-      device: "",
-      system_locale: "en-US",
-      has_client_mods: false,
-      browser_user_agent: this.getRealisticUserAgent(),
-      browser_version: "140.0.0.0",
-      os_version: process.platform === "darwin" ? "10.15.7" : "10.0.19041",
-      referrer: "",
-      referring_domain: "",
-      referrer_current: "",
-      referring_domain_current: "",
-      release_channel: "stable",
-      client_build_number: 446694,
-      client_event_source: null,
-    };
-    return Buffer.from(JSON.stringify(props)).toString("base64");
-  }
-
-  getContextProperties() {
-    const context = { location: "chat_input" };
-    return Buffer.from(JSON.stringify(context)).toString("base64");
+    const osMap = { darwin: "Mac OS X", linux: "Linux", win32: "Windows" };
+    return Buffer.from(
+      JSON.stringify({
+        os: osMap[process.platform] || "Windows",
+        browser: "Chrome",
+        device: "",
+        system_locale: "en-US",
+        browser_user_agent: this.userAgent,
+        browser_version: "140.0.0.0",
+        os_version: process.platform === "darwin" ? "10.15.7" : "10",
+        referrer: "",
+        referring_domain: "",
+        referrer_current: "",
+        referring_domain_current: "",
+        release_channel: "stable",
+        client_build_number: 446694,
+        client_event_source: null,
+      })
+    ).toString("base64");
   }
 
   getRealisticHeaders(additionalHeaders = {}) {
@@ -96,42 +92,62 @@ class DiscordClient extends EventEmitter {
       "Sec-Fetch-Mode": "cors",
       "Sec-Fetch-Site": "same-origin",
       "Sec-CH-UA":
-        '"Chromium";v="140", "Not=A?Brand";v="24", "Google Chrome";v="140"',
+        '"Chromium";v="140", "Not A(Brand";v="24", "Google Chrome";v="140"',
       "Sec-CH-UA-Mobile": "?0",
-      "Sec-CH-UA-Platform": `"${this.getRealisticOSName()}"`,
+      "Sec-CH-UA-Platform": `"${
+        process.platform === "darwin"
+          ? "macOS"
+          : process.platform === "linux"
+          ? "Linux"
+          : "Windows"
+      }"`,
       "x-discord-locale": "en-US",
       "x-discord-timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
       "x-super-properties": this.getSuperProperties(),
-      "x-context-properties": this.getContextProperties(),
       "x-debug-options": "bugReporterEnabled",
       ...additionalHeaders,
     };
   }
 
-  // Add a small delay to make requests look more human-like
-  async humanDelay() {
-    const delay = Math.random() * 1000 + 500; // 500-1500ms
+  async humanDelay(min = 800, max = 2000) {
+    const delay = Math.random() * (max - min) + min;
     return new Promise((resolve) => setTimeout(resolve, delay));
   }
 
-  // Check and enforce rate limiting
-  async checkRateLimit() {
+  async checkRateLimit(type = "general") {
+    const limit = this.rateLimits[type];
+    if (!limit) return;
+
     const now = Date.now();
+    const window = type === "message" ? 60000 : 1000;
 
-    if (now - this.lastMessageTime > this.rateLimitWindow) {
-      this.messageCount = 0;
-      this.lastMessageTime = now;
+    if (now - limit.lastReset >= window) {
+      limit.count = 0;
+      limit.lastReset = now;
     }
 
-    if (this.messageCount >= this.maxMessagesPerMinute) {
-      const waitTime = this.rateLimitWindow - (now - this.lastMessageTime);
-      console.log(`[Discord] Rate limit reached, waiting ${waitTime}ms`);
+    const maxRate = type === "message" ? limit.perMinute : limit.perSecond;
+
+    if (limit.count >= maxRate) {
+      const waitTime = window - (now - limit.lastReset);
+      console.log(`[Discord] Rate limit, waiting ${waitTime}ms`);
       await new Promise((resolve) => setTimeout(resolve, waitTime));
-      this.messageCount = 0;
-      this.lastMessageTime = Date.now();
+      limit.count = 0;
+      limit.lastReset = Date.now();
     }
 
-    this.messageCount++;
+    limit.count++;
+  }
+
+  // Get current state for broadcasting
+  getState() {
+    return {
+      connected: this.connected,
+      userId: this.userId,
+      guilds: Array.from(this.guilds.values()),
+      channels: Array.from(this.channels.values()),
+      reconnectAttempts: this.reconnectAttempts,
+    };
   }
 
   async connect(token) {
@@ -141,19 +157,14 @@ class DiscordClient extends EventEmitter {
       }
 
       this.token = token;
-
-      // Test token validity with a simple API call
       await this.testTokenValidity();
-
-      // Store token securely
       await this.securityManager.storeDiscordToken(token);
-
-      // Connect to Discord Gateway
       await this.connectToGateway();
 
       console.log("[Discord] Successfully connected");
       this.connected = true;
-      this.emit("connected");
+      this.reconnectAttempts = 0;
+      this.emit("connected", this.getState());
     } catch (error) {
       console.error("[Discord] Connection failed:", error);
       this.connected = false;
@@ -176,36 +187,24 @@ class DiscordClient extends EventEmitter {
 
       const req = https.request(options, (res) => {
         let data = "";
-
-        res.on("data", (chunk) => {
-          data += chunk;
-        });
-
+        res.on("data", (chunk) => (data += chunk));
         res.on("end", () => {
           if (res.statusCode === 200) {
-            try {
-              const userData = JSON.parse(data);
-              this.userId = userData.id;
-              console.log(
-                "[Discord] Token validated for user:",
-                userData.username
-              );
-              resolve(userData);
-            } catch (error) {
-              reject(new Error("Failed to parse user data"));
-            }
+            const userData = JSON.parse(data);
+            this.userId = userData.id;
+            console.log("[Discord] Token validated:", userData.username);
+            resolve(userData);
           } else {
-            reject(
-              new Error(`Token validation failed: ${res.statusCode} ${data}`)
-            );
+            reject(new Error(`Token validation failed: ${res.statusCode}`));
           }
         });
       });
 
-      req.on("error", (error) => {
-        reject(error);
+      req.on("error", reject);
+      req.setTimeout(10000, () => {
+        req.destroy();
+        reject(new Error("Token validation timeout"));
       });
-
       req.end();
     });
   }
@@ -213,9 +212,10 @@ class DiscordClient extends EventEmitter {
   connectToGateway() {
     return new Promise((resolve, reject) => {
       this.ws = new WebSocket(this.gatewayUrl);
+      let resolved = false;
 
       this.ws.on("open", () => {
-        console.log("[Discord] Gateway connection opened");
+        console.log("[Discord] Gateway opened");
       });
 
       this.ws.on("message", (data) => {
@@ -223,126 +223,142 @@ class DiscordClient extends EventEmitter {
           const message = JSON.parse(data.toString());
           this.handleGatewayMessage(message);
 
-          if (message.t === "READY") {
+          if (message.t === "READY" && !resolved) {
+            resolved = true;
             resolve();
           }
         } catch (error) {
-          console.error("[Discord] Failed to parse gateway message:", error);
+          console.error("[Discord] Parse error:", error);
         }
       });
 
       this.ws.on("close", (code, reason) => {
-        console.log(`[Discord] Gateway connection closed: ${code} ${reason}`);
+        console.log(`[Discord] Gateway closed: ${code}`);
         this.connected = false;
-        this.emit("disconnected");
-        this.cleanup();
+        this.emit("disconnected", { code, reason: reason.toString() });
+        this.handleDisconnection(code);
       });
 
       this.ws.on("error", (error) => {
         console.error("[Discord] Gateway error:", error);
-        this.connected = false;
-        this.emit("error", error);
-        reject(error);
+        if (!resolved) reject(error);
       });
 
-      // Set connection timeout
       setTimeout(() => {
-        if (!this.connected) {
-          reject(new Error("Gateway connection timeout"));
-        }
+        if (!resolved) reject(new Error("Gateway timeout"));
       }, 15000);
     });
+  }
+
+  handleDisconnection(code) {
+    this.cleanup();
+
+    const noReconnectCodes = [4004, 4010, 4011, 4012, 4013, 4014];
+    if (noReconnectCodes.includes(code)) {
+      console.error("[Discord] Fatal error, cannot reconnect");
+      this.emit("fatalError", { code });
+      return;
+    }
+
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts);
+      console.log(`[Discord] Reconnecting in ${delay}ms`);
+
+      setTimeout(() => {
+        this.reconnectAttempts++;
+        this.reconnect();
+      }, delay);
+    }
   }
 
   handleGatewayMessage(message) {
     const { op, t, d, s } = message;
 
-    if (s !== null) {
+    if (s !== null && s !== undefined) {
       this.sequenceNumber = s;
     }
 
     switch (op) {
       case 10: // Hello
         this.startHeartbeat(d.heartbeat_interval);
-        this.identify();
-        break;
+        setTimeout(() => this.identify(), 100);
 
+        break;
       case 11: // Heartbeat ACK
-        console.log("[Discord] Heartbeat acknowledged");
+        this.heartbeatAcknowledged = true;
         break;
-
       case 0: // Dispatch
         this.handleDispatch(t, d);
         break;
-
       case 1: // Heartbeat request
         this.sendHeartbeat();
         break;
-
       case 7: // Reconnect
-        console.log("[Discord] Server requested reconnect");
         this.reconnect();
         break;
-
       case 9: // Invalid session
-        console.log("[Discord] Invalid session, reconnecting");
-        setTimeout(() => this.reconnect(), 5000);
+        this.sessionId = null;
+        this.sequenceNumber = null;
+        setTimeout(() => this.identify(), 5000);
         break;
-
-      default:
-        console.log(`[Discord] Unknown opcode: ${op}`);
     }
   }
 
   handleDispatch(eventType, data) {
     switch (eventType) {
       case "READY":
-        this.sessionId = data.session_id;
-        this.userId = data.user.id;
-        console.log(
-          `[Discord] Ready! Logged in as ${data.user.username}#${data.user.discriminator}`
-        );
-
-        // Store user data
-        this.dbManager.createUser({
-          id: data.user.id,
-          platform: "discord",
-          username: `${data.user.username}#${data.user.discriminator}`,
-          display_name: data.user.global_name || data.user.username,
-          avatar_url: data.user.avatar
-            ? `https://cdn.discordapp.com/avatars/${data.user.id}/${data.user.avatar}.png`
-            : null,
-        });
-
-        // Store guilds and channels
-        this.processGuilds(data.guilds);
-        this.processPrivateChannels(data.private_channels);
+        this.handleReady(data);
         break;
-
       case "MESSAGE_CREATE":
         this.handleNewMessage(data);
         break;
-
       case "MESSAGE_UPDATE":
         this.handleMessageUpdate(data);
         break;
-
       case "MESSAGE_DELETE":
         this.handleMessageDelete(data);
         break;
-
       case "CHANNEL_CREATE":
       case "CHANNEL_UPDATE":
         this.handleChannelUpdate(data);
         break;
-
+      case "CHANNEL_DELETE":
+        this.handleChannelDelete(data);
+        break;
       case "GUILD_CREATE":
         this.processGuild(data);
+        this.emit("guildUpdate", this.getState());
         break;
-
-      default:
-        console.log(`[Discord] Unhandled event: ${eventType}`);
+      case "GUILD_UPDATE":
+        this.processGuild(data);
+        this.emit("guildUpdate", this.getState());
+        break;
+      case "GUILD_DELETE":
+        this.guilds.delete(data.id);
+        this.emit("guildUpdate", this.getState());
+        break;
     }
+  }
+
+  handleReady(data) {
+    this.sessionId = data.session_id;
+    this.userId = data.user.id;
+    console.log(`[Discord] Ready! Logged in as ${data.user.username}`);
+
+    this.dbManager.createUser({
+      id: data.user.id,
+      platform: "discord",
+      username: data.user.username,
+      display_name: data.user.global_name || data.user.username,
+      avatar_url: data.user.avatar
+        ? `https://cdn.discordapp.com/avatars/${data.user.id}/${data.user.avatar}.png`
+        : null,
+    });
+
+    this.processGuilds(data.guilds);
+    this.processPrivateChannels(data.private_channels || []);
+
+    this.emit("ready", this.getState());
   }
 
   startHeartbeat(interval) {
@@ -350,34 +366,25 @@ class DiscordClient extends EventEmitter {
       clearInterval(this.heartbeatInterval);
     }
 
+    this.heartbeatAcknowledged = true;
+
     this.heartbeatInterval = setInterval(() => {
+      if (!this.heartbeatAcknowledged) {
+        console.warn("[Discord] Heartbeat not acked, reconnecting");
+        this.reconnect();
+        return;
+      }
+
+      this.heartbeatAcknowledged = false;
       this.sendHeartbeat();
     }, interval);
 
-    console.log(`[Discord] Heartbeat started with ${interval}ms interval`);
+    console.log(`[Discord] Heartbeat started: ${interval}ms`);
   }
 
   sendHeartbeat() {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(
-        JSON.stringify({
-          op: 1,
-          d: this.sequenceNumber,
-        })
-      );
-    }
-  }
-
-  getRealisticOSName() {
-    switch (process.platform) {
-      case "win32":
-        return "Windows";
-      case "darwin":
-        return "Mac OS X";
-      case "linux":
-        return "Linux";
-      default:
-        return "Windows"; // Default to Windows
+      this.ws.send(JSON.stringify({ op: 1, d: this.sequenceNumber }));
     }
   }
 
@@ -386,39 +393,47 @@ class DiscordClient extends EventEmitter {
       op: 2,
       d: {
         token: this.token,
-        intents: 513, // GUILDS (1) + DIRECT_MESSAGES (512)
+        intents: 33281, // GUILDS + GUILD_MESSAGES + DIRECT_MESSAGES
         properties: {
-          $os: this.getRealisticOSName(),
-          $browser: "Chrome",
-          $device: "desktop",
+          os:
+            process.platform === "darwin"
+              ? "Mac OS X"
+              : process.platform === "linux"
+              ? "Linux"
+              : "Windows",
+          browser: "Chrome",
+          device: "",
         },
       },
     };
 
-    this.ws.send(JSON.stringify(payload));
-    console.log("[Discord] Identification sent");
+    const sendIdentify = () => {
+      this.ws.send(JSON.stringify(payload));
+      console.log("[Discord] Identification sent");
+    };
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      sendIdentify();
+    } else {
+      this.ws?.once("open", sendIdentify);
+    }
   }
 
   processGuilds(guilds) {
-    for (const guild of guilds) {
-      this.processGuild(guild);
-    }
+    guilds.forEach((guild) => this.processGuild(guild));
   }
 
   processGuild(guild) {
     this.guilds.set(guild.id, guild);
 
     if (guild.channels) {
-      for (const channel of guild.channels) {
+      guild.channels.forEach((channel) => {
         if (channel.type === 0) {
-          // Text channel
           this.channels.set(channel.id, {
             ...channel,
             guild_id: guild.id,
             guild_name: guild.name,
           });
 
-          // Store as chat
           this.dbManager.createChat({
             id: channel.id,
             platform: "discord",
@@ -426,50 +441,42 @@ class DiscordClient extends EventEmitter {
             name: `#${channel.name} (${guild.name})`,
             description: channel.topic,
             participant_count: guild.member_count,
-            last_message_id: channel?.last_message_id,
-            last_message_timestamp: channel?.last_message_timestamp
+            last_message_id: channel.last_message_id,
           });
         }
-      }
+      });
     }
   }
 
   processPrivateChannels(channels) {
-    for (const channel of channels) {
+    channels.forEach((channel) => {
       this.channels.set(channel.id, channel);
 
-      if (channel.type === 1) {
-        // DM
+      if (channel.type === 1 && channel.recipients && channel.recipients[0]) {
         const recipient = channel.recipients[0];
-        if (recipient) {
-          // Store user
-          this.dbManager.createUser({
-            id: recipient.id,
-            platform: "discord",
-            username: `${recipient.username}#${recipient.discriminator}`,
-            display_name: recipient.global_name || recipient.username,
-            avatar_url: recipient.avatar
-              ? `https://cdn.discordapp.com/avatars/${recipient.id}/${recipient.avatar}.png`
-              : null,
-          });
 
-          // Store chat
-          this.dbManager.createChat({
-            id: channel.id,
-            platform: "discord",
-            type: "dm",
-            name: recipient.global_name || recipient.username,
-            participant_count: 2,
-            avatar_url: recipient.avatar
-              ? `https://cdn.discordapp.com/avatars/${recipient.id}/${recipient.avatar}.png`
-              : null,
-               last_message_id: channel?.last_message_id,
-            last_message_timestamp: channel?.last_message_timestamp,
+        this.dbManager.createUser({
+          id: recipient.id,
+          platform: "discord",
+          username: recipient.username,
+          display_name: recipient.global_name || recipient.username,
+          avatar_url: recipient.avatar
+            ? `https://cdn.discordapp.com/avatars/${recipient.id}/${recipient.avatar}.png`
+            : null,
+        });
 
-          });
-        }
+        this.dbManager.createChat({
+          id: channel.id,
+          platform: "discord",
+          type: "dm",
+          name: recipient.global_name || recipient.username,
+          participant_count: 2,
+          avatar_url: recipient.avatar
+            ? `https://cdn.discordapp.com/avatars/${recipient.id}/${recipient.avatar}.png`
+            : null,
+          last_message_id: channel.last_message_id,
+        });
       } else if (channel.type === 3) {
-        // Group DM
         const names = channel.recipients.map((r) => r.username).join(", ");
 
         this.dbManager.createChat({
@@ -478,29 +485,42 @@ class DiscordClient extends EventEmitter {
           type: "group",
           name: channel.name || names,
           participant_count: channel.recipients.length + 1,
-           last_message_id: channel?.last_message_id,
-            last_message_timestamp: channel?.last_message_timestamp
-
+          last_message_id: channel.last_message_id,
         });
 
-        // Store all recipients
-        for (const recipient of channel.recipients) {
+        channel.recipients.forEach((recipient) => {
           this.dbManager.createUser({
             id: recipient.id,
             platform: "discord",
-            username: `${recipient.username}#${recipient.discriminator}`,
+            username: recipient.username,
             display_name: recipient.global_name || recipient.username,
             avatar_url: recipient.avatar
               ? `https://cdn.discordapp.com/avatars/${recipient.id}/${recipient.avatar}.png`
               : null,
           });
-        }
+        });
       }
-    }
+    });
+
+    this.emit("channelsUpdate", this.getState());
   }
 
   handleNewMessage(messageData) {
-    // Store message in database
+    // Store user
+    if (messageData.author) {
+      this.dbManager.createUser({
+        id: messageData.author.id,
+        platform: "discord",
+        username: messageData.author.username,
+        display_name:
+          messageData.author.global_name || messageData.author.username,
+        avatar_url: messageData.author.avatar
+          ? `https://cdn.discordapp.com/avatars/${messageData.author.id}/${messageData.author.avatar}.png`
+          : null,
+      });
+    }
+
+    // Store message
     this.dbManager.createMessage({
       id: messageData.id,
       chat_id: messageData.channel_id,
@@ -508,56 +528,59 @@ class DiscordClient extends EventEmitter {
       content: messageData.content,
       message_type: this.getMessageType(messageData),
       attachments: messageData.attachments,
+      reactions: messageData.reactions,
       embeds: messageData.embeds,
       timestamp: messageData.timestamp,
       sync_status: "synced",
     });
 
-    // Store author if not exists
-    this.dbManager.createUser({
-      id: messageData.author.id,
-      platform: "discord",
-      username: `${messageData.author.username}#${messageData.author.discriminator}`,
-      display_name:
-        messageData.author.global_name || messageData.author.username,
-      avatar_url: messageData.author.avatar
-        ? `https://cdn.discordapp.com/avatars/${messageData.author.id}/${messageData.author.avatar}.png`
-        : null,
+    // Emit event for real-time UI update
+    this.emit("newMessage", {
+      chatId: messageData.channel_id,
+      message: messageData,
     });
-
-    this.emit("message", messageData);
   }
 
   handleMessageUpdate(messageData) {
-    // Handle message edits
-    this.dbManager.createMessage({
-      id: messageData.id,
-      chat_id: messageData.channel_id,
-      user_id: messageData.author?.id,
-      content: messageData.content,
-      message_type: this.getMessageType(messageData),
-      attachments: messageData.attachments,
-      embeds: messageData.embeds,
-      timestamp: messageData.timestamp,
-      is_edited: 1,
-      sync_status: "synced",
-    });
+    if (messageData.author) {
+      this.dbManager.createMessage({
+        id: messageData.id,
+        chat_id: messageData.channel_id,
+        user_id: messageData.author.id,
+        content: messageData.content,
+        message_type: this.getMessageType(messageData),
+        attachments: messageData.attachments,
+        reactions: messageData.reactions,
+        embeds: messageData.embeds,
+        timestamp: messageData.timestamp,
+        is_edited: 1,
+        sync_status: "synced",
+      });
+
+      this.emit("messageUpdate", {
+        chatId: messageData.channel_id,
+        message: messageData,
+      });
+    }
   }
 
   handleMessageDelete(data) {
-    // Mark message as deleted
     const stmt = this.dbManager.db.prepare(`
       UPDATE messages 
       SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP 
       WHERE id = ?
     `);
     stmt.run(data.id);
+
+    this.emit("messageDelete", {
+      chatId: data.channel_id,
+      messageId: data.id,
+    });
   }
 
   handleChannelUpdate(channelData) {
     this.channels.set(channelData.id, channelData);
 
-    // Update chat information
     if (channelData.type === 1 || channelData.type === 3) {
       const chatName =
         channelData.type === 1
@@ -574,496 +597,253 @@ class DiscordClient extends EventEmitter {
         participant_count: channelData.recipients
           ? channelData.recipients.length + 1
           : 2,
-           last_message_id: channel?.last_message_id,
-            last_message_timestamp: channel?.last_message_timestamp
-
+        last_message_id: channelData.last_message_id,
       });
     }
+
+    this.emit("channelUpdate", channelData);
+    this.emit("channelsUpdate", this.getState());
+  }
+
+  handleChannelDelete(channelData) {
+    this.channels.delete(channelData.id);
+    this.emit("channelDelete", channelData);
+    this.emit("channelsUpdate", this.getState());
   }
 
   getMessageType(messageData) {
-    if (messageData.attachments && messageData.attachments.length > 0) {
+    if (messageData.attachments?.length > 0) {
       const attachment = messageData.attachments[0];
-      if (attachment.content_type?.startsWith("image/")) {
-        return "image";
-      }
+      if (attachment.content_type?.startsWith("image/")) return "image";
+      if (attachment.content_type?.startsWith("video/")) return "video";
       return "file";
     }
-
-    if (messageData.embeds && messageData.embeds.length > 0) {
-      return "embed";
-    }
-
+    if (messageData.embeds?.length > 0) return "embed";
     return "text";
   }
 
+  // API Methods
   async getDMs() {
-    try {
-      const dms = await this.dbManager.getChats("discord");
-      return dms.filter((chat) => chat.type === "dm" || chat.type === "group");
-    } catch (error) {
-      console.error("[Discord] Failed to get DMs:", error);
-      throw error;
-    }
+    const chats = await this.dbManager.getChats("discord");
+    return chats.filter((chat) => chat.type === "dm" || chat.type === "group");
+  }
+
+  async getGuilds() {
+    return Array.from(this.guilds.values());
   }
 
   async getMessages(chatId, limit = 50, offset = 0) {
-    try {
-      const msg = await this.dbManager.getMessages(chatId, limit, offset);
-      return msg;
-    } catch (error) {
-      console.error("[Discord] Failed to get DMs:", error);
-      throw error;
-    }
+    return await this.dbManager.getMessages(chatId, limit, offset);
   }
 
-  async attachments(channelId,files) {
-    try {
-      // Rate limiting check
-      await this.checkRateLimit();
+  async getChatHistory(channelId, limit = 50, beforeMessageId = null) {
+    await this.checkRateLimit("general");
+    await this.humanDelay();
 
-      // Human-like delay
-      await this.humanDelay();
-
-      return new Promise((resolve, reject) => {
-        const data = JSON.stringify({
-          files: files
-        
-        });
-
-        const options = {
-          hostname: "discord.com",
-          path: `/api/v9/channels/${channelId}/attachments`,
-          method: "POST",
-          headers: this.getRealisticHeaders({
-            Authorization: this.token,
-            "Content-Type": "application/json",
-            "Content-Length": Buffer.byteLength(data),
-            Referer: `https://discord.com/channels/@me/${channelId}`,
-            "Accept-Encoding": "identity",
-          }),
-        };
-
-        const req = https.request(options, (res) => {
-          let responseData = "";
-
-          res.on("data", (chunk) => {
-            responseData += chunk;
-          });
-
-          res.on("end", () => {
-            console.log(`[Discord] Response status: ${res.statusCode}`);
-            console.log(`[Discord] Response data: ${responseData}`);
-
-            if (res.statusCode === 200 || res.statusCode === 201) {
-              try {
-                const attachment = JSON.parse(responseData);
-
-                // Store sent message in database
-                // this.dbManager.createMessage({
-                //   id: messageData.id,
-                //   chat_id: messageData.channel_id,
-                //   user_id: messageData.author.id,
-                //   content: messageData.content,
-                //   message_type: "text",
-                //   timestamp: messageData.timestamp,
-                //   sync_status: "synced",
-                // });
-
-                resolve(attachment);
-              } catch (error) {
-                reject(new Error("Failed to parse response"));
-              }
-            } else if (res.statusCode === 400) {
-              // Handle CAPTCHA
-              try {
-                const errorData = JSON.parse(responseData);
-                if (
-                  errorData.captcha_key &&
-                  errorData.captcha_key.includes("captcha-required")
-                ) {
-                  const captchaError = new Error("CAPTCHA required");
-                  captchaError.captchaRequired = true;
-                  captchaError.captchaData = {
-                    sitekey: errorData.captcha_sitekey,
-                    service: errorData.captcha_service,
-                    sessionId: errorData.captcha_session_id,
-                    rqdata: errorData.captcha_rqdata,
-                    rqtoken: errorData.captcha_rqtoken,
-                  };
-                  console.log(
-                    "[Discord] CAPTCHA required:",
-                    captchaError.captchaData
-                  );
-
-                  this.emit("captchaRequired", captchaError.captchaData);
-
-                  reject(captchaError);
-                  return;
-                }
-              } catch (parseError) {}
-
-              reject(
-                new Error(
-                  `Attachment send failed: ${res.statusCode} ${responseData}`
-                )
-              );
-            } else {
-              reject(
-                new Error(
-                  `Attachment send failed: ${res.statusCode} ${responseData}`
-                )
-              );
-            }
-          });
-        });
-
-        req.on("error", (error) => {
-          console.error("[Discord] Request error:", error);
-          reject(error);
-        });
-
-        req.write(data);
-        req.end();
-      });
-    } catch (error) {
-      console.error("[Discord] Send message error:", error);
-      throw error;
-    } 
+    return this.makeRequest({
+      path: `/api/v10/channels/${channelId}/messages?limit=${limit}${
+        beforeMessageId ? `&before=${beforeMessageId}` : ""
+      }`,
+      method: "GET",
+      channelId,
+    });
   }
 
-   async getChatHistory(channelId,limit = 50, beforeMessageId = null) {
-    try {
-      // Rate limiting check
-      await this.checkRateLimit();
-
-      // Human-like delay
-      await this.humanDelay();
-
-      return new Promise((resolve, reject) => {
-    
-       
-        let url=`/api/v9/channels/${channelId}/messages?limit=${limit}`;
-        if(beforeMessageId){
-          url+=`&before=${beforeMessageId}`;
-        }
-        const options = {
-          hostname: "discord.com",
-          path: url,
-          method: "GET",
-          headers: this.getRealisticHeaders({
-            Authorization: this.token,
-            "Content-Type": "application/json",
-        
-            Referer: `https://discord.com/channels/@me/${channelId}`,
-            "Accept-Encoding": "identity",
-          }),
-        };
-
-        const req = https.request(options, (res) => {
-          let responseData = "";
-
-          res.on("data", (chunk) => {
-            responseData += chunk;
-          });
-
-          res.on("end", () => {
-            console.log(`[Discord] Response status: ${res.statusCode}`);
-            console.log(`[Discord] Response data: ${responseData}`);
-
-            if (res.statusCode === 200 || res.statusCode === 201) {
-              try {
-                const chatHistory = JSON.parse(responseData);
-
-                // Store sent message in database
-                // this.dbManager.createMessage({
-                //   id: messageData.id,
-                //   chat_id: messageData.channel_id,
-                //   user_id: messageData.author.id,
-                //   content: messageData.content,
-                //   message_type: "text",
-                //   timestamp: messageData.timestamp,
-                //   sync_status: "synced",
-                // });
-
-                resolve(chatHistory);
-              } catch (error) {
-                reject(new Error("Failed to parse response"));
-              }
-            } else if (res.statusCode === 400) {
-              // Handle CAPTCHA
-              try {
-                const errorData = JSON.parse(responseData);
-                if (
-                  errorData.captcha_key &&
-                  errorData.captcha_key.includes("captcha-required")
-                ) {
-                  const captchaError = new Error("CAPTCHA required");
-                  captchaError.captchaRequired = true;
-                  captchaError.captchaData = {
-                    sitekey: errorData.captcha_sitekey,
-                    service: errorData.captcha_service,
-                    sessionId: errorData.captcha_session_id,
-                    rqdata: errorData.captcha_rqdata,
-                    rqtoken: errorData.captcha_rqtoken,
-                  };
-                  console.log(
-                    "[Discord] CAPTCHA required:",
-                    captchaError.captchaData
-                  );
-
-                  this.emit("captchaRequired", captchaError.captchaData);
-
-                  reject(captchaError);
-                  return;
-                }
-              } catch (parseError) {}
-
-              reject(
-                new Error(
-                  `chathistory retrieve failed: ${res.statusCode} ${responseData}`
-                )
-              );
-            } else {
-              reject(
-                new Error(
-                  `chathistory retrieve send failed: ${res.statusCode} ${responseData}`
-                )
-              );
-            }
-          });
-        });
-
-        req.on("error", (error) => {
-          console.error("[Discord] Request error:", error);
-          reject(error);
-        });
-        req.end();
-      });
-    } catch (error) {
-      console.error("[Discord] Send message error:", error);
-      throw error;
-    } 
-  }
   async sendMessage(channelId, content, attachments = []) {
-    try {
-      // Rate limiting check
-      await this.checkRateLimit();
+    await this.checkRateLimit("message");
+    await this.humanDelay();
 
-      // Human-like delay
-      await this.humanDelay();
+    const nonce = this.generateNonce();
+    const data = {
+      content,
+      nonce,
+      attachments,
+      tts: false,
+      flags: 0,
+    };
 
-      return new Promise((resolve, reject) => {
-        const nonce = this.generateNonce();
-        const data = JSON.stringify({
-          attachments: attachments,
-          mobile_network_type: "unknown",
-          content: content,
-          nonce: nonce,
-          tts: false,
-          flags: 0,
-        });
-
-        const options = {
-          hostname: "discord.com",
-          path: `/api/v9/channels/${channelId}/messages`,
-          method: "POST",
-          headers: this.getRealisticHeaders({
-            Authorization: this.token,
-            "Content-Type": "application/json",
-            "Content-Length": Buffer.byteLength(data),
-            Referer: `https://discord.com/channels/@me/${channelId}`,
-            "Accept-Encoding": "identity",
-          }),
-        };
-
-        const req = https.request(options, (res) => {
-          let responseData = "";
-
-          res.on("data", (chunk) => {
-            responseData += chunk;
-          });
-
-          res.on("end", () => {
-            console.log(`[Discord] Response status: ${res.statusCode}`);
-            console.log(`[Discord] Response data: ${responseData}`);
-
-            if (res.statusCode === 200 || res.statusCode === 201) {
-              try {
-                const messageData = JSON.parse(responseData);
-
-                // Store sent message in database
-                this.dbManager.createMessage({
-                  id: messageData.id,
-                  chat_id: messageData.channel_id,
-                  user_id: messageData.author.id,
-                  content: messageData.content,
-                  message_type: "text",
-                  timestamp: messageData.timestamp,
-                  sync_status: "synced",
-                });
-
-                resolve(messageData);
-              } catch (error) {
-                reject(new Error("Failed to parse response"));
-              }
-            } else if (res.statusCode === 400) {
-              // Handle CAPTCHA
-              try {
-                const errorData = JSON.parse(responseData);
-                if (
-                  errorData.captcha_key &&
-                  errorData.captcha_key.includes("captcha-required")
-                ) {
-                  const captchaError = new Error("CAPTCHA required");
-                  captchaError.captchaRequired = true;
-                  captchaError.captchaData = {
-                    sitekey: errorData.captcha_sitekey,
-                    service: errorData.captcha_service,
-                    sessionId: errorData.captcha_session_id,
-                    rqdata: errorData.captcha_rqdata,
-                    rqtoken: errorData.captcha_rqtoken,
-                  };
-                  console.log(
-                    "[Discord] CAPTCHA required:",
-                    captchaError.captchaData
-                  );
-
-                  this.emit("captchaRequired", captchaError.captchaData);
-
-                  reject(captchaError);
-                  return;
-                }
-              } catch (parseError) {}
-
-              reject(
-                new Error(
-                  `Message send failed: ${res.statusCode} ${responseData}`
-                )
-              );
-            } else {
-              reject(
-                new Error(
-                  `Message send failed: ${res.statusCode} ${responseData}`
-                )
-              );
-            }
-          });
-        });
-
-        req.on("error", (error) => {
-          console.error("[Discord] Request error:", error);
-          reject(error);
-        });
-
-        req.write(data);
-        req.end();
-      });
-    } catch (error) {
-      console.error("[Discord] Send message error:", error);
-      throw error;
-    }
+    return this.makeRequest({
+      path: `/api/v10/channels/${channelId}/messages`,
+      method: "POST",
+      data,
+      channelId,
+    });
   }
 
-  // resend message with CAPTCHA
-  async sendMessageWithCaptcha(channelId, content, captchaToken, captchaData) {
-    try {
-      await this.checkRateLimit();
+  async addReaction(channelId, messageId, emoji) {
+    await this.checkRateLimit("general");
+    await this.humanDelay();
 
-      await this.humanDelay();
+    return this.makeRequest({
+      path: `/api/v10/channels/${channelId}/messages/${messageId}/reactions/${encodeURIComponent(
+        emoji
+      )}/@me`,
+      method: "PUT",
+      channelId,
+    });
+  }
 
-      return new Promise((resolve, reject) => {
-        const nonce = this.generateNonce();
-        const data = JSON.stringify({
-          mobile_network_type: "unknown",
-          content: content,
-          nonce: nonce,
-          tts: false,
-          flags: 0,
-          captcha_key: captchaToken,
-          captcha_rqtoken: captchaData.rqtoken,
-        });
+  async removeReaction(channelId, messageId, emoji) {
+    await this.checkRateLimit("general");
+    await this.humanDelay();
 
-        const options = {
-          hostname: "discord.com",
-          path: `/api/v9/channels/${channelId}/messages`,
-          method: "POST",
-          headers: this.getRealisticHeaders({
-            Authorization: this.token,
+    return this.makeRequest({
+      path: `/api/v10/channels/${channelId}/messages/${messageId}/reactions/${encodeURIComponent(
+        emoji
+      )}/@me`,
+      method: "DELETE",
+      channelId,
+    });
+  }
+
+  async attachments(channelId, files) {
+    await this.checkRateLimit("general");
+    await this.humanDelay();
+
+    return this.makeRequest({
+      path: `/api/v10/channels/${channelId}/attachments`,
+      method: "POST",
+      data: { files },
+      channelId,
+    });
+  }
+
+  // Unified request handler
+  makeRequest({ path, method = "GET", data = null, channelId = null }) {
+    return new Promise((resolve, reject) => {
+      const body = data ? JSON.stringify(data) : null;
+
+      const options = {
+        hostname: "discord.com",
+        path,
+        method,
+        headers: this.getRealisticHeaders({
+          Authorization: this.token,
+          "Accept-Encoding": "identity",
+          ...(body && {
             "Content-Type": "application/json",
-            "Content-Length": Buffer.byteLength(data),
+            "Content-Length": Buffer.byteLength(body),
+          }),
+          ...(channelId && {
             Referer: `https://discord.com/channels/@me/${channelId}`,
           }),
-        };
+        }),
+      };
 
-        const req = https.request(options, (res) => {
-          let responseData = "";
+      const req = https.request(options, (res) => {
+        let responseData = "";
+        res.on("data", (chunk) => (responseData += chunk));
+        res.on("end", () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            try {
+              const parsed = responseData ? JSON.parse(responseData) : {};
 
-          res.on("data", (chunk) => {
-            responseData += chunk;
-          });
-
-          res.on("end", () => {
-            console.log(`[Discord] CAPTCHA Response status: ${res.statusCode}`);
-            console.log(`[Discord] CAPTCHA Response data: ${responseData}`);
-
-            if (res.statusCode === 200 || res.statusCode === 201) {
-              try {
-                const messageData = JSON.parse(responseData);
-
-                // Store sent message in database
+              // Store sent messages
+              if (
+                method === "POST" &&
+                path.includes("/messages") &&
+                parsed.id
+              ) {
                 this.dbManager.createMessage({
-                  id: messageData.id,
-                  chat_id: messageData.channel_id,
-                  user_id: messageData.author.id,
-                  content: messageData.content,
+                  id: parsed.id,
+                  chat_id: parsed.channel_id,
+                  user_id: parsed.author.id,
+                  content: parsed.content,
+                  attachments: parsed.attachments,
+                  reactions: parsed.reactions,
                   message_type: "text",
-                  timestamp: messageData.timestamp,
+                  timestamp: parsed.timestamp,
                   sync_status: "synced",
                 });
-
-                console.log(
-                  "[Discord] Message sent successfully after CAPTCHA"
-                );
-                resolve(messageData);
-              } catch (error) {
-                reject(new Error("Failed to parse response"));
               }
-            } else {
-              reject(
-                new Error(
-                  `Message send failed after CAPTCHA: ${res.statusCode} ${responseData}`
-                )
-              );
+              this.emit("newMessage", {
+                chatId: parsed.channel_id,
+                message: parsed,
+              });
+
+              resolve(parsed);
+            } catch (error) {
+              resolve(responseData);
             }
-          });
+          } else if (res.statusCode === 429) {
+            const retryAfter = res.headers["retry-after"] || 1;
+            console.warn(`[Discord] Rate limited, retry after ${retryAfter}s`);
+            setTimeout(() => {
+              this.makeRequest({ path, method, data, channelId })
+                .then(resolve)
+                .catch(reject);
+            }, retryAfter * 1000);
+          } else if (res.statusCode === 400) {
+            try {
+              const errorData = JSON.parse(responseData);
+              if (errorData.captcha_key?.includes("captcha-required")) {
+                const captchaError = new Error("CAPTCHA required");
+                captchaError.captchaRequired = true;
+                captchaError.captchaData = {
+                  sitekey: errorData.captcha_sitekey,
+                  service: errorData.captcha_service,
+                  sessionId: errorData.captcha_session_id,
+                  rqdata: errorData.captcha_rqdata,
+                  rqtoken: errorData.captcha_rqtoken,
+                };
+                this.emit("captchaRequired", captchaError.captchaData);
+                reject(captchaError);
+                return;
+              }
+            } catch (e) {}
+            reject(
+              new Error(`Request failed: ${res.statusCode} ${responseData}`)
+            );
+          } else {
+            reject(
+              new Error(`Request failed: ${res.statusCode} ${responseData}`)
+            );
+          }
         });
-
-        req.on("error", (error) => {
-          console.error("[Discord] CAPTCHA Request error:", error);
-          reject(error);
-        });
-
-        req.write(data);
-        req.end();
       });
-    } catch (error) {
-      console.error("[Discord] Send message with CAPTCHA error:", error);
-      throw error;
-    }
+
+      req.on("error", reject);
+      req.setTimeout(15000, () => {
+        req.destroy();
+        reject(new Error("Request timeout"));
+      });
+
+      if (body) req.write(body);
+      req.end();
+    });
+  }
+
+  async sendMessageWithCaptcha(channelId, content, captchaToken, captchaData) {
+    await this.checkRateLimit("message");
+    await this.humanDelay();
+
+    const nonce = this.generateNonce();
+    const data = {
+      content,
+      nonce,
+      tts: false,
+      flags: 0,
+      captcha_key: captchaToken,
+      captcha_rqtoken: captchaData.rqtoken,
+    };
+
+    return this.makeRequest({
+      path: `/api/v10/channels/${channelId}/messages`,
+      method: "POST",
+      data,
+      channelId,
+    });
   }
 
   reconnect() {
-    console.log("[Discord] Attempting to reconnect...");
+    console.log("[Discord] Reconnecting...");
     this.cleanup();
 
-    setTimeout(() => {
-      if (this.token) {
-        this.connect(this.token).catch((error) => {
-          console.error("[Discord] Reconnection failed:", error);
-        });
-      }
-    }, 5000);
+    if (this.token) {
+      this.connect(this.token).catch((error) => {
+        console.error("[Discord] Reconnection failed:", error);
+      });
+    }
   }
 
   cleanup() {
@@ -1075,18 +855,20 @@ class DiscordClient extends EventEmitter {
     if (this.ws) {
       this.ws.removeAllListeners();
       if (this.ws.readyState === WebSocket.OPEN) {
-        this.ws.close();
+        this.ws.close(1000, "Client cleanup");
       }
       this.ws = null;
     }
 
+    this.heartbeatAcknowledged = true;
     this.connected = false;
   }
 
   disconnect() {
     console.log("[Discord] Disconnecting...");
+    this.reconnectAttempts = this.maxReconnectAttempts;
     this.cleanup();
-    this.emit("disconnected");
+    this.emit("disconnected", { intentional: true });
   }
 
   isConnected() {

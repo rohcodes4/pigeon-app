@@ -53,12 +53,15 @@ import {
   createBookmark,
 } from "@/utils/apiHelpers";
 import { toast } from "@/hooks/use-toast";
-import { mapDiscordMessageToTelegram } from "@/lib/utils";
+import { mapDiscordMessageToItem, mapDiscordMessageToTelegram } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
 import { mapToFullChat } from "@/lib/utils";
 import AudioWaveform from "./AudioWaveForm";
 import LiveAudioWaveform from "./LiveAudioWaveForm";
 import { timeStamp } from "console";
+import { useDiscordChatHistory, useDiscordMessages } from "@/hooks/useDiscord";
+import { isHistoryFetched, setHistoryFetched } from "@/store/discordHistoreStore";
+
 
 const LoadingDots: React.FC = () => {
   return (
@@ -109,6 +112,7 @@ const LoadingDots: React.FC = () => {
 type ReactionChip = { icon: string; count: number };
 type MessageItem = {
   id: any;
+  chat_id?:string;
   originalId: any;
   timestamp: string;
   telegramMessageId?: number; // Telegram message ID for replies
@@ -253,6 +257,11 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const pickerRef = useRef(null); // emoji picker container ref
     const hasFetchedFirstMessages = useRef(false);
     const [enlargedMedia, setEnlargedMedia] = useState(null);
+    const { history, loadMore, loading:dcHookLoading } = useDiscordChatHistory(selectedChat?.id);
+
+    useEffect(()=>{
+      setLoadingMore(dcHookLoading)
+    },[dcHookLoading])
 
     const openMedia = (media) => {
       setEnlargedMedia(media);
@@ -260,6 +269,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const closeMedia = () => setEnlargedMedia(null);
 
     React.useEffect(() => {
+      if(container){
+        container.scrollTop = container.scrollHeight;
+      }
       setShouldAutoScroll(true);
       setLoadedMediaIds(new Set())
     }, [selectedChat]);
@@ -710,6 +722,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       // delay scroll to bottom after render
       const timer = setTimeout(() => {
         // scrollToBottom();
+        container.scrollTop = container.scrollHeight;
       }, 100);
 
       if (isNewChat) setIsNewChat(false);
@@ -717,25 +730,13 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       return () => clearTimeout(timer);
     }, [messages, shouldAutoScroll, isNewChat]);
 
-    // React.useEffect(() => {
-    //   // Only auto-scroll if it's a new chat or shouldAutoScroll is explicitly set
-    //   if (shouldAutoScroll || isNewChat) {
-    //     // Use setTimeout to ensure DOM has updated after messages render
-    //     setTimeout(() => {
-    //       scrollToBottom();
-    //     }, 100);
-
-    //     // Reset the new chat flag after scrolling
-    //     if (isNewChat) {
-    //       setIsNewChat(false);
-    //     }
-    //   }
-    // }, [messages, shouldAutoScroll, isNewChat, scrollToBottom]);
 
     const groupedByDate: { [date: string]: typeof messages } =
       React.useMemo(() => {
         const groups: { [date: string]: typeof messages } = {};
-        messages.forEach((msg) => {
+        const uniqueMessages = [...new Map(messages.map(m => [m.id, m])).values()];
+
+        uniqueMessages.forEach((msg) => {
           const dateKey = formatDate(msg.date);
           if (!groups[dateKey]) groups[dateKey] = [];
           groups[dateKey].push(msg);
@@ -771,6 +772,12 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         console.log(
           `Reaction attempt: messageId="${messageId}", isObjectId=${isObjectId}, emoji="${emoji}"`
         );
+        if(selectedChat.platform === "discord") {
+              // For Discord, we need to map the message to Telegram format first
+              const res = await window.electronAPI.discord.addReaction(selectedChat.id, messageId, emoji);
+              console.log("Discord reaction result:", res);
+              return
+            }
         if (isObjectId) {
           // Create rollback snapshot visible to catch
           let rollbackSnapshot = messages;
@@ -820,9 +827,12 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               })
             );
 
-            const res = await sendReaction(messageId, emoji, {
-              clear: already,
-            });
+            let res = null;
+            if(selectedChat.platform === "Telegram") {
+               res = await sendReaction(messageId, emoji, {
+                clear: already,
+              });
+            } 
             console.log(
               `Reaction ${emoji} sent to backend for message ${messageId} (sent_to_telegram=${res?.sent_to_telegram})`
             );
@@ -1166,7 +1176,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
     const getMessageMedia = async (id, hasMedia) => {
     
-      if (!hasMedia) return null;
+      if (!hasMedia || selectedChat.platform==="discord") return null;
       const token = localStorage.getItem("access_token");
 
       const data = await fetch(`${BACKEND_URL}/api/messages/${id}/media`, {
@@ -1192,7 +1202,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         afterTimestamp?: string
       ) => {
         if (!chatId) return;
-
+        if(selectedChat.platform === "discord") return;
         if (!append) {
           // Reset flag on fresh load
           hasFetchedFirstMessages.current = false;
@@ -1300,6 +1310,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                 id: msg._id || msg.id || String(index + 1),
                 originalId: msg._id || msg.id,
                 telegramMessageId: msg.message?.id,
+                mentions: msg?.message?.mentions ?? [],
                 name:
                   msg.sender?.first_name || msg.sender?.username || "Unknown",
                 avatar: msg.sender?.id
@@ -1334,7 +1345,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                     }
                   : null,
                 originalChatType: msg.chat?._ || null,
-                timestamp: msg.timestamp
               };
             })
           );
@@ -1381,7 +1391,24 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const loadMoreMessages = React.useCallback(() => {
       if (loadingMore || loading || !hasMoreMessages || messages.length === 0)
         return;
+      console.log('loading2...')
 
+      if(selectedChat.platform==='discord'){
+        console.log('calling dc load more')   
+        setLoadingMore(true)     
+          loadMore()
+          setMessages(prev =>
+            [
+              ...history.map(mapDiscordMessageToItem),
+              ...prev
+            ].sort(
+              (a, b) =>
+                Number(new Date(a.timestamp).getTime()) - Number(new Date(b.timestamp).getTime())
+            )
+          );
+        setLoadingMore(false)     
+          return;
+      }
       // Get the timestamp of the oldest message
       const oldestMessage = messages[0];
       if (!oldestMessage) return;
@@ -1761,6 +1788,56 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       }
     }, [openMenuId]);
 
+    console.log(history,"historicdiscordmessages");
+    useEffect(()=>{
+      console.log(`history fetched for ${selectedChat.id}`,isHistoryFetched(selectedChat.id))
+      if(history.length>0 && selectedChat?.platform=='discord' && !isHistoryFetched(selectedChat.id)){
+    setMessages(prev =>
+      [
+        ...history.map(mapDiscordMessageToItem),
+        ...prev
+      ].sort(
+        (a, b) =>
+          Number(new Date(a.timestamp).getTime()) - Number(new Date(b.timestamp).getTime())
+      )
+    );
+      setHistoryFetched(selectedChat.id);
+      }
+      setLoading(false)
+      setLoadingMore(false)
+      if(container && !hasScrolled){
+        container.scrollTop = container.scrollHeight;
+      }
+      if(!hasScrolled){
+        scrollToBottom()
+        setHasScrolled(true)
+      }
+        
+    },[selectedChat, history])
+
+    const { messagesList} = useDiscordMessages(selectedChat?.id);
+    console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
+    console.log(messagesList?.[0]?.chat_id ?? null,"messagesList[0].chat_id");
+    console.log(selectedChat?.id,"selectedChat?.id");
+    useEffect(() => {
+      if (messagesList && selectedChat?.platform === 'discord') {
+        setMessages(prev =>
+          [
+            ...messagesList.map(mapDiscordMessageToItem),
+            ...prev
+          ].sort(
+            (a, b) =>
+              Number(new Date(a.timestamp).getTime()) - Number(new Date(b.timestamp).getTime())
+          )
+        );
+        scrollToBottom();
+      }
+      setLoading(false);
+      setLoadingMore(false);
+    }, [messagesList]);
+    
+    // setMessages((prev) => [...messagesList, ...prev]);
+    
     // Silent refresh that avoids toggling loading states and only appends new messages
     const refreshLatest = React.useCallback(async () => {
       if (USE_DUMMY_DATA) return;
@@ -1800,10 +1877,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             }/messages?limit=${PAGE_SIZE}`;
             // if (params.toString()) endpoint += `?${params.toString()}`;
             currentChatId = String((selectedChat as any).id);
-            if(selectedChat?.platform=='discord'){
-            const discordSelectedChat = await window.electronAPI.discord.getChatHistory(selectedChat.id);
-            console.log("discordSelectedChat",discordSelectedChat);
-          }
           }
         } else {
           console.log(
@@ -1814,18 +1887,18 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         }
     let data = [];
       if(selectedChat?.platform=='discord'){
-        const chatID= selectedChat.id || replyTo.chat_id;
-        // const msg = await window.electronAPI.database.getMessages(chatID,50,0);
-        const discordSelectedChat = await window.electronAPI.discord.getChatHistory(selectedChat.id);
-        if(discordSelectedChat.success)
-          data=discordSelectedChat.data.map(mapDiscordMessageToTelegram);
+        // const chatID= selectedChat.id || replyTo.chat_id;
+        // // const msg = await window.electronAPI.database.getMessages(chatID,50,0);
+        // const discordSelectedChat = await window.electronAPI.discord.getChatHistory(selectedChat.id);
+        // if(discordSelectedChat.success)
+        //   data=discordSelectedChat.data.map(mapDiscordMessageToTelegram);
       
-        else{
-          const res = await window.electronAPI.security.getDiscordToken();
-          if (res?.success && res?.data) {
-           await window.electronAPI.discord.connect(res.data);
-          }
-        }
+        // else{
+        //   const res = await window.electronAPI.security.getDiscordToken();
+        //   if (res?.success && res?.data) {
+        //    await window.electronAPI.discord.connect(res.data);
+        //   }
+        // }
       }else{
         const response = await fetch(endpoint, {
           headers: {
@@ -1894,6 +1967,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               id: msg._id || msg.id || String(index + 1),
               originalId: msg._id || msg.id,
               telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
+              mentions: msg?.message?.mentions ?? [],
               name: msg.sender?.first_name || msg.sender?.username || "Unknown",
               chat_id: msg.sender.id,
               avatar: msg.sender?.id
@@ -2014,7 +2088,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       currentChatRef.current = chatId;
 
       if (!USE_DUMMY_DATA) {
-        if (selectedChat?.id) {
+        if(selectedChat.platform == "discord") return;
+        if(selectedChat.platform !="discord"){
+        if (selectedChat?.id ) {
           if (selectedChat.name && selectedChat.keywords !== undefined) {
             fetchMessages(selectedChat);
             fetchPinnedMessages();
@@ -2035,6 +2111,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           setMessages([]);
           setPinnedMessages([]);
         }
+      }
       } else {
         setMessages(dummyMessages);
         setPinnedMessages([]);
@@ -2356,6 +2433,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     React.useEffect(() => {
       // Reset scroll flag when chat changes
       setHasScrolled(false);
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
     }, [selectedChat?.id]);
     
    const limit = pLimit(5); // only 5 at once
@@ -2597,17 +2677,35 @@ const clearAudio = () =>{
   setAudioChunks([]);
 
 }
-const linkify = (text: string) => {
+
+const linkify = (msg) => {
+  const text = msg.message;
   if (!text) return null;
 
-  // Regex to find URLs in text
+  // console.log("🔹 Original text:", text);
+  // console.log("🔹 Mentions array:", msg.message.mentions);
+
+  // 1. Replace <@12345> with @username
+  const mentionRegex = /<@(\d+)>/g;
+  let parsedText = text.replace(mentionRegex, (match, id) => {
+    console.log("👉 Found mention:", match, "with id:", id);
+    const mention = msg?.mentions?.find((m) => m.id === id);
+    console.log("🔎 Matched mention object:", mention);
+    return mention ? `@${mention.username}` : match; // fallback if not found
+  });
+
+  // console.log("✅ After mention replacement:", parsedText);
+
+  // 2. Regex to find URLs
   const urlRegex = /(\bhttps?:\/\/[^\s]+)/g;
 
-  // Split text by URLs, preserving URLs in the result
-  const parts = text.split(urlRegex);
+  // 3. Split text by URLs, preserving URLs
+  const parts = parsedText.split(urlRegex);
+  // console.log("🧩 Split parts:", parts);
 
   return parts.map((part, index) => {
     if (part.match(urlRegex)) {
+      // console.log("🌐 Found URL:", part);
       return (
         <a
           key={index}
@@ -2620,10 +2718,12 @@ const linkify = (text: string) => {
         </a>
       );
     } else {
+      // console.log("📄 Text part:", part);
       return part;
     }
   });
 };
+
 
 const jumpToReply=(msg)=>{
   // console.log('jump reply')
@@ -2703,7 +2803,7 @@ const jumpToReply=(msg)=>{
           onScroll={handleScroll}
         >
           {/* Loading indicator for loading more messages at top */}
-          {loadingMore && (
+          {(loadingMore || dcHookLoading) && (
             <div className="flex items-center justify-center py-4">
               <div className="text-center">
                 <div className="w-6 h-6 border-2 border-[#3474ff] border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
@@ -3069,7 +3169,7 @@ const jumpToReply=(msg)=>{
                             </div>
 
                             <span className="text-xs text-[#fafafa99]">
-                              {msg.channel}
+                              {selectedChat.name}
                             </span>
                             <span className="text-xs text-[#ffffff32]">
                               {/* {console.log('Raw msg.date:', msg.date, 'Type:', typeof msg.date)} */}
@@ -3094,11 +3194,11 @@ const jumpToReply=(msg)=>{
                             </div>
                           )}
                           <div className="mt-1 text-sm text-[#e0e0e] break-words break-all whitespace-pre-wrap max-w-full">
-                            {msg.media && (
+                            {msg.media && selectedChat.platform !== "discord" && (
                               <>
                                 {msg.media && (
                                   <>
-                                    {msg.media.type.startsWith("image")  && (
+                                    {(msg?.media?.content_type?.startsWith("image") ||msg?.media?.type?.startsWith("image")) && (
                                       <img
                                         src={msg.media.url}
                                         alt="media"
@@ -3133,13 +3233,8 @@ const jumpToReply=(msg)=>{
                                         onClick={() => openMedia(msg.media)}
                                       />                                      
                                     </>
-                                    )}
-                                    {/* {msg.media.type}
-                                    {msg.media.url} */}
-                                    {/* {msg.media.type} */}
-                                    {/* {msg.media.url} */}
-                                    {(msg.media.type.includes("audio") || msg.media.type.includes("ogg")) && (
-                                      // <audio src={msg.media.url} controls />
+                                    )} 
+                                     {(msg.media.type.includes("audio") || msg.media.type.includes("ogg")) && (
                                       <AudioWaveform audioUrl={msg?.media?.url ?? null}/>
                                     )}
                                   </>
@@ -3189,7 +3284,7 @@ const jumpToReply=(msg)=>{
                                 )}
                               </>
                             )}
-                            {linkify(msg.message)}
+                            {linkify(msg)}
                             {/* {msg.hasLink && msg.link && (
                               <a
                                 href={msg.link}
@@ -3217,8 +3312,8 @@ const jumpToReply=(msg)=>{
                                   className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff] hover:bg-[#ffffff12] transition"
                                   title="Toggle reaction"
                                 >
-                                  {r.icon}
-                                  {typeof r.count === "number" ? r.count : ""}
+                                  {r.icon || r.emoji}
+                                  {typeof r.count === "number" ? " "+r.count : ""}
                                 </button>
                               ))}
                               {/* No local reaction chips; Telegram is source of truth */}

@@ -1,17 +1,11 @@
-const { app, BrowserWindow, ipcMain, session } = require("electron");
+const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
-const Database = require("better-sqlite3");
-const WebSocket = require("ws");
-const CryptoJS = require("crypto-js");
-const Store = require("electron-store");
 require("dotenv").config();
 
 const DatabaseManager = require("./database/DatabaseManager.cjs");
 const DiscordClient = require("./services/DiscordClient.cjs");
 const SecurityManager = require("./security/SecurityManager.cjs");
 const SyncManager = require("./sync/SyncManager.cjs");
-
-console.log("VITE_DEV_SERVER_URL:", process.env.VITE_DEV_SERVER_URL);
 
 let mainWindow;
 let discordWindow;
@@ -20,39 +14,96 @@ let discordClient;
 let securityManager;
 let syncManager;
 
-app.commandLine.appendSwitch("allow-file-access-from-files");
-app.commandLine.appendSwitch("disable-site-isolation-trials");
+// Store all renderer windows for broadcasting
+const rendererWindows = new Set();
+
+// Broadcast to all renderer windows
+function broadcastToRenderers(channel, data) {
+  rendererWindows.forEach(window => {
+    if (!window.isDestroyed()) {
+      window.webContents.send(channel, data);
+    }
+  });
+}
 
 async function initializeApp() {
   try {
-    // Initialize security manager first
     securityManager = new SecurityManager();
     await securityManager.initialize();
 
-    // Initialize database with encryption
     dbManager = new DatabaseManager(securityManager);
     await dbManager.initialize();
 
-    // Initialize Discord client
     discordClient = new DiscordClient(dbManager, securityManager);
 
-    // Set up Discord client event listeners for CAPTCHA handling
-    discordClient.on("captchaRequired", (captchaData) => {
-      console.log("[App] CAPTCHA required, forwarding to renderer");
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("discord:captcha-required", captchaData);
-      }
-    });
+    // Setup Discord event listeners for broadcasting
+    setupDiscordEventForwarding();
 
-    // Initialize sync manager
     syncManager = new SyncManager(dbManager, securityManager);
 
-    console.log("[App] All services initialized successfully");
+    console.log("[App] All services initialized");
   } catch (error) {
-    console.error("[App] Failed to initialize services:", error);
-    // Don't quit the app immediately, let it continue without some services
-    // app.quit();
+    console.error("[App] Failed to initialize:", error);
   }
+}
+
+function setupDiscordEventForwarding() {
+  // Forward all Discord events to renderer processes
+  discordClient.on('connected', (state) => {
+    console.log('[App] Discord connected');
+    broadcastToRenderers('discord:connected', state);
+  });
+
+  discordClient.on('disconnected', (data) => {
+    console.log('[App] Discord disconnected');
+    broadcastToRenderers('discord:disconnected', data);
+  });
+
+  discordClient.on('ready', (state) => {
+    console.log('[App] Discord ready');
+    broadcastToRenderers('discord:ready', state);
+  });
+
+  discordClient.on('newMessage', (data) => {
+    // Broadcast new message to all windows
+    broadcastToRenderers('discord:newMessage', data);
+  });
+
+  discordClient.on('messageUpdate', (data) => {
+    broadcastToRenderers('discord:messageUpdate', data);
+  });
+
+  discordClient.on('messageDelete', (data) => {
+    broadcastToRenderers('discord:messageDelete', data);
+  });
+
+  discordClient.on('channelUpdate', (channel) => {
+    broadcastToRenderers('discord:channelUpdate', channel);
+  });
+
+  discordClient.on('channelsUpdate', (state) => {
+    broadcastToRenderers('discord:channelsUpdate', state);
+  });
+
+  discordClient.on('guildUpdate', (state) => {
+    broadcastToRenderers('discord:guildUpdate', state);
+  });
+
+  discordClient.on('error', (error) => {
+    broadcastToRenderers('discord:error', {
+      message: error.message,
+      stack: error.stack
+    });
+  });
+
+  discordClient.on('captchaRequired', (data) => {
+    console.log('[App] CAPTCHA required');
+    broadcastToRenderers('discord:captchaRequired', data);
+  });
+
+  discordClient.on('fatalError', (data) => {
+    broadcastToRenderers('discord:fatalError', data);
+  });
 }
 
 function createWindow() {
@@ -63,33 +114,23 @@ function createWindow() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: true,
-      allowRunningInsecureContent: false,
-      experimentalFeatures: false,
-    },
+      webSecurity: true
+    }
   });
 
-  // Enhanced security settings
-  session.defaultSession.webSecurity = true;
-  session.defaultSession.setPermissionRequestHandler(
-    (webContents, permission, callback) => {
-      const allowedPermissions = ["notifications"];
-      const granted = allowedPermissions.includes(permission);
-      callback(granted);
-    }
-  );
+  // Register window for event broadcasting
+  rendererWindows.add(mainWindow);
 
   if (process.env.VITE_NODE_ENV === "development" && process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
     mainWindow.webContents.openDevTools();
   } else {
-    // This should resolve correctly both unpackaged and in ASAR
     const indexPath = path.join(__dirname, '..', '..', 'dist', 'index.html');
     mainWindow.loadFile(indexPath);
   }
 
   mainWindow.on("closed", () => {
-    console.log("Main window closed");
+    rendererWindows.delete(mainWindow);
     mainWindow = null;
   });
 
@@ -108,14 +149,31 @@ function setupIPCHandlers() {
     }
   });
 
-    ipcMain.handle("discord:connect", async (event, token) => {
+  ipcMain.handle("discord:connect", async (event, token) => {
     try {
       await discordClient.connect(token);
       return { success: true };
     } catch (error) {
-      console.error("[IPC] Discord login error:", error);
+      console.error("[IPC] Discord connect error:", error);
       return { success: false, error: error.message };
     }
+  });
+
+  ipcMain.handle("discord:disconnect", async () => {
+    try {
+      discordClient.disconnect();
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("discord:isConnected", async () => {
+    return { success: true, data: discordClient.isConnected() };
+  });
+
+  ipcMain.handle("discord:getState", async () => {
+    return { success: true, data: discordClient.getState() };
   });
 
   // Get Discord DMs
@@ -131,13 +189,69 @@ function setupIPCHandlers() {
       return { success: false, error: error.message };
     }
   });
-  // Get Discord chat history
-  ipcMain.handle("discord:get-chat-history", async (event, { chatId, limit = 50, beforeMessageId }) => {
-    try { 
+
+  ipcMain.handle("discord:get-guilds", async () => {
+    try {
       if (!discordClient.isConnected()) {
         return { success: false, error: "Discord not connected" };
       }
-      const chatHistory = await discordClient.getChatHistory(chatId, limit,beforeMessageId);
+      const guilds = await discordClient.getGuilds();
+      return { success: true, data: guilds };
+    } catch (error) {
+      console.error("[IPC] Get Guilds error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Messages - from local DB (fast)
+  ipcMain.handle("discord:get-messages", async (event, chatId, limit, offset) => {
+    try {
+      const messages = await discordClient.getMessages(chatId, limit, offset);
+      return { success: true, data: messages };
+    } catch (error) {
+      console.error("[IPC] Get messages error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Chat history - from Discord API (for loading older messages)
+  ipcMain.handle("discord:get-chat-history", async (event, { chatId, limit = 50, beforeMessageId }) => {
+    try {
+      if (!discordClient.isConnected()) {
+        return { success: false, error: "Discord not connected" };
+      }
+      const chatHistory = await discordClient.getChatHistory(chatId, limit, beforeMessageId);
+      
+      // Store fetched messages in DB for caching
+      if (chatHistory && Array.isArray(chatHistory)) {
+        for (const msg of chatHistory) {
+          if (msg.author) {
+            dbManager.createUser({
+              id: msg.author.id,
+              platform: "discord",
+              username: msg.author.username,
+              display_name: msg.author.global_name || msg.author.username,
+              avatar_url: msg.author.avatar
+                ? `https://cdn.discordapp.com/avatars/${msg.author.id}/${msg.author.avatar}.png`
+                : null
+            });
+          }
+          
+          dbManager.createMessage({
+            id: msg.id,
+            chat_id: msg.channel_id,
+            user_id: msg.author.id,
+            content: msg.content,
+            message_type: discordClient.getMessageType(msg),
+            attachments: msg.attachments,
+            reactions: msg.reactions,
+            embeds: msg.embeds,
+            timestamp: msg.timestamp,
+            sync_status: "synced"
+          });
+        }
+      }
+      
       return { success: true, data: chatHistory };
     } catch (error) {
       console.error("[IPC] Get chat history error:", error);
@@ -145,7 +259,69 @@ function setupIPCHandlers() {
     }
   });
 
-   // Send Discord message
+  // Send message
+  ipcMain.handle("discord:send-message", async (event, { chatId, message, attachments }) => {
+    try {
+      if (!discordClient.isConnected()) {
+        return { success: false, error: "Discord not connected" };
+      }
+      const result = await discordClient.sendMessage(chatId, message, attachments);
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("[IPC] Send message error:", error);
+      if (error.captchaRequired) {
+        return {
+          success: false,
+          error: error.message,
+          captchaRequired: true,
+          captchaData: error.captchaData
+        };
+      }
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("discord:send-message-with-captcha", async (event, { chatId, message, captchaToken, captchaData }) => {
+    try {
+      if (!discordClient.isConnected()) {
+        return { success: false, error: "Discord not connected" };
+      }
+      const result = await discordClient.sendMessageWithCaptcha(chatId, message, captchaToken, captchaData);
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("[IPC] Send message with CAPTCHA error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Reactions
+  ipcMain.handle("discord:add-reaction", async (event, { chatId, messageId, emoji }) => {
+    try {
+      if (!discordClient.isConnected()) {
+        return { success: false, error: "Discord not connected" };
+      }
+      const result = await discordClient.addReaction(chatId, messageId, emoji);
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("[IPC] Add reaction error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("discord:remove-reaction", async (event, { chatId, messageId, emoji }) => {
+    try {
+      if (!discordClient.isConnected()) {
+        return { success: false, error: "Discord not connected" };
+      }
+      const result = await discordClient.removeReaction(chatId, messageId, emoji);
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("[IPC] Remove reaction error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Attachments
   ipcMain.handle("discord:attachments", async (event, { chatId, files }) => {
     try {
       if (!discordClient.isConnected()) {
@@ -155,66 +331,17 @@ function setupIPCHandlers() {
       return { success: true, data: result };
     } catch (error) {
       console.error("[IPC] Send attachments error:", error);
-
       if (error.captchaRequired) {
         return {
           success: false,
           error: error.message,
           captchaRequired: true,
-          captchaData: error.captchaData,
+          captchaData: error.captchaData
         };
       }
-
       return { success: false, error: error.message };
     }
   });
-
-  // Send Discord message
-  ipcMain.handle("discord:send-message", async (event, { chatId, message,attachments }) => {
-    try {
-      if (!discordClient.isConnected()) {
-        return { success: false, error: "Discord not connected" };
-      }
-   console.log(attachments)
-
-      const result = await discordClient.sendMessage(chatId, message,attachments);
-      return { success: true, data: result };
-    } catch (error) {
-      console.error("[IPC] Send message error:", error);
-
-      if (error.captchaRequired) {
-        return {
-          success: false,
-          error: error.message,
-          captchaRequired: true,
-          captchaData: error.captchaData,
-        };
-      }
-
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle(
-    "discord:send-message-with-captcha",
-    async (event, { chatId, message, captchaToken, captchaData }) => {
-      try {
-        if (!discordClient.isConnected()) {
-          return { success: false, error: "Discord not connected" };
-        }
-        const result = await discordClient.sendMessageWithCaptcha(
-          chatId,
-          message,
-          captchaToken,
-          captchaData
-        );
-        return { success: true, data: result };
-      } catch (error) {
-        console.error("[IPC] Send message with CAPTCHA error:", error);
-        return { success: false, error: error.message };
-      }
-    }
-  );
 
   // Database operations
   ipcMain.handle("db:get-chats", async () => {
@@ -227,44 +354,37 @@ function setupIPCHandlers() {
     }
   });
 
-  ipcMain.handle(
-    "db:get-messages",
-    async (event, { chatId, limit = 50, offset = 0 }) => {
-      try {
-        const messages = await dbManager.getMessages(chatId, limit, offset);
-        return { success: true, data: messages };
-      } catch (error) {
-        console.error("[IPC] Get messages error:", error);
-        return { success: false, error: error.message };
-      }
+  ipcMain.handle("db:get-messages", async (event, { chatId, limit = 50, offset = 0 }) => {
+    try {
+      const messages = await dbManager.getMessages(chatId, limit, offset);
+      return { success: true, data: messages };
+    } catch (error) {
+      console.error("[IPC] Get messages error:", error);
+      return { success: false, error: error.message };
     }
-  );
+  });
 
-    ipcMain.handle(
-    "security:get-token",
-    async () => {
-      try {
-        const token = await securityManager.getDiscordToken();
-        return { success: true, data: token };
-      } catch (error) {
-        console.error("[IPC] Get token error:", error);
-        return { success: false, error: error.message };
-      }
+  // Security
+  ipcMain.handle("security:get-token", async () => {
+    try {
+      const token = await securityManager.getDiscordToken();
+      return { success: true, data: token };
+    } catch (error) {
+      console.error("[IPC] Get token error:", error);
+      return { success: false, error: error.message };
     }
-  );
+  });
 
-   ipcMain.handle(
-    "security:set-token",
-    async (event,token) => {
-      try {
-        const data = await securityManager.clearDiscordToken(token);
-        return { success: true, data: data };
-      } catch (error) {
-        console.error("[IPC] Set token error:", error);
-        return { success: false, error: error.message };
-      }
+  ipcMain.handle("security:set-token", async (event, token) => {
+    try {
+      const data = await securityManager.clearDiscordToken(token);
+      return { success: true, data: data };
+    } catch (error) {
+      console.error("[IPC] Set token error:", error);
+      return { success: false, error: error.message };
     }
-  );
+  });
+
   // Sync operations
   ipcMain.handle("sync:manual", async () => {
     try {
@@ -318,85 +438,67 @@ function setupIPCHandlers() {
   });
 
   ipcMain.handle("app:minimize", async () => {
-    if (mainWindow) {
-      mainWindow.minimize();
-    }
+    if (mainWindow) mainWindow.minimize();
     return { success: true };
   });
 
   ipcMain.handle("app:maximize", async () => {
     if (mainWindow) {
-      if (mainWindow.isMaximized()) {
-        mainWindow.unmaximize();
-      } else {
-        mainWindow.maximize();
-      }
-    }
-    return { success: true };
-  });
-
-  ipcMain.handle("app:unmaximize", async () => {
-    if (mainWindow) {
-      mainWindow.unmaximize();
+      mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
     }
     return { success: true };
   });
 
   ipcMain.handle("app:is-maximized", async () => {
-    return {
-      success: true,
-      data: mainWindow ? mainWindow.isMaximized() : false,
-    };
+    return { success: true, data: mainWindow ? mainWindow.isMaximized() : false };
   });
 }
 
 async function openDiscordLogin() {
   return new Promise((resolve, reject) => {
-  if (discordWindow) {
-    discordWindow.focus();
-    return;
-  }
-
-  discordWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
-    show: false,
-    webPreferences: {
-      preload: path.join(__dirname, "discordPreload.cjs"),
-      nodeIntegration: false,
-      contextIsolation: true,
-      webSecurity: true,
-      sandbox: false,
-    },
-  });
-
-  // Set realistic User-Agent based on platform
-  const getRealisticUserAgent = () => {
-    const chromeVersion = "120.0.0.0";
-    switch (process.platform) {
-      case "darwin":
-        return `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
-      case "linux":
-        return `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
-      default: // Windows
-        return `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+    if (discordWindow) {
+      discordWindow.focus();
+      return;
     }
-  };
 
-  discordWindow.webContents.setUserAgent(getRealisticUserAgent());
+    discordWindow = new BrowserWindow({
+      width: 800,
+      height: 600,
+      show: false,
+      webPreferences: {
+        preload: path.join(__dirname, "discordPreload.cjs"),
+        nodeIntegration: false,
+        contextIsolation: true,
+        webSecurity: true,
+        sandbox: false
+      }
+    });
 
-  discordWindow.loadURL("https://discord.com/login");
+    const getRealisticUserAgent = () => {
+      const chromeVersion = "120.0.0.0";
+      switch (process.platform) {
+        case "darwin":
+          return `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+        case "linux":
+          return `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+        default:
+          return `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+      }
+    };
 
-  if (process.env.VITE_NODE_ENV === "development") {
-    discordWindow.webContents.openDevTools();
-  }
+    discordWindow.webContents.setUserAgent(getRealisticUserAgent());
+    discordWindow.loadURL("https://discord.com/login");
 
-  discordWindow.once("ready-to-show", () => {
-    console.log("[DiscordWindow] ready-to-show");
-    discordWindow.show();
-  });
-   ipcMain.once("send-discord-token", (event, token) => {
-      console.log("[DiscordWindow] Got token from preload: 2", token);
+    if (process.env.VITE_NODE_ENV === "development") {
+      discordWindow.webContents.openDevTools();
+    }
+
+    discordWindow.once("ready-to-show", () => {
+      discordWindow.show();
+    });
+
+    ipcMain.once("send-discord-token", (event, token) => {
+      console.log("[DiscordWindow] Got token");
       resolve({ success: true, data: token });
 
       if (discordWindow) {
@@ -404,88 +506,69 @@ async function openDiscordLogin() {
         discordWindow = null;
       }
     });
-  const pollTokenScript = `
-  (function pollToken() {
-    let token = null;
-    try {
-      if (window.webpackChunkdiscord_app) {
-        window.webpackChunkdiscord_app.push([[Symbol()], {}, o => {
-          for (const m of Object.values(o.c)) {
-            try {
-              if (m.exports && m.exports.getToken) {
-                token = m.exports.getToken();
-                break;
-              }
-              for (let prop in m.exports) {
-                if (m.exports[prop] && typeof m.exports[prop].getToken === 'function') {
-                  token = m.exports[prop].getToken();
+
+    const pollTokenScript = `
+    (function pollToken() {
+      let token = null;
+      try {
+        if (window.webpackChunkdiscord_app) {
+          window.webpackChunkdiscord_app.push([[Symbol()], {}, o => {
+            for (const m of Object.values(o.c)) {
+              try {
+                if (m.exports && m.exports.getToken) {
+                  token = m.exports.getToken();
                   break;
                 }
-              }
-            } catch (e) {}
-          }
-        }]);
-        window.webpackChunkdiscord_app.pop();
+                for (let prop in m.exports) {
+                  if (m.exports[prop] && typeof m.exports[prop].getToken === 'function') {
+                    token = m.exports[prop].getToken();
+                    break;
+                  }
+                }
+              } catch (e) {}
+            }
+          }]);
+          window.webpackChunkdiscord_app.pop();
+        }
+      } catch(e) {}
+
+      if (token) {
+        window.postMessage({ type: 'FROM_PAGE', token: token }, '*');
+      } else {
+        setTimeout(pollToken, 2000);
       }
-    } catch(e) {
-      console.error('[DiscordWindow] error during token poll', e);
-    }
+    })();
+    `;
 
-    if (token) {
-      window.postMessage({ type: 'FROM_PAGE', token: token }, '*');
-    } else {
-      setTimeout(pollToken, 2000);
-    }
-  })();
-`;
+    discordWindow.webContents.on("did-navigate", () => {
+      setTimeout(() => {
+        discordWindow.webContents.executeJavaScript(pollTokenScript).catch(console.error);
+      }, 3000);
+    });
 
-  discordWindow.webContents.on("did-navigate", () => {
-    console.log(
-      "[DiscordWindow] did-navigate event fired, injecting poll script"
-    );
-    setTimeout(() => {
-      discordWindow.webContents
-        .executeJavaScript(pollTokenScript)
-        .catch(console.error);
-    }, 3000);
-  });
-
-  discordWindow.webContents.on(
-    "did-fail-load",
-    (event, errorCode, errorDescription) => {
-      console.error("[DiscordWindow] Fail load:", errorDescription);
-    }
-  );
-
-  discordWindow.on("closed", () => {
-    console.log("[DiscordWindow] closed");
-    discordWindow = null;
+    discordWindow.on("closed", () => {
+      discordWindow = null;
+    });
   });
 }
-  )
-}
 
-// Listen for the token sent by discordPreload.js from Discord window
+// Listen for token from Discord window
 ipcMain.on("send-discord-token", async (event, token) => {
   console.log("[Main] Discord token received");
 
   try {
-    // Store token securely
     await securityManager.storeDiscordToken(token);
-
-    // Initialize Discord client with token
     await discordClient.connect(token);
 
     if (mainWindow) {
       mainWindow.webContents.send("discord-connected", { success: true });
-      console.log("[Main] Discord connection confirmation sent to mainWindow");
     }
   } catch (error) {
     console.error("[Main] Error handling Discord token:", error);
     if (mainWindow) {
       mainWindow.webContents.send("discord-connected", {
         success: false,
-        error: error.message,
+        error: error.message
       });
     }
   }
@@ -500,7 +583,6 @@ app.whenReady().then(async () => {
   await initializeApp();
   createWindow();
 
-  // Start sync manager if it was initialized successfully
   if (syncManager) {
     syncManager.startPeriodicSync();
   }
@@ -508,16 +590,8 @@ app.whenReady().then(async () => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
-    // Clean shutdown
-    if (syncManager) {
-      syncManager.stopPeriodicSync();
-    }
-    if (discordClient) {
-      discordClient.disconnect();
-    }
-    if (dbManager) {
-      dbManager.close();
-    }
+    if (syncManager) syncManager.stopPeriodicSync();
+    if (discordClient) discordClient.disconnect();
     app.quit();
   }
 });
@@ -527,12 +601,13 @@ app.on("activate", () => {
 });
 
 app.on("before-quit", async () => {
-  // Perform final sync before quitting
-  if (syncManager) {
+   if (dbManager) {
     try {
-      await syncManager.performSync();
-    } catch (error) {
-      console.error("[App] Error during final sync:", error);
+      console.log("[DB] Flushing WAL and closing app quit...");
+      // flush WAL into pigeon.db
+      dbManager.close();
+    } catch (err) {
+      console.error("[DB] Error closing DB:", err);
     }
   }
 });

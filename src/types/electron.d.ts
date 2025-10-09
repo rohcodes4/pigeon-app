@@ -15,6 +15,11 @@ export interface ElectronAPI {
       }>;
       error?: string;
     }>;
+    getGuilds: () => Promise<{
+      success: boolean;
+      data?: Array<any>;
+      error?: string;
+    }>; 
     attachments: (
       chatId: string,
       files: Array<any>
@@ -29,7 +34,9 @@ export interface ElectronAPI {
       data?: Array<any>;
       error?: string;
     }>;
-    
+    onNewMessage: (
+      callback: (data: any) => void
+    ) => () => void;
     sendMessage: (
       chatId: string,
       message: string,
@@ -41,6 +48,22 @@ export interface ElectronAPI {
         content: string;
         timestamp: string;
       };
+      error?: string;
+    }>;
+    addReaction: (
+      chatId: string,
+      messageId: string,
+      emoji: string
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+    }>;
+    removeReaction: ( 
+      chatId: string,
+      messageId: string,
+      emoji: string
+    ) => Promise<{
+      success: boolean;
       error?: string;
     }>;
     onConnected: (

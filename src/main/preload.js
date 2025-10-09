@@ -1,100 +1,160 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
-  // Discord operations
   discord: {
     connect: (token) => ipcRenderer.invoke("discord:connect", token),
+    disconnect: () => ipcRenderer.invoke("discord:disconnect"),
+    isConnected: () => ipcRenderer.invoke("discord:isConnected"),
+    getState: () => ipcRenderer.invoke("discord:getState"),
     openLogin: () => ipcRenderer.invoke("discord:open-login"),
     getDMs: () => ipcRenderer.invoke("discord:get-dms"),
-    attachments: (chatId,files) => ipcRenderer.invoke("discord:attachments", { chatId,files }), 
-    getChatHistory: (chatId, limit,beforeMessageId) =>
-      ipcRenderer.invoke("discord:get-chat-history", { chatId, limit,beforeMessageId }),  
-    sendMessage: (chatId, message,attachments) =>
-      ipcRenderer.invoke("discord:send-message", { chatId, message,attachments }),
+    getGuilds: () => ipcRenderer.invoke("discord:get-guilds"),
+    getMessages: (chatId, limit, offset) =>
+      ipcRenderer.invoke("discord:get-messages", chatId, limit, offset),
+    getChatHistory: (chatId, limit, beforeMessageId) =>
+      ipcRenderer.invoke("discord:get-chat-history", { chatId, limit, beforeMessageId }),
+    sendMessage: (chatId, message, attachments) =>
+      ipcRenderer.invoke("discord:send-message", { chatId, message, attachments }),
     sendMessageWithCaptcha: (chatId, message, captchaToken, captchaData) =>
       ipcRenderer.invoke("discord:send-message-with-captcha", {
         chatId,
         message,
         captchaToken,
-        captchaData,
+        captchaData
       }),
+    addReaction: (chatId, messageId, emoji) =>
+      ipcRenderer.invoke("discord:add-reaction", { chatId, messageId, emoji }),
+    removeReaction: (chatId, messageId, emoji) =>
+      ipcRenderer.invoke("discord:remove-reaction", { chatId, messageId, emoji }),
+    attachments: (chatId, files) =>
+      ipcRenderer.invoke("discord:attachments", { chatId, files }),
 
-    // Event listeners
+    // FIXED EVENT LISTENERS - pass only data, not the event object
     onConnected: (callback) => {
-      ipcRenderer.on("discord-connected", (event, data) => callback(data));
+      const handler = (_event, data) => callback(data); // Fixed: extract data from event
+      ipcRenderer.on("discord:connected", handler);
+      return () => ipcRenderer.removeListener("discord:connected", handler);
+    },
+
+    onDisconnected: (callback) => {
+      const handler = (_event, data) => callback(data);
+      ipcRenderer.on("discord:disconnected", handler);
+      return () => ipcRenderer.removeListener("discord:disconnected", handler);
+    },
+
+    onReady: (callback) => {
+      const handler = (_event, state) => callback(state);
+      ipcRenderer.on("discord:ready", handler);
+      return () => ipcRenderer.removeListener("discord:ready", handler);
+    },
+
+    onNewMessage: (callback) => {
+      const handler = (_event, data) => callback(data); // Fixed
+      ipcRenderer.on("discord:newMessage", handler);
+      return () => ipcRenderer.removeListener("discord:newMessage", handler);
+    },
+
+    onMessageUpdate: (callback) => {
+      const handler = (_event, data) => callback(data);
+      ipcRenderer.on("discord:messageUpdate", handler);
+      return () => ipcRenderer.removeListener("discord:messageUpdate", handler);
+    },
+
+    onMessageDelete: (callback) => {
+      const handler = (_event, data) => callback(data);
+      ipcRenderer.on("discord:messageDelete", handler);
+      return () => ipcRenderer.removeListener("discord:messageDelete", handler);
+    },
+
+    onChannelUpdate: (callback) => {
+      const handler = (_event, channel) => callback(channel);
+      ipcRenderer.on("discord:channelUpdate", handler);
+      return () => ipcRenderer.removeListener("discord:channelUpdate", handler);
+    },
+
+    onChannelsUpdate: (callback) => {
+      const handler = (_event, state) => callback(state);
+      ipcRenderer.on("discord:channelsUpdate", handler);
+      return () => ipcRenderer.removeListener("discord:channelsUpdate", handler);
+    },
+
+    onGuildUpdate: (callback) => {
+      const handler = (_event, state) => callback(state);
+      ipcRenderer.on("discord:guildUpdate", handler);
+      return () => ipcRenderer.removeListener("discord:guildUpdate", handler);
+    },
+
+    onError: (callback) => {
+      const handler = (_event, error) => callback(error);
+      ipcRenderer.on("discord:error", handler);
+      return () => ipcRenderer.removeListener("discord:error", handler);
     },
 
     onCaptchaRequired: (callback) => {
-      ipcRenderer.on("discord:captcha-required", (event, captchaData) =>
-        callback(captchaData)
-      );
+      const handler = (_event, captchaData) => callback(captchaData);
+      ipcRenderer.on("discord:captchaRequired", handler);
+      return () => ipcRenderer.removeListener("discord:captchaRequired", handler);
     },
 
-    removeAllListeners: () => {
-      ipcRenderer.removeAllListeners("discord-connected");
-      ipcRenderer.removeAllListeners("discord:captcha-required");
-    },
+    onFatalError: (callback) => {
+      const handler = (_event, data) => callback(data);
+      ipcRenderer.on("discord:fatalError", handler);
+      return () => ipcRenderer.removeListener("discord:fatalError", handler);
+    }
   },
 
   security: {
     getDiscordToken: () => ipcRenderer.invoke("security:get-token"),
     clearDiscordToken: () => ipcRenderer.invoke("security:set-token", null)
   },
-  // Database operations
 
-    database: {
+  database: {
     getChats: () => ipcRenderer.invoke("db:get-chats"),
     getMessages: (chatId, limit, offset) =>
       ipcRenderer.invoke("db:get-messages", { chatId, limit, offset }),
-
-    // Settings
     getSettings: () => ipcRenderer.invoke("app:get-settings"),
     updateSettings: (settings) =>
-      ipcRenderer.invoke("app:update-settings", settings),
+      ipcRenderer.invoke("app:update-settings", settings)
   },
 
-  // Sync operations
   sync: {
     manual: () => ipcRenderer.invoke("sync:manual"),
     getStatus: () => ipcRenderer.invoke("sync:get-status"),
 
-    // Event listeners for sync events
     onSyncComplete: (callback) => {
-      ipcRenderer.on("sync-complete", (event, data) => callback(data));
+      const handler = (_event, data) => callback(data);
+      ipcRenderer.on("sync-complete", handler);
+      return () => ipcRenderer.removeListener("sync-complete", handler);
     },
 
     onSyncError: (callback) => {
-      ipcRenderer.on("sync-error", (event, error) => callback(error));
+      const handler = (_event, error) => callback(error);
+      ipcRenderer.on("sync-error", handler);
+      return () => ipcRenderer.removeListener("sync-error", handler);
     },
 
     onUpdatesReceived: (callback) => {
-      ipcRenderer.on("updates-received", (event, data) => callback(data));
-    },
-
-    removeAllListeners: () => {
-      ipcRenderer.removeAllListeners("sync-complete");
-      ipcRenderer.removeAllListeners("sync-error");
-      ipcRenderer.removeAllListeners("updates-received");
-    },
+      const handler = (_event, data) => callback(data);
+      ipcRenderer.on("updates-received", handler);
+      return () => ipcRenderer.removeListener("updates-received", handler);
+    }
   },
 
-  // App utilities
   app: {
     getVersion: () => ipcRenderer.invoke("app:get-version"),
     quit: () => ipcRenderer.invoke("app:quit"),
     minimize: () => ipcRenderer.invoke("app:minimize"),
     maximize: () => ipcRenderer.invoke("app:maximize"),
-    unmaximize: () => ipcRenderer.invoke("app:unmaximize"),
-    isMaximized: () => ipcRenderer.invoke("app:is-maximized"),
+    isMaximized: () => ipcRenderer.invoke("app:is-maximized")
   },
 
-  // Legacy support for existing code
+  // Legacy support
   openDiscordLogin: () => ipcRenderer.invoke("discord:open-login"),
   onDiscordToken: (callback) => {
-    ipcRenderer.on("discord-connected", (event, data) => {
-      if (data.success) {
-        callback("connected");
-      }
-    });
-  },
+    const handler = (_event, data) => {
+      if (data.success) callback("connected");
+    };
+    ipcRenderer.on("discord-connected", handler);
+    return () => ipcRenderer.removeListener("discord-connected", handler);
+  }
 });
