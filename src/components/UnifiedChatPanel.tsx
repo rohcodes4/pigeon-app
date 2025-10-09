@@ -2688,9 +2688,7 @@ const linkify = (msg) => {
   // 1. Replace <@12345> with @username
   const mentionRegex = /<@(\d+)>/g;
   let parsedText = text.replace(mentionRegex, (match, id) => {
-    console.log("👉 Found mention:", match, "with id:", id);
     const mention = msg?.mentions?.find((m) => m.id === id);
-    console.log("🔎 Matched mention object:", mention);
     return mention ? `@${mention.username}` : match; // fallback if not found
   });
 
