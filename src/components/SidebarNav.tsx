@@ -63,16 +63,16 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage,  onSelectDis
   useEffect(() => {
     // Try to load guilds from localStorage first
     const cachedGuilds = localStorage.getItem("discordGuilds");
-    console.log("[localguild][localStorage] raw:", cachedGuilds);
+    // console.log("[localguild][localStorage] raw:", cachedGuilds);
   
     if (cachedGuilds) {
       try {
         const parsed = JSON.parse(cachedGuilds);
-        console.log("[localguild][localStorage] parsed:", parsed);
+        // console.log("[localguild][localStorage] parsed:", parsed);
   
         if (Array.isArray(parsed)) {
           setDiscordServers(parsed);
-          console.log("[localguild][localStorage] setGuilds:", parsed);
+          // console.log("[localguild][localStorage] setGuilds:", parsed);
         }
       } catch (err) {
         console.error("[localguild][localStorage] parse error:", err);
@@ -83,7 +83,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage,  onSelectDis
     // Always fetch fresh from Discord and update cache
     async function fetchGuilds() {
       const guilds = await window.electronAPI.discord.getGuilds();
-      console.log("[localguild][discord API] raw:", guilds);
+      // console.log("[localguild][discord API] raw:", guilds);
   
       // convert object of objects to array of objects with id
       let arr = [];
@@ -92,12 +92,12 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage,  onSelectDis
         id: key,
         ...value,
       }));   
-        console.log("[localguild][discord API] mapped array:", arr);
+        // console.log("[localguild][discord API] mapped array:", arr);
       }
       if(arr.length>0){
         setDiscordServers(arr);
         localStorage.setItem("discordGuilds", JSON.stringify(arr));
-        console.log("[localguild][discord API] saved to localStorage");
+        // console.log("[localguild][discord API] saved to localStorage");
       }
       
     }
@@ -112,13 +112,13 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage,  onSelectDis
     let timer: any = null;
     const poll = async () => {
       const guilds = await window.electronAPI.discord.getGuilds(); 
-      console.log("gggg",guilds.data)
+      // console.log("gggg",guilds.data)
       // const guildArray = Array.from(guilds.data);   
       const guildArray = [...guilds.data.entries()].map(([key, value]) => ({
         id: key,
         ...value,
       }));   
-      console.log("ggg",guildArray)
+      // console.log("ggg",guildArray)
       setGuild(guildArray)
       localStorage.setItem("discordGuilds", JSON.stringify(guildArray));
       setDiscordServers(guildArray)
@@ -129,9 +129,9 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage,  onSelectDis
     };
   },[])
   
-  useEffect(()=>{
-    console.log("gg",guild)
-  },[guild])
+  // useEffect(()=>{
+  //   console.log("gg",guild)
+  // },[guild])
 
   const [discordServers, setDiscordServers] = useState([]);
 

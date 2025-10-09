@@ -13,7 +13,7 @@ class SyncManager extends EventEmitter {
     this.batchSize = 100;
 
     // Backend configuration
-    this.backendUrl = process.env.BACKEND_URL || "https://api.pingr.world";
+    this.backendUrl = process.env.BACKEND_URL || "https://api.pigeon.chat";
     this.apiVersion = "v1";
 
     // Sync state

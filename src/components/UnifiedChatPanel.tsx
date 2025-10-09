@@ -1788,7 +1788,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       }
     }, [openMenuId]);
 
-    console.log(history,"historicdiscordmessages");
+    console.log(history.map(mapDiscordMessageToItem),"historicdiscordmessages");
     useEffect(()=>{
       console.log(`history fetched for ${selectedChat.id}`,isHistoryFetched(selectedChat.id))
       if(history.length>0 && selectedChat?.platform=='discord' && !isHistoryFetched(selectedChat.id)){
@@ -1801,7 +1801,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           Number(new Date(a.timestamp).getTime()) - Number(new Date(b.timestamp).getTime())
       )
     );
-      setHistoryFetched(selectedChat.id);
+    if(history.length>0)setHistoryFetched(selectedChat.id);
+      
       }
       setLoading(false)
       setLoadingMore(false)
@@ -1817,8 +1818,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
     const { messagesList} = useDiscordMessages(selectedChat?.id);
     console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
-    console.log(messagesList?.[0]?.chat_id ?? null,"messagesList[0].chat_id");
-    console.log(selectedChat?.id,"selectedChat?.id");
+    // console.log(messagesList?.[0]?.chat_id ?? null,"messagesList[0].chat_id");
+    // console.log(selectedChat?.id,"selectedChat?.id");
     useEffect(() => {
       if (messagesList && selectedChat?.platform === 'discord') {
         setMessages(prev =>
@@ -2001,7 +2002,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                   }
                 : null,
               originalChatType: msg.chat?._ || null,
-              timestamp:msg.timestamp
             } as MessageItem;
           })
         );
@@ -2688,9 +2688,7 @@ const linkify = (msg) => {
   // 1. Replace <@12345> with @username
   const mentionRegex = /<@(\d+)>/g;
   let parsedText = text.replace(mentionRegex, (match, id) => {
-    console.log("👉 Found mention:", match, "with id:", id);
     const mention = msg?.mentions?.find((m) => m.id === id);
-    console.log("🔎 Matched mention object:", mention);
     return mention ? `@${mention.username}` : match; // fallback if not found
   });
 
@@ -3200,27 +3198,27 @@ const jumpToReply=(msg)=>{
                                   <>
                                     {(msg?.media?.content_type?.startsWith("image") ||msg?.media?.type?.startsWith("image")) && (
                                       <img
-                                        src={msg.media.url}
+                                        src={msg?.media?.url}
                                         alt="media"
                                         style={{
                                           maxWidth: 320,
                                           cursor: "pointer",
                                         }}
-                                        onClick={() => openMedia(msg.media)}
+                                        onClick={() => openMedia(msg?.media)}
                                       />
                                     )}
-                                    {msg.media.type.startsWith("video") && (
+                                    {msg?.media?.type?.startsWith("video") && (
                                       <video
-                                        src={msg.media.url}
+                                        src={msg?.media?.url}
                                         controls
                                         style={{
                                           maxWidth: 320,
                                           cursor: "pointer",
                                         }}
-                                        onClick={() => openMedia(msg.media)}
+                                        onClick={() => openMedia(msg?.media)}
                                       />
                                     )}
-                                    {msg.media.type.includes("octet") && (
+                                    {msg?.media?.type?.includes("octet") && (
                                       <>
                                       <video
                                         src={msg.media.url}
@@ -3234,7 +3232,7 @@ const jumpToReply=(msg)=>{
                                       />                                      
                                     </>
                                     )} 
-                                     {(msg.media.type.includes("audio") || msg.media.type.includes("ogg")) && (
+                                     {(msg?.media?.type?.includes("audio") || msg?.media?.type?.includes("ogg")) && (
                                       <AudioWaveform audioUrl={msg?.media?.url ?? null}/>
                                     )}
                                   </>
