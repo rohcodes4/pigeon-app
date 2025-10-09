@@ -2002,7 +2002,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                   }
                 : null,
               originalChatType: msg.chat?._ || null,
-              timestamp:msg.timestamp
             } as MessageItem;
           })
         );
