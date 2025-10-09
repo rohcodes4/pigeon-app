@@ -526,16 +526,16 @@ const Index = () => {
   useEffect(() => {
     // Try to load guilds from localStorage first
     const cachedGuilds = localStorage.getItem("discordGuilds");
-    console.log("[localguild][localStorage] raw:", cachedGuilds);
+    // console.log("[localguild][localStorage] raw:", cachedGuilds);
   
     if (cachedGuilds) {
       try {
         const parsed = JSON.parse(cachedGuilds);
-        console.log("[localguild][localStorage] parsed:", parsed);
+        // console.log("[localguild][localStorage] parsed:", parsed);
   
         if (Array.isArray(parsed)) {
           setGuilds(parsed);
-          console.log("[localguild][localStorage] setGuilds:", parsed);
+          // console.log("[localguild][localStorage] setGuilds:", parsed);
         }
       } catch (err) {
         console.error("[localguild][localStorage] parse error:", err);
@@ -546,7 +546,7 @@ const Index = () => {
     // Always fetch fresh from Discord and update cache
     async function fetchGuilds() {
       const guilds = await window.electronAPI.discord.getGuilds();
-      console.log("[localguild][discord API] raw:", guilds);
+      // console.log("[localguild][discord API] raw:", guilds);
   
       // convert object of objects to array of objects with id
       let arr = [];
@@ -555,12 +555,12 @@ const Index = () => {
         id: key,
         ...value,
       }));   
-        console.log("[localguild][discord API] mapped array:", arr);
+        // console.log("[localguild][discord API] mapped array:", arr);
       }
       if(arr.length>0){
         setGuilds(arr);
         localStorage.setItem("discordGuilds", JSON.stringify(arr));
-        console.log("[localguild][discord API] saved to localStorage");
+        // console.log("[localguild][discord API] saved to localStorage");
       }
       
     }
@@ -594,7 +594,7 @@ const Index = () => {
           // Fetch Discord DMs
           const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
           const guilds = await window.electronAPI.discord.getGuilds(); // fetch guilds
-          console.log("Polled guilds:", guilds.data);
+          // console.log("Polled guilds:", guilds.data);
           setGuilds(guilds.data)
           if (dms.success) {
             const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
@@ -610,7 +610,7 @@ const Index = () => {
                 new Date(a.timestamp).getTime()
               );
             });
-            console.log("Loaded chats useEffects:", allChats);
+            // console.log("Loaded chats useEffects:", allChats);
           }
           // Smart merge: only update if there are actual changes
           setChats((prevChats) => {
