@@ -1788,7 +1788,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       }
     }, [openMenuId]);
 
-    console.log(history,"historicdiscordmessages");
+    console.log(history.map(mapDiscordMessageToItem),"historicdiscordmessages");
     useEffect(()=>{
       console.log(`history fetched for ${selectedChat.id}`,isHistoryFetched(selectedChat.id))
       if(history.length>0 && selectedChat?.platform=='discord' && !isHistoryFetched(selectedChat.id)){
@@ -1801,7 +1801,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           Number(new Date(a.timestamp).getTime()) - Number(new Date(b.timestamp).getTime())
       )
     );
-      setHistoryFetched(selectedChat.id);
+    if(history.length>0)setHistoryFetched(selectedChat.id);
+      
       }
       setLoading(false)
       setLoadingMore(false)
@@ -1817,8 +1818,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
     const { messagesList} = useDiscordMessages(selectedChat?.id);
     console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
-    console.log(messagesList?.[0]?.chat_id ?? null,"messagesList[0].chat_id");
-    console.log(selectedChat?.id,"selectedChat?.id");
+    // console.log(messagesList?.[0]?.chat_id ?? null,"messagesList[0].chat_id");
+    // console.log(selectedChat?.id,"selectedChat?.id");
     useEffect(() => {
       if (messagesList && selectedChat?.platform === 'discord') {
         setMessages(prev =>
