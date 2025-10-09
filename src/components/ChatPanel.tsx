@@ -52,59 +52,59 @@ const gravatarUrl = (seed: string) => {
 };
 
 // Helper to generate random chat data
-const chatTypes = ["Group", "DM", "Server"] as const;
-const platforms = ["discord", "Telegram"] as const;
-const sampleMessages = [
-  "Hey, how are you? Hey, how are you? Hey, how are you? Hey, how are you? Hey, how are you?",
-  "Let's catch up later.",
-  "Don't forget the meeting.",
-  "Check out this link!",
-  "See you soon.",
-  "Can you review this?",
-  "Happy birthday!",
-  "Congrats on the launch!",
-  "Are you coming tonight?",
-  "Thanks for your help!",
-];
+// const chatTypes = ["Group", "DM", "Server"] as const;
+// const platforms = ["discord", "Telegram"] as const;
+// const sampleMessages = [
+//   "Hey, how are you? Hey, how are you? Hey, how are you? Hey, how are you? Hey, how are you?",
+//   "Let's catch up later.",
+//   "Don't forget the meeting.",
+//   "Check out this link!",
+//   "See you soon.",
+//   "Can you review this?",
+//   "Happy birthday!",
+//   "Congrats on the launch!",
+//   "Are you coming tonight?",
+//   "Thanks for your help!",
+// ];
 
 const TOP_ITEMS = ["All", "Unread", "Filtered Streams", "Telegram", "Discord"];
 const INITIAL_BOTTOM_ITEMS = ["Alpha", "Airdrop", "Launch", "Sponsored"];
 
-function randomFrom<T>(arr: readonly T[]) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
+// function randomFrom<T>(arr: readonly T[]) {
+//   return arr[Math.floor(Math.random() * arr.length)];
+// }
 
-function randomTags() {
-  // Each chat can have 0 to all tags
-  return INITIAL_BOTTOM_ITEMS.filter(() => Math.random() < 0.5);
-}
+// function randomTags() {
+//   // Each chat can have 0 to all tags
+//   return INITIAL_BOTTOM_ITEMS.filter(() => Math.random() < 0.5);
+// }
 
-function randomTime() {
-  const now = new Date();
-  const minutesAgo = Math.floor(Math.random() * 1440); // up to 24 hours ago
-  const date = new Date(now.getTime() - minutesAgo * 60000);
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
+// function randomTime() {
+//   const now = new Date();
+//   const minutesAgo = Math.floor(Math.random() * 1440); // up to 24 hours ago
+//   const date = new Date(now.getTime() - minutesAgo * 60000);
+//   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+// }
 
-const chats = Array.from({ length: 30 }, (_, i) => {
-  const type = randomFrom(chatTypes);
-  const platform = randomFrom(platforms);
-  const pinned = Math.random() < 0.1; // 10% pinned
-  const read = Math.random() < 0.7; // 30% pinned
-  const name = `${type === "DM" ? "User" : type} ${i + 1}`;
-  return {
-    id: i + 1,
-    name,
-    avatar: gravatarUrl(name + platform),
-    type,
-    platform,
-    pinned,
-    read,
-    lastMessage: randomFrom(sampleMessages),
-    time: randomTime(),
-    tags: randomTags(),
-  };
-});
+// const chats = Array.from({ length: 30 }, (_, i) => {
+//   const type = randomFrom(chatTypes);
+//   const platform = randomFrom(platforms);
+//   const pinned = Math.random() < 0.1; // 10% pinned
+//   const read = Math.random() < 0.7; // 30% pinned
+//   const name = `${type === "DM" ? "User" : type} ${i + 1}`;
+//   return {
+//     id: i + 1,
+//     name,
+//     avatar: gravatarUrl(name + platform),
+//     type,
+//     platform,
+//     pinned,
+//     read,
+//     lastMessage: randomFrom(sampleMessages),
+//     time: randomTime(),
+//     tags: randomTags(),
+//   };
+// });
 
 function parseTimeString(timeString: string) {
   // Handles "HH:MM AM/PM"
@@ -115,14 +115,14 @@ function parseTimeString(timeString: string) {
   return hours * 60 + minutes;
 }
 
-// Sort all chats by time descending (latest first)
-const chatsSortedByTime = [...chats].sort((a, b) => {
-  return parseTimeString(b.time) - parseTimeString(a.time);
-});
-const sortedChats = [
-  ...chatsSortedByTime.filter((chat) => chat.pinned),
-  ...chatsSortedByTime.filter((chat) => !chat.pinned),
-];
+// // Sort all chats by time descending (latest first)
+// const chatsSortedByTime = [...chats].sort((a, b) => {
+//   return parseTimeString(b.time) - parseTimeString(a.time);
+// });
+// const sortedChats = [
+//   ...chatsSortedByTime.filter((chat) => chat.pinned),
+//   ...chatsSortedByTime.filter((chat) => !chat.pinned),
+// ];
 
 // function formatChatTime(dateString: string) {
 //   const now = new Date();
@@ -232,65 +232,6 @@ interface ChatPanelProps {
   onBack: () => void;
 }
 
-
-const dummyChannels = {
-  "757451025673224192": [
-    { id: "ch1", name: "general" },
-    { id: "ch2", name: "random" },
-    { id: "ch3", name: "announcements" },
-  ],
-  "2": [
-    { id: "ch4", name: "chat" },
-    { id: "ch5", name: "bot-commands" },
-  ],
-  "3": [
-    { id: "ch1", name: "general" },
-    { id: "ch2", name: "random" },
-    { id: "ch3", name: "announcements" },
-  ],
-  "4": [
-    { id: "ch4", name: "chat" },
-    { id: "ch5", name: "bot-commands" },
-  ],
-  "5": [
-    { id: "ch1", name: "general" },
-    { id: "ch2", name: "random" },
-    { id: "ch3", name: "announcements" },
-  ],
-  "6": [
-    { id: "ch4", name: "chat" },
-    { id: "ch5", name: "bot-commands" },
-  ],
-  "7": [
-    { id: "ch1", name: "general" },
-    { id: "ch2", name: "random" },
-    { id: "ch3", name: "announcements" },
-  ],
-  "8": [
-    { id: "ch4", name: "chat" },
-    { id: "ch5", name: "bot-commands" },
-  ],
-  "9": [
-    { id: "ch1", name: "general" },
-    { id: "ch2", name: "random" },
-    { id: "ch3", name: "announcements" },
-  ],
-  "10": [
-    { id: "ch4", name: "chat" },
-    { id: "ch5", name: "bot-commands" },
-  ],
-  "11": [
-    { id: "ch1", name: "general" },
-    { id: "ch2", name: "random" },
-    { id: "ch3", name: "announcements" },
-  ],
-  "12": [
-    { id: "ch4", name: "chat" },
-    { id: "ch5", name: "bot-commands" },
-  ],
-};
-
-
 export const ChatPanel: React.FC<ChatPanelProps> = ({
   chats = [],
   onChatSelect,
@@ -343,12 +284,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   useEffect(()=>{
   const cachedGuilds = localStorage.getItem("discordGuilds");
-  console.log("[localguild][localStorage] raw:", cachedGuilds);
+  // console.log("[localguild][localStorage] raw:", cachedGuilds);
 
   if (cachedGuilds) {
     try {
       const parsed = JSON.parse(cachedGuilds);
-      console.log("[localguild][localStorage] parsed:", parsed);
+      // console.log("[localguild][localStorage] parsed:", parsed);
 const tempDCchannel={}
       if (Array.isArray(parsed) && parsed.length>0) {
         parsed.forEach(guild => {
@@ -359,9 +300,9 @@ const tempDCchannel={}
 
         setDcChannels(tempDCchannel)
         
-        console.log("[localguild][localStorage] parse channels:", parsed);
-        console.log('[localguild]dcChannels', dcChannels)
-        console.log('[localguild]dcChannels', dummyChannels)
+        // console.log("[localguild][localStorage] parse channels:", parsed);
+        // console.log('[localguild]dcChannels', dcChannels)
+        // console.log('[localguild]dcChannels', dummyChannels)
       }
     } catch (err) {
       console.error("[localguild][localStorage] parse error:", err);
@@ -688,12 +629,12 @@ useEffect(() => {
   // Trust backend sorting - only separate pinned from unpinned
   // Backend already sorts chats consistently by messages first, then by name
   const sortedDisplayChats = [
-    ...(allChannels || displayChats || []).filter(
-      (chat) => chat?.isPinned || chat?.pinned
-    ),
-    ...(allChannels || displayChats || []).filter(
-      (chat) => !chat?.isPinned && !chat?.pinned
-    ),
+    ...(allChannels || displayChats || [])
+      .filter(chat => chat?.isPinned || chat?.pinned)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+    ...(allChannels || displayChats || [])
+      .filter(chat => !chat?.isPinned && !chat?.pinned)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
   ];
 
   const getFilteredChannels = () => {
@@ -1081,7 +1022,7 @@ useEffect(() => {
   const headingIds = sortedChannels.filter(c => c.type === 4).map(c => c.id);
   const [open, setOpen] = useState(headingIds.reduce((acc, id) => ({ ...acc, [id]: true }), {}));
 
-console.log('discordChannels',discordChannels)
+// console.log('discordChannels',discordChannels)
   if (selectedDiscordServer && sortedChannels.length>0) {
     return (
       <div className="h-[calc(100vh-73px)] min-w-[350px] p-3 flex flex-col border-r border-[#23272f] bg-[#111111]">
