@@ -3198,27 +3198,27 @@ const jumpToReply=(msg)=>{
                                   <>
                                     {(msg?.media?.content_type?.startsWith("image") ||msg?.media?.type?.startsWith("image")) && (
                                       <img
-                                        src={msg.media.url}
+                                        src={msg?.media?.url}
                                         alt="media"
                                         style={{
                                           maxWidth: 320,
                                           cursor: "pointer",
                                         }}
-                                        onClick={() => openMedia(msg.media)}
+                                        onClick={() => openMedia(msg?.media)}
                                       />
                                     )}
-                                    {msg.media.type.startsWith("video") && (
+                                    {msg?.media?.type?.startsWith("video") && (
                                       <video
-                                        src={msg.media.url}
+                                        src={msg?.media?.url}
                                         controls
                                         style={{
                                           maxWidth: 320,
                                           cursor: "pointer",
                                         }}
-                                        onClick={() => openMedia(msg.media)}
+                                        onClick={() => openMedia(msg?.media)}
                                       />
                                     )}
-                                    {msg.media.type.includes("octet") && (
+                                    {msg?.media?.type?.includes("octet") && (
                                       <>
                                       <video
                                         src={msg.media.url}
@@ -3232,7 +3232,7 @@ const jumpToReply=(msg)=>{
                                       />                                      
                                     </>
                                     )} 
-                                     {(msg.media.type.includes("audio") || msg.media.type.includes("ogg")) && (
+                                     {(msg?.media?.type?.includes("audio") || msg?.media?.type?.includes("ogg")) && (
                                       <AudioWaveform audioUrl={msg?.media?.url ?? null}/>
                                     )}
                                   </>
