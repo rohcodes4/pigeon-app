@@ -335,7 +335,6 @@ const tempDCchannel={}
   };
 
   const closeContextMenu = () => {
-    console.log("close menu");
     setContextMenu(null);
   };
 

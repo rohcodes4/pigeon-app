@@ -1393,8 +1393,10 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
     // Function to load more messages when scrolling to top
     const loadMoreMessages = React.useCallback(() => {
+      console.log('loading')
       if (loadingMore || loading || !hasMoreMessages || messages.length === 0)
         return;
+      
       console.log('loading2...')
 
       if(selectedChat.platform==='discord'){
@@ -1434,6 +1436,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     }, [
       loadingMore,
       loading,
+      dcHookLoading,
       hasMoreMessages,
       messages,
       selectedChat,
@@ -1797,12 +1800,10 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const { messagesList} = useDiscordMessages(selectedChat?.id);
     console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
     useEffect(()=>{
-      setMessages([])
-      console.log('ssss',selectedChat)
-      console.log('sssa',messagesList)
       console.log(`history fetched for ${selectedChat.id}`,isHistoryFetched(selectedChat.id))
       if(history.length>0 && selectedChat?.platform=='discord' && !isHistoryFetched(selectedChat.id)){
-    setMessages(prev =>
+        setMessages([])
+        setMessages(prev =>
       [
         ...history.map(mapDiscordMessageToItem),
         ...prev
@@ -1816,14 +1817,23 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       }
       setLoading(false)
       setLoadingMore(false)
-      if(container && !hasScrolled){
-        container.scrollTop = container.scrollHeight;
-      }
+      // if(container && !hasScrolled){
+      //   container.scrollTop = container.scrollHeight;
+      // }
+      // console.log('hasScrolled',hasScrolled)
       if(!hasScrolled){
         scrollToBottom()
         setHasScrolled(true)
       }
        
+    },[selectedChat, history])
+
+    // const { messagesList} = useDiscordMessages(selectedChat?.id);
+    // console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
+    // console.log(messagesList?.[0]?.chat_id ?? null,"messagesList[0].chat_id");
+    // console.log(selectedChat?.id,"selectedChat?.id");
+    useEffect(() => {
+     
       if (messagesList && selectedChat?.platform === 'discord') {
         setMessages(prev =>
           [
@@ -1834,19 +1844,14 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               Number(new Date(a.timestamp).getTime()) - Number(new Date(b.timestamp).getTime())
           )
         );
-        scrollToBottom();
       }
       setLoading(false);
       setLoadingMore(false);
-    },[selectedChat, history, messagesList])
-
-    // const { messagesList} = useDiscordMessages(selectedChat?.id);
-    // console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
-    // console.log(messagesList?.[0]?.chat_id ?? null,"messagesList[0].chat_id");
-    // console.log(selectedChat?.id,"selectedChat?.id");
-    // useEffect(() => {
-     
-    // }, [messagesList]);
+      if(!hasScrolled){
+        scrollToBottom()
+        setHasScrolled(true)
+      }
+    }, [messagesList]);
     
     // setMessages((prev) => [...messagesList, ...prev]);
     
@@ -2827,7 +2832,7 @@ console.log('messages by date',groupedByDate)
           )}
 
           {/* No more messages indicator */}
-          {!hasMoreMessages && messages.length > 0 && !loading && (
+          {!hasMoreMessages && messages.length > 0 && !loading && !dcHookLoading && (
             <div className="flex items-center justify-center py-4">
               <div className="text-center">
                 <p className="text-[#ffffff32] text-xs">No more messages</p>
