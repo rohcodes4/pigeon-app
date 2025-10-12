@@ -128,6 +128,7 @@ type MessageItem = {
   hasLink: boolean;
   hasMedia: boolean;
   media: any;
+  stickerItems: any;
   link: string | null;
   replyTo: any;
 };
@@ -1663,6 +1664,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         message: messageText,
         tags: [],
         reactions: [],
+        stickerItems: null,
         hasLink: messageText.includes("http"),
         link: messageText.match(/https?:\/\/\S+/)?.[0] || null,
         replyTo: replyTo
@@ -1989,6 +1991,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
               hasMedia: msg.message.has_media,
               media: null,
+              stickerItems: msg.stickerItems ?? null,
               timestamp:msg.timestamp,
               replyTo: replyMessage
                 ? {

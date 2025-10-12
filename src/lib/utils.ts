@@ -28,6 +28,7 @@ type MessageItem = {
   hasLink: boolean;
   hasMedia: boolean;
   media: any;
+  stickerItems: any;
   link: string | null;
   replyTo: any;
 };
@@ -64,6 +65,7 @@ export function mapDiscordMessageToItem(discordMsg: any): MessageItem {
     hasMedia: attachments.length > 0 || embeds.length > 0,
     media: attachments.length || embeds.length ? [...attachments, ...embeds] : null,
     link: hasLink ? discordMsg.content.match(urlRegex)?.[0] ?? null : null,
+    stickerItems: discordMsg.sticker_items ?? null,
     replyTo: discordMsg.reply_to_id,
   };
 }
