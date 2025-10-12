@@ -61,6 +61,7 @@ import LiveAudioWaveform from "./LiveAudioWaveForm";
 import { timeStamp } from "console";
 import { useDiscordChatHistory, useDiscordMessages } from "@/hooks/useDiscord";
 import { isHistoryFetched, setHistoryFetched } from "@/store/discordHistoreStore";
+import Sticker from "./Sticker";
 
 
 const LoadingDots: React.FC = () => {
@@ -128,6 +129,7 @@ type MessageItem = {
   hasLink: boolean;
   hasMedia: boolean;
   media: any;
+  stickerItems: any;
   link: string | null;
   replyTo: any;
 };
@@ -269,6 +271,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const closeMedia = () => setEnlargedMedia(null);
 
     React.useEffect(() => {
+      setMessages([])
       if(container){
         container.scrollTop = container.scrollHeight;
       }
@@ -920,6 +923,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
     // Close reaction picker when clicking outside
     React.useEffect(() => {
+      setMessages([])
       const handleClickOutside = (event: MouseEvent) => {
         const target = event.target as Element;
         if (!target.closest(".reaction-picker")) {
@@ -1663,6 +1667,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         message: messageText,
         tags: [],
         reactions: [],
+        stickerItems: null,
         hasLink: messageText.includes("http"),
         link: messageText.match(/https?:\/\/\S+/)?.[0] || null,
         replyTo: replyTo
@@ -1789,7 +1794,12 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     }, [openMenuId]);
 
     console.log(history.map(mapDiscordMessageToItem),"historicdiscordmessages");
+    const { messagesList} = useDiscordMessages(selectedChat?.id);
+    console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
     useEffect(()=>{
+      setMessages([])
+      console.log('ssss',selectedChat)
+      console.log('sssa',messagesList)
       console.log(`history fetched for ${selectedChat.id}`,isHistoryFetched(selectedChat.id))
       if(history.length>0 && selectedChat?.platform=='discord' && !isHistoryFetched(selectedChat.id)){
     setMessages(prev =>
@@ -1813,14 +1823,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         scrollToBottom()
         setHasScrolled(true)
       }
-        
-    },[selectedChat, history])
-
-    const { messagesList} = useDiscordMessages(selectedChat?.id);
-    console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
-    // console.log(messagesList?.[0]?.chat_id ?? null,"messagesList[0].chat_id");
-    // console.log(selectedChat?.id,"selectedChat?.id");
-    useEffect(() => {
+       
       if (messagesList && selectedChat?.platform === 'discord') {
         setMessages(prev =>
           [
@@ -1835,7 +1838,15 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       }
       setLoading(false);
       setLoadingMore(false);
-    }, [messagesList]);
+    },[selectedChat, history, messagesList])
+
+    // const { messagesList} = useDiscordMessages(selectedChat?.id);
+    // console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
+    // console.log(messagesList?.[0]?.chat_id ?? null,"messagesList[0].chat_id");
+    // console.log(selectedChat?.id,"selectedChat?.id");
+    // useEffect(() => {
+     
+    // }, [messagesList]);
     
     // setMessages((prev) => [...messagesList, ...prev]);
     
@@ -1989,6 +2000,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
               hasMedia: msg.message.has_media,
               media: null,
+              stickerItems: msg.stickerItems ?? null,
               timestamp:msg.timestamp,
               replyTo: replyMessage
                 ? {
@@ -2432,11 +2444,12 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
     React.useEffect(() => {
       // Reset scroll flag when chat changes
+      setMessages([])
       setHasScrolled(false);
       if (container) {
         container.scrollTop = container.scrollHeight;
       }
-    }, [selectedChat?.id]);
+    }, [selectedChat]);
     
    const limit = pLimit(5); // only 5 at once
 
@@ -2729,6 +2742,7 @@ const jumpToReply=(msg)=>{
   setSelectedMessageId(msg.replyToId)
 }
 
+console.log('messages by date',groupedByDate)
 
     return (
       <div className="relative h-[calc(100vh-136px)] flex flex-col flex-shrink-0 min-w-0">
@@ -3192,7 +3206,108 @@ const jumpToReply=(msg)=>{
                             </div>
                           )}
                           <div className="mt-1 text-sm text-[#e0e0e] break-words break-all whitespace-pre-wrap max-w-full">
-                            {msg.media && selectedChat.platform !== "discord" && (
+                          {Array.isArray(msg.media) && msg.media.length > 0 && (
+  <>
+    {msg.media.map((mediaItem, idx) => (
+      <React.Fragment key={mediaItem.url || idx}>
+        {(mediaItem?.content_type?.startsWith("image") ||
+          mediaItem?.type?.startsWith("image")) && (
+          <img
+            src={mediaItem.url}
+            alt="media"
+            style={{
+              maxWidth: 320,
+              cursor: "pointer",
+            }}
+            onClick={() => openMedia(mediaItem)}
+          />
+        )}
+        {mediaItem?.type?.startsWith("video") && (
+          <video
+            src={mediaItem.url}
+            controls
+            style={{
+              maxWidth: 320,
+              cursor: "pointer",
+            }}
+            onClick={() => openMedia(mediaItem)}
+          />
+        )}
+        {mediaItem?.type?.includes("octet") &&
+          selectedChat.platform == "discord" && (
+            <video
+              src={mediaItem.url}
+              autoPlay
+              loop
+              style={{
+                maxWidth: 320,
+                cursor: "pointer",
+              }}
+              onClick={() => openMedia(mediaItem)}
+            />
+        )}
+        {(mediaItem?.type?.includes("audio") ||
+          mediaItem?.type?.includes("ogg") ||
+          mediaItem?.type?.includes("octet")) && (
+          <AudioWaveform audioUrl={mediaItem.url ?? null} />
+        )}
+      </React.Fragment>
+    ))}
+
+    {/* Modal Overlay */}
+    {enlargedMedia && (
+      <div
+        onClick={closeMedia}
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          backgroundColor: "rgba(0,0,0,0.8)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 9999,
+        }}
+      >
+        {enlargedMedia?.type?.startsWith("image") && (
+          <img
+            src={enlargedMedia?.url}
+            alt="enlarged media"
+            style={{
+              maxHeight: "90vh",
+              maxWidth: "90vw",
+            }}
+            onClick={(e) => e.stopPropagation()} // Prevent modal close on click inside image
+          />
+        )}
+        {enlargedMedia?.type?.startsWith("video") && (
+          <video
+            src={enlargedMedia?.url}
+            controls
+            autoPlay
+            style={{
+              maxHeight: "90vh",
+              maxWidth: "90vw",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        )}
+      </div>
+    )}
+  </>
+)}
+                          {/* {Array.isArray(msg.stickerItems) && msg.stickerItems.length > 0 && (
+  <>
+    {msg.stickerItems.map((mediaItem, idx) => (
+      <Sticker key={mediaItem.id || idx} mediaItem={mediaItem} openMedia={openMedia} />
+    ))}
+
+  </>
+)} */}
+
+  {/* {msg.media && (
                               <>
                                 {msg.media && (
                                   <>
@@ -3218,7 +3333,7 @@ const jumpToReply=(msg)=>{
                                         onClick={() => openMedia(msg?.media)}
                                       />
                                     )}
-                                    {msg?.media?.type?.includes("octet") && (
+                                    {msg?.media?.type?.includes("octet") && selectedChat.platform == "discord" && (
                                       <>
                                       <video
                                         src={msg.media.url}
@@ -3232,13 +3347,12 @@ const jumpToReply=(msg)=>{
                                       />                                      
                                     </>
                                     )} 
-                                     {(msg?.media?.type?.includes("audio") || msg?.media?.type?.includes("ogg")) && (
+                                     {(msg?.media?.type?.includes("audio") || msg?.media?.type?.includes("ogg") || msg?.media?.type?.includes("octet")) && (
                                       <AudioWaveform audioUrl={msg?.media?.url ?? null}/>
                                     )}
                                   </>
                                 )}
 
-                                {/* Modal Overlay */}
                                 {enlargedMedia && (
                                   <div
                                     onClick={closeMedia}
@@ -3281,7 +3395,7 @@ const jumpToReply=(msg)=>{
                                   </div>
                                 )}
                               </>
-                            )}
+                            )} */}
                             {linkify(msg)}
                             {/* {msg.hasLink && msg.link && (
                               <a

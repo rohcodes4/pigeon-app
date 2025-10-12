@@ -13,7 +13,7 @@ type UnifiedHeaderProps = {
   isPinnable?: boolean;
   isContact?: boolean;
   isAI?: boolean;
-  selectedChat: { id: string | number } | string;
+  selectedChat: any;
 };
 
 const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
@@ -27,7 +27,7 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   isAI = false,
   selectedChat
 }) => {
-  // console.log(selectedChat)
+  console.log('scc',selectedChat)
   const location = useLocation();
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const authToken = localStorage.getItem("access_token");
@@ -115,7 +115,10 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
 
   const { user: authUser, signOut } = useAuth(); // Destructure signOut from useAuth
   const [discordConnected, setDiscordConnected] = useState(false);
+  const [isDiscordChat, setIsDiscordChat] = useState(false);
+  const [isTelegram, setIsTelegram] = useState(false);
   const [telegramConnected, setTelegramConnected] = useState(false);
+
   useEffect(() => {
     if (!authUser) return;
     const fetchStatuses = async () => {
@@ -138,8 +141,34 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
         // ignore transient errors
       }
     };
+
+    const fetchPlatforms = async () => {
+      setIsTelegram(false);
+      setIsDiscordChat(false);
+      console.log('scc before tg', isTelegram)
+      console.log('scc before dc', isDiscordChat)
+      if (selectedChat === "all-channels") {
+        setIsTelegram(true);
+        setIsDiscordChat(true);
+      } else if (selectedChat.platform.toLowerCase() === "telegram") {
+        setIsTelegram(true);
+        setIsDiscordChat(false);
+      } else if (selectedChat.platform.toLowerCase() === "discord") {
+        setIsTelegram(false);
+        setIsDiscordChat(true);
+      } else {
+        // Optionally handle other cases
+        setIsTelegram(false);
+        setIsDiscordChat(false);
+      }
+      console.log('scc after tg', isTelegram)
+      console.log('scc after dc', isDiscordChat)
+    };
+    
+
+    fetchPlatforms()
     fetchStatuses();
-  }, [authUser]);
+  }, [authUser, selectedChat]);
   // Only show smart button on home
   const showSmartButton =
     location.pathname === "/" || (location.pathname === "/ai" && !isAI);
@@ -151,10 +180,10 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
       <div className="flex gap-2 items-center">
         {selectedChat==="all-channels" && <h1 className="text-[15px] text-[#ffffff72]">{title}</h1>}
 
-        {telegramConnected && <span className="p-1.5 rounded-[6px] text-[11px] text-[#bfd6ff] bg-[#3474ff]">
+        {telegramConnected && isTelegram && <span className="p-1.5 rounded-[6px] text-[11px] text-[#bfd6ff] bg-[#3474ff]">
           Telegram
         </span>}
-        {discordConnected && <span className="p-1.5 rounded-[6px] text-[11px] text-[#d7d5ff] bg-[#7b5cfa]">
+        {discordConnected && isDiscordChat && <span className="p-1.5 rounded-[6px] text-[11px] text-[#d7d5ff] bg-[#7b5cfa]">
           Discord
         </span>}
 

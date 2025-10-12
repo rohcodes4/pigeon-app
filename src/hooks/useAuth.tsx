@@ -28,11 +28,12 @@ export const useAuth = () => {
 
 interface AuthProviderProps {
   children: ReactNode;
+  navigate?: (to: string) => void;
 }
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-export const AuthProvider = ({ children }: AuthProviderProps) => {
+export const AuthProvider = ({ children, navigate }: AuthProviderProps) => {
   const [user, setUser] = useState<any | null>(null);
   const [session, setSession] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,22 +89,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       localStorage.removeItem("access_token"); // Clear token from localStorage
       setUser(null);
       setSession(null);
-      window.location.href = "/auth";
+      navigate?.("/auth");
     } catch (error) {
       console.error("Failed to sign out:", error);
       localStorage.removeItem("access_token"); // Ensure token is cleared even if backend logout fails
       setUser(null);
       setSession(null);
-      window.location.href = "/auth";
+      navigate?.("/auth");
     }
   };
 
   const signIn = () => {
-    window.location.href = "/auth?mode=signin";
+    navigate?.("/auth?mode=signin");
   };
 
   const signUp = () => {
-    window.location.href = "/auth?mode=signup";
+    navigate?.("/auth?mode=signup");
   };
 
   const value = {
