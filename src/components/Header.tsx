@@ -3,12 +3,20 @@ import { ChevronDown, ChevronUp, LogOut, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import logo from "@/assets/images/logo.svg";
 
 export const Header = () => {
-  const { user, signIn, signUp, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const navigate = useNavigate()
+  const signIn = () => {
+    navigate("/auth?mode=signin");
+  };
+
+  const signUp = () => {
+    navigate("/auth?mode=signup");
+  };
 
   // Debug: Log user data to see what we're working with
   // console.log("Header user data:", user);
