@@ -275,7 +275,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       if(container){
         container.scrollTop = container.scrollHeight;
       }
-      setShouldAutoScroll(true);
+      // setShouldAutoScroll(true);
       setLoadedMediaIds(new Set())
     }, [selectedChat]);
 
@@ -1803,6 +1803,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       console.log(`history fetched for ${selectedChat.id}`,isHistoryFetched(selectedChat.id))
       if(history.length>0 && selectedChat?.platform=='discord' && !isHistoryFetched(selectedChat.id)){
         setMessages([])
+        console.log('hist before set message',history.map(mapDiscordMessageToItem))
         setMessages(prev =>
       [
         ...history.map(mapDiscordMessageToItem),
@@ -1825,9 +1826,12 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         scrollToBottom()
         setHasScrolled(true)
       }
-       
     },[selectedChat, history])
 
+    useEffect(() => {
+      console.log('messages updated', messages)
+    }, [messages])
+    
     // const { messagesList} = useDiscordMessages(selectedChat?.id);
     // console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
     // console.log(messagesList?.[0]?.chat_id ?? null,"messagesList[0].chat_id");
@@ -2447,14 +2451,15 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const scrollTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
  const [loadedMedia, setLoadedMediaIds] = useState<Set<string>>(new Set());
 
-    React.useEffect(() => {
-      // Reset scroll flag when chat changes
-      setMessages([])
-      setHasScrolled(false);
-      if (container) {
-        container.scrollTop = container.scrollHeight;
-      }
-    }, [selectedChat]);
+    // React.useEffect(() => {
+    //   // Reset scroll flag when chat changes
+    //   setMessages([])
+    //   setLoadedMediaIds(new Set())
+    //   // setHasScrolled(false);
+    //   if (container) {
+    //     container.scrollTop = container.scrollHeight;
+    //   }
+    // }, [selectedChat]);
     
    const limit = pLimit(5); // only 5 at once
 
