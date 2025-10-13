@@ -3216,7 +3216,7 @@ console.log('messages by date',groupedByDate)
                             </div>
                           )}
                           <div className="mt-1 text-sm text-[#e0e0e] break-words break-all whitespace-pre-wrap max-w-full">
-                          {Array.isArray(msg.media) && msg.media.length > 0 && (
+                          {/* {Array.isArray(msg.media) && msg.media.length > 0 && (
   <>
     {msg.media.map((mediaItem, idx) => (
       <React.Fragment key={mediaItem.url || idx}>
@@ -3264,7 +3264,6 @@ console.log('messages by date',groupedByDate)
       </React.Fragment>
     ))}
 
-    {/* Modal Overlay */}
     {enlargedMedia && (
       <div
         onClick={closeMedia}
@@ -3307,7 +3306,7 @@ console.log('messages by date',groupedByDate)
       </div>
     )}
   </>
-)}
+)} */}
                           {/* {Array.isArray(msg.stickerItems) && msg.stickerItems.length > 0 && (
   <>
     {msg.stickerItems.map((mediaItem, idx) => (
@@ -3317,7 +3316,7 @@ console.log('messages by date',groupedByDate)
   </>
 )} */}
 
-  {/* {msg.media && (
+  {msg.media && (
                               <>
                                 {msg.media && (
                                   <>
@@ -3405,7 +3404,7 @@ console.log('messages by date',groupedByDate)
                                   </div>
                                 )}
                               </>
-                            )} */}
+                            )}
                             {linkify(msg)}
                             {/* {msg.hasLink && msg.link && (
                               <a
