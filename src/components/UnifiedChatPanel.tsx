@@ -275,7 +275,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       if(container){
         container.scrollTop = container.scrollHeight;
       }
-      setShouldAutoScroll(true);
+      // setShouldAutoScroll(true);
       setLoadedMediaIds(new Set())
     }, [selectedChat]);
 
@@ -1803,6 +1803,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       console.log(`history fetched for ${selectedChat.id}`,isHistoryFetched(selectedChat.id))
       if(history.length>0 && selectedChat?.platform=='discord' && !isHistoryFetched(selectedChat.id)){
         setMessages([])
+        console.log('hist before set message',history.map(mapDiscordMessageToItem))
         setMessages(prev =>
       [
         ...history.map(mapDiscordMessageToItem),
@@ -1825,9 +1826,12 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         scrollToBottom()
         setHasScrolled(true)
       }
-       
     },[selectedChat, history])
 
+    useEffect(() => {
+      console.log('messages updated', messages)
+    }, [messages])
+    
     // const { messagesList} = useDiscordMessages(selectedChat?.id);
     // console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
     // console.log(messagesList?.[0]?.chat_id ?? null,"messagesList[0].chat_id");
@@ -2447,14 +2451,15 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const scrollTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
  const [loadedMedia, setLoadedMediaIds] = useState<Set<string>>(new Set());
 
-    React.useEffect(() => {
-      // Reset scroll flag when chat changes
-      setMessages([])
-      setHasScrolled(false);
-      if (container) {
-        container.scrollTop = container.scrollHeight;
-      }
-    }, [selectedChat]);
+    // React.useEffect(() => {
+    //   // Reset scroll flag when chat changes
+    //   setMessages([])
+    //   setLoadedMediaIds(new Set())
+    //   // setHasScrolled(false);
+    //   if (container) {
+    //     container.scrollTop = container.scrollHeight;
+    //   }
+    // }, [selectedChat]);
     
    const limit = pLimit(5); // only 5 at once
 
@@ -3211,7 +3216,7 @@ console.log('messages by date',groupedByDate)
                             </div>
                           )}
                           <div className="mt-1 text-sm text-[#e0e0e] break-words break-all whitespace-pre-wrap max-w-full">
-                          {Array.isArray(msg.media) && msg.media.length > 0 && (
+                          {/* {Array.isArray(msg.media) && msg.media.length > 0 && (
   <>
     {msg.media.map((mediaItem, idx) => (
       <React.Fragment key={mediaItem.url || idx}>
@@ -3259,7 +3264,6 @@ console.log('messages by date',groupedByDate)
       </React.Fragment>
     ))}
 
-    {/* Modal Overlay */}
     {enlargedMedia && (
       <div
         onClick={closeMedia}
@@ -3302,7 +3306,7 @@ console.log('messages by date',groupedByDate)
       </div>
     )}
   </>
-)}
+)} */}
                           {/* {Array.isArray(msg.stickerItems) && msg.stickerItems.length > 0 && (
   <>
     {msg.stickerItems.map((mediaItem, idx) => (
@@ -3312,7 +3316,7 @@ console.log('messages by date',groupedByDate)
   </>
 )} */}
 
-  {/* {msg.media && (
+  {msg.media && (
                               <>
                                 {msg.media && (
                                   <>
@@ -3400,7 +3404,7 @@ console.log('messages by date',groupedByDate)
                                   </div>
                                 )}
                               </>
-                            )} */}
+                            )}
                             {linkify(msg)}
                             {/* {msg.hasLink && msg.link && (
                               <a
