@@ -2,6 +2,7 @@
 export interface ElectronAPI {
   discord: {
     connect: (token: string) => Promise<{ success: boolean; error?: string }>;
+    disconnect: () => Promise<{ success: boolean; error?: string }>;
     openLogin: () => Promise<{ success: boolean; data:any, error?: string }>;
     getDMs: () => Promise<{
       success: boolean;

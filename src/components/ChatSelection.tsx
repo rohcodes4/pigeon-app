@@ -414,6 +414,8 @@ export const ChatSelection = ({
         }
   }
   const disconnectDiscord = async () => {
+    // await window.electronAPI.discord.disconnect();
+    await window.electronAPI.discord.disconnect();
     await window.electronAPI.security.clearDiscordToken();
      setDiscordConnected(false);
   }

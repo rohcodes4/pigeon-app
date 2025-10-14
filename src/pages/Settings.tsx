@@ -427,10 +427,6 @@ useEffect(() => {
           const tg = await tgRes.json();
           setTelegramConnected(!!tg.connected);
         }
-        if (dcRes.ok) {
-          const dc = await dcRes.json();
-          setDiscordConnected(!!dc.connected);
-        }
       } catch (e) {
         // ignore transient errors
       }
