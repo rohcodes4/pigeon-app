@@ -542,7 +542,7 @@ async function openDiscordLogin() {
 
     discordWindow.webContents.on("did-navigate", () => {
       setTimeout(() => {
-        discordWindow.webContents.executeJavaScript(pollTokenScript).catch(console.error);
+        discordWindow?.webContents?.executeJavaScript(pollTokenScript)?.catch(console.error);
       }, 3000);
     });
 

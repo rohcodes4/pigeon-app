@@ -867,7 +867,21 @@ class DiscordClient extends EventEmitter {
   disconnect() {
     console.log("[Discord] Disconnecting...");
     this.reconnectAttempts = this.maxReconnectAttempts;
-    this.cleanup();
+       if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+
+    if (this.ws) {
+      this.ws.removeAllListeners();
+      if (this.ws.readyState === WebSocket.OPEN) {
+        this.ws.close(4001, "Client cleanup");
+      }
+      this.ws = null;
+    }
+
+    this.heartbeatAcknowledged = true;
+    this.connected = false;
     this.emit("disconnected", { intentional: true });
   }
 
