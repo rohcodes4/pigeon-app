@@ -260,9 +260,8 @@ const isHelpPage = activePage === "/help";
       try {
         const token = localStorage.getItem("access_token");
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const [tgRes, dcRes] = await Promise.all([
+        const [tgRes] = await Promise.all([
           fetch(`${BACKEND_URL}/auth/telegram/status`, { headers }),
-          fetch(`${BACKEND_URL}/auth/discord/status`, { headers }),
         ]);
         if (tgRes.ok) {
           const tg = await tgRes.json();
@@ -406,7 +405,7 @@ const isHelpPage = activePage === "/help";
         </button>
       </nav>
       <div className="discord-servers my-4 pl-2 overflow-y-auto w-full flex flex-col items-center">
-  {discordServers.length > 0 &&
+  {discordServers.length > 0 && discordConnected &&
     discordServers.map((server) => (
       <button
         key={server.id}

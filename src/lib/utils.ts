@@ -22,6 +22,7 @@ type MessageItem = {
   server: string;
   date: Date;
   message: string;
+  text: string;
   mentions: any;
   tags: string[];
   reactions: ReactionChip[];
@@ -55,6 +56,7 @@ export function mapDiscordMessageToItem(discordMsg: any): MessageItem {
     server: "Discord", // or pass actual guild name if available
     date: new Date(discordMsg.timestamp),
     message: discordMsg.content,
+    text: discordMsg.content,
     tags: [], // you can plug in logic for hashtags/keywords
     reactions: reactions.map((r: any) => ({
       emoji: r.emoji?.name || r.emoji,

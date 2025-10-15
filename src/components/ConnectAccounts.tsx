@@ -81,12 +81,17 @@ export const ConnectAccounts = ({
           const tg = await tgRes.json();
           setTelegramConnected(!!tg.connected);
         }
-        const dcRes = await fetch(`${BACKEND_URL}/auth/discord/status`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (dcRes.ok) {
-          const dc = await dcRes.json();
-          setDiscordConnected(!!dc.connected);
+        // const dcRes = await fetch(`${BACKEND_URL}/auth/discord/status`, {
+        //   headers: token ? { Authorization: `Bearer ${token}` } : {},
+        // });
+        // if (dcRes.ok) {
+        //   const dc = await dcRes.json();
+        //   setDiscordConnected(!!dc.connected);
+        // }
+        const res = await window.electronAPI.security.getDiscordToken();
+        if (res?.success && res?.data) {
+          setDiscordConnected(!!res.success);
+          await window.electronAPI.discord.connect(res.data);
         }
       } catch (e) {
         // ignore
@@ -292,45 +297,25 @@ export const ConnectAccounts = ({
     }
   };
 
+
+
   const connectDiscord = async () => {
     if (!user) return;
 
     setLoading((prev) => ({ ...prev, discord: true }));
-
-    try {
-      // Start Discord OAuth flow with Authorization header so backend can link to current user
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${BACKEND_URL}/auth/discord/start`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to start Discord OAuth");
-      }
-
-      const data = await response.json();
-
-      // Open Discord OAuth in a popup window
-      const popup = window.open(
-        data.oauth_url,
-        "discord_oauth",
-        "width=500,height=600,scrollbars=yes,resizable=yes"
-      );
-
-      if (!popup) {
-        throw new Error("Popup blocked. Please allow popups for this site.");
-      }
-
-      // Listen for the OAuth callback
-      const checkOAuthResult = () => {
-        try {
-          // Check if popup is closed
-          if (popup.closed) {
-            // OAuth completed, check if Discord is now connected
-            setTimeout(() => {
-              setDiscordConnected(true);
+    const res = await window.electronAPI.security.getDiscordToken();
+      if (res?.data) {
+        const conncted = await window.electronAPI.discord.connect(res.data);
+        // You already got the token from electron, return early
+        if (!conncted.success) {
+          await window.electronAPI.discord.openLogin();
+          const res = await window.electronAPI.security.getDiscordToken();
+          console.log("Discord token result2:", res);
+          if (res?.data) {
+            const conncted = await window.electronAPI.discord.connect(
+              res.data
+            );
+            setDiscordConnected(true);
               setLoading((prev) => ({ ...prev, discord: false }));
 
               // Status is derived from backend
@@ -341,27 +326,92 @@ export const ConnectAccounts = ({
               });
 
               checkAllConnected();
-            }, 1000);
-            return;
           }
-
-          // Check again in 1 second
-          setTimeout(checkOAuthResult, 1000);
-        } catch (error) {
-          console.error("Error checking OAuth result:", error);
+        } else {
+          console.log(!!conncted.success, "discord connected");
+          setDiscordConnected(false);
+        
+          setLoading((prev) => ({ ...prev, discord: false }));
         }
-      };
+      }else{
+          const data= await window.electronAPI.discord.openLogin();
+          if(data.success && data.data)
+          setDiscordConnected(true);
+          setLoading((prev) => ({ ...prev, discord: false }));
+      }
 
-      checkOAuthResult();
-    } catch (error: any) {
-      toast({
-        title: "Discord Connection Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-      setLoading((prev) => ({ ...prev, discord: false }));
     }
-  };
+
+  // const connectDiscord = async () => {
+  //   if (!user) return;
+
+  //   setLoading((prev) => ({ ...prev, discord: true }));
+
+  //   try {
+  //     // Start Discord OAuth flow with Authorization header so backend can link to current user
+  //     const token = localStorage.getItem("access_token");
+  //     const response = await fetch(`${BACKEND_URL}/auth/discord/start`, {
+  //       method: "POST",
+  //       headers: token ? { Authorization: `Bearer ${token}` } : {},
+  //     });
+
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.detail || "Failed to start Discord OAuth");
+  //     }
+
+  //     const data = await response.json();
+
+  //     // Open Discord OAuth in a popup window
+  //     const popup = window.open(
+  //       data.oauth_url,
+  //       "discord_oauth",
+  //       "width=500,height=600,scrollbars=yes,resizable=yes"
+  //     );
+
+  //     if (!popup) {
+  //       throw new Error("Popup blocked. Please allow popups for this site.");
+  //     }
+
+      // Listen for the OAuth callback
+  //     const checkOAuthResult = () => {
+  //       try {
+  //         // Check if popup is closed
+  //         if (popup.closed) {
+  //           // OAuth completed, check if Discord is now connected
+  //           setTimeout(() => {
+  //             setDiscordConnected(true);
+  //             setLoading((prev) => ({ ...prev, discord: false }));
+
+  //             // Status is derived from backend
+
+  //             toast({
+  //               title: "Discord Connected",
+  //               description: "Successfully connected to your Discord account.",
+  //             });
+
+  //             checkAllConnected();
+  //           }, 1000);
+  //           return;
+  //         }
+
+  //         // Check again in 1 second
+  //         setTimeout(checkOAuthResult, 1000);
+  //       } catch (error) {
+  //         console.error("Error checking OAuth result:", error);
+  //       }
+  //     };
+
+  //     checkOAuthResult();
+  //   } catch (error: any) {
+      // toast({
+      //   title: "Discord Connection Failed",
+      //   description: error.message,
+      //   variant: "destructive",
+      // });
+  //     setLoading((prev) => ({ ...prev, discord: false }));
+  //   }
+  // };
 
   const canContinue = telegramConnected || discordConnected;
 

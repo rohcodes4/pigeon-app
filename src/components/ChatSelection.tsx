@@ -720,6 +720,10 @@ export const ChatSelection = ({
                
                 <Button
                   // disabled={loading.discord}
+                  onClick={()=>{
+                    disconnectDiscord()
+                    connectDiscord()
+                  }}
                   className="bg-[#171717] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
                 >
                   Reconnect
