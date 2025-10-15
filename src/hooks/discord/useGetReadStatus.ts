@@ -19,7 +19,7 @@ export function useGetReadStatus() {
       const res = await fetch(`${apiURL}/chats/${messageId}/read?platform=${platform}`, {
         method: "GET",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
           Authorization: token ? `Bearer ${token}` : "",
         },
       });

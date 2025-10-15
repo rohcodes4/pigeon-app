@@ -23,7 +23,7 @@ export function useToggleMuteChat() {
       const res = await fetch(`${apiURL}/chats/${messageId}/mute`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
           Authorization: token ? `Bearer ${token}` : "",
         },
         body: JSON.stringify({

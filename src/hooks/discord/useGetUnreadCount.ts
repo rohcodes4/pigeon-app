@@ -18,7 +18,7 @@ export function useGetUnreadCount(platform: "discord" | "tg") {
       const res = await fetch(`${apiURL}/unread-counts?platform=${platform}`, {
         method: "GET",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
           Authorization: token ? `Bearer ${token}` : "",
         },
       });

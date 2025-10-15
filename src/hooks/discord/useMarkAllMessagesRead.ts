@@ -22,7 +22,7 @@ export function useMarkAllMessagesRead() {
       const res = await fetch(`${apiURL}/messages/mark-all-read`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
           Authorization: token ? `Bearer ${token}` : "",
         },
         body: JSON.stringify({ platform, chat_ids: ids }),

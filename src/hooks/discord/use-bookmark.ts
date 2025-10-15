@@ -19,7 +19,7 @@ export function useBookmark() {
       const res = await fetch(`${apiURL}/bookmarks`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
           Authorization: token ? `Bearer ${token}` : "",
         },
         body: JSON.stringify({ message_id, platform }),

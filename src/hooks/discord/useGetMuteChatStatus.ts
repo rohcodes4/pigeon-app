@@ -20,7 +20,7 @@ export function useGetMuteChatStatus(messageId: string) {
       const res = await fetch(`${apiURL}/chats/${messageId}/mute`, {
         method: "GET",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
           Authorization: token ? `Bearer ${token}` : "",
         },
       });
