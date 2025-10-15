@@ -14,16 +14,19 @@ export function useJoinWaitlist() {
     setSuccess(false);
 
     try {
+      const bodyParams = new URLSearchParams();
+      bodyParams.append("email", email);
+
       const res = await fetch(`${apiURL}/waitlist/join`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: JSON.stringify({ email }),
+        body: bodyParams.toString(),
       });
 
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         throw new Error(data?.message || "Failed to join waitlist");
       }
 

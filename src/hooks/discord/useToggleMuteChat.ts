@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 const url = import.meta.env.VITE_BACKEND_URL as string;
-const apiURL = url + "/api";
+const apiURL = `${url}/api`;
 
 export function useToggleMuteChat() {
   const [loading, setLoading] = useState(false);
@@ -9,10 +9,12 @@ export function useToggleMuteChat() {
   const [success, setSuccess] = useState(false);
 
   const toggleMuteChat = async (
-    messageId: string,
+    chatId: string,
     platform: "discord" | "tg",
     muted: boolean
   ) => {
+    if (!chatId || !platform) return;
+
     setLoading(true);
     setError(null);
     setSuccess(false);
@@ -20,20 +22,22 @@ export function useToggleMuteChat() {
     const token = localStorage.getItem("access_token");
 
     try {
-      const res = await fetch(`${apiURL}/chats/${messageId}/mute`, {
+      const body = new URLSearchParams();
+      body.append("platform", platform);
+      body.append("muted", String(muted));
+
+      const res = await fetch(`${apiURL}/chats/${chatId}/mute`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: token ? `Bearer ${token}` : "",
+          ...(token && { Authorization: `Bearer ${token}` }),
         },
-        body: JSON.stringify({
-          platform,
-          muted,
-        }),
+        body: body.toString(),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data?.message || "Failed to update mute status");
       }
 

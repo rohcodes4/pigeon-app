@@ -1,14 +1,16 @@
 import { useState } from "react";
 
 const url = import.meta.env.VITE_BACKEND_URL as string;
-const apiURL = url + "/api";
+const apiURL = `${url}/api`;
 
 export function useGetReadStatus() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const markChatRead = async (messageId: string, platform: "discord" | "tg") => {
+  const markChatRead = async (chatId: string, platform: "discord" | "tg") => {
+    if (!chatId || !platform) return;
+
     setLoading(true);
     setError(null);
     setSuccess(false);
@@ -16,16 +18,17 @@ export function useGetReadStatus() {
     const token = localStorage.getItem("access_token");
 
     try {
-      const res = await fetch(`${apiURL}/chats/${messageId}/read?platform=${platform}`, {
+      const res = await fetch(`${apiURL}/chats/${chatId}/read?platform=${platform}`, {
         method: "GET",
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: token ? `Bearer ${token}` : "",
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
         },
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data?.message || "Failed to mark chat as read");
       }
 

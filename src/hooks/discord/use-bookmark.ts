@@ -16,13 +16,17 @@ export function useBookmark() {
     const token = localStorage.getItem("access_token");
 
     try {
+      const bodyParams = new URLSearchParams();
+      bodyParams.append("message_id", message_id);
+      bodyParams.append("platform", platform);
+
       const res = await fetch(`${apiURL}/bookmarks`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
           Authorization: token ? `Bearer ${token}` : "",
         },
-        body: JSON.stringify({ message_id, platform }),
+        body: bodyParams.toString(),
       });
 
       if (!res.ok) {

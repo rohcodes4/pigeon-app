@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 
 const url = import.meta.env.VITE_BACKEND_URL as string;
-const apiURL = url + "/api";
+const apiURL = `${url}/api`;
 
-export function useGetMuteChatStatus(messageId: string) {
+export function useGetMuteChatStatus(chatId: string) {
   const [isMuted, setIsMuted] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -11,33 +11,31 @@ export function useGetMuteChatStatus(messageId: string) {
   const token = localStorage.getItem("access_token");
 
   const fetchMuteStatus = useCallback(async () => {
-    if (!messageId) return;
+    if (!chatId) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(`${apiURL}/chats/${messageId}/mute`, {
+      const res = await fetch(`${apiURL}/chats/${chatId}/mute`, {
         method: "GET",
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: token ? `Bearer ${token}` : "",
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
         },
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.message || "Failed to fetch mute status");
-      }
-
       const data = await res.json();
+
+      if (!res.ok) throw new Error(data?.message || "Failed to fetch mute status");
+
       setIsMuted(data?.isMuted ?? false);
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
-  }, [messageId, token]);
+  }, [chatId, token]);
 
   useEffect(() => {
     fetchMuteStatus();
