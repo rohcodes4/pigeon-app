@@ -1523,7 +1523,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             prevHeight: scrollHeight,
             prevTop: scrollTop,
           };
-          loadMoreMessages();
+           setTimeout(() => { loadMoreMessages();}, 1000);
+    
         }
       },
       [hasMoreMessages, loadingMore, loading, loadMoreMessages]
@@ -2532,7 +2533,8 @@ useEffect(() => {
         // element not found -> keep loading until it appears OR no more messages
         const loadInterval = setInterval(async () => {
           if (!loadingMore && hasMoreMessages) {
-            await loadMoreMessages();
+            setTimeout(async() => { loadMoreMessages();}, 1000);
+           
           }
 
           // Stop if:

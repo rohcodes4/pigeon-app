@@ -142,7 +142,7 @@ export function useDiscordMessages(chatId: string | null) {
   const [hasMore, setHasMore] = useState(true);
 
   // Load messages from local DB
-  const loadMessages = useCallback(async (limit = 100, offset = 0) => {
+  const loadMessages = useCallback(async (limit = 50, offset = 0) => {
     if (!chatId) return;
     
     setLoading(true);
@@ -221,7 +221,7 @@ export function useDiscordMessages(chatId: string | null) {
     hasMore,
     sendMessage,
     loadMore,
-    refresh: () => loadMessages(100, 0)
+    refresh: () => loadMessages(50, 0)
   };
 }
 
@@ -318,7 +318,7 @@ export function useDiscordChatHistory(chatId: string | null) {
     try {
       const response = await electronAPI.discord.getChatHistory(
         chatId,
-        100,
+        50,
         beforeMessageId
       );
       console.log('history res',response)
