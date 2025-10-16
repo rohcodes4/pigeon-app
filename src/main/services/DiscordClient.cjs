@@ -649,7 +649,7 @@ class DiscordClient extends EventEmitter {
     });
   }
 
-  async sendMessage(channelId, content, attachments = [],sticker_ids=[]
+  async sendMessage(channelId, content, attachments = [],sticker_ids=[],message_reference = null
 ) {
     await this.checkRateLimit("message");
     await this.humanDelay();
@@ -662,6 +662,7 @@ class DiscordClient extends EventEmitter {
       flags: 0,
       ...(attachments?.length ? { attachments } : {}),
       ...(sticker_ids?.length ? { sticker_ids } : {}),
+       ...(message_reference ? { message_reference } : {}),
     };
 
     return this.makeRequest({

@@ -298,12 +298,12 @@ function setupIPCHandlers() {
   });
 
   // Send message
-  ipcMain.handle("discord:send-message", async (event, { chatId, message, attachments , sticker_ids}) => {
+  ipcMain.handle("discord:send-message", async (event, { chatId, message, attachments , sticker_ids,message_reference}) => {
     try {
       if (!discordClient.isConnected()) {
         return { success: false, error: "Discord not connected" };
       }
-      const result = await discordClient.sendMessage(chatId, message, attachments,sticker_ids);
+      const result = await discordClient.sendMessage(chatId, message, attachments,sticker_ids,message_reference);
       return { success: true, data: result };
     } catch (error) {
       console.error("[IPC] Send message error:", error);

@@ -42,7 +42,8 @@ export interface ElectronAPI {
       chatId: string,
       message: string,
       attachments?: Array<{ id: string; filename: string; uploaded_filename: string }>,
-      sticker_ids?:Array<string>
+      sticker_ids?:Array<string>,
+      message_reference?: any
     ) => Promise<{
       success: boolean;
       data?: {

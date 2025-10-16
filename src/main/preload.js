@@ -13,8 +13,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("discord:get-messages", chatId, limit, offset),
     getChatHistory: (chatId, limit, beforeMessageId) =>
       ipcRenderer.invoke("discord:get-chat-history", { chatId, limit, beforeMessageId }),
-    sendMessage: (chatId, message, attachments,sticker_ids) =>
-      ipcRenderer.invoke("discord:send-message", { chatId, message, attachments ,sticker_ids}),
+    sendMessage: (chatId, message, attachments,sticker_ids,message_reference) =>
+      ipcRenderer.invoke("discord:send-message", { chatId, message, attachments ,sticker_ids,message_reference}),
     deleteMessage: (chatId, messageId) =>
       ipcRenderer.invoke("discord:delete-message", { chatId, messageId }),
     editMessage: (chatId, messageId, newContent) => 
