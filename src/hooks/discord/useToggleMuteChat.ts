@@ -20,16 +20,18 @@ export function useToggleMuteChat() {
     const token = localStorage.getItem("access_token");
 
     try {
+      const body = new URLSearchParams({
+        platform,
+        muted: String(muted),
+      });
+
       const res = await fetch(`${apiURL}/chats/${messageId}/mute`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
           Authorization: token ? `Bearer ${token}` : "",
         },
-        body: JSON.stringify({
-          platform,
-          muted,
-        }),
+        body: body
       });
 
       if (!res.ok) {

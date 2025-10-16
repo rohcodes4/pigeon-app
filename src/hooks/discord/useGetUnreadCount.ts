@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 
 const url = import.meta.env.VITE_BACKEND_URL as string;
-const apiURL = url + "/api";
+const apiURL = `${url}/api`;
 
 export function useGetUnreadCount(platform: "discord" | "tg") {
   const [count, setCount] = useState<number | null>(null);
@@ -18,7 +18,7 @@ export function useGetUnreadCount(platform: "discord" | "tg") {
       const res = await fetch(`${apiURL}/unread-counts?platform=${platform}`, {
         method: "GET",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
           Authorization: token ? `Bearer ${token}` : "",
         },
       });
