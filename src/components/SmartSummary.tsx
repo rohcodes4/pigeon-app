@@ -25,8 +25,12 @@ import {
   ThumbsUp,
   Heart,
   MessageCircle,
+  X,
 } from "lucide-react";
 import ChatAvatar from "./ChatAvatar";
+import { useSummarizeMessage } from "@/hooks/discord/useSummarizeMessage";
+import { useDiscordChatHistory, useDiscordMessages } from "@/hooks/useDiscord";
+import { mapDiscordMessageToItem } from "@/lib/utils";
 
 const TIME_OPTIONS = [
   { label: "5 min", value: "5m" },
@@ -35,6 +39,14 @@ const TIME_OPTIONS = [
   { label: "6 hr", value: "6h" },
   { label: "24 hr", value: "24h" },
 ];
+
+const timeOptionMap = {
+  "5m": 5,
+  "30m": 30,
+  "1h": 60,
+  "6h": 360,
+  "24h": 1440,
+};
 
 const todos = [
   {
@@ -92,14 +104,19 @@ async function fetchChatSummary({
   chat_id,
   hours,
   limit = 20,
+  selectedChat,
+  summarizeMessages,
+  messagesList
 }: {
   chat_id: number;
   hours?: number;
   limit?: number;
+  selectedChat: any;
+  summarizeMessages?: any;
+  messagesList?: any;
 }) {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const token = localStorage.getItem("access_token");
-
   const params = new URLSearchParams();
   // if (hours) params.append("hours", hours.toString());
   console.log('hourss: hours')
@@ -112,6 +129,11 @@ async function fetchChatSummary({
     }
   }
   if (limit !== undefined) params.append("limit", limit.toString());
+
+  if(selectedChat.platform =="discord"){
+    let summary = summarizeMessages(messagesList,true,"discord");
+    return summary;
+  }
 
   const response = await fetch(
     `${BACKEND_URL}/chats/${chat_id}/summary?${params.toString()}`,
@@ -297,12 +319,14 @@ interface SmartSummaryProps {
   selectedChat?: any;
   chatId?: any;
   autoFetch?: boolean;
+  closePanel:()=>void;
 }
 
 const SmartSummary = ({
   selectedChat,
   chatId,
   autoFetch = false,
+  closePanel
 }: SmartSummaryProps) => {
   const [summaryData, setSummaryData] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
@@ -321,6 +345,9 @@ const SmartSummary = ({
   const [mentions, setMentions] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [mentionsLoading, setMentionsLoading] = useState(false);
+  const { summarizeMessages } = useSummarizeMessage()
+  const { messagesList } = useDiscordMessages(selectedChat.id)
+  const{ history } = useDiscordChatHistory(selectedChat.id)
 
   const handleTaskSelection = (taskId) => {
     setSelectedTaskIds((prev) => {
@@ -387,24 +414,32 @@ const SmartSummary = ({
     }));
   };
 
+
+
   const handleGenerateSummary = async (timeOption = selectedTime) => {
     setSummaryLoading(true);
     try {
+      if(selectedChat.platform === "discord") {
+        runSummary()
+        return;
+      };
       let summary;
 
       if (autoFetch) {
         summary = await fetchAllSummary({
-          hours: parseInt(timeOption.value.replace(/\D/g, "")) || 24,
+          hours: parseInt(timeOption?.value?.replace(/\D/g, "")) || 24,
           platform: "telegram",
         });
         setTasks(summary?.tasks.recent_tasks || []);
         setSummaryData(summary.chat_summaries || []);
       } else {
+       
         summary = await fetchChatSummary({
           chat_id: selectedChat.id,
-          hours: parseInt(timeOption.value.replace(/\D/g, "")) || 24, // Extract number from selectedTime
+          hours: parseInt(timeOption?.value?.replace(/\D/g, "")) || 24, // Extract number from selectedTime
           limit: 20,
-        });
+          selectedChat:selectedChat,
+        });        
         setSummaryData(summary);
       }
     } catch (error) {
@@ -534,6 +569,76 @@ const SmartSummary = ({
     };
   }, []);
 
+  const runSummary = async () => {
+    try {
+      setSummaryLoading(true);
+      console.log("[run summary] selectedTime:", selectedTime.value);
+  
+      const selectedValue = selectedTime.value; // e.g., "5m", "1h", "24h"
+      console.log(`[run summary] parsed selectedValue: ${selectedValue}`);
+  
+      const minutes = timeOptionMap[selectedValue] ?? 1440; // Default 24 hours
+      console.log(`[run summary] calculated minutes: ${minutes}`);
+  
+      const now = new Date();
+      const cutoff = new Date(now.getTime() - minutes * 60 * 1000);
+      console.log(`[run summary] current time: ${now.toISOString()}`);
+      console.log(`[run summary] cutoff time: ${cutoff.toISOString()}`);
+  
+      const messages = [...messagesList, ...history].map(mapDiscordMessageToItem);
+      console.log(`[run summary] merged messages length: ${messages.length}`);
+  
+      const uniqueMessages = messages.filter(
+        (msg, index, self) => index === self.findIndex(m => m.id === msg.id)
+      );
+      console.log(`[run summary] unique messages count: ${uniqueMessages.length}`);
+  
+      uniqueMessages.forEach(msg => {
+        console.log(`[run summary] message id: ${msg.id}, timestamp: ${msg.timestamp}`);
+      });
+  
+      const recentMessages = uniqueMessages.filter(msg => {
+        const cleanTimestamp = msg.timestamp.replace(/\.\d+/, ''); // Clean microseconds
+        const msgDate = new Date(cleanTimestamp);
+        console.log(`[run summary] comparing msgDate: ${msgDate.toISOString()} to cutoff: ${cutoff.toISOString()}`);
+        return msgDate >= cutoff;
+      });
+  
+      console.log(`[run summary] recent messages count (within time window): ${recentMessages.length}`);
+      console.log(`[run summary] recent messages:`, recentMessages);
+  
+      if (recentMessages.length <= 1) {
+        console.warn("[run summary] Not enough recent messages to summarize.");
+        setSummaryData(null)      
+        setSummaryLoading(false);
+        return;
+      }
+  
+      let summary = await fetchChatSummary({
+        chat_id: selectedChat.id,
+        hours: minutes / 60, // converting minutes to hours here
+        limit: 20,
+        selectedChat,
+        summarizeMessages,
+        messagesList: recentMessages, // use filtered recentMessages here
+      });
+      console.log("[run summary] received summary:", summary);
+      setSummaryData(summary);
+      setTasks(summary?.tasks);
+    } catch (err) {
+      console.error("[run summary] Failed to fetch summary:", err);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+  
+
+  useEffect(() => {
+    if (!messagesList || messagesList.length <= 1 || selectedChat.platform !=="discord") return;
+  
+    runSummary();
+  }, [messagesList, selectedChat]);
+  
   const scrollTabs = (dir: "left" | "right") => {
     const el = tabScrollRef.current;
     if (!el) return;
@@ -594,7 +699,7 @@ const SmartSummary = ({
   useEffect(() => {
     if (
       (selectedFilter === "Todo" || selectedFilter === "All") &&
-      tasks.length === 0 &&
+      tasks?.length === 0 &&
       !tasksLoading
     ) {
       handleFetchTasks();
@@ -654,7 +759,7 @@ const SmartSummary = ({
   }
 
   return (
-    <aside className="rounded-[10px] h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[700px] max-w-[900px] bg-[#111111] text-white   flex flex-col shadow-lg border border-[#23242a] grow">
+    <aside className="rounded-[10px] h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] max-w-[400px] bg-[#111111] text-white   flex flex-col shadow-lg border border-[#23242a] grow">
       {/* Header */}
       <div className="flex items-center justify-left gap-4 px-2  py-3 border-b">
         <div className="flex items-center justify-center">       
@@ -703,6 +808,10 @@ const SmartSummary = ({
           >
             {summaryLoading ? "Generating..." : "Summarize"}
           </button>
+        </div>
+        <div className="ml-auto text-[#ffffff72] cursor-pointer"
+        onClick={closePanel}>
+          <X/>
         </div>
       </div>
 
@@ -860,7 +969,7 @@ const SmartSummary = ({
               To-dos / Requests
             </span>
             <span className="text-xs font-[300] text-[#fafafa60] leading-none">
-              {tasks.length > 0 ? "JUST NOW" : "2 MIN AGO"}
+              {tasks?.length > 0 ? "JUST NOW" : "2 MIN AGO"}
             </span>
           </div>
           <div className="bg-[#171717] px-2 py-2 rounded-[16px]">
@@ -871,13 +980,13 @@ const SmartSummary = ({
                   Loading tasks...
                 </span>
               </div>
-            ) : tasks.length === 0 ? (
+            ) : tasks?.length === 0 ? (
               <div className="text-sm text-[#fafafa60] text-center py-4">
                 No tasks available
               </div>
             ) : (
               <>
-                {tasks.map((task) => (
+                {tasks?.map((task) => (
                   <div
                     className={`flex items-start gap-0 mb-2 bg-[#222327] p-2 rounded-[6px] border border-[#ffffff09] transition-opacity ${
                       task.status === "done" ? "opacity-60" : ""
@@ -973,7 +1082,7 @@ const SmartSummary = ({
                     onClick={handleSelectAllTasks}
                     className="text-xs text-gray-400 hover:text-white px-3 py-2 rounded-[6px] hover:bg-[#ffffff06]"
                   >
-                    {selectedTaskIds.size === tasks.length
+                    {selectedTaskIds?.size === tasks?.length
                       ? "Deselect All"
                       : "Select All"}
                   </button>

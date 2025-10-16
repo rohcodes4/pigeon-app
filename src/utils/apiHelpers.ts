@@ -61,14 +61,43 @@ export const searchBookmarks = async (params: {
   return response.json();
 };
 
+function simpleHash(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+function deterministicObjectId(input) {
+  const timestamp = simpleHash(input).substring(0, 8);
+  const rest = simpleHash(input + "seed").repeat(3).substring(0, 16);
+  return timestamp + rest; 
+}
+
+
+
 // 7. Bookmark/Favorites Management
 export const createBookmark = async (
   messageId: string,
-  type: "bookmark" | "pin" = "bookmark"
+  type: "bookmark" | "pin" = "bookmark",
+  platform
 ) => {
   const formData = new FormData();
-  formData.append("message_id", messageId);
   formData.append("type", type);
+  if(platform){ 
+    formData.append("platform", platform);
+    if(platform=="discord"){
+      formData.append("message_id",deterministicObjectId(messageId))
+
+    } else{
+  formData.append("message_id", messageId);
+
+    }
+  } else{
+  formData.append("message_id", messageId);
+  }
+
 
   const response = await authFetch(`${BACKEND_URL}/bookmarks`, {
     method: "POST",

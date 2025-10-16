@@ -231,7 +231,7 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
               <CheckCheck className="w-5 h-5" /> <p>Read All</p>
             </button>
           )}
-          {showSmartButton && (
+          {showSmartButton && selectedChat!="all-channels" &&(
             <button
               onClick={() =>
                 setIsSmartSummary && setIsSmartSummary(!isSmartSummary)

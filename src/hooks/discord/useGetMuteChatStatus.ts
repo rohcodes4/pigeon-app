@@ -4,14 +4,14 @@ const url = import.meta.env.VITE_BACKEND_URL as string;
 const apiURL = `${url}/api`;
 
 
-export function useGetMuteChatStatus(messageId: string) {
+export function useGetMuteChatStatus() {
   const [isMuted, setIsMuted] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const token = localStorage.getItem("access_token");
 
-  const fetchMuteStatus = useCallback(async () => {
+  const fetchMuteStatus = async (messageId: string) => {
     if (!messageId) return;
 
     setLoading(true);
@@ -32,17 +32,16 @@ export function useGetMuteChatStatus(messageId: string) {
       }
 
       const data = await res.json();
-      setIsMuted(data?.isMuted ?? false);
+      console.log('mute data',data.is_muted)
+      setIsMuted(data?.is_muted ?? false);
+      return data?.is_muted ?? false;
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
-  }, [messageId, token]);
+  }
+  
 
-  useEffect(() => {
-    fetchMuteStatus();
-  }, [fetchMuteStatus]);
-
-  return { isMuted, loading, error, refetch: fetchMuteStatus };
+  return { isMuted, loading, error, fetchMuteStatus };
 }

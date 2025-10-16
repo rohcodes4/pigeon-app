@@ -198,9 +198,9 @@ export const ChatSelection = ({
         description: "Your chat sync preferences have been updated.",
       });
 
-      if (onPreferencesSaved) {
-        onPreferencesSaved(data.preferences);
-      }
+      // if (onPreferencesSaved) {
+      //   onPreferencesSaved(data.preferences);
+      // }
     } catch (error) {
       toast({
         title: "Error Saving Preferences",
