@@ -210,45 +210,84 @@ class DiscordClient extends EventEmitter {
   }
 
   connectToGateway() {
-    return new Promise((resolve, reject) => {
-      this.ws = new WebSocket(this.gatewayUrl);
-      let resolved = false;
+  return new Promise((resolve, reject) => {
+    if (this.connecting) {
+      console.warn("[Discord] Already connecting — skipping duplicate attempt");
+      return;
+    }
+    this.connecting = true;
 
-      this.ws.on("open", () => {
-        console.log("[Discord] Gateway opened");
-      });
+    if (this.ws) {
+      try { this.ws.terminate(); } catch {}
+      this.ws = null;
+    }
 
-      this.ws.on("message", (data) => {
-        try {
-          const message = JSON.parse(data.toString());
-          this.handleGatewayMessage(message);
+    console.log("[Discord] Connecting to gateway:", this.gatewayUrl);
+    this.ws = new WebSocket(this.gatewayUrl);
 
-          if (message.t === "READY" && !resolved) {
-            resolved = true;
-            resolve();
-          }
-        } catch (error) {
-          console.error("[Discord] Parse error:", error);
-        }
-      });
+    let resolved = false;
+    let timeout;
 
-      this.ws.on("close", (code, reason) => {
-        console.log(`[Discord] Gateway closed: ${code}`);
-        this.connected = false;
-        this.emit("disconnected", { code, reason: reason.toString() });
-        this.handleDisconnection(code);
-      });
+    // Timeout safeguard (will clear on success)
+    timeout = setTimeout(() => {
+      if (!resolved) {
+        console.error("[Discord] Gateway timeout — no READY/RESUMED received");
+        this.ws?.terminate();
+        this.connecting = false;
+        reject(new Error("Gateway timeout"));
+      }
+    }, 20000);
 
-      this.ws.on("error", (error) => {
-        console.error("[Discord] Gateway error:", error);
-        if (!resolved) reject(error);
-      });
-
-      setTimeout(() => {
-        if (!resolved) reject(new Error("Gateway timeout"));
-      }, 15000);
+    this.ws.on("open", () => {
+      console.log("[Discord] Gateway WebSocket opened");
     });
-  }
+
+    this.ws.on("message", (data) => {
+      let message;
+      try {
+        message = JSON.parse(data.toString());
+      } catch (err) {
+        console.error("[Discord] Parse error:", err);
+        return;
+      }
+
+      this.handleGatewayMessage(message);
+
+      if (message.op === 10) {
+        this.startHeartbeat(message.d.heartbeat_interval);
+        setTimeout(() => this.identify(), 250);
+      }
+
+      if ((message.t === "READY" || message.t === "RESUMED") && !resolved) {
+        resolved = true;
+        clearTimeout(timeout);
+        this.connecting = false;
+        console.log("[Discord] Gateway handshake complete ✅");
+        this.connected = true;
+        this.sessionId = message.d.session_id;
+        resolve();
+      }
+    });
+
+    this.ws.on("close", (code, reason) => {
+      clearTimeout(timeout);
+      this.connecting = false;
+      console.warn(`[Discord] Gateway closed: ${code} ${reason}`);
+      this.connected = false;
+      this.emit("disconnected", { code, reason: reason?.toString() });
+      this.handleDisconnection(code);
+    });
+
+    this.ws.on("error", (err) => {
+      clearTimeout(timeout);
+      this.connecting = false;
+      console.error("[Discord] Gateway error:", err);
+      if (!resolved) reject(err);
+    });
+  });
+}
+
+
 
   handleDisconnection(code) {
     this.cleanup();
@@ -389,6 +428,7 @@ class DiscordClient extends EventEmitter {
   }
 
   identify() {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     const payload = {
       op: 2,
       d: {
@@ -406,16 +446,17 @@ class DiscordClient extends EventEmitter {
         },
       },
     };
+  if (this.identifying) {
+    console.warn("[Discord] Identification already in progress — skipping");
+    return;
+  }
 
-    const sendIdentify = () => {
-      this.ws.send(JSON.stringify(payload));
-      console.log("[Discord] Identification sent");
-    };
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      sendIdentify();
-    } else {
-      this.ws?.once("open", sendIdentify);
-    }
+  this.identifying = true;
+  this.ws.send(JSON.stringify(payload));
+  console.log("[Discord] Identification payload sent");
+
+  // Reset identifying flag after 5s (prevents duplicates)
+  setTimeout(() => (this.identifying = false), 5000);
   }
 
   processGuilds(guilds) {

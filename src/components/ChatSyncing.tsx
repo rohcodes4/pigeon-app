@@ -353,12 +353,17 @@ export const ChatSyncing = ({
           const tg = await tgRes.json();
           setTelegramConnected(!!tg.connected);
         }
-        const dcRes = await fetch(`${BACKEND_URL}/auth/discord/status`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (dcRes.ok) {
-          const dc = await dcRes.json();
-          setDiscordConnected(!!dc.connected);
+        // const dcRes = await fetch(`${BACKEND_URL}/auth/discord/status`, {
+        //   headers: token ? { Authorization: `Bearer ${token}` } : {},
+        // });
+        // if (dcRes.ok) {
+        //   const dc = await dcRes.json();
+        //   setDiscordConnected(!!dc.connected);
+        // }
+        const res = await window.electronAPI.security.getDiscordToken();
+        if (res?.success && res?.data) {
+          setDiscordConnected(!!res.success);
+          await window.electronAPI.discord.connect(res.data);
         }
       } catch (e) {
         // ignore

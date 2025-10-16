@@ -133,10 +133,15 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
           const tg = await tgRes.json();
           setTelegramConnected(!!tg.connected);
         }
-        if (dcRes.ok) {
-          const dc = await dcRes.json();
-          setDiscordConnected(!!dc.connected);
+        const res = await window.electronAPI.security.getDiscordToken();
+        if (res?.success && res?.data) {
+          setDiscordConnected(!!res.success);
+          await window.electronAPI.discord.connect(res.data);
         }
+        // if (dcRes.ok) {
+        //   const dc = await dcRes.json();
+        //   setDiscordConnected(!!dc.connected);
+        // }
       } catch (e) {
         // ignore transient errors
       }

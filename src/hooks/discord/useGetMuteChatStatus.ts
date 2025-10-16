@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 
 const url = import.meta.env.VITE_BACKEND_URL as string;
-const apiURL = url + "/api";
+const apiURL = `${url}/api`;
+
 
 export function useGetMuteChatStatus(messageId: string) {
   const [isMuted, setIsMuted] = useState<boolean | null>(null);
@@ -20,7 +21,7 @@ export function useGetMuteChatStatus(messageId: string) {
       const res = await fetch(`${apiURL}/chats/${messageId}/mute`, {
         method: "GET",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
           Authorization: token ? `Bearer ${token}` : "",
         },
       });

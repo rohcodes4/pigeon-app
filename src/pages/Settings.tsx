@@ -419,16 +419,22 @@ useEffect(() => {
       try {
         const token = localStorage.getItem("access_token");
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const [tgRes, dcRes] = await Promise.all([
-          fetch(`${BACKEND_URL}/auth/telegram/status`, { headers }),
-          fetch(`${BACKEND_URL}/auth/discord/status`, { headers }),
+        const [tgRes] = await Promise.all([
+          fetch(`${BACKEND_URL}/auth/telegram/status`, { headers })
         ]);
         if (tgRes.ok) {
           const tg = await tgRes.json();
           setTelegramConnected(!!tg.connected);
         }
+        const res = await window.electronAPI.security.getDiscordToken();
+        console.log('res.data',res.data)
+        if(res?.data){
+          setDiscordConnected(true);
+        } else{
+          setDiscordConnected(false);
+        }
       } catch (e) {
-        // ignore transient errors
+      // ignore transient errors
       }
     };
     fetchStatuses();
