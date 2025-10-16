@@ -41,7 +41,8 @@ export interface ElectronAPI {
     sendMessage: (
       chatId: string,
       message: string,
-      attachments?: Array<{ id: string; filename: string; uploaded_filename: string }>
+      attachments?: Array<{ id: string; filename: string; uploaded_filename: string }>,
+      sticker_ids?:Array<string>
     ) => Promise<{
       success: boolean;
       data?: {
@@ -67,6 +68,30 @@ export interface ElectronAPI {
       success: boolean;
       error?: string;
     }>;
+    deleteMessage: (
+      chatId: string,
+      messageId: string 
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+    }>;
+    editMessage: (
+      chatId: string,
+      messageId: string,
+      newContent: string
+    ) => Promise<{
+      success: boolean;
+      data?: any;
+      error?: string;
+    }>;
+    getStickers: (
+      locale?: string
+    ) => Promise<{
+      success: boolean;
+      data?: Array<any>;
+      error?: string;
+    }>;
+
     onConnected: (
       callback: (data: { success: boolean; error?: string }) => void
     ) => void;

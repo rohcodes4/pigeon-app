@@ -649,7 +649,8 @@ class DiscordClient extends EventEmitter {
     });
   }
 
-  async sendMessage(channelId, content, attachments = []) {
+  async sendMessage(channelId, content, attachments = [],sticker_ids=[]
+) {
     await this.checkRateLimit("message");
     await this.humanDelay();
 
@@ -657,9 +658,10 @@ class DiscordClient extends EventEmitter {
     const data = {
       content,
       nonce,
-      attachments,
       tts: false,
       flags: 0,
+      ...(attachments?.length ? { attachments } : {}),
+      ...(sticker_ids?.length ? { sticker_ids } : {}),
     };
 
     return this.makeRequest({
@@ -683,6 +685,14 @@ class DiscordClient extends EventEmitter {
     });
   }
 
+   async getStickerPacks(locale = "en-US") {
+    await this.checkRateLimit("general");
+    await this.humanDelay();
+    return this.makeRequest({
+      path: `api/v9/sticker-packs?/locale=${locale}`,
+      method: "GET",
+    });
+  }
   async removeReaction(channelId, messageId, emoji) {
     await this.checkRateLimit("general");
     await this.humanDelay();
@@ -692,6 +702,29 @@ class DiscordClient extends EventEmitter {
         emoji
       )}/@me`,
       method: "DELETE",
+      channelId,
+    });
+  }
+
+    async deleteMessages(channelId, messageId) {
+    await this.checkRateLimit("general");
+    await this.humanDelay();
+
+    return this.makeRequest({
+      path: `/api/v9/channels/${channelId}/messages/${messageId}`,
+      method: "DELETE",
+      channelId,
+    });
+  }
+
+    async updateMessages(channelId, messageId,content) {
+    await this.checkRateLimit("general");
+    await this.humanDelay();
+
+    return this.makeRequest({
+      path: `/api/v9/channels/${channelId}/messages/${messageId}`,
+      method: "PATCH",
+      data:{content},
       channelId,
     });
   }

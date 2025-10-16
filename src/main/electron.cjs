@@ -214,6 +214,44 @@ function setupIPCHandlers() {
     }
   });
 
+  ipcMain.handle("discord:get-stickers", async (event, locale) => {
+    try {
+      if (!discordClient.isConnected()) {
+        return { success: false, error: "Discord not connected" };
+      }
+      const stickers = await discordClient.getStickerPacks(locale);
+      return { success: true, data: stickers };
+    } catch (error) {
+      console.error("[IPC] Get stickers error:", error);
+      return { success: false, error: error.message };
+    } 
+  });
+
+  ipcMain.handle("discord:delete-message", async (event, { chatId, messageId }) => {
+    try {
+      if (!discordClient.isConnected()) {
+        return { success: false, error: "Discord not connected" };
+      }
+      const result = await discordClient.deleteMessage(chatId, messageId);
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("[IPC] Delete message error:", error);
+      return { success: false, error: error.message };
+    }
+  });
+  ipcMain.handle("discord:edit-message", async (event, { chatId, messageId, newContent }) => {
+    try {
+      if (!discordClient.isConnected()) { 
+        return { success: false, error: "Discord not connected" };
+      } 
+
+      const result = await discordClient.editMessage(chatId, messageId, newContent);
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("[IPC] Edit message error:", error);
+      return { success: false, error: error.message };
+    } 
+  });
   // Chat history - from Discord API (for loading older messages)
   ipcMain.handle("discord:get-chat-history", async (event, { chatId, limit = 50, beforeMessageId }) => {
     try {
@@ -260,12 +298,12 @@ function setupIPCHandlers() {
   });
 
   // Send message
-  ipcMain.handle("discord:send-message", async (event, { chatId, message, attachments }) => {
+  ipcMain.handle("discord:send-message", async (event, { chatId, message, attachments , sticker_ids}) => {
     try {
       if (!discordClient.isConnected()) {
         return { success: false, error: "Discord not connected" };
       }
-      const result = await discordClient.sendMessage(chatId, message, attachments);
+      const result = await discordClient.sendMessage(chatId, message, attachments,sticker_ids);
       return { success: true, data: result };
     } catch (error) {
       console.error("[IPC] Send message error:", error);
