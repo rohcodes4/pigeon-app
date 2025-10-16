@@ -284,7 +284,7 @@ const renderPinnedMessages = (pins: any[], channelKey: string) => {
   }
 
   return (
-    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[400px] w-[200px] bg-[#111111] 2xl:max-w-[600px] text-white flex flex-col shadow-lg border border-[#23242a]">
+    <aside className="h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden bg-[#111111] max-w-[501px] min-w-[400px] 2xl:min-w-[500px] text-white flex flex-col shadow-lg border border-[#23242a]">
       <div className="text-[#84AFFF] flex items-center justify-between gap-2 p-4">
         <div className="flex items-center gap-2">
           <Pin className="w-4 h-4 fill-[#84AFFF]" />

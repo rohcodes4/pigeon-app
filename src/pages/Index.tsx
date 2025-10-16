@@ -510,11 +510,11 @@ const Index = () => {
         // }
       } catch (error) {
         console.error("Failed to fetch chats:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load chats.",
-          variant: "destructive",
-        });
+        // toast({
+        //   title: "Error",
+        //   description: "Failed to load chats.",
+        //   variant: "destructive",
+        // });
         setChats([]);
       } finally {
         setChatsLoading(false);
@@ -571,6 +571,9 @@ const Index = () => {
   }, []);
   
 
+  useEffect(()=>{
+    setOpenPanel(null)
+  },[selectedChat])
   
   // Lightweight polling: refresh sidebar chats every 30s with smart merging
   useEffect(() => {
@@ -784,6 +787,7 @@ const Index = () => {
             <SmartSummary
               selectedChat={selectedChat}
               chatId={selectedChat.id}
+              closePanel={()=>setOpenPanel(null)}
             />
           )}
           {openPanel === "notification" && <NotificationsPanel />}
