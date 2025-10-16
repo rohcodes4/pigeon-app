@@ -11,6 +11,7 @@ import {
   Image,
   LucideFileImage,
   MoreVertical,
+  PinIcon,
   Plus,
   Search,
   VolumeX,
@@ -36,6 +37,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useToggleMuteChat } from "@/hooks/discord/useToggleMuteChat";
+import { useGetMuteChatStatus } from "@/hooks/discord/useGetMuteChatStatus";
 
 // Helper to generate a random gravatar
 const gravatarUrl = (seed: string) => {
@@ -367,11 +370,33 @@ const tempDCchannel={}
     }
     closeContextMenu();
   };
+  const { toggleMuteChat } =useToggleMuteChat()
+  const { fetchMuteStatus } =useGetMuteChatStatus()
 
-  const handleMuteChat = () => {
+  const [isMuted, setisMuted] = useState(false)
+  useEffect(()=>{
+   async function checkMute(){
+    let mute = await fetchMuteStatus(contextMenu.channel.id)
+    setisMuted(mute)
+   }
+   checkMute()
+  },[contextMenu])
+  const handleMuteChat = async () => {
     if (contextMenu) {
       console.log("Mute Chat clicked for channel", contextMenu.channel);
       // Add your Mute Chat logic here
+      let mute = await fetchMuteStatus(contextMenu.channel.id)
+      console.log('mute stat', !mute)
+      toggleMuteChat(contextMenu.channel.id,contextMenu.channel.platform.toLowerCase(),!mute)
+    }
+    closeContextMenu();
+  };
+
+  const handlePinChat = () => {
+    if (contextMenu) {
+      console.log("Mute Chat clicked for channel", contextMenu.channel);
+      // Add your Mute Chat logic here
+      // toggleMuteChat(contextMenu.channel.id,contextMenu.channel.platform.toLowerCase(),true)
     }
     closeContextMenu();
   };
@@ -435,6 +460,7 @@ useEffect(() => {
       if (resp.ok) {
         const chats = await resp.json();
         const chans = chats.chats;
+        setAllChannels(chans.filter((c:any)=> c.id != null))
               const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
                   const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
                   discordChats.sort((a, b) => Number(b.id) - Number(a.id));
@@ -987,17 +1013,17 @@ useEffect(() => {
     return (
       <ul>
         {channels.map(channel => {
+          if(channel.type === 2) return;
           return(
           <li key={channel.id} className={`${channel.type===4?"mt-4":""}`} >
             <div onClick={()=>{
               if(channel.type===4) return;
-            onChatSelect({id:channel.id,platform:'discord',name:channel.name,photo_url:channel.avatar_url});
+            onChatSelect({id:channel.id,platform:'discord',name:channel.name,photo_url:`https://cdn.discordapp.com/icons/${selectedServer.id}/${selectedServer.icon}.png`});
             setSelectedId(channel.id)  
           }}
           className="hover:bg-[#212121] cursor-pointer px-4 py-2 rounded-[12px]">              
               {channel.type === 4 && <strong className="flex gap-2">{channel.name}<ChevronRight/></strong>}
               {channel.type === 0 && <># {channel.name}</>}
-              {channel.type === 2 && <>🔊 {channel.name}</>}
               {channel.type === 15 && <>📝 {channel.name}</>}
               {!([0, 2, 4, 15].includes(channel.type)) && channel.name}
             </div>
@@ -1020,9 +1046,36 @@ useEffect(() => {
   const sortedChannels = groupChannelsFlat(discordChannels);
   const headingIds = sortedChannels.filter(c => c.type === 4).map(c => c.id);
   const [open, setOpen] = useState(headingIds.reduce((acc, id) => ({ ...acc, [id]: true }), {}));
+  const [selectedServer, setSelectedServer] = useState({})
 
-// console.log('discordChannels',discordChannels)
-  if (selectedDiscordServer && sortedChannels.length>0) {
+  const getSelectedServer = (selectedDiscordServer) =>{
+    const cachedGuilds = localStorage.getItem("discordGuilds");
+    // console.log("[localguild][localStorage] raw:", cachedGuilds);
+  
+    if (cachedGuilds) {
+      try {
+        const parsed = JSON.parse(cachedGuilds);
+        const filtered = parsed.filter((guild)=>{
+          return String(guild.id) == String(selectedDiscordServer)
+        })
+
+        console.log('ssss',filtered[0])
+        setSelectedServer(filtered[0])
+        return filtered[0]
+      }catch{
+        return []
+      }
+    }
+  }
+
+  useEffect(()=>{
+    getSelectedServer(selectedDiscordServer)
+  },[
+    selectedDiscordServer
+  ])
+console.log('sss',selectedServer)
+
+if (selectedDiscordServer && sortedChannels.length>0) {
     return (
       <div className="h-[calc(100vh-73px)] min-w-[350px] p-3 flex flex-col border-r border-[#23272f] bg-[#111111]">
       <button
@@ -1031,9 +1084,12 @@ useEffect(() => {
       >
         &larr; Back to Chats
       </button>
-      <h3 className="mb-3 text-lg font-bold">Channels</h3>
+      <h3 className="mb-3 text-lg font-bold">{selectedServer?.name}</h3>
       <div className="overflow-y-scroll h-full">
-     <RenderChannels channels={sortedChannels}/>
+        {selectedServer?.banner && <img className="max-w-[320px] rounded-t-[12px]"
+         src={`https://cdn.discordapp.com/banners/${selectedServer?.id}/${selectedServer?.banner}.webp?size=320`}/>}
+      <h3 className="mb-3 text-lg font-bold">Channels</h3>
+      <RenderChannels channels={sortedChannels}/>
      </div>
       {/* <ul>
         {discordChannels.map((channel) => (
@@ -1560,7 +1616,9 @@ console.log('channelsToShow: ',channelsToShow)
                         No channels found for "{searchTerm}"
                       </div>
                     ) : (
-                      channelsToShow.map((chat) => (
+                      channelsToShow.map((chat) => {
+                        const isPinned = chat.isPinned;                          
+                        return(
                         <div key={chat.id}>
                           {contextMenu && (
                             <ul
@@ -1595,7 +1653,18 @@ console.log('channelsToShow: ',channelsToShow)
                                   stroke="currentColor"
                                   fill="currentColor"
                                 />
-                                Mute Chat
+                                {isMuted?"Unmute Chat":"Mute Chat"}
+                              </li>
+                              <li
+                                onClick={handlePinChat}
+                                className="cursor-pointer flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+                              >
+                                <PinIcon
+                                  className="w-6 h-6 text-[#ffffff]"
+                                />
+                                
+                                {isPinned}
+                                {isPinned?"Remove Pin":"Pin Chat"}
                               </li>
                             </ul>
                           )}
@@ -1614,8 +1683,10 @@ console.log('channelsToShow: ',channelsToShow)
                             }
                             onClick={() => {
                               setSelectedId(chat.id);
-                              if (onChatSelect) {
-                                onChatSelect(chat);
+                              if (onChatSelect && selectedServer) {
+                                onChatSelect({...chat, photo_url:`https://cdn.discordapp.com/icons/${selectedServer.id}/${selectedServer.icon}.png`});
+                              } else {
+                                onChatSelect(chat)
                               }
                             }}
                           >
@@ -1656,11 +1727,11 @@ console.log('channelsToShow: ',channelsToShow)
                                   ) : (
                                     <FaTelegramPlane className="text-[#3474ff]" />
                                   )}
-                                  {chat.name || chat.username}
+                                  <span className="line-clamp-1">{chat.name || chat.username}</span>
                                 </span>
                               </div>
                               <div className="flex justify-between items-center">
-                                <span className="text-sm text-[#ffffff32] font-100">
+                                <span className="text-sm text-[#ffffff32] font-100 line-clamp-1">
                                   {chat.is_typing
                                     ? "Typing..."
                                     : chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
@@ -1678,8 +1749,8 @@ console.log('channelsToShow: ',channelsToShow)
                                 {formatChatTime(chat.timestamp)}
                               </span>
                               <div className="flex items-center gap-1">
-                                {chat.pinned && (
-                                  <Pin className="w-5 h-5 text-transparent fill-[#fafafa60] ml-1" />
+                                {chat.isPinned && (
+                                  <Pin className="w-5 h-5 text-[#fafafa40] fill-[#fafafa60] ml-1" />
                                 )}
                                 {!chat.read &&
                                   chat.unread &&
@@ -1699,7 +1770,7 @@ console.log('channelsToShow: ',channelsToShow)
                             </div>
                           </button>
                         </div>
-                      ))
+                      )})
                     )}
 
                     {/* Show More button for channels */}
