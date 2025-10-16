@@ -13,8 +13,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("discord:get-messages", chatId, limit, offset),
     getChatHistory: (chatId, limit, beforeMessageId) =>
       ipcRenderer.invoke("discord:get-chat-history", { chatId, limit, beforeMessageId }),
-    sendMessage: (chatId, message, attachments) =>
-      ipcRenderer.invoke("discord:send-message", { chatId, message, attachments }),
+    sendMessage: (chatId, message, attachments,sticker_ids,message_reference) =>
+      ipcRenderer.invoke("discord:send-message", { chatId, message, attachments ,sticker_ids,message_reference}),
+    deleteMessage: (chatId, messageId) =>
+      ipcRenderer.invoke("discord:delete-message", { chatId, messageId }),
+    editMessage: (chatId, messageId, newContent) => 
+      ipcRenderer.invoke("discord:edit-message", { chatId, messageId, newContent }),
+    getStickers: (locale) =>
+      ipcRenderer.invoke("discord:get-stickers", locale),
+    // New method to handle captcha when sending messages         
     sendMessageWithCaptcha: (chatId, message, captchaToken, captchaData) =>
       ipcRenderer.invoke("discord:send-message-with-captcha", {
         chatId,
