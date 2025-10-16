@@ -36,6 +36,7 @@ import {
   MicIcon,
   MicOffIcon,
   StopCircle,
+  List,
 } from "lucide-react";
 import moreIcon from "@/assets/images/moreIcon.png";
 import pinIcon from "@/assets/images/pinIcon.png";
@@ -61,7 +62,10 @@ import LiveAudioWaveform from "./LiveAudioWaveForm";
 import { timeStamp } from "console";
 import { useDiscordChatHistory, useDiscordMessages } from "@/hooks/useDiscord";
 import { isHistoryFetched, setHistoryFetched } from "@/store/discordHistoreStore";
-import Sticker from "./Sticker";
+import { useTaskGeneration } from "@/hooks/discord/useTaskGeneration";
+import { useSummarizeMessage } from "@/hooks/discord/useSummarizeMessage";
+// import Sticker from "./Sticker";
+
 
 
 const LoadingDots: React.FC = () => {
@@ -177,16 +181,16 @@ function formatDate(date: Date) {
 //   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 // }
 
-function formatTime(dateObj) {
-  // Add 5 hours and 30 minutes (330 minutes total)
-  const adjustedDate = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
+// function formatTime(dateObj) {
+//   // Add 5 hours and 30 minutes (330 minutes total)
+//   const adjustedDate = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
 
-  return adjustedDate.toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
+//   return adjustedDate.toLocaleTimeString("en-IN", {
+//     hour: "2-digit",
+//     minute: "2-digit",
+//     hour12: true,
+//   });
+// }
 function gravatarUrl(seed: string) {
   try {
     // Handle Unicode characters safely
@@ -260,6 +264,33 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const hasFetchedFirstMessages = useRef(false);
     const [enlargedMedia, setEnlargedMedia] = useState(null);
     const { history, loadMore, loading:dcHookLoading } = useDiscordChatHistory(selectedChat?.id);
+    const { generateTask } = useTaskGeneration()
+    const { summarizeMessages } = useSummarizeMessage()
+
+function formatTime(dateObj) {
+  if(selectedChat.platform=="discord"){
+    const adjustedDate = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
+
+    let hours = adjustedDate.getUTCHours();
+    const minutes = adjustedDate.getUTCMinutes();
+  
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12 || 12; // Convert 0 -> 12 for 12-hour format
+  
+    const formattedHours = hours.toString().padStart(2, "0");
+    const formattedMinutes = minutes.toString().padStart(2, "0");
+  
+    return `${formattedHours}:${formattedMinutes} ${ampm}`;
+  }
+  // Add 5 hours and 30 minutes (330 minutes total)
+  const adjustedDate = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
+
+  return adjustedDate.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
 
     useEffect(()=>{
       setLoadingMore(dcHookLoading)
@@ -941,14 +972,11 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       type: "bookmark" | "pin" = "bookmark"
     ) => {
       // For API data, use the original message ID from the database
-      const messageId = msg.originalId || msg.id; // Use originalId if available, fallback to current id
-
-      console.log("Bookmarking message:", {
-        messageId,
-        originalId: msg.originalId,
-        id: msg.id,
-        type,
-      });
+      let messageId = msg.originalId || msg.id; // Use originalId if available, fallback to current id
+if(msg.platform.toLowerCase() === "discord"){
+  messageId = msg.id
+}
+      console.log("Bookmarking message:", msg);
 
       if (!messageId) {
         toast({
@@ -962,7 +990,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       try {
         setBookmarkLoading((prev) => ({ ...prev, [msg.id]: true }));
 
-        const result = await createBookmark(messageId.toString(), type);
+        const result = await createBookmark(messageId.toString(), type, msg.platform.toLowerCase());
         console.log("Bookmark result:", result);
 
         const actionText = type === "pin" ? "pinned" : "bookmarked";
@@ -2360,6 +2388,12 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       }
     };
 
+    const generateTaskFromMessage = async(msg)=>{
+      if(!msg) return;
+
+      summarizeMessages([{...msg,text:msg.message}], true, selectedChat.platform.toLowerCase())
+    }
+
     const handleAddToSmartChannel = async (msg: any, filter: any) => {
       if (!filter || !filter.id) {
         console.error("Invalid filter provided:", filter);
@@ -2908,8 +2942,63 @@ console.log('messages by date',groupedByDate)
                           backupAvatar={undefined}
                         />
 
-                        <div className="flex-1 relative">
+                        <div className="flex-1 relative max-w-[100%]">
                           <div className="absolute right-0 top-100 flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                          <div className="relative">
+                                <button
+                                  onClick={() =>
+                                    toggleReactionPicker(
+                                      String(msg.originalId || msg.id)
+                                    )
+                                  }
+                                  className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff] hover:bg-[#ffffff12] transition-all duration-200 cursor-pointer hover:scale-105 hover:bg-[#ffffff16]"
+                                  disabled={
+                                    reactionLoading[
+                                      String(msg.originalId || msg.id)
+                                    ]
+                                  }
+                                  title="Add reaction"
+                                >
+                                  <SmilePlusIcon className="h-4 w-4" />
+                                  {reactionLoading[
+                                    String(msg.originalId || msg.id)
+                                  ] && (
+                                    <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                                  )}
+                                </button>
+
+                                {/* Reaction Picker */}
+                                {showReactionPicker[
+                                  String(msg.originalId || msg.id)
+                                ] && (
+                                  <div className="reaction-picker absolute top-1/2 right-[120%] ml-2 bg-[#2d2d2d]/95 backdrop-blur-sm rounded-2xl p-2 shadow-2xl border border-[#555] z-10 transform -translate-y-1/2 min-w-[max-content]">
+                                    {/* Arrow pointer pointing left */}
+                                    <div className="absolute top-1/2 left-0 w-0 h-0 border-t-[8px] border-b-[8px] border-r-[8px] border-t-transparent border-b-transparent border-r-[#2d2d2d] transform -translate-y-1/2 -translate-x-1"></div>
+
+                                    <div className="grid grid-cols-8 gap-0">
+                                      {commonReactions.map((emoji) => (
+                                        <button
+                                          key={emoji}
+                                          onClick={() =>
+                                            handleReaction(
+                                              String(msg.originalId || msg.id),
+                                              emoji
+                                            )
+                                          }
+                                          className="w-8 h-8 text-md hover:bg-[#444] rounded-xl transition-all duration-200 flex items-center justify-center hover:scale-110 active:scale-95 shadow-sm hover:shadow-md hover:bg-[#555]"
+                                          disabled={
+                                            reactionLoading[
+                                              String(msg.originalId || msg.id)
+                                            ]
+                                          }
+                                        >
+                                          {emoji}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             <button
                               className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
                               title="Reply"
@@ -3065,6 +3154,16 @@ console.log('messages by date',groupedByDate)
                                   <button
                                     className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
                                     onClick={(e) => {
+                                      generateTaskFromMessage(msg)
+                                    }}
+                                    style={{ position: "relative", zIndex: 2 }}
+                                  >
+                                    <List/>
+                                    Generate Task
+                                  </button>
+                                  <button
+                                    className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+                                    onClick={(e) => {
                                       e.stopPropagation();
                                       setShowFiltersPopup((v) => !v);
                                       if (
@@ -3206,7 +3305,7 @@ console.log('messages by date',groupedByDate)
                             )}
                           </div>
                           {msg.replyTo && (
-                            <div className="cursor-pointer text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1 mt-2" onClick={()=>jumpToReply(msg)}>
+                            <div className="cursor-pointer text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1 mt-2 max-w-[100%] break-all" onClick={()=>jumpToReply(msg)}>
                               Replying to{" "}
                               <span className="font-semibold">
                                 {msg.replyTo.name}:
@@ -3440,61 +3539,7 @@ console.log('messages by date',groupedByDate)
                                 </button>
                               ))}
                               {/* No local reaction chips; Telegram is source of truth */}
-                              <div className="relative">
-                                <button
-                                  onClick={() =>
-                                    toggleReactionPicker(
-                                      String(msg.originalId || msg.id)
-                                    )
-                                  }
-                                  className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff] hover:bg-[#ffffff12] transition-all duration-200 cursor-pointer hover:scale-105 hover:bg-[#ffffff16]"
-                                  disabled={
-                                    reactionLoading[
-                                      String(msg.originalId || msg.id)
-                                    ]
-                                  }
-                                  title="Add reaction"
-                                >
-                                  <SmilePlusIcon className="h-4 w-4" />
-                                  {reactionLoading[
-                                    String(msg.originalId || msg.id)
-                                  ] && (
-                                    <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
-                                  )}
-                                </button>
-
-                                {/* Reaction Picker */}
-                                {showReactionPicker[
-                                  String(msg.originalId || msg.id)
-                                ] && (
-                                  <div className="reaction-picker absolute top-1/2 left-full ml-2 bg-[#2d2d2d]/95 backdrop-blur-sm rounded-2xl p-2 shadow-2xl border border-[#555] z-10 transform -translate-y-1/2 min-w-[max-content]">
-                                    {/* Arrow pointer pointing left */}
-                                    <div className="absolute top-1/2 left-0 w-0 h-0 border-t-[8px] border-b-[8px] border-r-[8px] border-t-transparent border-b-transparent border-r-[#2d2d2d] transform -translate-y-1/2 -translate-x-1"></div>
-
-                                    <div className="grid grid-cols-8 gap-0">
-                                      {commonReactions.map((emoji) => (
-                                        <button
-                                          key={emoji}
-                                          onClick={() =>
-                                            handleReaction(
-                                              String(msg.originalId || msg.id),
-                                              emoji
-                                            )
-                                          }
-                                          className="w-8 h-8 text-md hover:bg-[#444] rounded-xl transition-all duration-200 flex items-center justify-center hover:scale-110 active:scale-95 shadow-sm hover:shadow-md hover:bg-[#555]"
-                                          disabled={
-                                            reactionLoading[
-                                              String(msg.originalId || msg.id)
-                                            ]
-                                          }
-                                        >
-                                          {emoji}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
+                             
                             </div>
                           }
 
