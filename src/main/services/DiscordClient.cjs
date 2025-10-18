@@ -681,7 +681,7 @@ class DiscordClient extends EventEmitter {
   async getChatHistory(channelId, limit = 50, beforeMessageId = null) {
     try {
        return await this.makeRequest({
-      path: `/api/v10/channels/${channelId}/messages?limit=${limit}${
+      path: `/api/v9/channels/${channelId}/messages?limit=${limit}${
         beforeMessageId ? `&before=${beforeMessageId}` : ""
       }`,
       method: "GET",
