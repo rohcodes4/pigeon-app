@@ -136,7 +136,6 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
         const res = await window.electronAPI.security.getDiscordToken();
         if (res?.success && res?.data) {
           setDiscordConnected(!!res.success);
-          await window.electronAPI.discord.connect(res.data);
         }
         // if (dcRes.ok) {
         //   const dc = await dcRes.json();

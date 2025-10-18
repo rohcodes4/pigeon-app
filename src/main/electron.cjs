@@ -151,6 +151,7 @@ function setupIPCHandlers() {
 
   ipcMain.handle("discord:connect", async (event, token) => {
     try {
+      console.log("[IPC] Connecting to Discord..." , token.slice(0, 8) + "...");
       await discordClient.connect(token);
       return { success: true };
     } catch (error) {

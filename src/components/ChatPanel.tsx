@@ -789,7 +789,8 @@ useEffect(() => {
     if (searchResults && searchResults.length > 0) {
       return searchResults;
     }
-    return isFocus ? focusChannels : displayChannels;
+    const result = isFocus ? focusChannels : displayChannels;
+    return Object.freeze([...result]);
   }, [
     searchResults,
     searchTerm,

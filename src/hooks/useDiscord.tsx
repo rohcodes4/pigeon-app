@@ -332,6 +332,7 @@ export function useDiscordChatHistory(chatId: string | null) {
           setHasMore(true)
         }
       } else {
+        console.error('Failed to load chat history:', response.error);
       }
     } catch (err) {
       console.error('Failed to load chat history:', err);

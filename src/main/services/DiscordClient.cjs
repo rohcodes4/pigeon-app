@@ -157,6 +157,7 @@ class DiscordClient extends EventEmitter {
       }
 
       this.token = token;
+      console.log("[Discord] Connecting with token:", token.slice(0, 8) + "...");
       await this.testTokenValidity();
       await this.securityManager.storeDiscordToken(token);
       await this.connectToGateway();
@@ -678,16 +679,19 @@ class DiscordClient extends EventEmitter {
   }
 
   async getChatHistory(channelId, limit = 50, beforeMessageId = null) {
-    await this.checkRateLimit("general");
-    await this.humanDelay();
-
-    return this.makeRequest({
+    try {
+       return await this.makeRequest({
       path: `/api/v10/channels/${channelId}/messages?limit=${limit}${
         beforeMessageId ? `&before=${beforeMessageId}` : ""
       }`,
       method: "GET",
       channelId,
     });
+    } catch (error) {
+      console.error("[Discord] getChatHistory error:", error);
+      throw error;
+    }
+   
   }
 
   async sendMessage(channelId, content, attachments = [],sticker_ids=[],message_reference = null
@@ -785,6 +789,7 @@ class DiscordClient extends EventEmitter {
 
   // Unified request handler
   makeRequest({ path, method = "GET", data = null, channelId = null }) {
+    console.log(`[Discord] Making request: ${method} ${path}`);
     return new Promise((resolve, reject) => {
       const body = data ? JSON.stringify(data) : null;
 
