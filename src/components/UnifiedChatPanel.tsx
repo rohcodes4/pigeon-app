@@ -64,6 +64,9 @@ import { useDiscordChatHistory, useDiscordMessages } from "@/hooks/useDiscord";
 import { isHistoryFetched, setHistoryFetched } from "@/store/discordHistoreStore";
 import { useTaskGeneration } from "@/hooks/discord/useTaskGeneration";
 import { useSummarizeMessage } from "@/hooks/discord/useSummarizeMessage";
+import { matchesGlob } from "path";
+import MessageWithMentions from "./MessageWithMentions";
+import MessageWithLinkifyAndMentions from "./MessageWithMentions";
 // import Sticker from "./Sticker";
 
 
@@ -302,6 +305,7 @@ function formatTime(dateObj) {
 
     const openMedia = (media) => {
       setEnlargedMedia(media);
+      console.log('enlarged media',media)
     };
     const closeMedia = () => setEnlargedMedia(null);
 
@@ -773,6 +777,7 @@ function formatTime(dateObj) {
       React.useMemo(() => {
         const groups: { [date: string]: typeof messages } = {};
         const uniqueMessages = [...new Map(messages.map(m => [m.id, m])).values()];
+        // const uniqueMessages = messages
 
         uniqueMessages.forEach((msg) => {
           const dateKey = formatDate(msg.date);
@@ -1366,7 +1371,7 @@ if(msg.platform.toLowerCase() === "discord"){
                 hasLink: (msg.raw_text || "").includes("http"),
                 link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
                 hasMedia: msg.message.has_media,
-                media: null,
+                media: msg.media ?? null,
                 replyToId: replyId ?? null,
                 timestamp:msg.timestamp,
                 replyTo: replyMessage
@@ -1432,9 +1437,10 @@ if(msg.platform.toLowerCase() === "discord"){
       console.log('loading2...')
 
       if(selectedChat.platform==='discord'){
-        console.log('calling dc load more')   
         setLoadingMore(true)     
+        console.log('calling dc load more')   
           loadMore()
+          console.log('finished calling dc load more')   
           setMessages(prev =>
             [
               ...history.map(mapDiscordMessageToItem),
@@ -1447,6 +1453,7 @@ if(msg.platform.toLowerCase() === "discord"){
         setLoadingMore(false)     
           return;
       }
+      console.log('loading more tg chats')
       // Get the timestamp of the oldest message
       const oldestMessage = messages[0];
       if (!oldestMessage) return;
@@ -1550,7 +1557,14 @@ if(msg.platform.toLowerCase() === "discord"){
         setShowScrollToBottom(!isNearBottom);
 
         // If near top, load more messages
-        if (scrollTop <= 100 && hasMoreMessages && !loadingMore && !loading) {
+        if (scrollTop <= 100 && hasMoreMessages && !loadingMore && !loading && selectedChat.platform.toLowerCase() ==="telegram") {
+          scrollRestoreRef.current = {
+            prevHeight: scrollHeight,
+            prevTop: scrollTop,
+          };
+           setTimeout(() => { loadMoreMessages();}, 1000);
+    
+        }else if (scrollTop <= 100 && hasMoreMessages && !loadingMore && !dcHookLoading && selectedChat.platform.toLowerCase() ==="discord") {
           scrollRestoreRef.current = {
             prevHeight: scrollHeight,
             prevTop: scrollTop,
@@ -1607,10 +1621,16 @@ if(msg.platform.toLowerCase() === "discord"){
              fileWrapper.file
             );
             console.log("File uploaded to Discord CDN", resp);
+            console.log("replyTo", replyTo)
             const res = await window.electronAPI.discord.sendMessage(
               selectedChat.id,
               inputRef.current.value.trim(),
-              [{id:"0", filename: fileWrapper.file.name, uploaded_filename: result.data.attachments[0].upload_filename}]
+              [{id:"0", filename: fileWrapper.file.name, uploaded_filename: result.data.attachments[0].upload_filename}],
+              [],
+              {
+                channel_id: replyTo.channel,
+                message_id: replyTo.id
+              }
             );
             index++;
             console.log(res,[{id:String(index), filename: fileWrapper.file.name, uploaded_filename: result.data.attachments[0].upload_filename}]);
@@ -1720,24 +1740,28 @@ if(msg.platform.toLowerCase() === "discord"){
       setMessages((prev) => [...prev, optimisticMessage]);
 
       // Clear input and reply state immediately for better UX
-      const originalValue = inputRef.current.value;
+      const originalValue = inputRef.current.value;      
       const originalReplyTo = replyTo;
-      inputRef.current.value = "";
-      setText("");
 
-      setReplyTo(null);
       setShouldAutoScroll(true);
 
       try {
         const id = chatId || replyTo.chat_id;
         // Send message to backend/Telegram
         const replyToId = originalReplyTo?.telegramMessageId;
-
+        
             if (selectedChat.platform=='discord') {
+              console.log("replyTo originalReplyTo", originalReplyTo)
+
         const result = await window.electronAPI.discord.sendMessage(
           id,
           messageText,
-        
+          [],
+          [],
+          {
+            channel_id: originalReplyTo.channel,
+            message_id: originalReplyTo.id
+          }
         );
         if(!result.success){
           const res = await window.electronAPI.security.getDiscordToken();
@@ -1817,7 +1841,11 @@ if(msg.platform.toLowerCase() === "discord"){
           });
         }
       } finally {
+      inputRef.current.value = "";
         setIsSending(false);
+      setText("");
+      setReplyTo(null);
+
       }
     };
 
@@ -1831,11 +1859,11 @@ if(msg.platform.toLowerCase() === "discord"){
 
     console.log(history.map(mapDiscordMessageToItem),"historicdiscordmessages");
     const { messagesList} = useDiscordMessages(selectedChat?.id);
-    console.log(messagesList.map(mapDiscordMessageToItem),messagesList,"livediscordmessages");
+    console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
     useEffect(()=>{
       console.log(`history fetched for ${selectedChat.id}`,isHistoryFetched(selectedChat.id))
       if(history.length>0 && selectedChat?.platform=='discord' && !isHistoryFetched(selectedChat.id)){
-        setMessages([])
+        // setMessages([])
         console.log('hist before set message',history.map(mapDiscordMessageToItem))
         setMessages(prev =>
       [
@@ -1859,7 +1887,7 @@ if(msg.platform.toLowerCase() === "discord"){
         scrollToBottom()
         setHasScrolled(true)
       }
-    },[selectedChat, history])
+    },[history])
 
     useEffect(() => {
       console.log('messages updated', messages)
@@ -2171,7 +2199,7 @@ if(msg.platform.toLowerCase() === "discord"){
         setPinnedMessages([]);
       }
       setShowAttachMenu(false);
-      setReplyTo(null);
+      // setReplyTo(null);
       if (inputRef.current) {
         inputRef.current.value = "";
         setText("");
@@ -2516,6 +2544,7 @@ useEffect(() => {
     setLoadedMediaIds((prev) => new Set(prev).add(msgId));
 
     limit(async () => {
+      if(selectedChat.platform==="discord") return;
       const media = await getMessageMedia(msgId, true);
       setMessages((prev) =>
         prev.map((m) => (m.id === msgId ? { ...m, media } : m))
@@ -2887,9 +2916,11 @@ console.log('messages by date',groupedByDate)
               </div>
             </div>
           )}
-
+{/* <p className="text-[#ffffff32] text-xs">{hasMoreMessages?'yes':'no'}</p>
+                <p className="text-[#ffffff32] text-xs">{messages.length}</p>
+                <p className="text-[#ffffff32] text-xs">{loading?'yes':'no'}</p> */}
           {/* No more messages indicator */}
-          {!hasMoreMessages && messages.length > 0 && !loading && !dcHookLoading && (
+          {!hasMoreMessages && messages.length > 0 && !loading && (
             <div className="flex items-center justify-center py-4">
               <div className="text-center">
                 <p className="text-[#ffffff32] text-xs">No more messages</p>
@@ -2906,7 +2937,6 @@ console.log('messages by date',groupedByDate)
             </div>
           ) : (
             Object.entries(groupedByDate).map(([date, msgs]) => (
-              // Note: If you see "data-lov-id" warnings, it's likely from a browser extension
               <div key={date} className="date-group">
                 <div className="flex items-center gap-2 my-4">
                   <hr className="flex-1 border-[#23272f]" />
@@ -2955,7 +2985,7 @@ console.log('messages by date',groupedByDate)
                         <ChatAvatar
                           name={msg.name}
                           avatar={msg.avatar}
-                          backupAvatar={undefined}
+                          backupAvatar={`https://cdn.discordapp.com/avatars/${msg?.id}/${msg?.avatar}.png`}
                         />
 
                         <div className="flex-1 relative max-w-[100%]">
@@ -3020,6 +3050,7 @@ console.log('messages by date',groupedByDate)
                               title="Reply"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                console.log('replyto',msg)
                                 setReplyTo(msg);
                                 setTimeout(() => {
                                   if (inputRef.current) {
@@ -3320,7 +3351,7 @@ console.log('messages by date',groupedByDate)
                               </span>
                             )}
                           </div>
-                          {msg.replyTo && (
+                          {(selectedChat.platform==="Telegram") && msg.replyTo && (
                             <div className="cursor-pointer text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1 mt-2 max-w-[100%] break-all" onClick={()=>jumpToReply(msg)}>
                               Replying to{" "}
                               <span className="font-semibold">
@@ -3332,8 +3363,20 @@ console.log('messages by date',groupedByDate)
                               </span>
                             </div>
                           )}
+                          {(selectedChat.platform==="discord") && msg?.referenced_message?.id && (
+                            <div className="cursor-pointer text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1 mt-2 max-w-[100%] break-all" onClick={()=>jumpToReply(msg)}>
+                              Replying to{" "}
+                              <span className="font-semibold">
+                                {msg?.referenced_message?.author?.global_name || msg?.referenced_message?.author?.username}:
+                              </span>{" "}
+                              <span className="text-[#ffffffb0]">
+                                {msg?.referenced_message?.content}
+                                {/* {msg.replyTo.message.length > 40 ? "..." : ""} */}
+                              </span>
+                            </div>
+                          )}
                           <div className="mt-1 text-sm text-[#e0e0e] break-words break-all whitespace-pre-wrap max-w-full">
-                          {/* {Array.isArray(msg.media) && msg.media.length > 0 && (
+                          {Array.isArray(msg.media) && msg.media.length > 0 && (
   <>
     {msg.media.map((mediaItem, idx) => (
       <React.Fragment key={mediaItem.url || idx}>
@@ -3397,7 +3440,7 @@ console.log('messages by date',groupedByDate)
           zIndex: 9999,
         }}
       >
-        {enlargedMedia?.type?.startsWith("image") && (
+        {(enlargedMedia?.type?.startsWith("image") || enlargedMedia?.content_type?.startsWith("image")) && (
           <img
             src={enlargedMedia?.url}
             alt="enlarged media"
@@ -3408,7 +3451,7 @@ console.log('messages by date',groupedByDate)
             onClick={(e) => e.stopPropagation()} // Prevent modal close on click inside image
           />
         )}
-        {enlargedMedia?.type?.startsWith("video") && (
+        {(enlargedMedia?.type?.startsWith("video") || enlargedMedia?.content_type?.startsWith("video")) && (
           <video
             src={enlargedMedia?.url}
             controls
@@ -3423,7 +3466,7 @@ console.log('messages by date',groupedByDate)
       </div>
     )}
   </>
-)} */}
+)}
                           {/* {Array.isArray(msg.stickerItems) && msg.stickerItems.length > 0 && (
   <>
     {msg.stickerItems.map((mediaItem, idx) => (
@@ -3495,7 +3538,8 @@ console.log('messages by date',groupedByDate)
                                       zIndex: 9999,
                                     }}
                                   >
-                                    {enlargedMedia.type.startsWith("image") && (
+
+                                    {enlargedMedia?.type?.startsWith("image") && (
                                       <img
                                         src={enlargedMedia.url}
                                         alt="enlarged media"
@@ -3506,7 +3550,7 @@ console.log('messages by date',groupedByDate)
                                         onClick={(e) => e.stopPropagation()} // Prevent modal close on click inside image
                                       />
                                     )}
-                                    {enlargedMedia.type.startsWith("video") && (
+                                    {enlargedMedia?.type?.startsWith("video") && (
                                       <video
                                         src={enlargedMedia.url}
                                         controls
@@ -3522,7 +3566,8 @@ console.log('messages by date',groupedByDate)
                                 )}
                               </>
                             )}
-                            {linkify(msg)}
+                            {/* {linkify(msg)} */}
+                            <MessageWithLinkifyAndMentions text={msg.message} mentionsData={msg.mentions} message={msg}/>
                             {/* {msg.hasLink && msg.link && (
                               <a
                                 href={msg.link}
@@ -3596,7 +3641,7 @@ console.log('messages by date',groupedByDate)
         )}
         {selectedChat.is_typing && <LoadingDots />}
 
-        <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-t from-[#181A20] via-[#181A20ee] z-20 to-transparent">
+        <div className={`flex-shrink-0 px-6 py-4 bg-gradient-to-t from-[#181A20] via-[#181A20ee] ${enlargedMedia?"z-10":"z-20"} to-transparent`}>
           {/* Replying to box */}
           {uploadedFiles.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-2">

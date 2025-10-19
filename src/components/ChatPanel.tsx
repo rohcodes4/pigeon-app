@@ -317,7 +317,7 @@ const tempDCchannel={}
       }
       setAllChannels((prevChannels) => {
   // Combine old + new
-  const merged = [...prevChannels, ...dms];
+  const merged = [...prevChannels, ...dms.map(mapDiscordToTelegramSchema)];
 
   console.log(merged)
   // Remove duplicates based on `id`
@@ -688,6 +688,7 @@ useEffect(() => {
       .filter(chat => !chat?.isPinned && !chat?.pinned)
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
   ];
+  console.log('sortedDisplayChats',sortedDisplayChats)
 
   const getFilteredChannels = () => {
     // Use displayChats directly to maintain backend sorting
