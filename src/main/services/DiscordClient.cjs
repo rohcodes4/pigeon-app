@@ -157,6 +157,7 @@ class DiscordClient extends EventEmitter {
       }
 
       this.token = token;
+      console.log("[Discord] Connecting with token:", token.slice(0, 8) + "...");
       await this.testTokenValidity();
       await this.securityManager.storeDiscordToken(token);
       await this.connectToGateway();
@@ -573,6 +574,10 @@ class DiscordClient extends EventEmitter {
       embeds: messageData.embeds,
       timestamp: messageData.timestamp,
       sync_status: "synced",
+      mentions: messageData.mentions,
+      message_reference: messageData.message_reference || null,
+      referenced_message: messageData.referenced_message || null,
+      sticker_items : messageData.sticker_items
     });
 
     // Emit event for real-time UI update
@@ -596,6 +601,10 @@ class DiscordClient extends EventEmitter {
         timestamp: messageData.timestamp,
         is_edited: 1,
         sync_status: "synced",
+         mentions: messageData.mentions,
+      message_reference: messageData.message_reference || null,
+      referenced_message: messageData.referenced_message || null,
+      sticker_items: messageData.sticker_items
       });
 
       this.emit("messageUpdate", {
@@ -678,16 +687,19 @@ class DiscordClient extends EventEmitter {
   }
 
   async getChatHistory(channelId, limit = 50, beforeMessageId = null) {
-    await this.checkRateLimit("general");
-    await this.humanDelay();
-
-    return this.makeRequest({
-      path: `/api/v10/channels/${channelId}/messages?limit=${limit}${
+    try {
+       return await this.makeRequest({
+      path: `/api/v9/channels/${channelId}/messages?limit=${limit}${
         beforeMessageId ? `&before=${beforeMessageId}` : ""
       }`,
       method: "GET",
       channelId,
     });
+    } catch (error) {
+      console.error("[Discord] getChatHistory error:", error);
+      throw error;
+    }
+   
   }
 
   async sendMessage(channelId, content, attachments = [],sticker_ids=[],message_reference = null
@@ -785,6 +797,7 @@ class DiscordClient extends EventEmitter {
 
   // Unified request handler
   makeRequest({ path, method = "GET", data = null, channelId = null }) {
+    console.log(`[Discord] Making request: ${method} ${path}`);
     return new Promise((resolve, reject) => {
       const body = data ? JSON.stringify(data) : null;
 
@@ -829,6 +842,10 @@ class DiscordClient extends EventEmitter {
                   message_type: "text",
                   timestamp: parsed.timestamp,
                   sync_status: "synced",
+                   mentions: parsed.mentions,
+      message_reference: parsed.message_reference || null,
+      referenced_message: parsed.referenced_message || null,
+      sticker_items : parsed.sticker_items
                 });
               }
               this.emit("newMessage", {

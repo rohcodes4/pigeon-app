@@ -134,6 +134,10 @@ type MessageItem = {
   hasMedia: boolean;
   media: any;
   stickerItems: any;
+  referenced_message?:any;
+  mentions?:any;
+  message_reference?: any;
+  sticker_items?: any;
   link: string | null;
   replyTo: any;
 };
@@ -1827,11 +1831,11 @@ if(msg.platform.toLowerCase() === "discord"){
 
     console.log(history.map(mapDiscordMessageToItem),"historicdiscordmessages");
     const { messagesList} = useDiscordMessages(selectedChat?.id);
-    console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
+    console.log(messagesList.map(mapDiscordMessageToItem),messagesList,"livediscordmessages");
     useEffect(()=>{
       console.log(`history fetched for ${selectedChat.id}`,isHistoryFetched(selectedChat.id))
       if(history.length>0 && selectedChat?.platform=='discord' && !isHistoryFetched(selectedChat.id)){
-        setMessages([])
+        // setMessages([])
         console.log('hist before set message',history.map(mapDiscordMessageToItem))
         setMessages(prev =>
       [
@@ -1855,7 +1859,7 @@ if(msg.platform.toLowerCase() === "discord"){
         scrollToBottom()
         setHasScrolled(true)
       }
-    },[selectedChat, history])
+    },[ history])
 
     useEffect(() => {
       console.log('messages updated', messages)
@@ -2746,10 +2750,22 @@ const linkify = (msg) => {
 
   // 1. Replace <@12345> with @username
   const mentionRegex = /<@(\d+)>/g;
-  let parsedText = text.replace(mentionRegex, (match, id) => {
-    const mention = msg?.mentions?.find((m) => m.id === id);
-    return mention ? `@${mention.username}` : match; // fallback if not found
-  });
+ let parsedText = text.replace(mentionRegex, (match, id) => {
+  let mentions: any[] = [];
+
+  if (Array.isArray(msg.mentions)) {
+    mentions = msg.mentions;
+  } else if (typeof msg.mentions === "string") {
+    try {
+      mentions = JSON.parse(msg.mentions);
+    } catch {
+      mentions = [];
+    }
+  }
+
+  const mention = mentions?.find((m) => m.id === id);
+  return mention ? `@${mention.username}` : match; // fallback if not found
+});
 
   // console.log("✅ After mention replacement:", parsedText);
 

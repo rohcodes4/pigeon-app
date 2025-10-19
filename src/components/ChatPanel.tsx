@@ -39,6 +39,8 @@ import {
 } from "@/components/ui/dialog";
 import { useToggleMuteChat } from "@/hooks/discord/useToggleMuteChat";
 import { useGetMuteChatStatus } from "@/hooks/discord/useGetMuteChatStatus";
+import { useDiscordContext } from "@/context/discordContext";
+
 
 // Helper to generate a random gravatar
 const gravatarUrl = (seed: string) => {
@@ -226,6 +228,7 @@ function useScrollArrows(ref: React.RefObject<HTMLDivElement>) {
 
   return { canScrollLeft, canScrollRight, checkScroll };
 }
+  
 
 interface ChatPanelProps {
   chats?: any[]; // Define the chats prop
@@ -243,6 +246,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onBack
 }) => {
   // Use ONLY real chats; never fall back to dummy/sample data
+  const { dms, channels: dcChannel, guilds, refresh } = useDiscordContext();
   const displayChats = chats;
   const [isFocus, setIsFocus] = useState(false);
   const [filters, setFilters] = useState([]);
@@ -280,43 +284,52 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [contextMenu, setContextMenu] = useState(null);
   const [dcChannels, setDcChannels] = useState({});
+   const [discordDms, setDiscordDms] = useState([])
   const menuRef = useRef(null);
 
 
 
+// useEffect(() => {
+//   if (isConnected) {
+//     refresh();
+//     console.log(dms,'chtpanel')
+//   }
+// }, [isConnected, refresh]);
+  // Close on mouse leave from menu
+  const handleMenuMouseLeave = () => {
+    closeContextMenu();
+  };
+  useEffect(() => {
+  console.log("Context updated:", { dms, guilds });
+  setDiscordDms(dms)
 
-  useEffect(()=>{
-  const cachedGuilds = localStorage.getItem("discordGuilds");
-  // console.log("[localguild][localStorage] raw:", cachedGuilds);
 
-  if (cachedGuilds) {
-    try {
-      const parsed = JSON.parse(cachedGuilds);
       // console.log("[localguild][localStorage] parsed:", parsed);
 const tempDCchannel={}
-      if (Array.isArray(parsed) && parsed.length>0) {
-        parsed.forEach(guild => {
+      if (Array.isArray(guilds) && guilds.length>0) {
+        guilds.forEach(guild => {
           if (guild.channels && Array.isArray(guild.channels)) {
             tempDCchannel[guild.id] = guild.channels;
           }
         });
 
         setDcChannels(tempDCchannel)
-        
-        // console.log("[localguild][localStorage] parse channels:", parsed);
-        // console.log('[localguild]dcChannels', dcChannels)
-        // console.log('[localguild]dcChannels', dummyChannels)
       }
-    } catch (err) {
-      console.error("[localguild][localStorage] parse error:", err);
-      // fail silently, will refetch
-    }
-  }
-},[])
-  // Close on mouse leave from menu
-  const handleMenuMouseLeave = () => {
-    closeContextMenu();
-  };
+      setAllChannels((prevChannels) => {
+  // Combine old + new
+  const merged = [...prevChannels, ...dms];
+
+  console.log(merged)
+  // Remove duplicates based on `id`
+  const unique = merged.filter(
+    (channel, index, self) =>
+      index === self.findIndex((c) => c.id === channel.id)
+  );
+
+  return unique.filter((c) => c.id != null);
+});
+    
+}, [dms, guilds]);
 
   const handleRightClick = (event, channel) => {
     event.preventDefault();
@@ -376,7 +389,7 @@ const tempDCchannel={}
   const [isMuted, setisMuted] = useState(false)
   useEffect(()=>{
    async function checkMute(){
-    let mute = await fetchMuteStatus(contextMenu.channel.id)
+    let mute = await fetchMuteStatus(contextMenu?.channel?.id)
     setisMuted(mute)
    }
    checkMute()
@@ -425,16 +438,13 @@ const tempDCchannel={}
   // Inside your ChatPanel or the top-level channel context/provider
 useEffect(() => {
   // Try to restore channels from localStorage first for instant render
-  const cachedChannels = localStorage.getItem('channels');
-  if (cachedChannels) {
-    setAllChannels(JSON.parse(cachedChannels));
-  }
+  
 }, []);
 
 useEffect(() => {
   if (allChannels) {
     // Save channels to localStorage whenever new data is fetched/updated
-    localStorage.setItem('channels', JSON.stringify(allChannels));
+    // localStorage.setItem('channels', JSON.stringify(allChannels));
   }
 }, [allChannels]);
 
@@ -457,23 +467,40 @@ useEffect(() => {
           },
         }
       );
-      if (resp.ok) {
-        const chats = await resp.json();
-        const chans = chats.chats;
-        setAllChannels(chans.filter((c:any)=> c.id != null))
-              const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
-                  const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
-                  discordChats.sort((a, b) => Number(b.id) - Number(a.id));
-                  // Merge both
-                  const allChats = [...chans, ...discordChats];
-        // const chans = (chats.chats || []).map((c: any) => ({
-        //   id: c?.id ?? c?._id,
-        //   name: c?.title || c?.username || String(c?.id ?? c?._id),
-        //   platform: c?.platform,
-        // }));
-        // console.log(chans)
-        setAllChannels(allChats.filter((c: any) => c.id != null));
-      }
+     if (resp.ok) {
+  const chats = await resp.json();
+  const chans = chats.chats || [];
+
+  // Map Discord DMs to unified format
+  const discordChats = (discordDms || [])
+    .map(mapDiscordToTelegramSchema)
+    .filter((c: any) => c?.id != null);
+
+  // Sort Discord chats (most recent first)
+  discordChats.sort((a, b) => Number(b.id) - Number(a.id));
+
+  // Merge Telegram + Discord chats
+  const allChats = [...chans, ...discordChats].filter((c: any) => c?.id != null);
+
+  // ✅ Update state by preserving previous and avoiding duplicates
+  setAllChannels((prevChannels) => {
+    const map = new Map();
+
+    // Add previous channels first
+    prevChannels.forEach((ch) => {
+      if (ch?.id != null) map.set(ch.id, ch);
+    });
+
+    // Then add new channels (overwrite old if same id)
+    allChats.forEach((ch) => {
+      if (ch?.id != null) map.set(ch.id, ch);
+    });
+
+    // Convert map to array and sort (descending by ID)
+    return Array.from(map.values()).sort((a, b) => Number(b.id) - Number(a.id));
+  });
+}
+
     } catch (_) {
       // ignore
     }
@@ -789,7 +816,8 @@ useEffect(() => {
     if (searchResults && searchResults.length > 0) {
       return searchResults;
     }
-    return isFocus ? focusChannels : displayChannels;
+    const result = isFocus ? focusChannels : displayChannels;
+    return Object.freeze([...result]);
   }, [
     searchResults,
     searchTerm,

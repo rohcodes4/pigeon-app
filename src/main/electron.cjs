@@ -151,6 +151,7 @@ function setupIPCHandlers() {
 
   ipcMain.handle("discord:connect", async (event, token) => {
     try {
+      console.log("[IPC] Connecting to Discord..." , token.slice(0, 8) + "...");
       await discordClient.connect(token);
       return { success: true };
     } catch (error) {
@@ -179,9 +180,6 @@ function setupIPCHandlers() {
   // Get Discord DMs
   ipcMain.handle("discord:get-dms", async () => {
     try {
-      if (!discordClient.isConnected()) {
-        return { success: false, error: "Discord not connected" };
-      }
       const dms = await discordClient.getDMs();
       return { success: true, data: dms };
     } catch (error) {
@@ -192,9 +190,6 @@ function setupIPCHandlers() {
 
   ipcMain.handle("discord:get-guilds", async () => {
     try {
-      if (!discordClient.isConnected()) {
-        return { success: false, error: "Discord not connected" };
-      }
       const guilds = await discordClient.getGuilds();
       return { success: true, data: guilds };
     } catch (error) {
@@ -285,7 +280,11 @@ function setupIPCHandlers() {
             reactions: msg.reactions,
             embeds: msg.embeds,
             timestamp: msg.timestamp,
-            sync_status: "synced"
+            sync_status: "synced",
+            mentions: msg.mentions,
+            message_reference: msg.message_reference || null,
+            referenced_message: msg.referenced_message || null,
+            sticker_items: msg.sticker_items
           });
         }
       }
