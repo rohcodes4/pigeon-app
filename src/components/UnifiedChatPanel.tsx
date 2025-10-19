@@ -1835,7 +1835,7 @@ if(msg.platform.toLowerCase() === "discord"){
     useEffect(()=>{
       console.log(`history fetched for ${selectedChat.id}`,isHistoryFetched(selectedChat.id))
       if(history.length>0 && selectedChat?.platform=='discord' && !isHistoryFetched(selectedChat.id)){
-        setMessages([])
+        // setMessages([])
         console.log('hist before set message',history.map(mapDiscordMessageToItem))
         setMessages(prev =>
       [
@@ -1859,7 +1859,7 @@ if(msg.platform.toLowerCase() === "discord"){
         scrollToBottom()
         setHasScrolled(true)
       }
-    },[selectedChat, history])
+    },[ history])
 
     useEffect(() => {
       console.log('messages updated', messages)
