@@ -170,6 +170,7 @@ export function useDiscordMessages(chatId: string | null) {
     // New message
     const cleanupNewMessage = electronAPI.discord.onNewMessage((data: any) => {
       if (data.chatId === chatId) {
+        console.log('New message received:', data);
         setMessages(prev => {
           // Prevent duplicates
           if (prev.some(m => m.id === data.message.id)) return prev;
@@ -278,8 +279,11 @@ export function useDiscordChannels() {
     });
 
     const cleanupChannelsUpdate = electronAPI.discord.onChannelsUpdate((state: any) => {
+      console.log('Channels updated:', state);
+     
       const channelsArray = Array.from(state.channels || []);
       setChannels(channelsArray);
+       loadData()
     });
 
     // Load initial data

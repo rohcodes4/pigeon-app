@@ -180,9 +180,6 @@ function setupIPCHandlers() {
   // Get Discord DMs
   ipcMain.handle("discord:get-dms", async () => {
     try {
-      if (!discordClient.isConnected()) {
-        return { success: false, error: "Discord not connected" };
-      }
       const dms = await discordClient.getDMs();
       return { success: true, data: dms };
     } catch (error) {
@@ -193,9 +190,6 @@ function setupIPCHandlers() {
 
   ipcMain.handle("discord:get-guilds", async () => {
     try {
-      if (!discordClient.isConnected()) {
-        return { success: false, error: "Discord not connected" };
-      }
       const guilds = await discordClient.getGuilds();
       return { success: true, data: guilds };
     } catch (error) {

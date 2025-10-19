@@ -14,6 +14,7 @@ import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
 import { useLocation } from "react-router-dom";
 import { mapDiscordToTelegramSchema } from "@/lib/utils";
+import { useDiscordContext } from "@/context/discordContext";
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -49,8 +50,10 @@ const Index = () => {
   const [hasStartedFindingChats, setHasStartedFindingChats] = useState(false);
   const [initialSyncTriggered, setInitialSyncTriggered] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const [discordGuilds, setGuilds] = useState([]);
+  const { dms, channels, guilds:discordGuilds, refresh } = useDiscordContext();
 
+ 
+ // to ensure channels are loaded
   const handleOpenSmartSummary = () => setOpenPanel("smartSummary");
   const handleOpenNotificationPanel = () => setOpenPanel("notification");
   const handleOpenPinnedPanel = () => setOpenPanel("pinned");
@@ -438,7 +441,10 @@ const Index = () => {
       navigate("/auth");
     }
   }, [user, loading, navigate]);
-
+  useEffect(() => {
+  console.log("Context updated in index ts:", { dms, discordGuilds });
+  
+  },[dms,discordGuilds])
   useEffect(() => {
     if (user) {
       // Check if user has completed onboarding
@@ -458,8 +464,10 @@ const Index = () => {
     }
   }, [activeTab]);
 
+
   // Fetch chats from backend
   useEffect(() => {
+    console.log("calling on dms change")
     const fetchChats = async () => {
       if (!user) {
         setChatsLoading(false);
@@ -481,14 +489,14 @@ const Index = () => {
         }
         const data = await response.json();
         // setChats(data.chats || []);
-        const res = await window.electronAPI.security.getDiscordToken();
-        if (res?.success && res?.data) {
-          await window.electronAPI.discord.connect(res.data);
-        }
-        const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
-        if (dms.success) {
-          const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
-
+        // const res = await window.electronAPI.security.getDiscordToken();
+        // if (res?.success && res?.data) {
+        //   await window.electronAPI.discord.connect(res.data);
+        // }
+        // const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
+        // if (dms.success) {
+          const discordChats = dms?.map(mapDiscordToTelegramSchema);
+          console.log(dms)
           // Merge both
           const allChats = [...data.chats, ...discordChats];
           allChats.sort((a, b) => {
@@ -504,7 +512,7 @@ const Index = () => {
           // Store initial chats - this only runs once on load
           setChats(allChats || []);
           console.log("Loaded chats fetchchats:", allChats);
-        }
+        // }
         // else{
         //   setChats(data.chats || []);
         // }
@@ -521,54 +529,8 @@ const Index = () => {
       }
     };
     fetchChats();
-  }, [user]);
+  }, [user,dms,discordGuilds]);
 
-  useEffect(() => {
-    // Try to load guilds from localStorage first
-    const cachedGuilds = localStorage.getItem("discordGuilds");
-    // console.log("[localguild][localStorage] raw:", cachedGuilds);
-  
-    if (cachedGuilds) {
-      try {
-        const parsed = JSON.parse(cachedGuilds);
-        // console.log("[localguild][localStorage] parsed:", parsed);
-  
-        if (Array.isArray(parsed)) {
-          setGuilds(parsed);
-          // console.log("[localguild][localStorage] setGuilds:", parsed);
-        }
-      } catch (err) {
-        console.error("[localguild][localStorage] parse error:", err);
-        // fail silently, will refetch
-      }
-    }
-  
-    // Always fetch fresh from Discord and update cache
-    async function fetchGuilds() {
-      const guilds = await window.electronAPI.discord.getGuilds();
-      // console.log("[localguild][discord API] raw:", guilds);
-  
-      // convert object of objects to array of objects with id
-      let arr = [];
-      if (guilds.data && typeof guilds.data === "object") {
-        arr = [...guilds.data.entries()].map(([key, value]) => ({
-        id: key,
-        ...value,
-      }));   
-        // console.log("[localguild][discord API] mapped array:", arr);
-      }
-      if(arr.length>0){
-        setGuilds(arr);
-        localStorage.setItem("discordGuilds", JSON.stringify(arr));
-        // console.log("[localguild][discord API] saved to localStorage");
-      }
-      
-    }
-    setTimeout(()=>{
-      fetchGuilds();
-    },5000)
-    
-  }, []);
   
 
   useEffect(()=>{
@@ -595,12 +557,11 @@ const Index = () => {
           const newChats = data.chats || [];
           let allChats = newChats;
           // Fetch Discord DMs
-          const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
-          const guilds = await window.electronAPI.discord.getGuilds(); // fetch guilds
+           // remove listener if supported
           // console.log("Polled guilds:", guilds.data);
-          setGuilds(guilds.data)
-          if (dms.success) {
-            const discordChats = dms.data?.map(mapDiscordToTelegramSchema);
+         console.log(dms,"dms",discordGuilds,"guilds")
+          if (dms) {
+            const discordChats = dms?.map(mapDiscordToTelegramSchema);
             // Merge both
             allChats = [...newChats, ...discordChats];
             allChats.sort((a, b) => {
