@@ -76,6 +76,10 @@ class DatabaseManager {
         is_edited BOOLEAN DEFAULT 0,
         is_deleted BOOLEAN DEFAULT 0,
         sync_status TEXT DEFAULT 'pending', -- 'pending', 'synced', 'failed'
+        mentions TEXT,
+        message_reference TEXT,
+        referenced_message TEXT,
+        sticker_items TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id)
@@ -268,13 +272,12 @@ class DatabaseManager {
 
   // Message operations
   async createMessage(messageData) {
-    if(!messageData.content)
-      return;
+
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO messages 
       (id, chat_id, user_id, content, content_encrypted, message_type, reply_to_id, 
-       attachments, embeds, reactions, timestamp, is_edited, sync_status, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       attachments, embeds, reactions, timestamp, is_edited, sync_status,mentions,message_reference,referenced_message,sticker_items, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
 
     // Encrypt sensitive content if needed
@@ -295,7 +298,11 @@ class DatabaseManager {
       JSON.stringify(messageData.reactions || []),
       messageData.timestamp,
       messageData.is_edited || 0,
-      messageData.sync_status || "pending"
+      messageData.sync_status || "pending",
+       JSON.stringify(messageData.mentions || []),
+        JSON.stringify(messageData.message_reference || []),
+         JSON.stringify(messageData.referenced_message || []),
+           JSON.stringify(messageData.sticker_items || [])
     );
 
     // Update chat's last message

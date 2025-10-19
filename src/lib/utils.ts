@@ -30,17 +30,35 @@ type MessageItem = {
   hasMedia: boolean;
   media: any;
   stickerItems: any;
+  referenced_message:any;
+  message_reference?: any;
+  sticker_items?: any;
   link: string | null;
   replyTo: any;
 };
+const safeParse = (val: any) => {
+  if (!val) return [];
+  if (typeof val === "object") return val;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return [];
+  }
+};
+
+
 
 // Mapper for Discord message → MessageItem
 export function mapDiscordMessageToItem(discordMsg: any): MessageItem {
   const attachments = Array.isArray(discordMsg.attachments)?discordMsg.attachments:JSON.parse(discordMsg.attachments || "[]");
   const embeds = Array.isArray(discordMsg.embeds)?discordMsg.embeds: JSON.parse(discordMsg.embeds || "[]");
   const reactions = Array.isArray(discordMsg.reactions)?discordMsg.reactions: JSON.parse(discordMsg.reactions || "[]");
-
-  // Extract if message has link
+  const refrence_message = safeParse(discordMsg.referenced_message); 
+  const mentions = Array.isArray(discordMsg.mentions)?discordMsg.mentions: JSON.parse(discordMsg.mentions || "[]"); 
+  const sticker_items = Array.isArray(discordMsg.sticker_items)?discordMsg.sticker_items: JSON.parse(discordMsg.sticker_items || "[]"); 
+  const message_reference = safeParse(discordMsg.message_reference); 
+  
+   // Extract if message has link
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const hasLink = urlRegex.test(discordMsg.content);
 
@@ -62,7 +80,10 @@ export function mapDiscordMessageToItem(discordMsg: any): MessageItem {
       emoji: r.emoji?.name || r.emoji,
       count: r.count || 1,
     })),
-    mentions:discordMsg.mentions,
+    mentions:mentions,
+    referenced_message:refrence_message,
+    message_reference: message_reference,
+    sticker_items: sticker_items,
     hasLink,
     hasMedia: attachments.length > 0 || embeds.length > 0,
     media: attachments.length || embeds.length ? [...attachments, ...embeds] : null,

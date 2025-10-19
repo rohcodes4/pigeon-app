@@ -574,6 +574,10 @@ class DiscordClient extends EventEmitter {
       embeds: messageData.embeds,
       timestamp: messageData.timestamp,
       sync_status: "synced",
+      mentions: messageData.mentions,
+      message_reference: messageData.message_reference || null,
+      referenced_message: messageData.referenced_message || null,
+      sticker_items : messageData.sticker_items
     });
 
     // Emit event for real-time UI update
@@ -597,6 +601,10 @@ class DiscordClient extends EventEmitter {
         timestamp: messageData.timestamp,
         is_edited: 1,
         sync_status: "synced",
+         mentions: messageData.mentions,
+      message_reference: messageData.message_reference || null,
+      referenced_message: messageData.referenced_message || null,
+      sticker_items: messageData.sticker_items
       });
 
       this.emit("messageUpdate", {
@@ -834,6 +842,10 @@ class DiscordClient extends EventEmitter {
                   message_type: "text",
                   timestamp: parsed.timestamp,
                   sync_status: "synced",
+                   mentions: parsed.mentions,
+      message_reference: parsed.message_reference || null,
+      referenced_message: parsed.referenced_message || null,
+      sticker_items : parsed.sticker_items
                 });
               }
               this.emit("newMessage", {

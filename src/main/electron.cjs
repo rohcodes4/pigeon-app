@@ -280,7 +280,11 @@ function setupIPCHandlers() {
             reactions: msg.reactions,
             embeds: msg.embeds,
             timestamp: msg.timestamp,
-            sync_status: "synced"
+            sync_status: "synced",
+            mentions: msg.mentions,
+            message_reference: msg.message_reference || null,
+            referenced_message: msg.referenced_message || null,
+            sticker_items: msg.sticker_items
           });
         }
       }
