@@ -67,6 +67,7 @@ import { useSummarizeMessage } from "@/hooks/discord/useSummarizeMessage";
 import { matchesGlob } from "path";
 import MessageWithMentions from "./MessageWithMentions";
 import MessageWithLinkifyAndMentions from "./MessageWithMentions";
+import DiscordSticker from "./DiscordSticker";
 // import Sticker from "./Sticker";
 
 
@@ -3408,7 +3409,7 @@ useEffect(()=>{
                               </span>
                             </div>
                           )}
-                          <div className={`mt-1 text-sm text-[#e0e0e] break-words break-all whitespace-pre-wrap max-w-full ${isOwnMessage?"text-right":""}`}>
+                          <div className={`mt-1 text-sm text-[#e0e0e] break-words break-all whitespace-pre-wrap max-w-full ${isOwnMessage?"text-right ml-auto w-max":""}`}>
                           {Array.isArray(msg.media) && msg.media.length > 0 && (
   <>
     {msg.media.map((mediaItem, idx) => (
@@ -3500,14 +3501,14 @@ useEffect(()=>{
     )}
   </>
 )}
-                          {/* {Array.isArray(msg.stickerItems) && msg.stickerItems.length > 0 && (
+                          {Array.isArray(msg.sticker_items) && msg.sticker_items.length > 0 && (
   <>
-    {msg.stickerItems.map((mediaItem, idx) => (
-      <Sticker key={mediaItem.id || idx} mediaItem={mediaItem} openMedia={openMedia} />
+    {msg.sticker_items.map((mediaItem, idx) => (
+      <DiscordSticker stickerId={mediaItem.id} />
     ))}
 
   </>
-)} */}
+)}
 
   {msg.media && (
                               <>

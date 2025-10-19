@@ -222,6 +222,19 @@ function setupIPCHandlers() {
     } 
   });
 
+  ipcMain.handle("discord:get-sticker-by-id", async (event, {stickerId}) => {
+    try {
+      if (!discordClient.isConnected()) {
+        return { success: false, error: "Discord not connected" };
+      }
+      const sticker = await discordClient.getStickerById(stickerId);
+      return { success: true, data: sticker };
+    } catch (error) {
+      console.error("[IPC] Get stickers error:", error);
+      return { success: false, error: error.message };
+    } 
+  });
+
   ipcMain.handle("discord:delete-message", async (event, { chatId, messageId }) => {
     try {
       if (!discordClient.isConnected()) {

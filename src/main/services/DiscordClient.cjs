@@ -739,6 +739,14 @@ class DiscordClient extends EventEmitter {
     });
   }
 
+   async getStickerById(stickerId) {
+    await this.checkRateLimit("general");
+    await this.humanDelay();
+    return this.makeRequest({
+      path: `/stickers/${stickerId}.json`,
+      method: "GET",
+    });
+  }
    async getStickerPacks(locale = "en-US") {
     await this.checkRateLimit("general");
     await this.humanDelay();
