@@ -300,7 +300,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     closeContextMenu();
   };
   useEffect(() => {
-  console.log("Context updated:", { dms, guilds });
+  // console.log("Context updated:", { dms, guilds });
   setDiscordDms(dms)
 
 
@@ -319,7 +319,7 @@ const tempDCchannel={}
   // Combine old + new
   const merged = [...prevChannels, ...dms.map(mapDiscordToTelegramSchema)];
 
-  console.log(merged)
+  // console.log(merged)
   // Remove duplicates based on `id`
   const unique = merged.filter(
     (channel, index, self) =>
@@ -356,7 +356,7 @@ const tempDCchannel={}
 
   const handleReadAll = async () => {
     if (contextMenu) {
-      console.log("Read All clicked for channel", contextMenu.channel);
+      // console.log("Read All clicked for channel", contextMenu.channel);
       // Add your Read All logic here
       try {
         const token = localStorage.getItem("access_token");
@@ -389,17 +389,17 @@ const tempDCchannel={}
   const [isMuted, setisMuted] = useState(false)
   useEffect(()=>{
    async function checkMute(){
-    let mute = await fetchMuteStatus(contextMenu?.channel?.id)
+    let mute = await fetchMuteStatus(contextMenu.channel.id)
     setisMuted(mute)
    }
    checkMute()
   },[contextMenu])
   const handleMuteChat = async () => {
     if (contextMenu) {
-      console.log("Mute Chat clicked for channel", contextMenu.channel);
+      // console.log("Mute Chat clicked for channel", contextMenu.channel);
       // Add your Mute Chat logic here
       let mute = await fetchMuteStatus(contextMenu.channel.id)
-      console.log('mute stat', !mute)
+      // console.log('mute stat', !mute)
       toggleMuteChat(contextMenu.channel.id,contextMenu.channel.platform.toLowerCase(),!mute)
     }
     closeContextMenu();
@@ -407,7 +407,7 @@ const tempDCchannel={}
 
   const handlePinChat = () => {
     if (contextMenu) {
-      console.log("Mute Chat clicked for channel", contextMenu.channel);
+      // console.log("Mute Chat clicked for channel", contextMenu.channel);
       // Add your Mute Chat logic here
       // toggleMuteChat(contextMenu.channel.id,contextMenu.channel.platform.toLowerCase(),true)
     }
@@ -415,7 +415,7 @@ const tempDCchannel={}
   };
 
   useEffect(() => {
-    console.log(chats,"chats")
+    // console.log(chats,"chats")
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         closeContextMenu();
@@ -688,7 +688,7 @@ useEffect(() => {
       .filter(chat => !chat?.isPinned && !chat?.pinned)
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
   ];
-  console.log('sortedDisplayChats',sortedDisplayChats)
+  // console.log('sortedDisplayChats',sortedDisplayChats)
 
   const getFilteredChannels = () => {
     // Use displayChats directly to maintain backend sorting
@@ -786,7 +786,7 @@ useEffect(() => {
 
       const data = await response.json();
       setSearchResults(data.results);
-      console.log("Search results:", searchResults);
+      // console.log("Search results:", searchResults);
       return data;
     } catch (error) {
       setSearchResults([]);
@@ -1007,7 +1007,7 @@ useEffect(() => {
     gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.4);
     oscillator.stop(audioCtx.currentTime + 0.4);
    } catch (error) {
-    console.log('beep error: ',error)
+    // console.log('beep error: ',error)
    }
   };
   function groupChannelsFlat(channels) {
@@ -1088,7 +1088,7 @@ useEffect(() => {
           return String(guild.id) == String(selectedDiscordServer)
         })
 
-        console.log('ssss',filtered[0])
+        // console.log('ssss',filtered[0])
         setSelectedServer(filtered[0])
         return filtered[0]
       }catch{
@@ -1102,7 +1102,7 @@ useEffect(() => {
   },[
     selectedDiscordServer
   ])
-console.log('sss',selectedServer)
+// console.log('sss',selectedServer)
 
 if (selectedDiscordServer && sortedChannels.length>0) {
     return (
@@ -1130,7 +1130,7 @@ if (selectedDiscordServer && sortedChannels.length>0) {
     </div>
     );
   }
-console.log('channelsToShow: ',channelsToShow)
+// console.log('channelsToShow: ',channelsToShow)
   return (
     <>
       {filterFull ? (

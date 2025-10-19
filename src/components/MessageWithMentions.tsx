@@ -7,7 +7,7 @@ function MessageWithLinkifyAndMentions({ text, mentionsData, message }) {
   const [modalUserId, setModalUserId] = useState(null);
   const [modalAvatar, setModalAvatar] = useState(null);
   const [modalMention, setModalMention] = useState(null);
-console.log('mentionsData',mentionsData)
+// console.log('mentionsData',mentionsData)
   // Regex for mention detection - matches <@id>
   const mentionRegex = /<@(\d+)>/g;
 

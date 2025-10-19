@@ -67,6 +67,7 @@ export const ChatSelection = ({
 }: ChatSelectionProps) => {
   const { user, checkAuth } = useAuth();
   const [chatGroups, setChatGroups] = useState<ChatGroup[]>([]);
+  const [chatGroupsDiscord, setChatGroupsDiscord] = useState<ChatGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   // const [telegramConnected, setTelegramConnected] = useState(false);
@@ -79,8 +80,10 @@ export const ChatSelection = ({
       setLoading(true);
       try {
         const token = localStorage.getItem("access_token");
-        const res = await fetch(`${BACKEND_URL}/api/sync-preferences`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        const res = await fetch(`${BACKEND_URL}/api/sync-preferences/chats`, {
+          headers: token ? {     
+Authorization: `Bearer ${token}` } : {},
+          
         });
         if (!res.ok) throw new Error(`Failed to fetch chats: ${res.status}`);
 
@@ -122,6 +125,12 @@ export const ChatSelection = ({
       }
     };
 
+    const fetchDicordChats = async () =>{
+      const guilds = await window.electronAPI.discord.getGuilds();
+      console.log(guilds.data,'guildss')
+      setChatGroupsDiscord([...guilds.data]);
+    }
+    fetchDicordChats();
     fetchUserChats();
   }, [user]);
   // Fetch connected statuses from backend (authoritative source)
@@ -657,7 +666,7 @@ export const ChatSelection = ({
             <div className="flex-1 text-[#ffffff72]">
               <div className="h-[150px] overflow-y-scroll">
                 {discordConnected ? (
-                  discordChats.map((group) => (
+                  chatGroupsDiscord.map((group) => (
                     <div
                       key={group.id}
                       className="flex items-center justify-between p-2 border-0 rounded-lg"
@@ -672,10 +681,10 @@ export const ChatSelection = ({
                         />
                         <div className="flex justify-between w-full">
                           <p className="font-medium text-sm">
-                            {group.group_name}
+                            {group.name}
                           </p>
                           <p className="text-xs text-black bg-[#3589ff] px-2 py-1 rounded-[6px]">
-                            {group.member_count} channels
+                            {group.member_count} members
                           </p>
                         </div>
                       </div>

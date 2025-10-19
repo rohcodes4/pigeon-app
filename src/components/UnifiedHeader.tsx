@@ -154,10 +154,10 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
       if (selectedChat === "all-channels") {
         setIsTelegram(true);
         setIsDiscordChat(true);
-      } else if (selectedChat.platform.toLowerCase() === "telegram") {
+      } else if (selectedChat?.platform.toLowerCase() === "telegram") {
         setIsTelegram(true);
         setIsDiscordChat(false);
-      } else if (selectedChat.platform.toLowerCase() === "discord") {
+      } else if (selectedChat?.platform.toLowerCase() === "discord") {
         setIsTelegram(false);
         setIsDiscordChat(true);
       } else {

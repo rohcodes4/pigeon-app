@@ -35,6 +35,7 @@ type MessageItem = {
   sticker_items?: any;
   link: string | null;
   replyTo: any;
+  sender?: any;
 };
 const safeParse = (val: any) => {
   if (!val) return [];
@@ -87,9 +88,9 @@ export function mapDiscordMessageToItem(discordMsg: any): MessageItem {
     hasLink,
     hasMedia: attachments.length > 0 || embeds.length > 0,
     media: (attachments.length > 0 || embeds.length > 0) ? [...attachments, ...embeds] : null,
-    // media: attachments.length>0 || embeds.length>0 ? true:false,
-    attachments: attachments.length,
-    embeds:  embeds.length,
+    sender:{
+      id: discordMsg.user_id
+    },
     link: hasLink ? discordMsg.content.match(urlRegex)?.[0] ?? null : null,
     stickerItems: discordMsg.sticker_items ?? null,
     replyTo: discordMsg.reply_to_id,

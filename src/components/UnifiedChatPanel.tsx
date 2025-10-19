@@ -60,7 +60,7 @@ import { mapToFullChat } from "@/lib/utils";
 import AudioWaveform from "./AudioWaveForm";
 import LiveAudioWaveform from "./LiveAudioWaveForm";
 import { timeStamp } from "console";
-import { useDiscordChatHistory, useDiscordMessages } from "@/hooks/useDiscord";
+import { useDiscordChatHistory, useDiscordConnectionStatus, useDiscordMessages } from "@/hooks/useDiscord";
 import { isHistoryFetched, setHistoryFetched } from "@/store/discordHistoreStore";
 import { useTaskGeneration } from "@/hooks/discord/useTaskGeneration";
 import { useSummarizeMessage } from "@/hooks/discord/useSummarizeMessage";
@@ -143,6 +143,7 @@ type MessageItem = {
   sticker_items?: any;
   link: string | null;
   replyTo: any;
+  sender?: any;
 };
 
 // Dummy data generation
@@ -1889,9 +1890,9 @@ if(msg.platform.toLowerCase() === "discord"){
       }
     },[history])
 
-    useEffect(() => {
-      console.log('messages updated', messages)
-    }, [messages])
+    // useEffect(() => {
+    //   console.log('messages updated', messages)
+    // }, [messages])
     
     // const { messagesList} = useDiscordMessages(selectedChat?.id);
     // console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
@@ -2834,7 +2835,28 @@ const jumpToReply=(msg)=>{
 }
 
 console.log('messages by date',groupedByDate)
+const { userId } =useDiscordConnectionStatus()
+const [telegramUserId, setTelegramUserId] = useState(null)
+const fetchStatus = async () => {
+  try {
+    const token = localStorage.getItem("access_token");
+    const tgRes = await fetch(`${BACKEND_URL}/auth/telegram/status`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (tgRes.ok) {
+      const tg = await tgRes.json();
+      console.log('tg status res',tg)
+      setTelegramUserId(String(tg.telegram_id))
+    }
+  } catch (e) {
+    // ignore
+  }
+};
+useEffect(()=>{
+  fetchStatus()
+},[])
 
+// console.log('dc state', userId)
     return (
       <div className="relative h-[calc(100vh-136px)] flex flex-col flex-shrink-0 min-w-0">
         {/* Selected Chat Info */}
@@ -2943,12 +2965,22 @@ console.log('messages by date',groupedByDate)
                   <span className="text-xs text-[#ffffff32] px-2">{date}</span>
                   <hr className="flex-1 border-[#23272f]" />
                 </div>
-                {msgs.map((msg) => {
+                {msgs.map((msg, index) => {
                   const globalIndex = messages.findIndex(
                     (m) => m.id === msg.id
                   );
                   const showUnreadDivider =
                     unreadStart >= 0 && globalIndex === unreadStart;
+                    const prevMsg = index > 0 ? msgs[index - 1] : null;
+                    
+                    const isSameSenderAsPrev = prevMsg && prevMsg.name === msg.name;
+                    
+                    const isDiscord = selectedChat?.platform?.toLowerCase() === "discord";
+                    const isTelegram = selectedChat?.platform?.toLowerCase() === "telegram";
+                  
+                    // const isOwnMessage = isDiscord && msg.sender?.id === userId;
+                    const isOwnMessage = (isDiscord && msg.sender?.id === userId) || (isTelegram && msg?.chat_id === telegramUserId);
+                  
                   return (
                     <div
                       key={String(msg.id)}
@@ -2982,14 +3014,14 @@ console.log('messages by date',groupedByDate)
                             : ""
                         }`}
                       >
-                        <ChatAvatar
+                       {isOwnMessage?<></>:isSameSenderAsPrev?<div className="w-10 h-10"></div>: <ChatAvatar
                           name={msg.name}
                           avatar={msg.avatar}
                           backupAvatar={`https://cdn.discordapp.com/avatars/${msg?.id}/${msg?.avatar}.png`}
-                        />
+                        />}
 
                         <div className="flex-1 relative max-w-[100%]">
-                          <div className="absolute right-0 top-100 flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                          <div className={`absolute ${isOwnMessage?"left-0":"right-0"} top-100 flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity z-10`}>
                           <div className="relative">
                                 <button
                                   onClick={() =>
@@ -3017,7 +3049,7 @@ console.log('messages by date',groupedByDate)
                                 {showReactionPicker[
                                   String(msg.originalId || msg.id)
                                 ] && (
-                                  <div className="reaction-picker absolute top-1/2 right-[120%] ml-2 bg-[#2d2d2d]/95 backdrop-blur-sm rounded-2xl p-2 shadow-2xl border border-[#555] z-10 transform -translate-y-1/2 min-w-[max-content]">
+                                  <div className={`reaction-picker absolute top-1/2 ${isOwnMessage?"left-[120%]":"right-[120%]"} ml-2 bg-[#2d2d2d]/95 backdrop-blur-sm rounded-2xl p-2 shadow-2xl border border-[#555] z-10 transform -translate-y-1/2 min-w-[max-content]`}>
                                     {/* Arrow pointer pointing left */}
                                     <div className="absolute top-1/2 left-0 w-0 h-0 border-t-[8px] border-b-[8px] border-r-[8px] border-t-transparent border-b-transparent border-r-[#2d2d2d] transform -translate-y-1/2 -translate-x-1"></div>
 
@@ -3071,19 +3103,19 @@ console.log('messages by date',groupedByDate)
                             >
                               <FaCopy className="text-[#ffffff] w-3 h-3" />
                             </button>
-                            {getPlatformFromChatId(selectedChat.id) ==
+                            {/* {selectedChat?.platform?.toLowerCase() ==
                               "discord" && (
                               <button
                                 className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
                                 title="Open in Discord"
                                 onClick={(e) => {
-                                  e.stopPropagation(); /* implement share logic */
+                                  e.stopPropagation(); 
                                 }}
                               >
                                 <FaDiscord className="text-[#ffffff] w-3 h-3" />
                               </button>
-                            )}
-                            {getPlatformFromChatId(selectedChat.id) ==
+                            )} */}
+                            {selectedChat?.platform?.toLowerCase() ==
                               "telegram" && (
                               <button
                                 className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
@@ -3124,7 +3156,7 @@ console.log('messages by date',groupedByDate)
                               {/* Popup menu */}
                               {openMenuId === String(msg.id) && (
                                 <div
-                                  className={`absolute right-0 ${
+                                  className={`absolute ${isOwnMessage?"left-0":"right-0"} ${
                                     menuPositions[String(msg.id)] ||
                                     "bottom-[110%]"
                                   } mt-2 bg-[#111111] border border-[#ffffff12] rounded-[10px] shadow-lg z-[9999] flex flex-col p-2 min-w-max`}
@@ -3310,8 +3342,8 @@ console.log('messages by date',groupedByDate)
                               )}
                             </button>
                           </div>
-                          <div className="flex items-center justify-start gap-2">
-                            <span className="text-[#ffffff72] font-[300]">
+                          <div className={`flex items-center ${isOwnMessage?"justify-end":"justify-start"} gap-2`}>
+                            {isSameSenderAsPrev || isOwnMessage?(<></>):(<><span className="text-[#ffffff72] font-[300]">
                               {msg.name}
                             </span>
                             <div
@@ -3341,6 +3373,7 @@ console.log('messages by date',groupedByDate)
                             <span className="text-xs text-[#fafafa99]">
                               {selectedChat.name}
                             </span>
+                            </>)}
                             <span className="text-xs text-[#ffffff32]">
                               {/* {console.log('Raw msg.date:', msg.date, 'Type:', typeof msg.date)} */}
                               {formatTime(msg.date)}
@@ -3364,7 +3397,7 @@ console.log('messages by date',groupedByDate)
                             </div>
                           )}
                           {(selectedChat.platform==="discord") && msg?.referenced_message?.id && (
-                            <div className="cursor-pointer text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1 mt-2 max-w-[100%] break-all" onClick={()=>jumpToReply(msg)}>
+                            <div className={`${isOwnMessage?"text-right":""} cursor-pointer text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1 mt-2 max-w-[100%] break-all`} onClick={()=>jumpToReply(msg)}>
                               Replying to{" "}
                               <span className="font-semibold">
                                 {msg?.referenced_message?.author?.global_name || msg?.referenced_message?.author?.username}:
@@ -3375,7 +3408,7 @@ console.log('messages by date',groupedByDate)
                               </span>
                             </div>
                           )}
-                          <div className="mt-1 text-sm text-[#e0e0e] break-words break-all whitespace-pre-wrap max-w-full">
+                          <div className={`mt-1 text-sm text-[#e0e0e] break-words break-all whitespace-pre-wrap max-w-full ${isOwnMessage?"text-right":""}`}>
                           {Array.isArray(msg.media) && msg.media.length > 0 && (
   <>
     {msg.media.map((mediaItem, idx) => (
