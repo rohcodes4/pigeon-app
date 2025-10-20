@@ -1,13 +1,14 @@
+import { useGetAIConversations } from "@/hooks/discord/useGetAIConversations";
 import { useAuth } from "@/hooks/useAuth";
 import { BotMessageSquare, Plus, SendHorizonal, User, X } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 
-interface Message {
-  id: number;
-  sender: "user" | "assistant";
-  text: string;
-  loading?: boolean;  
-}
+// interface Message {
+//   id: number;
+//   sender: "user" | "assistant";
+//   text: string;
+//   loading?: boolean;  
+// }
 
 interface AiChatBoxProps {
   selectedChat?: any; // Replace with your chat type
@@ -56,8 +57,17 @@ const LoadingDots: React.FC = () => {
 
 const AiChatBox: React.FC<AiChatBoxProps> = ({ selectedChat }) => {
   const { user } = useAuth();
+  const { fetchConversations } = useGetAIConversations();
+  useEffect(()=>{
 
-  const [messages, setMessages] = useState<Message[]>([]);
+    async function getConversations(){
+      let data = await fetchConversations();
+      console.log('ai conversations', data)
+      setMessages(data.messages)
+    }
+    getConversations()
+  },[])
+  const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -80,13 +90,13 @@ const AiChatBox: React.FC<AiChatBoxProps> = ({ selectedChat }) => {
   }, [messages]);
 
   // Load messages from selectedChat if available
-  useEffect(() => {
-    if (selectedChat && Array.isArray(selectedChat.messages)) {
-      setMessages(selectedChat.messages);
-    } else {
-      setMessages([]);
-    }
-  }, [selectedChat]);
+  // useEffect(() => {
+  //   if (selectedChat && Array.isArray(selectedChat.messages)) {
+  //     setMessages(selectedChat.messages);
+  //   } else {
+  //     setMessages([]);
+  //   }
+  // }, [selectedChat]);
 
   const getFileType = (file: File): "image" | "video" | "doc" => {
     if (file.type.startsWith("image/")) return "image";
@@ -99,10 +109,10 @@ const AiChatBox: React.FC<AiChatBoxProps> = ({ selectedChat }) => {
     const validInput = inputRef.current?.value.trim();
     if (!validInput) return;
 
-    const userMessage: Message = {
+    const userMessage: any = {
       id: Date.now(),
-      sender: "user",
-      text: validInput,
+      role: "user",
+      content: validInput,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -118,15 +128,17 @@ const AiChatBox: React.FC<AiChatBoxProps> = ({ selectedChat }) => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/api/ai/chat`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/v2/ai/chat`,
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
+            "Content-Type": "application/json",
             "Authorization": `Bearer ${authToken}`
           },
-          body: new URLSearchParams({
-            message: userMessage.text
+          body: JSON.stringify({
+            "message": userMessage.content,
+  "conversation_id": "68bcfb09bb9a4bdc60364da4",
+  
           })
         }
       );
@@ -141,14 +153,16 @@ const AiChatBox: React.FC<AiChatBoxProps> = ({ selectedChat }) => {
       //   text: data.reply,
       // };
 
-      // setMessages((prev) => [...prev, assistantMessage]);
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === loadingMessageId
-            ? { id: loadingMessageId, sender: "assistant", text: data.reply }
-            : msg
-        )
-      );
+      setMessages(data.messages);
+      // setMessages((prev) =>
+      //   prev.map((msg) =>
+      //     msg.id === loadingMessageId
+      //       ? { id: loadingMessageId, messages:[{
+      //         role:"assistant",content:data.reply
+      //       }], title:userMessage.text}
+      //       : msg
+      //   )
+      // );
     } catch (error) {
       // setMessages((prev) => [
       //   ...prev,
@@ -184,40 +198,41 @@ const AiChatBox: React.FC<AiChatBoxProps> = ({ selectedChat }) => {
   return (
     <div className="flex flex-col h-[calc(100vh-136px)] border-gray-700">
       <div className="flex-1 p-4 overflow-y-auto">
-        {messages.map(({ id, sender, text, loading }) => (
+      {messages.map(({ id, role, content, loading }) => (
           <div
             key={id}
             className={`flex items-end mb-3 ${
-              sender === "user" ? "justify-end" : "justify-start"
+              role === "user" ? "justify-end" : "justify-start"
             }`}
           >
-            {sender === "assistant" && (
+            {role === "assistant" && (
               <div className="w-9 h-9 rounded-full bg-[#23272f] p-2 flex justify-center items-center mr-2">
                 <BotMessageSquare className="w-6 h-6 text-[#84afff]" />
               </div>
             )}
             <div
               className={`max-w-[80%] px-3 py-2 rounded-[6px] ${
-                sender === "user"
+                role === "user"
                   ? "bg-[#5389ff] text-white self-end ml-auto"
                   : "bg-gray-700 text-gray-100 self-start mr-auto"
               }`}
             >
-      {loading ? <LoadingDots /> : text}
+      {loading ? <LoadingDots /> : content}
       </div>
-            {sender === "user" && user?.avatar ? (
+            {role === "user" && user?.avatar ? (
               <img
                 src={user.avatar}
                 alt="User"
                 className="w-9 h-9 rounded-full ml-2"
               />
-            ) : sender === "user" ? (
+            ) : role === "user" ? (
               <div className="w-9 h-9 rounded-full bg-[#23272f] p-2 flex justify-center items-center ml-2">
                 <User className="w-6 h-6" />
               </div>
             ) : null}
           </div>
         ))}
+
         <div ref={messagesEndRef} />
       </div>
 

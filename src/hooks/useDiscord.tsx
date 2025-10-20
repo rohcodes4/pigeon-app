@@ -394,6 +394,7 @@ export function useDiscordReactions(chatId: string) {
 export function useDiscordConnectionStatus() {
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
     const cleanupConnected = electronAPI.discord.onConnected(() => {
@@ -408,6 +409,7 @@ export function useDiscordConnectionStatus() {
     const cleanupReady = electronAPI.discord.onReady((state: any) => {
       setStatus('connected');
       setReconnectAttempts(state.reconnectAttempts || 0);
+      setUserId(state.userId)
     });
 
     // Check initial status
@@ -426,6 +428,7 @@ export function useDiscordConnectionStatus() {
 
   return {
     status,
+    userId,
     reconnectAttempts,
     isConnected: status === 'connected',
     isConnecting: status === 'connecting'

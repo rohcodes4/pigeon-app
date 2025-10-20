@@ -118,6 +118,7 @@
     "emoji-picker-react": "^4.13.2",
     "input-otp": "^1.2.4",
     "keytar": "^7.9.0",
+    "lottie-react": "^2.4.1",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",

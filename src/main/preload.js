@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("discord:delete-message", { chatId, messageId }),
     editMessage: (chatId, messageId, newContent) => 
       ipcRenderer.invoke("discord:edit-message", { chatId, messageId, newContent }),
+    getStickerById: (stickerId) =>
+      ipcRenderer.invoke("discord:get-sticker-by-id", {stickerId}),
     getStickers: (locale) =>
       ipcRenderer.invoke("discord:get-stickers", locale),
     // New method to handle captcha when sending messages         

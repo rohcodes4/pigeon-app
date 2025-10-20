@@ -35,6 +35,7 @@ type MessageItem = {
   sticker_items?: any;
   link: string | null;
   replyTo: any;
+  sender?: any;
 };
 const safeParse = (val: any) => {
   if (!val) return [];
@@ -86,7 +87,10 @@ export function mapDiscordMessageToItem(discordMsg: any): MessageItem {
     sticker_items: sticker_items,
     hasLink,
     hasMedia: attachments.length > 0 || embeds.length > 0,
-    media: attachments.length || embeds.length ? [...attachments, ...embeds] : null,
+    media: (attachments.length > 0 || embeds.length > 0) ? [...attachments, ...embeds] : null,
+    sender:{
+      id: discordMsg.user_id || discordMsg.author.id
+    },
     link: hasLink ? discordMsg.content.match(urlRegex)?.[0] ?? null : null,
     stickerItems: discordMsg.sticker_items ?? null,
     replyTo: discordMsg.reply_to_id,
@@ -105,14 +109,14 @@ export function mapDiscordToTelegramSchema(d: any) {
     lastMessage: null, // not provided
     last_message: null,
     last_seen: null,
-    last_ts:  snowflakeToDate(d.last_message_id)  || null,
+    last_ts:  snowflakeToDate(d.last_message_id)  || d.last_message_id,
     name: d.name || "Unknown",
     photo_url: d.avatar_url || null,
     platform: "discord",
     read: true, // Discord object doesn’t have read status
     summary: d.description || "",
     sync_enabled: null,
-    timestamp: snowflakeToDate(d.last_message_id) || null,
+    timestamp: snowflakeToDate(d.last_message_id) || d.last_message_id,
     unread: null, // no unread count
     _id: d.id ? String(d.id) : null,
   };
