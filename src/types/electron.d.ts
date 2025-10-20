@@ -92,6 +92,13 @@ export interface ElectronAPI {
       data?: Array<any>;
       error?: string;
     }>;
+    getStickerById: (
+      stickerId?: string
+    ) => Promise<{
+      success: boolean;
+      data?: Array<any>;
+      error?: string;
+    }>;
 
     onConnected: (
       callback: (data: { success: boolean; error?: string }) => void
