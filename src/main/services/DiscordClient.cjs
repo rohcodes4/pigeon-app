@@ -157,7 +157,10 @@ class DiscordClient extends EventEmitter {
       }
 
       this.token = token;
-      console.log("[Discord] Connecting with token:", token.slice(0, 8) + "...");
+      console.log(
+        "[Discord] Connecting with token:",
+        token.slice(0, 8) + "..."
+      );
       await this.testTokenValidity();
       await this.securityManager.storeDiscordToken(token);
       await this.connectToGateway();
@@ -211,84 +214,88 @@ class DiscordClient extends EventEmitter {
   }
 
   connectToGateway() {
-  return new Promise((resolve, reject) => {
-    if (this.connecting) {
-      console.warn("[Discord] Already connecting — skipping duplicate attempt");
-      return;
-    }
-    this.connecting = true;
-
-    if (this.ws) {
-      try { this.ws.terminate(); } catch {}
-      this.ws = null;
-    }
-
-    console.log("[Discord] Connecting to gateway:", this.gatewayUrl);
-    this.ws = new WebSocket(this.gatewayUrl);
-
-    let resolved = false;
-    let timeout;
-
-    // Timeout safeguard (will clear on success)
-    timeout = setTimeout(() => {
-      if (!resolved) {
-        console.error("[Discord] Gateway timeout — no READY/RESUMED received");
-        this.ws?.terminate();
-        this.connecting = false;
-        reject(new Error("Gateway timeout"));
-      }
-    }, 20000);
-
-    this.ws.on("open", () => {
-      console.log("[Discord] Gateway WebSocket opened");
-    });
-
-    this.ws.on("message", (data) => {
-      let message;
-      try {
-        message = JSON.parse(data.toString());
-      } catch (err) {
-        console.error("[Discord] Parse error:", err);
+    return new Promise((resolve, reject) => {
+      if (this.connecting) {
+        console.warn(
+          "[Discord] Already connecting — skipping duplicate attempt"
+        );
         return;
       }
+      this.connecting = true;
 
-      this.handleGatewayMessage(message);
-
-      if (message.op === 10) {
-        this.startHeartbeat(message.d.heartbeat_interval);
-        setTimeout(() => this.identify(), 250);
+      if (this.ws) {
+        try {
+          this.ws.terminate();
+        } catch {}
+        this.ws = null;
       }
 
-      if ((message.t === "READY" || message.t === "RESUMED") && !resolved) {
-        resolved = true;
+      console.log("[Discord] Connecting to gateway:", this.gatewayUrl);
+      this.ws = new WebSocket(this.gatewayUrl);
+
+      let resolved = false;
+      let timeout;
+
+      // Timeout safeguard (will clear on success)
+      timeout = setTimeout(() => {
+        if (!resolved) {
+          console.error(
+            "[Discord] Gateway timeout — no READY/RESUMED received"
+          );
+          this.ws?.terminate();
+          this.connecting = false;
+          reject(new Error("Gateway timeout"));
+        }
+      }, 20000);
+
+      this.ws.on("open", () => {
+        console.log("[Discord] Gateway WebSocket opened");
+      });
+
+      this.ws.on("message", (data) => {
+        let message;
+        try {
+          message = JSON.parse(data.toString());
+        } catch (err) {
+          console.error("[Discord] Parse error:", err);
+          return;
+        }
+
+        this.handleGatewayMessage(message);
+
+        if (message.op === 10) {
+          this.startHeartbeat(message.d.heartbeat_interval);
+          setTimeout(() => this.identify(), 250);
+        }
+
+        if ((message.t === "READY" || message.t === "RESUMED") && !resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          this.connecting = false;
+          console.log("[Discord] Gateway handshake complete ✅");
+          this.connected = true;
+          this.sessionId = message.d.session_id;
+          resolve();
+        }
+      });
+
+      this.ws.on("close", (code, reason) => {
         clearTimeout(timeout);
         this.connecting = false;
-        console.log("[Discord] Gateway handshake complete ✅");
-        this.connected = true;
-        this.sessionId = message.d.session_id;
-        resolve();
-      }
+        console.warn(`[Discord] Gateway closed: ${code} ${reason}`);
+        this.connected = false;
+        this.emit("disconnected", { code, reason: reason?.toString() });
+        this.handleDisconnection(code);
+      });
+
+      this.ws.on("error", (err) => {
+        clearTimeout(timeout);
+        this.connecting = false;
+        console.error("[Discord] Gateway error:", err);
+        if (!resolved) reject(err);
+      });
     });
-
-    this.ws.on("close", (code, reason) => {
-      clearTimeout(timeout);
-      this.connecting = false;
-      console.warn(`[Discord] Gateway closed: ${code} ${reason}`);
-      this.connected = false;
-      this.emit("disconnected", { code, reason: reason?.toString() });
-      this.handleDisconnection(code);
-    });
-
-    this.ws.on("error", (err) => {
-      clearTimeout(timeout);
-      this.connecting = false;
-      console.error("[Discord] Gateway error:", err);
-      if (!resolved) reject(err);
-    });
-  });
-}
-
-
+  }
 
   handleDisconnection(code) {
     this.cleanup();
@@ -447,17 +454,17 @@ class DiscordClient extends EventEmitter {
         },
       },
     };
-  if (this.identifying) {
-    console.warn("[Discord] Identification already in progress — skipping");
-    return;
-  }
+    if (this.identifying) {
+      console.warn("[Discord] Identification already in progress — skipping");
+      return;
+    }
 
-  this.identifying = true;
-  this.ws.send(JSON.stringify(payload));
-  console.log("[Discord] Identification payload sent");
+    this.identifying = true;
+    this.ws.send(JSON.stringify(payload));
+    console.log("[Discord] Identification payload sent");
 
-  // Reset identifying flag after 5s (prevents duplicates)
-  setTimeout(() => (this.identifying = false), 5000);
+    // Reset identifying flag after 5s (prevents duplicates)
+    setTimeout(() => (this.identifying = false), 5000);
   }
 
   processGuilds(guilds) {
@@ -520,6 +527,33 @@ class DiscordClient extends EventEmitter {
         });
       } else if (channel.type === 3) {
         const names = channel.recipients.map((r) => r.username).join(", ");
+        // Assuming channel.recipients = array of user objects
+        // Each user object has: { id, username, avatar }
+        let avatars = [];
+        if (channel.icon) {
+          // ✅ Case 1: Group has a custom icon
+          avatars = [
+            `https://cdn.discordapp.com/channel-icons/${channel.id}/${channel.icon}.png`,
+          ];
+        } else {
+          avatars = channel.recipients
+            // Exclude group owner
+            .filter((r) => r.id !== channel.owner_id && !!r.id)
+            // Sort by Snowflake ID numerically
+            .sort((a, b) => {
+              const aId = BigInt(a.id);
+              const bId = BigInt(b.id);
+              return aId > bId ? 1 : aId < bId ? -1 : 0;
+            })
+            // Map to avatar URLs (with default fallback)
+            .map((r) =>
+              r.avatar
+                ? `https://cdn.discordapp.com/avatars/${r.id}/${r.avatar}.png`
+                : `https://cdn.discordapp.com/embed/avatars/${
+                    Number(r.id) % 5
+                  }.png`
+            );
+        }
 
         this.dbManager.createChat({
           id: channel.id,
@@ -528,6 +562,7 @@ class DiscordClient extends EventEmitter {
           name: channel.name || names,
           participant_count: channel.recipients.length + 1,
           last_message_id: channel.last_message_id,
+          avatar_url: JSON.stringify(avatars || []),
         });
 
         channel.recipients.forEach((recipient) => {
@@ -577,7 +612,7 @@ class DiscordClient extends EventEmitter {
       mentions: messageData.mentions,
       message_reference: messageData.message_reference || null,
       referenced_message: messageData.referenced_message || null,
-      sticker_items : messageData.sticker_items
+      sticker_items: messageData.sticker_items,
     });
 
     // Emit event for real-time UI update
@@ -601,10 +636,10 @@ class DiscordClient extends EventEmitter {
         timestamp: messageData.timestamp,
         is_edited: 1,
         sync_status: "synced",
-         mentions: messageData.mentions,
-      message_reference: messageData.message_reference || null,
-      referenced_message: messageData.referenced_message || null,
-      sticker_items: messageData.sticker_items
+        mentions: messageData.mentions,
+        message_reference: messageData.message_reference || null,
+        referenced_message: messageData.referenced_message || null,
+        sticker_items: messageData.sticker_items,
       });
 
       this.emit("messageUpdate", {
@@ -688,22 +723,26 @@ class DiscordClient extends EventEmitter {
 
   async getChatHistory(channelId, limit = 50, beforeMessageId = null) {
     try {
-       return await this.makeRequest({
-      path: `/api/v9/channels/${channelId}/messages?limit=${limit}${
-        beforeMessageId ? `&before=${beforeMessageId}` : ""
-      }`,
-      method: "GET",
-      channelId,
-    });
+      return await this.makeRequest({
+        path: `/api/v9/channels/${channelId}/messages?limit=${limit}${
+          beforeMessageId ? `&before=${beforeMessageId}` : ""
+        }`,
+        method: "GET",
+        channelId,
+      });
     } catch (error) {
       console.error("[Discord] getChatHistory error:", error);
       throw error;
     }
-   
   }
 
-  async sendMessage(channelId, content, attachments = [],sticker_ids=[],message_reference = null
-) {
+  async sendMessage(
+    channelId,
+    content,
+    attachments = [],
+    sticker_ids = [],
+    message_reference = null
+  ) {
     await this.checkRateLimit("message");
     await this.humanDelay();
 
@@ -715,7 +754,7 @@ class DiscordClient extends EventEmitter {
       flags: 0,
       ...(attachments?.length ? { attachments } : {}),
       ...(sticker_ids?.length ? { sticker_ids } : {}),
-       ...(message_reference ? { message_reference } : {}),
+      ...(message_reference ? { message_reference } : {}),
     };
 
     return this.makeRequest({
@@ -739,7 +778,7 @@ class DiscordClient extends EventEmitter {
     });
   }
 
-   async getStickerById(stickerId) {
+  async getStickerById(stickerId) {
     await this.checkRateLimit("general");
     await this.humanDelay();
     return this.makeRequest({
@@ -747,7 +786,7 @@ class DiscordClient extends EventEmitter {
       method: "GET",
     });
   }
-   async getStickerPacks(locale = "en-US") {
+  async getStickerPacks(locale = "en-US") {
     await this.checkRateLimit("general");
     await this.humanDelay();
     return this.makeRequest({
@@ -768,7 +807,7 @@ class DiscordClient extends EventEmitter {
     });
   }
 
-    async deleteMessages(channelId, messageId) {
+  async deleteMessages(channelId, messageId) {
     await this.checkRateLimit("general");
     await this.humanDelay();
 
@@ -779,14 +818,14 @@ class DiscordClient extends EventEmitter {
     });
   }
 
-    async updateMessages(channelId, messageId,content) {
+  async updateMessages(channelId, messageId, content) {
     await this.checkRateLimit("general");
     await this.humanDelay();
 
     return this.makeRequest({
       path: `/api/v9/channels/${channelId}/messages/${messageId}`,
       method: "PATCH",
-      data:{content},
+      data: { content },
       channelId,
     });
   }
@@ -850,10 +889,10 @@ class DiscordClient extends EventEmitter {
                   message_type: "text",
                   timestamp: parsed.timestamp,
                   sync_status: "synced",
-                   mentions: parsed.mentions,
-      message_reference: parsed.message_reference || null,
-      referenced_message: parsed.referenced_message || null,
-      sticker_items : parsed.sticker_items
+                  mentions: parsed.mentions,
+                  message_reference: parsed.message_reference || null,
+                  referenced_message: parsed.referenced_message || null,
+                  sticker_items: parsed.sticker_items,
                 });
               }
               this.emit("newMessage", {
@@ -967,7 +1006,7 @@ class DiscordClient extends EventEmitter {
   disconnect() {
     console.log("[Discord] Disconnecting...");
     this.reconnectAttempts = this.maxReconnectAttempts;
-       if (this.heartbeatInterval) {
+    if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
     }
