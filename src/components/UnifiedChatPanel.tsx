@@ -1626,16 +1626,6 @@ if(msg.platform.toLowerCase() === "discord"){
 
     const handleSend = async ({sticker=null}) => {
       console.log('[handleSend] calling send with sticker', selectedSticker)
-      // if (
-      //   !inputRef.current ||
-      //   (!inputRef.current.value.trim() && uploadedFiles.length === 0)
-      // ) {
-      //   if(selectedSticker.length<=0){
-
-      //   return;
-      // }
-
-      // }
       if (
         !inputRef.current ||
         (!inputRef.current.value.trim() && uploadedFiles.length === 0 && selectedSticker.length <= 0)
