@@ -34,6 +34,7 @@ import discord from "@/assets/images/discord.png";
 import play from "@/assets/images/play.png";
 import { PlatformStatusBadges } from "./PlatformStatusBadges";
 import ConnectTelegram from "./ConnectTelegram";
+import { useDiscordContext } from "@/context/discordContext";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -70,6 +71,7 @@ export const ChatSelection = ({
   const [chatGroupsDiscord, setChatGroupsDiscord] = useState<ChatGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { guilds } = useDiscordContext();
   // const [telegramConnected, setTelegramConnected] = useState(false);
   // const [discordConnected, setDiscordConnected] = useState(false);
 
@@ -126,9 +128,9 @@ Authorization: `Bearer ${token}` } : {},
     };
 
     const fetchDicordChats = async () =>{
-      const guilds = await window.electronAPI.discord.getGuilds();
-      console.log(guilds.data,'guildss')
-      setChatGroupsDiscord([...guilds.data]);
+      // const guilds = await window.electronAPI.discord.getGuilds();
+      console.log(guilds,'guildss')
+      setChatGroupsDiscord([...guilds]);
     }
     fetchDicordChats();
     fetchUserChats();
