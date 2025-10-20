@@ -89,7 +89,7 @@ export function mapDiscordMessageToItem(discordMsg: any): MessageItem {
     hasMedia: attachments.length > 0 || embeds.length > 0,
     media: (attachments.length > 0 || embeds.length > 0) ? [...attachments, ...embeds] : null,
     sender:{
-      id: discordMsg.user_id
+      id: discordMsg.user_id || discordMsg.author.id
     },
     link: hasLink ? discordMsg.content.match(urlRegex)?.[0] ?? null : null,
     stickerItems: discordMsg.sticker_items ?? null,

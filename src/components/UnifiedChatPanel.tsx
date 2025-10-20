@@ -37,6 +37,7 @@ import {
   MicOffIcon,
   StopCircle,
   List,
+  Sticker,
 } from "lucide-react";
 import moreIcon from "@/assets/images/moreIcon.png";
 import pinIcon from "@/assets/images/pinIcon.png";
@@ -68,6 +69,7 @@ import { matchesGlob } from "path";
 import MessageWithMentions from "./MessageWithMentions";
 import MessageWithLinkifyAndMentions from "./MessageWithMentions";
 import DiscordSticker from "./DiscordSticker";
+import StickerMenu from "./StickerMenu";
 // import Sticker from "./Sticker";
 
 
@@ -275,6 +277,31 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const { history, loadMore, loading:dcHookLoading } = useDiscordChatHistory(selectedChat?.id);
     const { generateTask } = useTaskGeneration()
     const { summarizeMessages } = useSummarizeMessage()
+    const [stickerPacks, setStickerPacks] = useState([]);
+
+    const [showStickers, setShowStickers] = useState(false);
+const [selectedSticker, setSelectedSticker] = useState([]);
+
+const handleStickerSelect = (sticker) => {
+  console.log("Selected sticker:", sticker);
+  setSelectedSticker([sticker.id])
+  handleSend({sticker:[sticker.id]})
+  // Optionally send sticker as message here
+  setShowStickers(false);
+};
+
+useEffect(() => {
+  async function fetchStickers() {
+    try {
+      const packs = await window.electronAPI.discord.getStickers("en-US");
+      console.log('packs',packs)
+      setStickerPacks(packs?.data?.sticker_packs || []);
+    } catch (err) {
+      console.error("Failed to load stickers:", err);
+    }
+  }
+  fetchStickers();
+}, []);
 
 function formatTime(dateObj) {
   if(selectedChat.platform=="discord"){
@@ -342,7 +369,7 @@ function formatTime(dateObj) {
 
     useImperativeHandle(ref, () => ({
       handleSend: (message, targetChat) => {
-        console.log("handleSend called with message:", message);
+        console.log("[handleSend] called with message:", message);
         if (targetChat) {
           selectedChat = targetChat;
         }
@@ -1597,13 +1624,25 @@ if(msg.platform.toLowerCase() === "discord"){
       return "telegram";
     };
 
-    const handleSend = async () => {
+    const handleSend = async ({sticker=null}) => {
+      console.log('[handleSend] calling send with sticker', selectedSticker)
+      // if (
+      //   !inputRef.current ||
+      //   (!inputRef.current.value.trim() && uploadedFiles.length === 0)
+      // ) {
+      //   if(selectedSticker.length<=0){
+
+      //   return;
+      // }
+
+      // }
       if (
         !inputRef.current ||
-        (!inputRef.current.value.trim() && uploadedFiles.length === 0)
+        (!inputRef.current.value.trim() && uploadedFiles.length === 0 && selectedSticker.length <= 0)
       ) {
         return;
       }
+      
       if (uploadedFiles.length > 0) {
         try {
           let index=0
@@ -1628,7 +1667,7 @@ if(msg.platform.toLowerCase() === "discord"){
               selectedChat.id,
               inputRef.current.value.trim(),
               [{id:"0", filename: fileWrapper.file.name, uploaded_filename: result.data.attachments[0].upload_filename}],
-              [],
+              sticker,
               {
                 channel_id: replyTo.channel,
                 message_id: replyTo.id
@@ -1759,10 +1798,10 @@ if(msg.platform.toLowerCase() === "discord"){
           id,
           messageText,
           [],
-          [],
-          {
-            channel_id: originalReplyTo.channel,
-            message_id: originalReplyTo.id
+          sticker,
+          originalReplyTo && {
+            channel_id: originalReplyTo?.channel,
+            message_id: originalReplyTo?.id
           }
         );
         if(!result.success){
@@ -2857,6 +2896,8 @@ useEffect(()=>{
   fetchStatus()
 },[])
 
+
+
 // console.log('dc state', userId)
     return (
       <div className="relative h-[calc(100vh-136px)] flex flex-col flex-shrink-0 min-w-0">
@@ -3865,6 +3906,7 @@ useEffect(()=>{
                     </div>
                   )}
               </div>
+              
               {audioBlob || isRecording ? (
 //       <div className="audio-preview">
 // <audio
@@ -3910,6 +3952,13 @@ useEffect(()=>{
               />
               </>)}
             </div>
+            {selectedChat.platform === "discord" && <button
+        onClick={() => setShowStickers((s) => !s)}
+        className="mr-0.5 ml-2 text-gray-400 hover:text-white"
+      >
+        <Sticker width={18} height={18}/>
+      </button>}
+            {showStickers && <StickerMenu onStickerSelect={handleStickerSelect} stickerPacks={stickerPacks} />}
             <button className="mx-2" onClick={() => setShowPicker((val) => !val)}>😊</button>
             {showPicker && (
               <div

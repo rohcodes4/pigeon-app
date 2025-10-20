@@ -230,7 +230,7 @@ function setupIPCHandlers() {
       const sticker = await discordClient.getStickerById(stickerId);
       return { success: true, data: sticker };
     } catch (error) {
-      console.error("[IPC] Get stickers error:", error);
+      console.error("[IPC] Get stickers by id error:", error);
       return { success: false, error: error.message };
     } 
   });

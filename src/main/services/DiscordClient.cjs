@@ -751,7 +751,7 @@ class DiscordClient extends EventEmitter {
     await this.checkRateLimit("general");
     await this.humanDelay();
     return this.makeRequest({
-      path: `api/v9/sticker-packs?/locale=${locale}`,
+      path: `/api/v9/sticker-packs?locale=${locale}`,
       method: "GET",
     });
   }
