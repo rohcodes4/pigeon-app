@@ -17,7 +17,8 @@
       "src/main/database/**",
       "src/main/services/**",
       "src/main/security/**",
-      "src/main/sync/**"
+      "src/main/sync/**",
+      "src/main/assets/**"
     ],
     "asarUnpack": [
       "src/main/database/**",
@@ -32,7 +33,10 @@
       }
     ],
     "extraFiles": [
-      "assets/icons/"
+       {
+        "from": "src/main/assets/icons/",
+        "to": "icons"
+      }
     ],
     "directories": {
       "buildResources": "assets/icons"
