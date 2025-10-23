@@ -146,8 +146,8 @@ function createWindow() {
 function setupTray() {
 
 const iconPath = process.env.VITE_NODE_ENV === "development"
-      ? path.join(__dirname, "assets","icons", "logo.png") // dev path
-      : path.join(process.resourcesPath, "icons", "logo.png");
+      ? path.join(__dirname, "assets","icons", "logox32.png") // dev path
+      : path.join(process.resourcesPath, "icons", "logox32.png");
   tray = new Tray(iconPath);
   const contextMenu = Menu.buildFromTemplate([
     { label: "Show", click: () => mainWindow.show() },

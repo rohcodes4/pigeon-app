@@ -30,6 +30,11 @@
       {
         "from": "node_modules/electron/dist/locales",
         "to": "locales"
+      },
+      {
+        "from": "assets/icons/",
+        "to": "icons",
+        "filter": ["logox32.png"]
       }
     ],
     "extraFiles": [
