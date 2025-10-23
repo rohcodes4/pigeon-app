@@ -41,7 +41,6 @@ import { useToggleMuteChat } from "@/hooks/discord/useToggleMuteChat";
 import { useGetMuteChatStatus } from "@/hooks/discord/useGetMuteChatStatus";
 import { useDiscordContext } from "@/context/discordContext";
 
-
 // Helper to generate a random gravatar
 const gravatarUrl = (seed: string) => {
   try {
@@ -228,7 +227,6 @@ function useScrollArrows(ref: React.RefObject<HTMLDivElement>) {
 
   return { canScrollLeft, canScrollRight, checkScroll };
 }
-  
 
 interface ChatPanelProps {
   chats?: any[]; // Define the chats prop
@@ -243,7 +241,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onChatSelect,
   selectedChat,
   selectedDiscordServer,
-  onBack
+  onBack,
 }) => {
   // Use ONLY real chats; never fall back to dummy/sample data
   const { dms, channels: dcChannel, guilds, refresh } = useDiscordContext();
@@ -284,52 +282,48 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [contextMenu, setContextMenu] = useState(null);
   const [dcChannels, setDcChannels] = useState({});
-   const [discordDms, setDiscordDms] = useState([])
+  const [discordDms, setDiscordDms] = useState([]);
   const menuRef = useRef(null);
 
-
-
-// useEffect(() => {
-//   if (isConnected) {
-//     refresh();
-//     console.log(dms,'chtpanel')
-//   }
-// }, [isConnected, refresh]);
+  // useEffect(() => {
+  //   if (isConnected) {
+  //     refresh();
+  //     console.log(dms,'chtpanel')
+  //   }
+  // }, [isConnected, refresh]);
   // Close on mouse leave from menu
   const handleMenuMouseLeave = () => {
     closeContextMenu();
   };
   useEffect(() => {
-  // console.log("Context updated:", { dms, guilds });
-  setDiscordDms(dms)
+    // console.log("Context updated:", { dms, guilds });
+    setDiscordDms(dms);
 
+    // console.log("[localguild][localStorage] parsed:", parsed);
+    const tempDCchannel = {};
+    if (Array.isArray(guilds) && guilds.length > 0) {
+      guilds.forEach((guild) => {
+        if (guild.channels && Array.isArray(guild.channels)) {
+          tempDCchannel[guild.id] = guild.channels;
+        }
+      });
 
-      // console.log("[localguild][localStorage] parsed:", parsed);
-const tempDCchannel={}
-      if (Array.isArray(guilds) && guilds.length>0) {
-        guilds.forEach(guild => {
-          if (guild.channels && Array.isArray(guild.channels)) {
-            tempDCchannel[guild.id] = guild.channels;
-          }
-        });
+      setDcChannels(tempDCchannel);
+    }
+    setAllChannels((prevChannels) => {
+      // Combine old + new
+      const merged = [...prevChannels, ...dms.map(mapDiscordToTelegramSchema)];
 
-        setDcChannels(tempDCchannel)
-      }
-      setAllChannels((prevChannels) => {
-  // Combine old + new
-  const merged = [...prevChannels, ...dms.map(mapDiscordToTelegramSchema)];
+      // console.log(merged)
+      // Remove duplicates based on `id`
+      const unique = merged.filter(
+        (channel, index, self) =>
+          index === self.findIndex((c) => c.id === channel.id)
+      );
 
-  // console.log(merged)
-  // Remove duplicates based on `id`
-  const unique = merged.filter(
-    (channel, index, self) =>
-      index === self.findIndex((c) => c.id === channel.id)
-  );
-
-  return unique.filter((c) => c.id != null);
-});
-    
-}, [dms, guilds]);
+      return unique.filter((c) => c.id != null);
+    });
+  }, [dms, guilds]);
 
   const handleRightClick = (event, channel) => {
     event.preventDefault();
@@ -383,24 +377,28 @@ const tempDCchannel={}
     }
     closeContextMenu();
   };
-  const { toggleMuteChat } =useToggleMuteChat()
-  const { fetchMuteStatus } =useGetMuteChatStatus()
+  const { toggleMuteChat } = useToggleMuteChat();
+  const { fetchMuteStatus } = useGetMuteChatStatus();
 
-  const [isMuted, setisMuted] = useState(false)
-  useEffect(()=>{
-   async function checkMute(){
-    let mute = await fetchMuteStatus(contextMenu.channel.id)
-    setisMuted(mute)
-   }
-   checkMute()
-  },[contextMenu])
+  const [isMuted, setisMuted] = useState(false);
+  useEffect(() => {
+    async function checkMute() {
+      let mute = await fetchMuteStatus(contextMenu.channel.id);
+      setisMuted(mute);
+    }
+    checkMute();
+  }, [contextMenu]);
   const handleMuteChat = async () => {
     if (contextMenu) {
       // console.log("Mute Chat clicked for channel", contextMenu.channel);
       // Add your Mute Chat logic here
-      let mute = await fetchMuteStatus(contextMenu.channel.id)
+      let mute = await fetchMuteStatus(contextMenu.channel.id);
       // console.log('mute stat', !mute)
-      toggleMuteChat(contextMenu.channel.id,contextMenu.channel.platform.toLowerCase(),!mute)
+      toggleMuteChat(
+        contextMenu.channel.id,
+        contextMenu.channel.platform.toLowerCase(),
+        !mute
+      );
     }
     closeContextMenu();
   };
@@ -436,19 +434,16 @@ const tempDCchannel={}
   }, []);
 
   // Inside your ChatPanel or the top-level channel context/provider
-useEffect(() => {
-  // Try to restore channels from localStorage first for instant render
-  
-}, []);
+  useEffect(() => {
+    // Try to restore channels from localStorage first for instant render
+  }, []);
 
-useEffect(() => {
-  if (allChannels) {
-    // Save channels to localStorage whenever new data is fetched/updated
-    // localStorage.setItem('channels', JSON.stringify(allChannels));
-  }
-}, [allChannels]);
-
-
+  useEffect(() => {
+    if (allChannels) {
+      // Save channels to localStorage whenever new data is fetched/updated
+      // localStorage.setItem('channels', JSON.stringify(allChannels));
+    }
+  }, [allChannels]);
 
   useEffect(() => {
     // Save topItems to localStorage whenever it changes
@@ -467,40 +462,43 @@ useEffect(() => {
           },
         }
       );
-     if (resp.ok) {
-  const chats = await resp.json();
-  const chans = chats.chats || [];
+      if (resp.ok) {
+        const chats = await resp.json();
+        const chans = chats.chats || [];
 
-  // Map Discord DMs to unified format
-  const discordChats = (discordDms || [])
-    .map(mapDiscordToTelegramSchema)
-    .filter((c: any) => c?.id != null);
+        // Map Discord DMs to unified format
+        const discordChats = (discordDms || [])
+          .map(mapDiscordToTelegramSchema)
+          .filter((c: any) => c?.id != null);
 
-  // Sort Discord chats (most recent first)
-  discordChats.sort((a, b) => Number(b.id) - Number(a.id));
+        // Sort Discord chats (most recent first)
+        discordChats.sort((a, b) => Number(b.id) - Number(a.id));
 
-  // Merge Telegram + Discord chats
-  const allChats = [...chans, ...discordChats].filter((c: any) => c?.id != null);
+        // Merge Telegram + Discord chats
+        const allChats = [...chans, ...discordChats].filter(
+          (c: any) => c?.id != null
+        );
 
-  // ✅ Update state by preserving previous and avoiding duplicates
-  setAllChannels((prevChannels) => {
-    const map = new Map();
+        // ✅ Update state by preserving previous and avoiding duplicates
+        setAllChannels((prevChannels) => {
+          const map = new Map();
 
-    // Add previous channels first
-    prevChannels.forEach((ch) => {
-      if (ch?.id != null) map.set(ch.id, ch);
-    });
+          // Add previous channels first
+          prevChannels.forEach((ch) => {
+            if (ch?.id != null) map.set(ch.id, ch);
+          });
 
-    // Then add new channels (overwrite old if same id)
-    allChats.forEach((ch) => {
-      if (ch?.id != null) map.set(ch.id, ch);
-    });
+          // Then add new channels (overwrite old if same id)
+          allChats.forEach((ch) => {
+            if (ch?.id != null) map.set(ch.id, ch);
+          });
 
-    // Convert map to array and sort (descending by ID)
-    return Array.from(map.values()).sort((a, b) => Number(b.id) - Number(a.id));
-  });
-}
-
+          // Convert map to array and sort (descending by ID)
+          return Array.from(map.values()).sort(
+            (a, b) => Number(b.id) - Number(a.id)
+          );
+        });
+      }
     } catch (_) {
       // ignore
     }
@@ -682,11 +680,17 @@ useEffect(() => {
   // Backend already sorts chats consistently by messages first, then by name
   const sortedDisplayChats = [
     ...(allChannels || displayChats || [])
-      .filter(chat => chat?.isPinned || chat?.pinned)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+      .filter((chat) => chat?.isPinned || chat?.pinned)
+      .sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      ),
     ...(allChannels || displayChats || [])
-      .filter(chat => !chat?.isPinned && !chat?.pinned)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+      .filter((chat) => !chat?.isPinned && !chat?.pinned)
+      .sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      ),
   ];
   // console.log('sortedDisplayChats',sortedDisplayChats)
 
@@ -956,16 +960,15 @@ useEffect(() => {
   const handleGenerateSummary = () => {
     setOpenSummary(true); // open modal
   };
-  
+
   const prevLastMessages = useRef({});
-  const [firstLoad, setFirstLoad] = useState(true)
+  const [firstLoad, setFirstLoad] = useState(true);
   useEffect(() => {
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission();
     }
   }, []);
 
-  
   useEffect(() => {
     if (firstLoad) {
       // Just initialize prevLastMessages on first load. No notification or sound.
@@ -976,13 +979,20 @@ useEffect(() => {
       return;
     }
 
-    
     allChannels.forEach((channel) => {
       const prevMessage = prevLastMessages.current[channel.id];
-      if (prevMessage && channel.last_message && prevMessage !== channel.last_message) {
+      if (
+        prevMessage &&
+        channel.last_message &&
+        prevMessage !== channel.last_message
+      ) {
         // last_message changed for this channel, trigger notification
-        if (channel.last_message && channel.unread && !(channel.last_message.toLowerCase().includes("typing"))) {
-          playBeepSound();  
+        if (
+          channel.last_message &&
+          channel.unread &&
+          !channel.last_message.toLowerCase().includes("typing")
+        ) {
+          playBeepSound();
           new Notification("New message", {
             body: `New message in ${channel.name}: ${channel.last_message}`,
           });
@@ -993,35 +1003,38 @@ useEffect(() => {
     });
   }, [allChannels]);
   const playBeepSound = () => {
-   try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-  
-    oscillator.type = "sawTooth"; // type of wave: sine, square, sawtooth, triangle
-    oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // 440 Hz is standard A note
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-  
-    oscillator.start();
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.4);
-    oscillator.stop(audioCtx.currentTime + 0.4);
-   } catch (error) {
-    // console.log('beep error: ',error)
-   }
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.type = "sawTooth"; // type of wave: sine, square, sawtooth, triangle
+      oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // 440 Hz is standard A note
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      oscillator.start();
+      gainNode.gain.exponentialRampToValueAtTime(
+        0.0001,
+        audioCtx.currentTime + 0.4
+      );
+      oscillator.stop(audioCtx.currentTime + 0.4);
+    } catch (error) {
+      // console.log('beep error: ',error)
+    }
   };
   function groupChannelsFlat(channels) {
     const channelMap = new Map();
     const roots = [];
     const orphans = [];
-  
+
     // Initialize map entries
-    channels.forEach(channel => {
+    channels.forEach((channel) => {
       channel.children = [];
       channelMap.set(channel.id, channel);
     });
-  
-    channels.forEach(channel => {
+
+    channels.forEach((channel) => {
       if (channel.parent_id && channelMap.has(channel.parent_id)) {
         // Add to parent's children if parent exists
         channelMap.get(channel.parent_id).children.push(channel);
@@ -1033,7 +1046,7 @@ useEffect(() => {
         // orphans.push(channel);
       }
     });
-  
+
     // Return roots followed by orphan channels at the end
     return [...roots, ...orphans];
   }
@@ -1041,31 +1054,46 @@ useEffect(() => {
   const RenderChannels = ({ channels }) => {
     return (
       <ul>
-        {channels.map(channel => {
-          if(channel.type === 2) return;
-          return(
-          <li key={channel.id} className={`${channel.type===4?"mt-4":""}`} >
-            <div onClick={()=>{
-              if(channel.type===4) return;
-            onChatSelect({id:channel.id,platform:'discord',name:channel.name,photo_url:`https://cdn.discordapp.com/icons/${selectedServer.id}/${selectedServer.icon}.png`});
-            setSelectedId(channel.id)  
-          }}
-          className="hover:bg-[#212121] cursor-pointer px-4 py-2 rounded-[12px]">              
-              {channel.type === 4 && <strong className="flex gap-2">{channel.name}<ChevronRight/></strong>}
-              {channel.type === 0 && <># {channel.name}</>}
-              {channel.type === 15 && <>📝 {channel.name}</>}
-              {!([0, 2, 4, 15].includes(channel.type)) && channel.name}
-            </div>
-            {channel.children && channel.children.length > 0 && (
-              <RenderChannels channels={channel.children} />
-            )}
-          </li>
-        )}
-        )}
+        {channels.map((channel) => {
+          if (channel.type === 2) return;
+          return (
+            <li
+              key={channel.id}
+              className={`${channel.type === 4 ? "mt-4" : ""}`}
+            >
+              <div
+                onClick={() => {
+                  if (channel.type === 4) return;
+                  onChatSelect({
+                    id: channel.id,
+                    platform: "discord",
+                    name: channel.name,
+                    photo_url: `https://cdn.discordapp.com/icons/${selectedServer.id}/${selectedServer.icon}.png`,
+                  });
+                  setSelectedId(channel.id);
+                }}
+                className="hover:bg-[#212121] cursor-pointer px-4 py-2 rounded-[12px]"
+              >
+                {channel.type === 4 && (
+                  <strong className="flex gap-2">
+                    {channel.name}
+                    <ChevronRight />
+                  </strong>
+                )}
+                {channel.type === 0 && <># {channel.name}</>}
+                {channel.type === 15 && <>📝 {channel.name}</>}
+                {![0, 2, 4, 15].includes(channel.type) && channel.name}
+              </div>
+              {channel.children && channel.children.length > 0 && (
+                <RenderChannels channels={channel.children} />
+              )}
+            </li>
+          );
+        })}
       </ul>
     );
   };
-  
+
   const discordChannels = dcChannels[selectedDiscordServer] || [];
   // const grouped = groupChannels(discordChannels);
   // const headingIds = grouped.filter(c => c.type === 4).map(c => c.id);
@@ -1073,64 +1101,74 @@ useEffect(() => {
   // const toggle = (id) => setOpen((prev) => ({ ...prev, [id]: !prev[id] }));
   // const sortedChannels = [...discordChannels].sort((a, b) => a.position - b.position);
   const sortedChannels = groupChannelsFlat(discordChannels);
-  const headingIds = sortedChannels.filter(c => c.type === 4).map(c => c.id);
-  const [open, setOpen] = useState(headingIds.reduce((acc, id) => ({ ...acc, [id]: true }), {}));
-  const [selectedServer, setSelectedServer] = useState({})
+  const headingIds = sortedChannels
+    .filter((c) => c.type === 4)
+    .map((c) => c.id);
+  const [open, setOpen] = useState(
+    headingIds.reduce((acc, id) => ({ ...acc, [id]: true }), {})
+  );
+  const [selectedServer, setSelectedServer] = useState({});
 
-  const getSelectedServer = (selectedDiscordServer) =>{
+  const getSelectedServer = (selectedDiscordServer) => {
     const cachedGuilds = localStorage.getItem("discordGuilds");
     // console.log("[localguild][localStorage] raw:", cachedGuilds);
-  
+
     if (cachedGuilds) {
       try {
         const parsed = JSON.parse(cachedGuilds);
-        const filtered = parsed.filter((guild)=>{
-          return String(guild.id) == String(selectedDiscordServer)
-        })
+        const filtered = parsed.filter((guild) => {
+          return String(guild.id) == String(selectedDiscordServer);
+        });
 
         // console.log('ssss',filtered[0])
-        setSelectedServer(filtered[0])
-        return filtered[0]
-      }catch{
-        return []
+        setSelectedServer(filtered[0]);
+        return filtered[0];
+      } catch {
+        return [];
       }
     }
-  }
+  };
 
-  useEffect(()=>{
-    getSelectedServer(selectedDiscordServer)
-  },[
-    selectedDiscordServer
-  ])
-// console.log('sss',selectedServer)
+  useEffect(() => {
+    getSelectedServer(selectedDiscordServer);
+  }, [selectedDiscordServer]);
+  // console.log('sss',selectedServer)
 
-if (selectedDiscordServer && sortedChannels.length>0) {
+  if (selectedDiscordServer && sortedChannels.length > 0) {
     return (
       <div className="h-[calc(100vh-73px)] min-w-[350px] p-3 flex flex-col border-r border-[#23272f] bg-[#111111]">
-      <button
-        onClick={()=>{onBack();onChatSelect("all-channels");setSelectedId("all-channels")}}
-        className="mb-4 bg-gray-800 hover:bg-gray-700 text-white py-1 px-3 rounded"
-      >
-        &larr; Back to Chats
-      </button>
-      <h3 className="mb-3 text-lg font-bold">{selectedServer?.name}</h3>
-      <div className="overflow-y-scroll h-full">
-        {selectedServer?.banner && <img className="max-w-[320px] rounded-t-[12px]"
-         src={`https://cdn.discordapp.com/banners/${selectedServer?.id}/${selectedServer?.banner}.webp?size=320`}/>}
-      <h3 className="mb-3 text-lg font-bold">Channels</h3>
-      <RenderChannels channels={sortedChannels}/>
-     </div>
-      {/* <ul>
+        <button
+          onClick={() => {
+            onBack();
+            onChatSelect("all-channels");
+            setSelectedId("all-channels");
+          }}
+          className="mb-4 bg-gray-800 hover:bg-gray-700 text-white py-1 px-3 rounded"
+        >
+          &larr; Back to Chats
+        </button>
+        <h3 className="mb-3 text-lg font-bold">{selectedServer?.name}</h3>
+        <div className="overflow-y-scroll h-full">
+          {selectedServer?.banner && (
+            <img
+              className="max-w-[320px] rounded-t-[12px]"
+              src={`https://cdn.discordapp.com/banners/${selectedServer?.id}/${selectedServer?.banner}.webp?size=320`}
+            />
+          )}
+          <h3 className="mb-3 text-lg font-bold">Channels</h3>
+          <RenderChannels channels={sortedChannels} />
+        </div>
+        {/* <ul>
         {discordChannels.map((channel) => (
           <li key={channel.id} className="py-2 pl-2 cursor-pointer rounded-[12px] hover:bg-[#212121]">
             # {channel.name}
           </li>
         ))}
       </ul> */}
-    </div>
+      </div>
     );
   }
-// console.log('channelsToShow: ',channelsToShow)
+  // console.log('channelsToShow: ',channelsToShow)
   return (
     <>
       {filterFull ? (
@@ -1646,96 +1684,99 @@ if (selectedDiscordServer && sortedChannels.length>0) {
                       </div>
                     ) : (
                       channelsToShow.map((chat) => {
-                        const isPinned = chat.isPinned;                          
-                        return(
-                        <div key={chat.id}>
-                          {contextMenu && (
-                            <ul
-                              ref={menuRef}
-                              onMouseLeave={handleMenuMouseLeave}
-                              style={{
-                                position: "fixed",
-                                top: contextMenu.y,
-                                left: contextMenu.x,
-                                backgroundColor: "#111111",
-                                borderRadius: "10px",
-                                listStyle: "none",
-                                padding: "8px",
-                                zIndex: 1000,
-                                minWidth: "120px",
-                              }}
-                              className="shadow-lg border border-[#ffffff12]"
-                            >
-                              <li
-                                onClick={handleReadAll}
-                                className="cursor-pointer flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+                        const isPinned = chat.isPinned;
+                        return (
+                          <div key={chat.id}>
+                            {contextMenu && (
+                              <ul
+                                ref={menuRef}
+                                onMouseLeave={handleMenuMouseLeave}
+                                style={{
+                                  position: "fixed",
+                                  top: contextMenu.y,
+                                  left: contextMenu.x,
+                                  backgroundColor: "#111111",
+                                  borderRadius: "10px",
+                                  listStyle: "none",
+                                  padding: "8px",
+                                  zIndex: 1000,
+                                  minWidth: "120px",
+                                }}
+                                className="shadow-lg border border-[#ffffff12]"
                               >
-                                <CheckCheck className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
-                                Read All
-                              </li>
-                              <li
-                                onClick={handleMuteChat}
-                                className="cursor-pointer flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#f36363] hover:text-[#f36363] whitespace-nowrap"
-                              >
-                                <VolumeX
-                                  className="w-6 h-6"
-                                  stroke="currentColor"
-                                  fill="currentColor"
-                                />
-                                {isMuted?"Unmute Chat":"Mute Chat"}
-                              </li>
-                              <li
-                                onClick={handlePinChat}
-                                className="cursor-pointer flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
-                              >
-                                <PinIcon
-                                  className="w-6 h-6 text-[#ffffff]"
-                                />
-                                
-                                {isPinned}
-                                {isPinned?"Remove Pin":"Pin Chat"}
-                              </li>
-                            </ul>
-                          )}
-                          <button
-                            key={chat.id}
-                            onContextMenu={(e) => handleRightClick(e, chat)}
-                            style={{ cursor: "pointer" }}
-                            className={
-                              `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
-                              (selectedId === chat.id
-                                ? "bg-[#212121] selected-chat "
-                                : "hover:bg-[#212121] focus:bg-[#212121] ") +
-                              (selectedId !== chat.id && !chat.read
-                                ? "unread-chat "
-                                : "")
-                            }
-                            onClick={() => {
-                              setSelectedId(chat.id);
-                              if (onChatSelect && selectedServer) {
-                                onChatSelect({...chat, photo_url:`https://cdn.discordapp.com/icons/${selectedServer.id}/${selectedServer.icon}.png`});
-                              } else {
-                                onChatSelect(chat)
+                                <li
+                                  onClick={handleReadAll}
+                                  className="cursor-pointer flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+                                >
+                                  <CheckCheck className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
+                                  Read All
+                                </li>
+                                <li
+                                  onClick={handleMuteChat}
+                                  className="cursor-pointer flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#f36363] hover:text-[#f36363] whitespace-nowrap"
+                                >
+                                  <VolumeX
+                                    className="w-6 h-6"
+                                    stroke="currentColor"
+                                    fill="currentColor"
+                                  />
+                                  {isMuted ? "Unmute Chat" : "Mute Chat"}
+                                </li>
+                                <li
+                                  onClick={handlePinChat}
+                                  className="cursor-pointer flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+                                >
+                                  <PinIcon className="w-6 h-6 text-[#ffffff]" />
+
+                                  {isPinned}
+                                  {isPinned ? "Remove Pin" : "Pin Chat"}
+                                </li>
+                              </ul>
+                            )}
+                            <button
+                              key={chat.id}
+                              onContextMenu={(e) => handleRightClick(e, chat)}
+                              style={{ cursor: "pointer" }}
+                              className={
+                                `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
+                                (selectedId === chat.id
+                                  ? "bg-[#212121] selected-chat "
+                                  : "hover:bg-[#212121] focus:bg-[#212121] ") +
+                                (selectedId !== chat.id && !chat.read
+                                  ? "unread-chat "
+                                  : "")
                               }
-                            }}
-                          >
-                            {/* Avatar */}
-                            <div className="relative">
-                              <ChatAvatar
-                                name={chat.name || chat.first_name}
-                                avatar={
-                                  chat.photo_url ||
-                                  `${BACKEND_URL}/chat_photo/${chat.chat_id}`
+                              onClick={() => {
+                                setSelectedId(chat.id);
+                                if (onChatSelect && selectedServer) {
+                                  onChatSelect({
+                                    ...chat,
+                                    photo_url: `https://cdn.discordapp.com/icons/${selectedServer.id}/${selectedServer.icon}.png`,
+                                  });
+                                } else {
+                                  onChatSelect(chat);
                                 }
-                                backupAvatar={`${BACKEND_URL}/contact_photo/${chat.chat_id}`}
-                              />
-                              <img
-                                src={
-                                  chat.platform === "discord"
-                                    ? discord
-                                    : telegram
-                                }
-                                className={`
+                              }}
+                            >
+                              {/* Avatar */}
+                              <div className="relative">
+                                <ChatAvatar
+                                  name={chat.name || chat.first_name}
+                                  avatar={
+                                    Array.isArray(chat.photo_url)
+                                      ? chat.photo_url
+                                      : chat.photo_url ||
+                                        `${BACKEND_URL}/chat_photo/${chat.chat_id}`
+                                  }
+                                  backupAvatar={`${BACKEND_URL}/contact_photo/${chat.chat_id}`}
+                                />
+                                <img
+                                  src={
+                                    chat.platform === "discord"
+                                      ? discord
+                                      : telegram
+                                  }
+                                  className={`
                             absolute -bottom-2 -right-1
                             ${
                               chat.platform === "discord"
@@ -1744,62 +1785,74 @@ if (selectedDiscordServer && sortedChannels.length>0) {
                             }
                             rounded-[4px] w-5 h-5 p-1 border-2 border-[#111111]
                           `}
-                                alt={chat.platform}
-                              />
-                            </div>
-                            {/* Chat Info */}
-                            <div className="flex-1 text-left">
-                              <div className="flex justify-between items-center">
-                                <span className="text-[#ffffff48] font-200 flex items-center gap-1">
-                                  {chat.platform === "discord" ? (
-                                    <FaDiscord className="text-[#7b5cfa]" />
-                                  ) : (
-                                    <FaTelegramPlane className="text-[#3474ff]" />
-                                  )}
-                                  <span className="line-clamp-1">{chat.name || chat.username}</span>
+                                  alt={chat.platform}
+                                />
+                              </div>
+                              {/* Chat Info */}
+                              <div className="flex-1 text-left">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[#ffffff48] font-200 flex items-center gap-1">
+                                    {chat.platform === "discord" ? (
+                                      <FaDiscord className="text-[#7b5cfa]" />
+                                    ) : (
+                                      <FaTelegramPlane className="text-[#3474ff]" />
+                                    )}
+                                    <span className="line-clamp-1">
+                                      {chat.name || chat.username}
+                                    </span>
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm text-[#ffffff32] font-100 line-clamp-1">
+                                    {chat.is_typing
+                                      ? "Typing..."
+                                      : chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
+                                      ? chat.lastMessage.slice(0, 23) + "..."
+                                      : chat.lastMessage}
+                                    {chat.lastMessage == "" ? (
+                                      <>
+                                        <LucideFileImage
+                                          fill="#000"
+                                          stroke="#fff"
+                                          strokeWidth={"1px"}
+                                          height={20}
+                                        />
+                                      </>
+                                    ) : (
+                                      ""
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="self-end text-xs text-gray-400">
+                                  {/* {console.log('Raw chat.timestamp:', chat.timestamp, 'Type:', typeof chat.timestamp)} */}
+                                  {formatChatTime(chat.timestamp)}
                                 </span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-[#ffffff32] font-100 line-clamp-1">
-                                  {chat.is_typing
-                                    ? "Typing..."
-                                    : chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
-                                    ? chat.lastMessage.slice(0, 23) + "..."
-                                    : chat.lastMessage}
-                                    {chat.lastMessage==""?(<>
-                                    <LucideFileImage fill="#000" stroke="#fff" strokeWidth={"1px"} height={20}/>
-                                    </>):''}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex flex-col items-center gap-1">
-                              <span className="self-end text-xs text-gray-400">
-                                {/* {console.log('Raw chat.timestamp:', chat.timestamp, 'Type:', typeof chat.timestamp)} */}
-                                {formatChatTime(chat.timestamp)}
-                              </span>
-                              <div className="flex items-center gap-1">
-                                {chat.isPinned && (
-                                  <Pin className="w-5 h-5 text-[#fafafa40] fill-[#fafafa60] ml-1" />
-                                )}
-                                {!chat.read &&
-                                  chat.unread &&
-                                  chat.unread > 0 && (
-                                    <div
-                                      className={`rounded-full min-w-6 w-max px-1 h-6 text-xs flex items-center justify-center text-center ${
-                                        chat.platform === "Telegram"
-                                          ? "bg-[#3474ff]"
-                                          : "bg-[#7b5cfa]"
-                                      }`}
-                                    >
-                                      {/* <span>{formatUnreadCount(chat.unread)}</span> */}
-                                      <span>{chat.unread}</span>
-                                    </div>
+                                <div className="flex items-center gap-1">
+                                  {chat.isPinned && (
+                                    <Pin className="w-5 h-5 text-[#fafafa40] fill-[#fafafa60] ml-1" />
                                   )}
+                                  {!chat.read &&
+                                    chat.unread &&
+                                    chat.unread > 0 && (
+                                      <div
+                                        className={`rounded-full min-w-6 w-max px-1 h-6 text-xs flex items-center justify-center text-center ${
+                                          chat.platform === "Telegram"
+                                            ? "bg-[#3474ff]"
+                                            : "bg-[#7b5cfa]"
+                                        }`}
+                                      >
+                                        {/* <span>{formatUnreadCount(chat.unread)}</span> */}
+                                        <span>{chat.unread}</span>
+                                      </div>
+                                    )}
+                                </div>
                               </div>
-                            </div>
-                          </button>
-                        </div>
-                      )})
+                            </button>
+                          </div>
+                        );
+                      })
                     )}
 
                     {/* Show More button for channels */}
@@ -1848,7 +1901,11 @@ if (selectedDiscordServer && sortedChannels.length>0) {
           />
         </aside>
       )}
-      <Dialog open={openSummary} onOpenChange={setOpenSummary} className="min-w-[700px] max-w-[900px]">
+      <Dialog
+        open={openSummary}
+        onOpenChange={setOpenSummary}
+        className="min-w-[700px] max-w-[900px]"
+      >
         <DialogContent className="p-0 rounded-[10px] border-0 min-w-[700px] max-w-[900px]">
           {/* Trigger fetchSummary as soon as modal opens */}
           {openSummary && <SmartSummary autoFetch={true} />}
