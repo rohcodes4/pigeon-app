@@ -111,7 +111,7 @@ export function mapDiscordToTelegramSchema(d: any) {
     last_seen: null,
     last_ts:  snowflakeToDate(d.last_message_id)  || d.last_message_id,
     name: d.name || "Unknown",
-    photo_url: d.avatar_url || null,
+    photo_url:d.type=="dm"? d.avatar_url || null : safeParse(d.avatar_url),
     platform: "discord",
     read: true, // Discord object doesn’t have read status
     summary: d.description || "",

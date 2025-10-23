@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain,Tray, Menu } = require("electron");
 const path = require("path");
 require("dotenv").config();
 
@@ -13,6 +13,7 @@ let dbManager;
 let discordClient;
 let securityManager;
 let syncManager;
+let tray = null;
 
 // Store all renderer windows for broadcasting
 const rendererWindows = new Set();
@@ -128,7 +129,12 @@ function createWindow() {
     const indexPath = path.join(__dirname, '..', '..', 'dist', 'index.html');
     mainWindow.loadFile(indexPath);
   }
-
+ mainWindow.on("close", (event) => {
+    if (!app.isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
   mainWindow.on("closed", () => {
     rendererWindows.delete(mainWindow);
     mainWindow = null;
@@ -137,6 +143,29 @@ function createWindow() {
   setupIPCHandlers();
 }
 
+function setupTray() {
+
+const iconPath = process.env.VITE_NODE_ENV === "development"
+      ? path.join(__dirname, "assets","icons", "logox32.png") // dev path
+      : path.join(process.resourcesPath, "icons", "logox32.png");
+  tray = new Tray(iconPath);
+  const contextMenu = Menu.buildFromTemplate([
+    { label: "Show", click: () => mainWindow.show() },
+    { label: "Quit", click: () => {
+        app.isQuitting = true;
+        if (syncManager) syncManager.stopPeriodicSync();
+        if (discordClient) discordClient.disconnect();
+        app.quit();
+      }
+    }
+  ]);
+  tray.setToolTip("Pigeon");
+  tray.setContextMenu(contextMenu);
+
+  tray.on("double-click", () => {
+    if (mainWindow) mainWindow.show();
+  });
+}
 function setupIPCHandlers() {
   // Discord authentication
   ipcMain.handle("discord:open-login", async () => {
@@ -632,17 +661,23 @@ ipcMain.on("send-discord-token", async (event, token) => {
 app.whenReady().then(async () => {
   await initializeApp();
   createWindow();
-
+  setupTray();
   if (syncManager) {
     syncManager.startPeriodicSync();
   }
 });
 
-app.on("window-all-closed", () => {
+// app.on("window-all-closed", () => {
+//   if (process.platform !== "darwin") {
+//     if (syncManager) syncManager.stopPeriodicSync();
+//     if (discordClient) discordClient.disconnect();
+//     app.quit();
+//   }
+// });
+app.on("window-all-closed", (event) => {
+  event.preventDefault();
   if (process.platform !== "darwin") {
-    if (syncManager) syncManager.stopPeriodicSync();
-    if (discordClient) discordClient.disconnect();
-    app.quit();
+    if (mainWindow) mainWindow.hide();
   }
 });
 
@@ -651,6 +686,7 @@ app.on("activate", () => {
 });
 
 app.on("before-quit", async () => {
+   app.isQuitting = true;
    if (dbManager) {
     try {
       console.log("[DB] Flushing WAL and closing app quit...");

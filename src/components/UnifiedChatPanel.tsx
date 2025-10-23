@@ -1624,7 +1624,7 @@ if(msg.platform.toLowerCase() === "discord"){
       return "telegram";
     };
 
-    const handleSend = async ({sticker=null}) => {
+    const handleSend = async ({ sticker = null } = {}) => {
       console.log('[handleSend] calling send with sticker', selectedSticker)
       if (
         !inputRef.current ||
