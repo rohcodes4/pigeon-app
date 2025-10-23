@@ -121,6 +121,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getChats: () => ipcRenderer.invoke("db:get-chats"),
     getMessages: (chatId, limit, offset) =>
       ipcRenderer.invoke("db:get-messages", { chatId, limit, offset }),
+    getMessagesForSummary: (chatId, timeRange) =>
+       ipcRenderer.invoke("db:get-messages-for-summary", {chatId, timeRange}),
     getSettings: () => ipcRenderer.invoke("app:get-settings"),
     updateSettings: (settings) =>
       ipcRenderer.invoke("app:update-settings", settings)

@@ -61,7 +61,7 @@ import { mapToFullChat } from "@/lib/utils";
 import AudioWaveform from "./AudioWaveForm";
 import LiveAudioWaveform from "./LiveAudioWaveForm";
 import { timeStamp } from "console";
-import { useDiscordChatHistory, useDiscordConnectionStatus, useDiscordMessages } from "@/hooks/useDiscord";
+import { useChatMessagesForSummary, useDiscordChatHistory, useDiscordConnectionStatus, useDiscordMessages } from "@/hooks/useDiscord";
 import { isHistoryFetched, setHistoryFetched } from "@/store/discordHistoreStore";
 import { useTaskGeneration } from "@/hooks/discord/useTaskGeneration";
 import { useSummarizeMessage } from "@/hooks/discord/useSummarizeMessage";
@@ -275,6 +275,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const hasFetchedFirstMessages = useRef(false);
     const [enlargedMedia, setEnlargedMedia] = useState(null);
     const { history, loadMore, loading:dcHookLoading } = useDiscordChatHistory(selectedChat?.id);
+    const {messages:messageForSummary} = useChatMessagesForSummary(selectedChat?.id,"24h")
     const { generateTask } = useTaskGeneration()
     const { summarizeMessages } = useSummarizeMessage()
     const [stickerPacks, setStickerPacks] = useState([]);
@@ -289,6 +290,10 @@ const handleStickerSelect = (sticker) => {
   // Optionally send sticker as message here
   setShowStickers(false);
 };
+
+useEffect(()=>{
+  console.log("fetching summary chats", messageForSummary)
+},[messageForSummary])
 
 useEffect(() => {
   async function fetchStickers() {

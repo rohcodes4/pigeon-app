@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import ChatAvatar from "./ChatAvatar";
 import { useSummarizeMessage } from "@/hooks/discord/useSummarizeMessage";
-import { useDiscordChatHistory, useDiscordMessages } from "@/hooks/useDiscord";
+import { useChatMessagesForSummary, useDiscordChatHistory, useDiscordMessages } from "@/hooks/useDiscord";
 import { mapDiscordMessageToItem } from "@/lib/utils";
 
 const TIME_OPTIONS = [
@@ -106,7 +106,8 @@ async function fetchChatSummary({
   limit = 20,
   selectedChat,
   summarizeMessages,
-  messagesList
+  messagesList,
+  autoFetch=false
 }: {
   chat_id: number;
   hours?: number;
@@ -114,6 +115,7 @@ async function fetchChatSummary({
   selectedChat: any;
   summarizeMessages?: any;
   messagesList?: any;
+  autoFetch?:boolean
 }) {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const token = localStorage.getItem("access_token");
@@ -130,7 +132,7 @@ async function fetchChatSummary({
   }
   if (limit !== undefined) params.append("limit", limit.toString());
 
-  if(selectedChat.platform =="discord"){
+  if(selectedChat?.platform =="discord" ||autoFetch){
     let summary = summarizeMessages(messagesList,true,"discord");
     return summary;
   }
@@ -346,8 +348,9 @@ const SmartSummary = ({
   const [tasksLoading, setTasksLoading] = useState(false);
   const [mentionsLoading, setMentionsLoading] = useState(false);
   const { summarizeMessages } = useSummarizeMessage()
-  const { messagesList } = useDiscordMessages(selectedChat.id)
-  const{ history } = useDiscordChatHistory(selectedChat.id)
+  const { messagesList } = useDiscordMessages(selectedChat?.id)
+  const{ history } = useDiscordChatHistory(selectedChat?.id)
+   const {messages:discordMessagesforSummary,refresh} = useChatMessagesForSummary(selectedChat?.id,selectedTime.value)
 
   const handleTaskSelection = (taskId) => {
     setSelectedTaskIds((prev) => {
@@ -360,6 +363,10 @@ const SmartSummary = ({
       return newSet;
     });
   };
+
+  useEffect(()=>{
+     console.log(discordMessagesforSummary,"timebased smmary messages")
+  },[selectedChat?.id, selectedTime,discordMessagesforSummary])
 
   const handleMarkSelectedComplete = async () => {
     if (selectedTaskIds.size === 0) return;
@@ -419,10 +426,10 @@ const SmartSummary = ({
   const handleGenerateSummary = async (timeOption = selectedTime) => {
     setSummaryLoading(true);
     try {
-      if(selectedChat.platform === "discord") {
+      if(selectedChat?.platform === "discord" || autoFetch) {
         runSummary()
         return;
-      };
+      }
       let summary;
 
       if (autoFetch) {
@@ -492,7 +499,8 @@ const SmartSummary = ({
   const handleFetchTasks = async () => {
     setTasksLoading(true);
     try {
-      const fetchedTasks = await fetchTasks({ chat_id: selectedChat.id });
+      if(selectedChat?.id){
+      const fetchedTasks = await fetchTasks({ chat_id: selectedChat?.id });
       console.log("fetchTasks result:", fetchedTasks);
 
       // Ensure we have an array
@@ -502,6 +510,8 @@ const SmartSummary = ({
         console.warn("fetchTasks did not return an array:", fetchedTasks);
         setTasks([]); // Set empty array if not an array
       }
+      }
+     
     } catch (error) {
       console.error("Failed to fetch tasks:", error);
       setTasks([]); // Set empty array on error
@@ -584,8 +594,9 @@ const SmartSummary = ({
       const cutoff = new Date(now.getTime() - minutes * 60 * 1000);
       console.log(`[run summary] current time: ${now.toISOString()}`);
       console.log(`[run summary] cutoff time: ${cutoff.toISOString()}`);
+      console.log(discordMessagesforSummary,"discord messagelist for summary")
   
-      const messages = [...messagesList, ...history].map(mapDiscordMessageToItem);
+      const messages = [...discordMessagesforSummary].map(mapDiscordMessageToItem);
       console.log(`[run summary] merged messages length: ${messages.length}`);
   
       const uniqueMessages = messages.filter(
@@ -615,12 +626,13 @@ const SmartSummary = ({
       }
   
       let summary = await fetchChatSummary({
-        chat_id: selectedChat.id,
+        chat_id: selectedChat?.id,
         hours: minutes / 60, // converting minutes to hours here
         limit: 20,
         selectedChat,
         summarizeMessages,
-        messagesList: recentMessages, // use filtered recentMessages here
+        messagesList: recentMessages, // use filtered recentMessages here,
+        autoFetch:true
       });
       console.log("[run summary] received summary:", summary);
       setSummaryData(summary);
@@ -634,10 +646,10 @@ const SmartSummary = ({
   
 
   useEffect(() => {
-    if (!messagesList || messagesList.length <= 1 || selectedChat.platform !=="discord") return;
+    if (!discordMessagesforSummary || discordMessagesforSummary.length <= 1 || (selectedChat?.platform !=="discord" && !autoFetch)) return;
   
     runSummary();
-  }, [messagesList, selectedChat]);
+  }, [discordMessagesforSummary, selectedChat]);
   
   const scrollTabs = (dir: "left" | "right") => {
     const el = tabScrollRef.current;

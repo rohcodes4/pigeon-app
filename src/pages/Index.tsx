@@ -15,6 +15,7 @@ import PinnedPanel from "@/components/PinnedPanel";
 import { useLocation } from "react-router-dom";
 import { mapDiscordToTelegramSchema } from "@/lib/utils";
 import { useDiscordContext } from "@/context/discordContext";
+import { syncDiscordChatHistoryLast48H } from "@/hooks/useDiscord";
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -50,10 +51,10 @@ const Index = () => {
   const [hasStartedFindingChats, setHasStartedFindingChats] = useState(false);
   const [initialSyncTriggered, setInitialSyncTriggered] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const { dms, channels, guilds:discordGuilds, refresh } = useDiscordContext();
+  const { dms, channels, guilds: discordGuilds, refresh } = useDiscordContext();
+  const [isDiscordSyced, setDiscordSyced] = useState(false);
 
- 
- // to ensure channels are loaded
+  // to ensure channels are loaded
   const handleOpenSmartSummary = () => setOpenPanel("smartSummary");
   const handleOpenNotificationPanel = () => setOpenPanel("notification");
   const handleOpenPinnedPanel = () => setOpenPanel("pinned");
@@ -464,10 +465,9 @@ const Index = () => {
     }
   }, [activeTab]);
 
-
   // Fetch chats from backend
   useEffect(() => {
-    console.log("calling on dms change")
+    console.log("calling on dms change");
     const fetchChats = async () => {
       if (!user) {
         setChatsLoading(false);
@@ -495,23 +495,38 @@ const Index = () => {
         // }
         // const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
         // if (dms.success) {
-          const discordChats = dms?.map(mapDiscordToTelegramSchema);
-          console.log(dms)
-          // Merge both
-          const allChats = [...data.chats, ...discordChats];
-          allChats.sort((a, b) => {
-            if (!a.timestamp && !b.timestamp) return 0; // both null → equal
-            if (!a.timestamp) return 1; // a is null → after b
-            if (!b.timestamp) return -1; // b is null → after a
+        const discordChats = dms?.map(mapDiscordToTelegramSchema);
+        console.log(dms);
+        // Merge both
+        const allChats = [...data.chats, ...discordChats];
+        allChats.sort((a, b) => {
+          if (!a.timestamp && !b.timestamp) return 0; // both null → equal
+          if (!a.timestamp) return 1; // a is null → after b
+          if (!b.timestamp) return -1; // b is null → after a
 
-            return (
-              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-            );
-          });
+          return (
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          );
+        });
 
-          // Store initial chats - this only runs once on load
-          setChats(allChats || []);
-          console.log("Loaded chats fetchchats:", allChats);
+        // Store initial chats - this only runs once on load
+        setChats(allChats || []);
+        console.log("Loaded chats fetchchats:", allChats);
+        if(allChats.length>0){
+          (async () => {
+        // Sync DMs first
+        if (isDiscordSyced === false) {
+          setDiscordSyced(true);
+          for (const chatId of allChats.map((dm) => dm.id)) {
+            try {
+              await syncDiscordChatHistoryLast48H(chatId);
+            } catch (err) {
+              console.error(`Error syncing DM ${chatId}:`, err);
+            }
+          }
+        }
+      })();
+    }
         // }
         // else{
         //   setChats(data.chats || []);
@@ -529,14 +544,12 @@ const Index = () => {
       }
     };
     fetchChats();
-  }, [user,dms,discordGuilds]);
+  }, [user, dms, discordGuilds]);
 
-  
+  useEffect(() => {
+    setOpenPanel(null);
+  }, [selectedChat]);
 
-  useEffect(()=>{
-    setOpenPanel(null)
-  },[selectedChat])
-  
   // Lightweight polling: refresh sidebar chats every 30s with smart merging
   useEffect(() => {
     if (!user) return;
@@ -557,9 +570,9 @@ const Index = () => {
           const newChats = data.chats || [];
           let allChats = newChats;
           // Fetch Discord DMs
-           // remove listener if supported
+          // remove listener if supported
           // console.log("Polled guilds:", guilds.data);
-         console.log(dms,"dms",discordGuilds,"guilds")
+          console.log(dms, "dms", discordGuilds, "guilds");
           if (dms) {
             const discordChats = dms?.map(mapDiscordToTelegramSchema);
             // Merge both
@@ -651,7 +664,9 @@ const Index = () => {
   //   );
   // }
 
-  const [selectedDiscordServer, setSelectedDiscordServer] = useState<string | null>(null);
+  const [selectedDiscordServer, setSelectedDiscordServer] = useState<
+    string | null
+  >(null);
 
   const handleSelectDiscordServer = (serverId: string | null) => {
     setSelectedDiscordServer(serverId);
@@ -687,10 +702,11 @@ const Index = () => {
   }
 
   return (
-    <Layout 
-    selectedDiscordServer={selectedDiscordServer}
-    onSelectDiscordServer={handleSelectDiscordServer}
-    guilds={discordGuilds}>
+    <Layout
+      selectedDiscordServer={selectedDiscordServer}
+      onSelectDiscordServer={handleSelectDiscordServer}
+      guilds={discordGuilds}
+    >
       <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
         <AppHeader
           isNotificationPanel={openPanel === "notification"}
@@ -748,7 +764,7 @@ const Index = () => {
             <SmartSummary
               selectedChat={selectedChat}
               chatId={selectedChat.id}
-              closePanel={()=>setOpenPanel(null)}
+              closePanel={() => setOpenPanel(null)}
             />
           )}
           {openPanel === "notification" && <NotificationsPanel />}

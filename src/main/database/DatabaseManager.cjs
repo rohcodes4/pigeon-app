@@ -80,6 +80,7 @@ class DatabaseManager {
         message_reference TEXT,
         referenced_message TEXT,
         sticker_items TEXT,
+        channel_type INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id)
@@ -276,8 +277,8 @@ class DatabaseManager {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO messages 
       (id, chat_id, user_id, content, content_encrypted, message_type, reply_to_id, 
-       attachments, embeds, reactions, timestamp, is_edited, sync_status,mentions,message_reference,referenced_message,sticker_items, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       attachments, embeds, reactions, timestamp, is_edited, sync_status,mentions,message_reference,referenced_message,sticker_items,channel_type, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
 
     // Encrypt sensitive content if needed
@@ -302,7 +303,8 @@ class DatabaseManager {
        JSON.stringify(messageData.mentions || []),
         JSON.stringify(messageData.message_reference || []),
          JSON.stringify(messageData.referenced_message || []),
-           JSON.stringify(messageData.sticker_items || [])
+           JSON.stringify(messageData.sticker_items || []),
+          messageData.channel_type
     );
 
     // Update chat's last message
@@ -342,6 +344,71 @@ class DatabaseManager {
       return message;
     });
   }
+
+async getMessagesForSummary(
+  chatId,
+  timeRange
+) {
+  const now = Date.now();
+  let cutoffTime = 0;
+
+  switch (timeRange) {
+    case "5m":
+      cutoffTime = now - 5 * 60 * 1000;
+      break;
+    case "15m":
+      cutoffTime = now - 15 * 60 * 1000;
+      break;
+    case "30m":
+      cutoffTime = now - 30 * 60 * 1000;
+      break;
+    case "1h":
+      cutoffTime = now - 60 * 60 * 1000;
+      break;
+    case "6h":
+      cutoffTime = now - 6 * 60 * 60 * 1000;
+      break;
+    case "24h":
+    default:
+      cutoffTime = now - 24 * 60 * 60 * 1000;
+  }
+
+    // Prepare query
+  let query = `
+    SELECT m.*, u.username, u.display_name, u.avatar_url as user_avatar
+    FROM messages m
+    LEFT JOIN users u ON m.user_id = u.id
+    WHERE m.is_deleted = 0
+      AND m.timestamp >= ?
+  `;
+  const params = [new Date(cutoffTime).toISOString()];
+
+  // If chatId is provided, filter by it
+  if (chatId) {
+    query += " AND m.chat_id = ?";
+    params.push(chatId);
+  }
+
+  query += " ORDER BY m.timestamp DESC";
+
+  const stmt = this.db.prepare(query);
+  const messages = stmt.all(...params);
+
+  // Decrypt sensitive content
+  return messages.map((message) => {
+    if (message.content_encrypted) {
+      try {
+        message.content = this.securityManager.decrypt(message.content_encrypted);
+      } catch (error) {
+        console.error("[DB] Failed to decrypt message content:", error);
+        message.content = "[Encrypted content - decryption failed]";
+      }
+    }
+    return message;
+  });
+}
+
+
 
   async updateMessageSyncStatus(messageId, status) {
     const stmt = this.db.prepare(`
