@@ -470,18 +470,26 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         const chans = chats.chats || [];
 
         // Map Discord DMs to unified format
-        const discordChats = (discordDms || [])
+        const discordChats = (dms || [])
           .map(mapDiscordToTelegramSchema)
           .filter((c: any) => c?.id != null);
 
         // Sort Discord chats (most recent first)
-        discordChats.sort((a, b) => Number(b.id) - Number(a.id));
 
         // Merge Telegram + Discord chats
         const allChats = [...chans, ...discordChats].filter(
           (c: any) => c?.id != null
         );
 
+                allChats.sort((a, b) => {
+          if (!a.timestamp && !b.timestamp) return 0; // both null → equal
+          if (!a.timestamp) return 1; // a is null → after b
+          if (!b.timestamp) return -1; // b is null → after a
+
+          return (
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          );
+        });
         // ✅ Update state by preserving previous and avoiding duplicates
         setAllChannels((prevChannels) => {
           const map = new Map();
