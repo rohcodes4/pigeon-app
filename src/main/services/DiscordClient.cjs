@@ -958,6 +958,10 @@ class DiscordClient extends EventEmitter {
     });
   }
 
+  getUserId(){
+    return this.userId;
+  }
+
   async sendMessageWithCaptcha(channelId, content, captchaToken, captchaData) {
     await this.checkRateLimit("message");
     await this.humanDelay();

@@ -464,6 +464,16 @@ function setupIPCHandlers() {
     }
   });
 
+  ipcMain.handle("discord:getUserId", async () =>{
+      try {
+      const userId = await discordClient.getUserId();
+      return { success: true, data: userId };
+    } catch (error) {
+      console.error("[IPC] Get userId error:", error);
+      return { success: false, error: error.message };
+    }
+  } )
+
   ipcMain.handle("security:set-token", async (event, token) => {
     try {
       const data = await securityManager.clearDiscordToken(token);
