@@ -31,8 +31,6 @@ import ChatAvatar from "./ChatAvatar";
 import { useSummarizeMessage } from "@/hooks/discord/useSummarizeMessage";
 import {
   useChatMessagesForSummary,
-  useDiscordChatHistory,
-  useDiscordMessages,
 } from "@/hooks/useDiscord";
 import { mapDiscordMessageToItem } from "@/lib/utils";
 
@@ -352,8 +350,6 @@ const SmartSummary = ({
   const [tasksLoading, setTasksLoading] = useState(false);
   const [mentionsLoading, setMentionsLoading] = useState(false);
   const { summarizeMessages } = useSummarizeMessage();
-  const { messagesList } = useDiscordMessages(selectedChat?.id);
-  const { history } = useDiscordChatHistory(selectedChat?.id);
   const { messages: discordMessagesforSummary, refresh } =
     useChatMessagesForSummary(selectedChat?.id, selectedTime.value);
 

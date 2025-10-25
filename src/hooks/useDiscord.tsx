@@ -341,14 +341,16 @@ export function useDiscordChannels() {
 }
 
 // Hook for chat history (fetch from Discord API, not DB)
-export function useDiscordChatHistory(chatId: string | null) {
+export function useDiscordChatHistory(chat:any) {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const chatId= chat?.id;
 
   const loadHistory = useCallback(async (beforeMessageId?: string) => {
     if (!chatId || loading) return;
-
+    if(chat?.platform!='discord')
+       return;
     setLoading(true);
     try {
       const response = await electronAPI.discord.getChatHistory(
