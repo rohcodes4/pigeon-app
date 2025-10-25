@@ -517,8 +517,9 @@ const Index = () => {
         // Sync DMs first
         if (isDiscordSyced === false) {
           setDiscordSyced(true);
-          for (const chatId of allChats.map((dm) => dm.id)) {
+          for (const chatId of allChats.filter(chat=> chat.platform=='discord').map((dm) => dm.id)) {
             try {
+              
               await syncDiscordChatHistoryLast48H(chatId);
             } catch (err) {
               console.error(`Error syncing DM ${chatId}:`, err);
