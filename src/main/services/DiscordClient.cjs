@@ -584,36 +584,40 @@ class DiscordClient extends EventEmitter {
 
   handleNewMessage(messageData) {
     // Store user
-    if (messageData.author) {
-      this.dbManager.createUser({
-        id: messageData.author.id,
-        platform: "discord",
-        username: messageData.author.username,
-        display_name:
-          messageData.author.global_name || messageData.author.username,
-        avatar_url: messageData.author.avatar
-          ? `https://cdn.discordapp.com/avatars/${messageData.author.id}/${messageData.author.avatar}.png`
-          : null,
+    if(!messageData.guild_id){
+      if (messageData.author) {
+        this.dbManager.createUser({
+          id: messageData.author.id,
+          platform: "discord",
+          username: messageData.author.username,
+          display_name:
+            messageData.author.global_name || messageData.author.username,
+          avatar_url: messageData.author.avatar
+            ? `https://cdn.discordapp.com/avatars/${messageData.author.id}/${messageData.author.avatar}.png`
+            : null,
+        });
+      }
+  
+      // Store message
+      this.dbManager.createMessage({
+        id: messageData.id,
+        chat_id: messageData.channel_id,
+        user_id: messageData.author.id,
+        content: messageData.content,
+        message_type: this.getMessageType(messageData),
+        attachments: messageData.attachments,
+        reactions: messageData.reactions,
+        embeds: messageData.embeds,
+        timestamp: messageData.timestamp,
+        sync_status: "synced",
+        mentions: messageData.mentions,
+        message_reference: messageData.message_reference || null,
+        referenced_message: messageData.referenced_message || null,
+        sticker_items: messageData.sticker_items,
+        channel_type: messageData.channel_type
       });
-    }
 
-    // Store message
-    this.dbManager.createMessage({
-      id: messageData.id,
-      chat_id: messageData.channel_id,
-      user_id: messageData.author.id,
-      content: messageData.content,
-      message_type: this.getMessageType(messageData),
-      attachments: messageData.attachments,
-      reactions: messageData.reactions,
-      embeds: messageData.embeds,
-      timestamp: messageData.timestamp,
-      sync_status: "synced",
-      mentions: messageData.mentions,
-      message_reference: messageData.message_reference || null,
-      referenced_message: messageData.referenced_message || null,
-      sticker_items: messageData.sticker_items,
-    });
+    }
 
     // Emit event for real-time UI update
     this.emit("newMessage", {
@@ -640,6 +644,7 @@ class DiscordClient extends EventEmitter {
         message_reference: messageData.message_reference || null,
         referenced_message: messageData.referenced_message || null,
         sticker_items: messageData.sticker_items,
+        channel_type: messageData.channel_type
       });
 
       this.emit("messageUpdate", {
@@ -893,6 +898,7 @@ class DiscordClient extends EventEmitter {
                   message_reference: parsed.message_reference || null,
                   referenced_message: parsed.referenced_message || null,
                   sticker_items: parsed.sticker_items,
+                  channel_type: parsed.channel_type
                 });
               }
               this.emit("newMessage", {

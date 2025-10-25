@@ -226,6 +226,37 @@ export function useDiscordMessages(chatId: string | null) {
   };
 }
 
+export function useChatMessagesForSummary(chatId: string, timeRange: string = "24hr") {
+  const [messages, setMessages] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchMessages = useCallback(async () => {
+  
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await electronAPI.database.getMessagesForSummary(chatId,timeRange);
+      if (response.success) {
+        setMessages(response.data);
+      } else {
+        setError(response.error || "Failed to fetch messages");
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to fetch messages");
+    } finally {
+      setLoading(false);
+    }
+  }, [chatId, timeRange]);
+
+  useEffect(() => {
+    fetchMessages();
+  }, [chatId, timeRange, fetchMessages]);
+
+  return { messages, loading, error, refresh: fetchMessages };
+}
+
 // Hook for channels and guilds
 export function useDiscordChannels() {
   const [guilds, setGuilds] = useState<any[]>([]);
@@ -310,14 +341,16 @@ export function useDiscordChannels() {
 }
 
 // Hook for chat history (fetch from Discord API, not DB)
-export function useDiscordChatHistory(chatId: string | null) {
+export function useDiscordChatHistory(chat:any) {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const chatId= chat?.id;
 
   const loadHistory = useCallback(async (beforeMessageId?: string) => {
     if (!chatId || loading) return;
-
+    if(chat?.platform!='discord')
+       return;
     setLoading(true);
     try {
       const response = await electronAPI.discord.getChatHistory(
@@ -371,6 +404,63 @@ export function useDiscordChatHistory(chatId: string | null) {
     loadMore,
     refresh: () => loadHistory()
   };
+}
+
+/**
+ * Sync Discord chat history for a single chatId
+ * Only sync messages from the last 48 hours
+ */
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+export async function syncDiscordChatHistoryLast48H(
+  chatId: string
+) {
+  let hasMore = true;
+  let beforeMessageId: string | undefined = undefined;
+
+  const now = Date.now();
+  const cutoffTime = now - 48 * 60 * 60 * 1000; // 48 hours in ms
+
+  while (hasMore) {
+    try {
+      await sleep(1000);
+      // brief pause to avoid rate limits
+      const response = await electronAPI.discord.getChatHistory(
+        chatId,
+        50,
+        beforeMessageId
+      );
+
+      if (!response.success) {
+        console.error("Failed to fetch chat history:", response.error);
+        break;
+      }
+
+      const messages = response.data;
+      if (messages.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      // Stop if the oldest message is older than 48 hours
+      const oldestMessageTime = new Date(
+        messages[messages.length - 1].timestamp
+      ).getTime();
+      if (oldestMessageTime < cutoffTime) {
+        hasMore = false;
+        break;
+      }
+
+      // Prepare for next batch
+      beforeMessageId = messages[messages.length - 1].id;
+    } catch (err) {
+      console.error("Error syncing chat history:", err);
+      hasMore = false;
+    }
+  }
+
+  console.log(`Chat ${chatId} synced for last 48 hours.`);
 }
 
 // Hook for reactions

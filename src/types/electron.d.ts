@@ -131,6 +131,7 @@ export interface ElectronAPI {
       }>;
       error?: string;
     }>;
+
     getMessages: (
       chatId: string,
       limit?: number,
@@ -151,6 +152,13 @@ export interface ElectronAPI {
       }>;
       error?: string;
     }>;
+
+    getMessagesForSummary:(chatId, timeRange?) => Promise<{
+      success: boolean;
+      data?: Array;
+      error?: any;
+    }>
+
     getSettings: () => Promise<{
       success: boolean;
       data?: Record<string, any>;

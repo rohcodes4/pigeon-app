@@ -326,7 +326,8 @@ function setupIPCHandlers() {
             mentions: msg.mentions,
             message_reference: msg.message_reference || null,
             referenced_message: msg.referenced_message || null,
-            sticker_items: msg.sticker_items
+            sticker_items: msg.sticker_items,
+            channel_type:msg.channel_type
           });
         }
       }
@@ -443,6 +444,15 @@ function setupIPCHandlers() {
     }
   });
 
+  ipcMain.handle("db:get-messages-for-summary",  async (event, { chatId,timeRange}) => {
+    try {
+      const messages = await dbManager.getMessagesForSummary(chatId,timeRange);
+      return { success: true, data: messages };
+    } catch (error) {
+      console.error("[IPC] Get messages-for-summary error:", error);
+      return { success: false, error: error.message };
+    }
+  });
   // Security
   ipcMain.handle("security:get-token", async () => {
     try {
