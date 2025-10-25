@@ -274,7 +274,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const pickerRef = useRef(null); // emoji picker container ref
     const hasFetchedFirstMessages = useRef(false);
     const [enlargedMedia, setEnlargedMedia] = useState(null);
-    const { history, loadMore, loading:dcHookLoading } = useDiscordChatHistory(selectedChat?.id);
+    const { history, loadMore, loading:dcHookLoading, hasMore } = useDiscordChatHistory(selectedChat?.id);
     const {messages:messageForSummary} = useChatMessagesForSummary(selectedChat?.id,"24h")
     const { generateTask } = useTaskGeneration()
     const { summarizeMessages } = useSummarizeMessage()
@@ -1465,7 +1465,7 @@ if(msg.platform.toLowerCase() === "discord"){
     // Function to load more messages when scrolling to top
     const loadMoreMessages = React.useCallback(() => {
       console.log('loading')
-      if (loadingMore || loading || !hasMoreMessages || messages.length === 0)
+      if (loadingMore || loading || (!hasMoreMessages && !hasMore) || messages.length === 0)
         return;
       
       console.log('loading2...')
@@ -1598,7 +1598,7 @@ if(msg.platform.toLowerCase() === "discord"){
           };
            setTimeout(() => { loadMoreMessages();}, 1000);
     
-        }else if (scrollTop <= 100 && hasMoreMessages && !loadingMore && !dcHookLoading && selectedChat.platform.toLowerCase() ==="discord") {
+        }else if (scrollTop <= 100 && hasMore && selectedChat.platform.toLowerCase() ==="discord") {
           scrollRestoreRef.current = {
             prevHeight: scrollHeight,
             prevTop: scrollTop,
