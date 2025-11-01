@@ -72,8 +72,6 @@ export const ChatSelection = ({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { guilds } = useDiscordContext();
-  // const [telegramConnected, setTelegramConnected] = useState(false);
-  // const [discordConnected, setDiscordConnected] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -83,9 +81,11 @@ export const ChatSelection = ({
       try {
         const token = localStorage.getItem("access_token");
         const res = await fetch(`${BACKEND_URL}/api/sync-preferences/chats`, {
-          headers: token ? {     
-Authorization: `Bearer ${token}` } : {},
-          
+          headers: token
+            ? {
+                Authorization: `Bearer ${token}`,
+              }
+            : {},
         });
         if (!res.ok) throw new Error(`Failed to fetch chats: ${res.status}`);
 
@@ -95,24 +95,14 @@ Authorization: `Bearer ${token}` } : {},
         const fetchedChats = (data.chats || []).map((chat) => ({
           id: chat.id,
           group_name: chat.title || `Chat ${chat.id}`,
-          group_avatar: chat.photo_url?? null,
-          platform: chat.type?.toLowerCase() === "discord" ? "discord" : "telegram",
+          group_avatar: chat.photo_url ?? null,
+          platform:
+            chat.type?.toLowerCase() === "discord" ? "discord" : "telegram",
           // member_count: null, // Not provided here, optional
           is_synced: chat.sync_enabled, // default unselected, load saved selections below
           type: chat.type || null,
           username: chat.username || null,
         }));
-
-        // Load saved selections from localStorage
-        // const savedSelections = localStorage.getItem(
-        //   `chatpilot_chats_${user.id}`
-        // );
-        // if (savedSelections) {
-        //   const selections = JSON.parse(savedSelections);
-        //   fetchedChats.forEach((chat) => {
-        //     chat.is_synced = selections[chat.id] || false;
-        //   });
-        // }
 
         setChatGroups(fetchedChats);
       } catch (error) {
@@ -127,11 +117,11 @@ Authorization: `Bearer ${token}` } : {},
       }
     };
 
-    const fetchDicordChats = async () =>{
+    const fetchDicordChats = async () => {
       // const guilds = await window.electronAPI.discord.getGuilds();
-      console.log(guilds,'guildss')
+      console.log(guilds, "guildss");
       setChatGroupsDiscord([...guilds]);
-    }
+    };
     fetchDicordChats();
     fetchUserChats();
   }, [user]);
@@ -148,8 +138,8 @@ Authorization: `Bearer ${token}` } : {},
           const tg = await tgRes.json();
           setTelegramConnected(!!tg.connected);
         }
-       
-         const res = await window.electronAPI.security.getDiscordToken();
+
+        const res = await window.electronAPI.security.getDiscordToken();
         if (res?.success && res?.data) {
           await window.electronAPI.discord.connect(res.data);
           setDiscordConnected(!!res.success);
@@ -170,32 +160,29 @@ Authorization: `Bearer ${token}` } : {},
 
       // Construct enabled and disabled chat ID strings
       const enabledChatIds = chatGroups
-        .filter(c => c.is_synced)
-        .map(c => c.id)
+        .filter((c) => c.is_synced)
+        .map((c) => c.id)
         .join(",");
 
       const disabledChatIds = chatGroups
-        .filter(c => !c.is_synced)
-        .map(c => c.id)
+        .filter((c) => !c.is_synced)
+        .map((c) => c.id)
         .join(",");
 
-        const body = new URLSearchParams();
-        body.append("enabled_chats", enabledChatIds);
-        body.append("disabled_chats", disabledChatIds);
-        body.append("sync_groups", "true");
-        body.append("sync_channels", "true");
-        
-        const response = await fetch(`${BACKEND_URL}/api/sync-preferences`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            Authorization: `Bearer ${token}`,
-          },
-          body: body.toString(),
-        });
-        
-      
+      const body = new URLSearchParams();
+      body.append("enabled_chats", enabledChatIds);
+      body.append("disabled_chats", disabledChatIds);
+      body.append("sync_groups", "true");
+      body.append("sync_channels", "true");
 
+      const response = await fetch(`${BACKEND_URL}/api/sync-preferences`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Bearer ${token}`,
+        },
+        body: body.toString(),
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -208,10 +195,6 @@ Authorization: `Bearer ${token}` } : {},
         title: "Preferences Saved",
         description: "Your chat sync preferences have been updated.",
       });
-
-      // if (onPreferencesSaved) {
-      //   onPreferencesSaved(data.preferences);
-      // }
     } catch (error) {
       toast({
         title: "Error Saving Preferences",
@@ -222,33 +205,6 @@ Authorization: `Bearer ${token}` } : {},
       setSaving(false);
     }
   };
-  // Load saved chat selections (local, non-authoritative)
-  // useEffect(() => {
-  //   if (!user) return;
-  //   setTimeout(() => {
-  //     const savedSelections = localStorage.getItem(
-  //       `chatpilot_chats_${user.id}`
-  //     );
-  //     let updatedGroups = [...fakeChatGroups];
-
-  //     if (savedSelections) {
-  //       const selections = JSON.parse(savedSelections);
-  //       updatedGroups = updatedGroups.map((group) => ({
-  //         ...group,
-  //         is_synced: selections[group.id] || false,
-  //       }));
-  //     }
-
-  //     setChatGroups(updatedGroups);
-  //     setLoading(false);
-
-  //     const hasSelectedChats = updatedGroups.some((group) => group.is_synced);
-  //     const selectedChats = updatedGroups.filter((group) => group.is_synced);
-  //     if (hasSelectedChats && onChatsSelected) {
-  //       onChatsSelected(selectedChats);
-  //     }
-  //   }, 1000);
-  // }, [user, onChatsSelected]);
 
   const toggleChatSync = async (
     groupId: string,
@@ -261,15 +217,6 @@ Authorization: `Bearer ${token}` } : {},
           : group
       )
     );
-
-    // const updatedSelections = {
-    //   ...JSON.parse(
-    //     localStorage.getItem(`chatpilot_chats_${user?.id}`) || "{}"
-    //   ),
-    // };
-    // updatedSelections[groupId] = !currentSyncStatus;
- 
-
     const hasSelectedChats = chatGroups.some((group) =>
       group.id === groupId ? !currentSyncStatus : group.is_synced
     );
@@ -280,16 +227,6 @@ Authorization: `Bearer ${token}` } : {},
     if (hasSelectedChats && onChatsSelected) {
       onChatsSelected(selectedChats);
     }
-    // localStorage.setItem(
-    //   `chatpilot_chats_${user?.id}`,
-    //   JSON.stringify(updatedSelections)
-    // );
-    // toast({
-    //   title: !currentSyncStatus ? "Chat Added" : "Chat Removed",
-    //   description: !currentSyncStatus
-    //     ? "Chat will now appear in your unified inbox"
-    //     : "Chat removed from unified inbox",
-    // });
   };
 
   const selectAllByPlatform = (platform: string) => {
@@ -307,20 +244,6 @@ Authorization: `Bearer ${token}` } : {},
         : group
     );
     setChatGroups(newChatGroups);
-
-    // Update localStorage as well
-    // const updatedSelections = {
-    //   ...JSON.parse(
-    //     localStorage.getItem(`chatpilot_chats_${user?.id}`) || "{}"
-    //   ),
-    // };
-    // newChatGroups.forEach((group) => {
-    //   updatedSelections[group.id] = group.is_synced;
-    // });
-    // localStorage.setItem(
-    //   `chatpilot_chats_${user?.id}`,
-    //   JSON.stringify(updatedSelections)
-    // );
   };
 
   const saveAllChanges = async () => {
@@ -353,10 +276,12 @@ Authorization: `Bearer ${token}` } : {},
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [showTelegramQrModal, setShowTelegramQrModal] = useState(false);
   const [telegramQrCode, setTelegramQrCode] = useState<string | null>(null);
-  const [telegramQrToken, setTelegramQrToken] = useState<string | null>(null);
-  const [loadingPlatform, setLoadingPlatform] = useState({ telegram: false, discord: false });
+  const [loadingPlatform, setLoadingPlatform] = useState({
+    telegram: false,
+    discord: false,
+  });
   const [pollingIntervalId, setPollingIntervalId] =
-  useState<NodeJS.Timeout | null>(null);
+    useState<NodeJS.Timeout | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const [twoFactorPassword, setTwoFactorPassword] = useState("");
@@ -373,21 +298,22 @@ Authorization: `Bearer ${token}` } : {},
     // QR code authentication
     setLoadingPlatform((prev) => ({ ...prev, telegram: true }));
     try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${BACKEND_URL}/auth/qr`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      window.electronAPI.telegram.loginQR();
+      window.electronAPI.telegram.onQR(async (data) => {
+        console.log("Received Telegram QR code", data);
+        setTelegramQrCode(data);
+        // setTelegramQrToken(data.token);
+        setShowTelegramQrModal(true);
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.detail || "Failed to initiate Telegram QR login"
-        );
-      }
-      const data = await response.json();
-      setTelegramQrCode(data.qr);
-      setTelegramQrToken(data.token);
-      setShowTelegramQrModal(true);
+      window.electronAPI.telegram.onPasswordRequired(() => {
+        console.log("Password required for 2FA");
+        setShowPasswordModal(true);
+        toast({
+          title: "Two-Factor Authentication Required",
+          description:
+            "Please enter your Telegram password to complete the connection.",
+        });
+      });
     } catch (error: any) {
       toast({
         title: "Telegram Connection Failed",
@@ -400,141 +326,36 @@ Authorization: `Bearer ${token}` } : {},
   };
 
   const connectDiscord = async () => {
-      const res = await window.electronAPI.security.getDiscordToken();
+    const res = await window.electronAPI.security.getDiscordToken();
+    if (res?.data) {
+      const conncted = await window.electronAPI.discord.connect(res.data);
+      // You already got the token from electron, return early
+      if (!conncted.success) {
+        await window.electronAPI.discord.openLogin();
+        const res = await window.electronAPI.security.getDiscordToken();
+        console.log("Discord token result2:", res);
         if (res?.data) {
           const conncted = await window.electronAPI.discord.connect(res.data);
-          // You already got the token from electron, return early
-          if (!conncted.success) {
-            await window.electronAPI.discord.openLogin();
-            const res = await window.electronAPI.security.getDiscordToken();
-            console.log("Discord token result2:", res);
-            if (res?.data) {
-              const conncted = await window.electronAPI.discord.connect(
-                res.data
-              );
-              setDiscordConnected(!!conncted.success);
-            }
-          } else {
-            console.log(!!conncted.success, "discord connected");
-            setDiscordConnected(!!conncted.success);
-          }
-        }else{
-            const data= await window.electronAPI.discord.openLogin();
-            if(data.success && data.data)
-            setDiscordConnected(true);
+          setDiscordConnected(!!conncted.success);
         }
-  }
+      } else {
+        console.log(!!conncted.success, "discord connected");
+        setDiscordConnected(!!conncted.success);
+      }
+    } else {
+      const data = await window.electronAPI.discord.openLogin();
+      if (data.success && data.data) setDiscordConnected(true);
+    }
+  };
   const disconnectDiscord = async () => {
     // await window.electronAPI.discord.disconnect();
     await window.electronAPI.discord.disconnect();
     await window.electronAPI.security.clearDiscordToken();
-     setDiscordConnected(false);
-  }
-  useEffect(() => {
-    if (telegramQrToken && showTelegramQrModal) {
-      const interval = setInterval(async () => {
-        try {
-          const token = localStorage.getItem("access_token");
-          const response = await fetch(
-            `${BACKEND_URL}/auth/qr/${telegramQrToken}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-          let data = null;
-          let isError = false;
-
-          if (response.ok) {
-            data = await response.json();
-          } else {
-            try {
-              data = await response.json();
-            } catch {
-              data = { detail: "Unknown error" };
-            }
-            isError = true;
-          }
-
-          if (data && data.status === "success") {
-            clearInterval(interval);
-            setPollingIntervalId(null);
-            setShowTelegramQrModal(false);
-            setTelegramConnected(true); // Update local state
-            toast({
-              title: "Telegram Connected",
-              description:
-                "Successfully connected to your Telegram account. You can now sync your chats when ready.",
-            });
-          } else if (data && data.status === "password_required") {
-            // 2FA password is required
-            clearInterval(interval);
-            setPollingIntervalId(null);
-            setShowTelegramQrModal(false);
-            setShowPasswordModal(true);
-            toast({
-              title: "Two-Factor Authentication Required",
-              description:
-                "Please enter your Telegram password to complete the connection.",
-            });
-          } else if (
-            data &&
-            (data.status === "error" || data.status === "invalid_token")
-          ) {
-            clearInterval(interval);
-            setPollingIntervalId(null);
-            setShowTelegramQrModal(false);
-            setTelegramQrCode(null);
-            setTelegramQrToken(null);
-            toast({
-              title: "Telegram Connection Failed",
-              description: data.detail || "Please try again.",
-              variant: "destructive",
-            });
-          } else if (isError || (data && data.detail)) {
-            clearInterval(interval);
-            setPollingIntervalId(null);
-            setShowTelegramQrModal(false);
-            setTelegramQrCode(null);
-            setTelegramQrToken(null);
-            toast({
-              title: "Telegram Connection Error",
-              description: data?.detail || "Unexpected response from server.",
-              variant: "destructive",
-            });
-          }
-          // else: still waiting, do nothing
-        } catch (error) {
-          clearInterval(interval);
-          setPollingIntervalId(null);
-          setShowTelegramQrModal(false);
-          setTelegramQrCode(null);
-          setTelegramQrToken(null);
-          toast({
-            title: "Telegram Connection Error",
-            description: "Failed to check Telegram status. Please try again.",
-            variant: "destructive",
-          });
-        }
-      }, 3000); // Poll every 3 seconds
-      setPollingIntervalId(interval);
-
-      return () => {
-        if (pollingIntervalId) {
-          clearInterval(pollingIntervalId);
-          setPollingIntervalId(null);
-        }
-      };
-    }
-  }, [
-    telegramQrToken,
-    showTelegramQrModal,
-    setTelegramConnected,
-  ]);
+    setDiscordConnected(false);
+  };
 
   const submitTelegramPassword = async () => {
-    if (!telegramQrToken || !twoFactorPassword.trim()) {
+    if (!twoFactorPassword.trim()) {
       toast({
         title: "Password Required",
         description: "Please enter your Telegram password.",
@@ -545,36 +366,34 @@ Authorization: `Bearer ${token}` } : {},
 
     setPasswordLoading(true);
     try {
-      const token = localStorage.getItem("access_token");
-      const formData = new FormData();
-      formData.append("password", twoFactorPassword);
-
-      const response = await fetch(
-        `${BACKEND_URL}/auth/qr/${telegramQrToken}/password`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-
-      if (data.status === "success") {
+      await window.electronAPI.telegram.sendPassword(twoFactorPassword);
+      window.electronAPI.telegram.onLoginSuccess((user) => {
+        console.log("Telegram ipc login success:", user);
         setShowPasswordModal(false);
         setTwoFactorPassword("");
         setTelegramConnected(true);
-
+        setShowTelegramQrModal(false);
         toast({
           title: "Telegram Connected",
           description:
             "Successfully connected to your Telegram account. You can now sync your chats when ready.",
         });
-      } else {
-        throw new Error(data.detail || "Failed to verify password");
-      }
+      });
+
+      window.electronAPI.telegram.onLoginError((error) => {
+        toast({
+          title: "Authentication Failed",
+          description: "Failed to verify password",
+          variant: "destructive",
+        });
+      });
+      window.electronAPI.telegram.onPasswordInvalid(() => {
+        toast({
+          title: "Authentication Failed",
+          description: "Invalid password. Please try again.",
+          variant: "destructive",
+        });
+      });
     } catch (error: any) {
       toast({
         title: "Authentication Failed",
@@ -585,22 +404,6 @@ Authorization: `Bearer ${token}` } : {},
       setPasswordLoading(false);
     }
   };
-
-  // if (loading) {
-  //   return (
-  //     <div className="space-y-6">
-  //       <div className="text-center mb-8">
-  //         <h2 className="text-2xl font-bold text-gray-900 mb-2">Select Chats to Sync</h2>
-  //         <p className="text-gray-600">Choose which chats you want to include in your unified inbox</p>
-  //       </div>
-  //       <Card>
-  //         <CardContent className="p-6">
-  //           <div className="text-center">Loading your chats...</div>
-  //         </CardContent>
-  //       </Card>
-  //     </div>
-  //   );
-  // }
 
   return (
     <div className="space-y-6">
@@ -614,18 +417,6 @@ Authorization: `Bearer ${token}` } : {},
           your conversations.
         </p>
       </div>
-
-      {/* Connection Status */}
-      {/* <div className="flex gap-4 justify-center mb-6">
-        <Badge variant={discordConnected ? "default" : "secondary"} className="flex items-center gap-2">
-          <Users className="w-4 h-4" />
-          Discord {discordConnected ? "Connected" : "Not Connected"}
-        </Badge>
-        <Badge variant={telegramConnected ? "default" : "secondary"} className="flex items-center gap-2">
-          <MessageCircle className="w-4 h-4" />
-          Telegram {telegramConnected ? "Connected" : "Not Connected"}
-        </Badge>
-      </div> */}
       <PlatformStatusBadges
         telegramConnected={telegramConnected}
         discordConnected={discordConnected}
@@ -682,9 +473,7 @@ Authorization: `Bearer ${token}` } : {},
                           }
                         />
                         <div className="flex justify-between w-full">
-                          <p className="font-medium text-sm">
-                            {group.name}
-                          </p>
+                          <p className="font-medium text-sm">{group.name}</p>
                           <p className="text-xs text-black bg-[#3589ff] px-2 py-1 rounded-[6px]">
                             {group.member_count} members
                           </p>
@@ -719,7 +508,7 @@ Authorization: `Bearer ${token}` } : {},
                   </span>
                 </span>
                 {/* Action button */}
-                   {!discordConnected ? (
+                {!discordConnected ? (
                   <Button
                     onClick={connectDiscord}
                     disabled={loadingPlatform.discord}
@@ -727,61 +516,32 @@ Authorization: `Bearer ${token}` } : {},
                   >
                     Connect
                   </Button>
-                ) : (<>
-               
-                <Button
-                  // disabled={loading.discord}
-                  onClick={()=>{
-                    disconnectDiscord()
-                    connectDiscord()
-                  }}
-                  className="bg-[#171717] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
-                >
-                  Reconnect
-                </Button>
-                 <Button
-                  // disabled={loading.discord}
-                  className="bg-[#171717] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
-                
-                  onClick={disconnectDiscord}> 
-                  Disconnect
-                </Button>
-                </>
+                ) : (
+                  <>
+                    <Button
+                      // disabled={loading.discord}
+                      onClick={() => {
+                        disconnectDiscord();
+                        connectDiscord();
+                      }}
+                      className="bg-[#171717] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
+                    >
+                      Reconnect
+                    </Button>
+                    <Button
+                      // disabled={loading.discord}
+                      className="bg-[#171717] hover:bg-[#4170cc] text-white font-semibold rounded-[12px] px-6 py-2 gap-2 shadow-none"
+                      onClick={disconnectDiscord}
+                    >
+                      Disconnect
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Telegram Chats */}
-        {/* <Card className={`${telegramConnected ? '' : 'opacity-50'}`}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageCircle className="w-5 h-5 text-blue-600" />
-              Telegram Chats
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {telegramConnected ? (
-              telegramChats.map((group) => (
-                <div key={group.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      checked={group.is_synced}
-                      onCheckedChange={() => toggleChatSync(group.id, group.is_synced)}
-                    />
-                    <div>
-                      <p className="font-medium text-sm">{group.group_name}</p>
-                      <p className="text-xs text-gray-500">{group.member_count} members</p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-gray-500 text-center py-4">Connect Telegram to see chats</p>
-            )}
-          </CardContent>
-        </Card> */}
         <Card
           className={`${
             telegramConnected ? "bg-[#111111]" : "bg-[#ffffff06]"
@@ -816,30 +576,37 @@ Authorization: `Bearer ${token}` } : {},
             {/* Info Section */}
             <div className="flex-1 text-[#ffffff72]">
               <div className="h-[150px] overflow-y-scroll">
-                {telegramConnected ? loading? (<p className="text-sm text-gray-500 text-center py-4"> Loading...</p>) : (
-                  telegramChats.map((group) => (
-                    <div
-                      key={group.id}
-                      className="flex items-center justify-between p-2 border-0 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3 w-full">
-                        <Checkbox
-                          checked={group.is_synced}
-                          onCheckedChange={() =>
-                            toggleChatSync(group.id, group.is_synced)
-                          }
-                        />
-                        <div className="flex justify-between w-full">
-                          <p className="font-medium text-sm">
-                            {group.group_name}
-                          </p>
-                          <p className="text-xs text-black bg-[#3589ff] px-2 py-1 rounded-[6px]">
-                            {group.type}
-                          </p>
+                {telegramConnected ? (
+                  loading ? (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      {" "}
+                      Loading...
+                    </p>
+                  ) : (
+                    telegramChats.map((group) => (
+                      <div
+                        key={group.id}
+                        className="flex items-center justify-between p-2 border-0 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3 w-full">
+                          <Checkbox
+                            checked={group.is_synced}
+                            onCheckedChange={() =>
+                              toggleChatSync(group.id, group.is_synced)
+                            }
+                          />
+                          <div className="flex justify-between w-full">
+                            <p className="font-medium text-sm">
+                              {group.group_name}
+                            </p>
+                            <p className="text-xs text-black bg-[#3589ff] px-2 py-1 rounded-[6px]">
+                              {group.type}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    ))
+                  )
                 ) : (
                   <p className="text-sm text-gray-500 text-center py-4">
                     Connect Telegram to see chats
@@ -916,18 +683,6 @@ Authorization: `Bearer ${token}` } : {},
         <Card className="bg-[#111111] border-0 shadow-none rounded-[18px]">
           <CardContent className="p-6">
             <div className="flex flex-col items-center space-y-4 ">
-              {/* Arrow icon in blue circle with status badge */}
-              {/* <div className="relative w-14 h-14 flex items-center justify-center">
-        <div className="w-14 h-14 rounded-full bg-[#5389ff] flex items-center justify-center">
-          <ArrowRight className="w-8 h-8 text-white" />
-        </div>
-        <span
-          className={`
-            absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-[#111111]
-            ${canContinue ? "bg-[#50DF3A]" : "bg-[#FDCB35]"}
-          `}
-        />
-      </div> */}
               <div className="w-full">
                 <div className="flex flex-col gap-0 mb-1">
                   <span className="text-lg font-semibold mb-1 text-white">
@@ -988,9 +743,6 @@ Authorization: `Bearer ${token}` } : {},
                   </div>
                 </div>
               </div>
-              {/* <div className={`text-sm font-semibold ${canContinue ? 'text-[#50DF3A]' : 'text-[#FDCB35]'}`}>
-        {canContinue ? '✓ Ready to proceed' : 'Connect at least one platform'}
-      </div> */}
             </div>
           </CardContent>
         </Card>
@@ -1009,7 +761,7 @@ Authorization: `Bearer ${token}` } : {},
             </AlertDialogHeader>
             <div className="flex justify-center p-4">
               <img
-                src={`data:image/png;base64,${telegramQrCode}`}
+                src={`${telegramQrCode}`}
                 alt="Telegram QR Code"
                 className="w-64 h-64"
               />
@@ -1023,7 +775,6 @@ Authorization: `Bearer ${token}` } : {},
                     setPollingIntervalId(null);
                   }
                   setTelegramQrCode(null);
-                  setTelegramQrToken(null);
                   setLoadingPlatform((prev) => ({ ...prev, telegram: false }));
                 }}
               >

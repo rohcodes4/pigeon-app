@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain,Tray, Menu } = require("electron");
+const { app, BrowserWindow, ipcMain, Tray, Menu } = require("electron");
 const path = require("path");
 require("dotenv").config();
 
@@ -6,11 +6,13 @@ const DatabaseManager = require("./database/DatabaseManager.cjs");
 const DiscordClient = require("./services/DiscordClient.cjs");
 const SecurityManager = require("./security/SecurityManager.cjs");
 const SyncManager = require("./sync/SyncManager.cjs");
+const TelegramClient = require("./services/TelegramClient.cjs");
 
 let mainWindow;
 let discordWindow;
 let dbManager;
 let discordClient;
+let telegramClient;
 let securityManager;
 let syncManager;
 let tray = null;
@@ -20,11 +22,44 @@ const rendererWindows = new Set();
 
 // Broadcast to all renderer windows
 function broadcastToRenderers(channel, data) {
-  rendererWindows.forEach(window => {
+  const safeData = safeSerialize(data);
+  rendererWindows.forEach((window) => {
     if (!window.isDestroyed()) {
-      window.webContents.send(channel, data);
+      window.webContents.send(channel, safeData);
     }
   });
+}
+
+function safeSerialize(obj) {
+  try {
+    // Try plain JSON serialization
+    return JSON.parse(JSON.stringify(obj, replacer));
+  } catch (err) {
+    // Fallback: send string if it still fails
+    return { error: "Non-serializable object", raw: String(obj) };
+  }
+}
+
+// Optional: handle BigInt or Buffer
+function replacer(key, value) {
+  if (typeof value === "bigint") return value.toString();
+  if (Buffer.isBuffer(value)) return value.toString("base64");
+  return value;
+}
+
+function setupTelegramEventForwarding() {
+  telegramClient.on("connected", (data) =>
+    broadcastToRenderers("telegram:connected", data)
+  );
+  telegramClient.on("disconnected", () =>
+    broadcastToRenderers("telegram:disconnected")
+  );
+  telegramClient.on("newMessage", (msg) =>
+    broadcastToRenderers("telegram:newMessage", msg)
+  );
+  telegramClient.on("error", (err) =>
+    broadcastToRenderers("telegram:error", err)
+  );
 }
 
 async function initializeApp() {
@@ -40,6 +75,9 @@ async function initializeApp() {
     // Setup Discord event listeners for broadcasting
     setupDiscordEventForwarding();
 
+    telegramClient = new TelegramClient(dbManager, securityManager);
+    setupTelegramEventForwarding();
+
     syncManager = new SyncManager(dbManager, securityManager);
 
     console.log("[App] All services initialized");
@@ -50,60 +88,60 @@ async function initializeApp() {
 
 function setupDiscordEventForwarding() {
   // Forward all Discord events to renderer processes
-  discordClient.on('connected', (state) => {
-    console.log('[App] Discord connected');
-    broadcastToRenderers('discord:connected', state);
+  discordClient.on("connected", (state) => {
+    console.log("[App] Discord connected");
+    broadcastToRenderers("discord:connected", state);
   });
 
-  discordClient.on('disconnected', (data) => {
-    console.log('[App] Discord disconnected');
-    broadcastToRenderers('discord:disconnected', data);
+  discordClient.on("disconnected", (data) => {
+    console.log("[App] Discord disconnected");
+    broadcastToRenderers("discord:disconnected", data);
   });
 
-  discordClient.on('ready', (state) => {
-    console.log('[App] Discord ready');
-    broadcastToRenderers('discord:ready', state);
+  discordClient.on("ready", (state) => {
+    console.log("[App] Discord ready");
+    broadcastToRenderers("discord:ready", state);
   });
 
-  discordClient.on('newMessage', (data) => {
+  discordClient.on("newMessage", (data) => {
     // Broadcast new message to all windows
-    broadcastToRenderers('discord:newMessage', data);
+    broadcastToRenderers("discord:newMessage", data);
   });
 
-  discordClient.on('messageUpdate', (data) => {
-    broadcastToRenderers('discord:messageUpdate', data);
+  discordClient.on("messageUpdate", (data) => {
+    broadcastToRenderers("discord:messageUpdate", data);
   });
 
-  discordClient.on('messageDelete', (data) => {
-    broadcastToRenderers('discord:messageDelete', data);
+  discordClient.on("messageDelete", (data) => {
+    broadcastToRenderers("discord:messageDelete", data);
   });
 
-  discordClient.on('channelUpdate', (channel) => {
-    broadcastToRenderers('discord:channelUpdate', channel);
+  discordClient.on("channelUpdate", (channel) => {
+    broadcastToRenderers("discord:channelUpdate", channel);
   });
 
-  discordClient.on('channelsUpdate', (state) => {
-    broadcastToRenderers('discord:channelsUpdate', state);
+  discordClient.on("channelsUpdate", (state) => {
+    broadcastToRenderers("discord:channelsUpdate", state);
   });
 
-  discordClient.on('guildUpdate', (state) => {
-    broadcastToRenderers('discord:guildUpdate', state);
+  discordClient.on("guildUpdate", (state) => {
+    broadcastToRenderers("discord:guildUpdate", state);
   });
 
-  discordClient.on('error', (error) => {
-    broadcastToRenderers('discord:error', {
+  discordClient.on("error", (error) => {
+    broadcastToRenderers("discord:error", {
       message: error.message,
-      stack: error.stack
+      stack: error.stack,
     });
   });
 
-  discordClient.on('captchaRequired', (data) => {
-    console.log('[App] CAPTCHA required');
-    broadcastToRenderers('discord:captchaRequired', data);
+  discordClient.on("captchaRequired", (data) => {
+    console.log("[App] CAPTCHA required");
+    broadcastToRenderers("discord:captchaRequired", data);
   });
 
-  discordClient.on('fatalError', (data) => {
-    broadcastToRenderers('discord:fatalError', data);
+  discordClient.on("fatalError", (data) => {
+    broadcastToRenderers("discord:fatalError", data);
   });
 }
 
@@ -115,21 +153,24 @@ function createWindow() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: true
-    }
+      webSecurity: true,
+    },
   });
 
   // Register window for event broadcasting
   rendererWindows.add(mainWindow);
 
-  if (process.env.VITE_NODE_ENV === "development" && process.env.VITE_DEV_SERVER_URL) {
+  if (
+    process.env.VITE_NODE_ENV === "development" &&
+    process.env.VITE_DEV_SERVER_URL
+  ) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
     mainWindow.webContents.openDevTools();
   } else {
-    const indexPath = path.join(__dirname, '..', '..', 'dist', 'index.html');
+    const indexPath = path.join(__dirname, "..", "..", "dist", "index.html");
     mainWindow.loadFile(indexPath);
   }
- mainWindow.on("close", (event) => {
+  mainWindow.on("close", (event) => {
     if (!app.isQuitting) {
       event.preventDefault();
       mainWindow.hide();
@@ -144,20 +185,22 @@ function createWindow() {
 }
 
 function setupTray() {
-
-const iconPath = process.env.VITE_NODE_ENV === "development"
-      ? path.join(__dirname, "assets","icons", "logox32.png") // dev path
+  const iconPath =
+    process.env.VITE_NODE_ENV === "development"
+      ? path.join(__dirname, "assets", "icons", "logox32.png") // dev path
       : path.join(process.resourcesPath, "icons", "logox32.png");
   tray = new Tray(iconPath);
   const contextMenu = Menu.buildFromTemplate([
     { label: "Show", click: () => mainWindow.show() },
-    { label: "Quit", click: () => {
+    {
+      label: "Quit",
+      click: () => {
         app.isQuitting = true;
         if (syncManager) syncManager.stopPeriodicSync();
         if (discordClient) discordClient.disconnect();
         app.quit();
-      }
-    }
+      },
+    },
   ]);
   tray.setToolTip("Pigeon");
   tray.setContextMenu(contextMenu);
@@ -180,7 +223,7 @@ function setupIPCHandlers() {
 
   ipcMain.handle("discord:connect", async (event, token) => {
     try {
-      console.log("[IPC] Connecting to Discord..." , token.slice(0, 8) + "...");
+      console.log("[IPC] Connecting to Discord...", token.slice(0, 8) + "...");
       await discordClient.connect(token);
       return { success: true };
     } catch (error) {
@@ -228,15 +271,18 @@ function setupIPCHandlers() {
   });
 
   // Messages - from local DB (fast)
-  ipcMain.handle("discord:get-messages", async (event, chatId, limit, offset) => {
-    try {
-      const messages = await discordClient.getMessages(chatId, limit, offset);
-      return { success: true, data: messages };
-    } catch (error) {
-      console.error("[IPC] Get messages error:", error);
-      return { success: false, error: error.message };
+  ipcMain.handle(
+    "discord:get-messages",
+    async (event, chatId, limit, offset) => {
+      try {
+        const messages = await discordClient.getMessages(chatId, limit, offset);
+        return { success: true, data: messages };
+      } catch (error) {
+        console.error("[IPC] Get messages error:", error);
+        return { success: false, error: error.message };
+      }
     }
-  });
+  );
 
   ipcMain.handle("discord:get-stickers", async (event, locale) => {
     try {
@@ -248,10 +294,10 @@ function setupIPCHandlers() {
     } catch (error) {
       console.error("[IPC] Get stickers error:", error);
       return { success: false, error: error.message };
-    } 
+    }
   });
 
-  ipcMain.handle("discord:get-sticker-by-id", async (event, {stickerId}) => {
+  ipcMain.handle("discord:get-sticker-by-id", async (event, { stickerId }) => {
     try {
       if (!discordClient.isConnected()) {
         return { success: false, error: "Discord not connected" };
@@ -261,145 +307,196 @@ function setupIPCHandlers() {
     } catch (error) {
       console.error("[IPC] Get stickers by id error:", error);
       return { success: false, error: error.message };
-    } 
-  });
-
-  ipcMain.handle("discord:delete-message", async (event, { chatId, messageId }) => {
-    try {
-      if (!discordClient.isConnected()) {
-        return { success: false, error: "Discord not connected" };
-      }
-      const result = await discordClient.deleteMessage(chatId, messageId);
-      return { success: true, data: result };
-    } catch (error) {
-      console.error("[IPC] Delete message error:", error);
-      return { success: false, error: error.message };
     }
   });
-  ipcMain.handle("discord:edit-message", async (event, { chatId, messageId, newContent }) => {
-    try {
-      if (!discordClient.isConnected()) { 
-        return { success: false, error: "Discord not connected" };
-      } 
 
-      const result = await discordClient.editMessage(chatId, messageId, newContent);
-      return { success: true, data: result };
-    } catch (error) {
-      console.error("[IPC] Edit message error:", error);
-      return { success: false, error: error.message };
-    } 
-  });
-  // Chat history - from Discord API (for loading older messages)
-  ipcMain.handle("discord:get-chat-history", async (event, { chatId, limit = 50, beforeMessageId }) => {
-    try {
-      if (!discordClient.isConnected()) {
-        return { success: false, error: "Discord not connected" };
+  ipcMain.handle(
+    "discord:delete-message",
+    async (event, { chatId, messageId }) => {
+      try {
+        if (!discordClient.isConnected()) {
+          return { success: false, error: "Discord not connected" };
+        }
+        const result = await discordClient.deleteMessage(chatId, messageId);
+        return { success: true, data: result };
+      } catch (error) {
+        console.error("[IPC] Delete message error:", error);
+        return { success: false, error: error.message };
       }
-      const chatHistory = await discordClient.getChatHistory(chatId, limit, beforeMessageId);
-      
-      // Store fetched messages in DB for caching
-      if (chatHistory && Array.isArray(chatHistory)) {
-        for (const msg of chatHistory) {
-          if (msg.author) {
-            dbManager.createUser({
-              id: msg.author.id,
-              platform: "discord",
-              username: msg.author.username,
-              display_name: msg.author.global_name || msg.author.username,
-              avatar_url: msg.author.avatar
-                ? `https://cdn.discordapp.com/avatars/${msg.author.id}/${msg.author.avatar}.png`
-                : null
+    }
+  );
+  ipcMain.handle(
+    "discord:edit-message",
+    async (event, { chatId, messageId, newContent }) => {
+      try {
+        if (!discordClient.isConnected()) {
+          return { success: false, error: "Discord not connected" };
+        }
+
+        const result = await discordClient.editMessage(
+          chatId,
+          messageId,
+          newContent
+        );
+        return { success: true, data: result };
+      } catch (error) {
+        console.error("[IPC] Edit message error:", error);
+        return { success: false, error: error.message };
+      }
+    }
+  );
+  // Chat history - from Discord API (for loading older messages)
+  ipcMain.handle(
+    "discord:get-chat-history",
+    async (event, { chatId, limit = 50, beforeMessageId }) => {
+      try {
+        if (!discordClient.isConnected()) {
+          return { success: false, error: "Discord not connected" };
+        }
+        const chatHistory = await discordClient.getChatHistory(
+          chatId,
+          limit,
+          beforeMessageId
+        );
+
+        // Store fetched messages in DB for caching
+        if (chatHistory && Array.isArray(chatHistory)) {
+          for (const msg of chatHistory) {
+            if (msg.author) {
+              dbManager.createUser({
+                id: msg.author.id,
+                platform: "discord",
+                username: msg.author.username,
+                display_name: msg.author.global_name || msg.author.username,
+                avatar_url: msg.author.avatar
+                  ? `https://cdn.discordapp.com/avatars/${msg.author.id}/${msg.author.avatar}.png`
+                  : null,
+              });
+            }
+
+            dbManager.createMessage({
+              id: msg.id,
+              chat_id: msg.channel_id,
+              user_id: msg.author.id,
+              content: msg.content,
+              message_type: discordClient.getMessageType(msg),
+              attachments: msg.attachments,
+              reactions: msg.reactions,
+              embeds: msg.embeds,
+              timestamp: msg.timestamp,
+              sync_status: "synced",
+              mentions: msg.mentions,
+              message_reference: msg.message_reference || null,
+              referenced_message: msg.referenced_message || null,
+              sticker_items: msg.sticker_items,
+              channel_type: msg.channel_type,
             });
           }
-          
-          dbManager.createMessage({
-            id: msg.id,
-            chat_id: msg.channel_id,
-            user_id: msg.author.id,
-            content: msg.content,
-            message_type: discordClient.getMessageType(msg),
-            attachments: msg.attachments,
-            reactions: msg.reactions,
-            embeds: msg.embeds,
-            timestamp: msg.timestamp,
-            sync_status: "synced",
-            mentions: msg.mentions,
-            message_reference: msg.message_reference || null,
-            referenced_message: msg.referenced_message || null,
-            sticker_items: msg.sticker_items,
-            channel_type:msg.channel_type
-          });
         }
+
+        return { success: true, data: chatHistory };
+      } catch (error) {
+        console.error("[IPC] Get chat history error:", error);
+        return { success: false, error: error.message };
       }
-      
-      return { success: true, data: chatHistory };
-    } catch (error) {
-      console.error("[IPC] Get chat history error:", error);
-      return { success: false, error: error.message };
     }
-  });
+  );
 
   // Send message
-  ipcMain.handle("discord:send-message", async (event, { chatId, message, attachments , sticker_ids,message_reference}) => {
-    try {
-      if (!discordClient.isConnected()) {
-        return { success: false, error: "Discord not connected" };
+  ipcMain.handle(
+    "discord:send-message",
+    async (
+      event,
+      { chatId, message, attachments, sticker_ids, message_reference }
+    ) => {
+      try {
+        if (!discordClient.isConnected()) {
+          return { success: false, error: "Discord not connected" };
+        }
+        const result = await discordClient.sendMessage(
+          chatId,
+          message,
+          attachments,
+          sticker_ids,
+          message_reference
+        );
+        return { success: true, data: result };
+      } catch (error) {
+        console.error("[IPC] Send message error:", error);
+        if (error.captchaRequired) {
+          return {
+            success: false,
+            error: error.message,
+            captchaRequired: true,
+            captchaData: error.captchaData,
+          };
+        }
+        return { success: false, error: error.message };
       }
-      const result = await discordClient.sendMessage(chatId, message, attachments,sticker_ids,message_reference);
-      return { success: true, data: result };
-    } catch (error) {
-      console.error("[IPC] Send message error:", error);
-      if (error.captchaRequired) {
-        return {
-          success: false,
-          error: error.message,
-          captchaRequired: true,
-          captchaData: error.captchaData
-        };
-      }
-      return { success: false, error: error.message };
     }
-  });
+  );
 
-  ipcMain.handle("discord:send-message-with-captcha", async (event, { chatId, message, captchaToken, captchaData }) => {
-    try {
-      if (!discordClient.isConnected()) {
-        return { success: false, error: "Discord not connected" };
+  ipcMain.handle(
+    "discord:send-message-with-captcha",
+    async (event, { chatId, message, captchaToken, captchaData }) => {
+      try {
+        if (!discordClient.isConnected()) {
+          return { success: false, error: "Discord not connected" };
+        }
+        const result = await discordClient.sendMessageWithCaptcha(
+          chatId,
+          message,
+          captchaToken,
+          captchaData
+        );
+        return { success: true, data: result };
+      } catch (error) {
+        console.error("[IPC] Send message with CAPTCHA error:", error);
+        return { success: false, error: error.message };
       }
-      const result = await discordClient.sendMessageWithCaptcha(chatId, message, captchaToken, captchaData);
-      return { success: true, data: result };
-    } catch (error) {
-      console.error("[IPC] Send message with CAPTCHA error:", error);
-      return { success: false, error: error.message };
     }
-  });
+  );
 
   // Reactions
-  ipcMain.handle("discord:add-reaction", async (event, { chatId, messageId, emoji }) => {
-    try {
-      if (!discordClient.isConnected()) {
-        return { success: false, error: "Discord not connected" };
+  ipcMain.handle(
+    "discord:add-reaction",
+    async (event, { chatId, messageId, emoji }) => {
+      try {
+        if (!discordClient.isConnected()) {
+          return { success: false, error: "Discord not connected" };
+        }
+        const result = await discordClient.addReaction(
+          chatId,
+          messageId,
+          emoji
+        );
+        return { success: true, data: result };
+      } catch (error) {
+        console.error("[IPC] Add reaction error:", error);
+        return { success: false, error: error.message };
       }
-      const result = await discordClient.addReaction(chatId, messageId, emoji);
-      return { success: true, data: result };
-    } catch (error) {
-      console.error("[IPC] Add reaction error:", error);
-      return { success: false, error: error.message };
     }
-  });
+  );
 
-  ipcMain.handle("discord:remove-reaction", async (event, { chatId, messageId, emoji }) => {
-    try {
-      if (!discordClient.isConnected()) {
-        return { success: false, error: "Discord not connected" };
+  ipcMain.handle(
+    "discord:remove-reaction",
+    async (event, { chatId, messageId, emoji }) => {
+      try {
+        if (!discordClient.isConnected()) {
+          return { success: false, error: "Discord not connected" };
+        }
+        const result = await discordClient.removeReaction(
+          chatId,
+          messageId,
+          emoji
+        );
+        return { success: true, data: result };
+      } catch (error) {
+        console.error("[IPC] Remove reaction error:", error);
+        return { success: false, error: error.message };
       }
-      const result = await discordClient.removeReaction(chatId, messageId, emoji);
-      return { success: true, data: result };
-    } catch (error) {
-      console.error("[IPC] Remove reaction error:", error);
-      return { success: false, error: error.message };
     }
-  });
+  );
 
   // Attachments
   ipcMain.handle("discord:attachments", async (event, { chatId, files }) => {
@@ -416,7 +513,7 @@ function setupIPCHandlers() {
           success: false,
           error: error.message,
           captchaRequired: true,
-          captchaData: error.captchaData
+          captchaData: error.captchaData,
         };
       }
       return { success: false, error: error.message };
@@ -434,25 +531,34 @@ function setupIPCHandlers() {
     }
   });
 
-  ipcMain.handle("db:get-messages", async (event, { chatId, limit = 50, offset = 0 }) => {
-    try {
-      const messages = await dbManager.getMessages(chatId, limit, offset);
-      return { success: true, data: messages };
-    } catch (error) {
-      console.error("[IPC] Get messages error:", error);
-      return { success: false, error: error.message };
+  ipcMain.handle(
+    "db:get-messages",
+    async (event, { chatId, limit = 50, offset = 0 }) => {
+      try {
+        const messages = await dbManager.getMessages(chatId, limit, offset);
+        return { success: true, data: messages };
+      } catch (error) {
+        console.error("[IPC] Get messages error:", error);
+        return { success: false, error: error.message };
+      }
     }
-  });
+  );
 
-  ipcMain.handle("db:get-messages-for-summary",  async (event, { chatId,timeRange}) => {
-    try {
-      const messages = await dbManager.getMessagesForSummary(chatId,timeRange);
-      return { success: true, data: messages };
-    } catch (error) {
-      console.error("[IPC] Get messages-for-summary error:", error);
-      return { success: false, error: error.message };
+  ipcMain.handle(
+    "db:get-messages-for-summary",
+    async (event, { chatId, timeRange }) => {
+      try {
+        const messages = await dbManager.getMessagesForSummary(
+          chatId,
+          timeRange
+        );
+        return { success: true, data: messages };
+      } catch (error) {
+        console.error("[IPC] Get messages-for-summary error:", error);
+        return { success: false, error: error.message };
+      }
     }
-  });
+  );
   // Security
   ipcMain.handle("security:get-token", async () => {
     try {
@@ -464,15 +570,15 @@ function setupIPCHandlers() {
     }
   });
 
-  ipcMain.handle("discord:getUserId", async () =>{
-      try {
+  ipcMain.handle("discord:getUserId", async () => {
+    try {
       const userId = await discordClient.getUserId();
       return { success: true, data: userId };
     } catch (error) {
       console.error("[IPC] Get userId error:", error);
       return { success: false, error: error.message };
     }
-  } )
+  });
 
   ipcMain.handle("security:set-token", async (event, token) => {
     try {
@@ -543,13 +649,37 @@ function setupIPCHandlers() {
 
   ipcMain.handle("app:maximize", async () => {
     if (mainWindow) {
-      mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+      mainWindow.isMaximized()
+        ? mainWindow.unmaximize()
+        : mainWindow.maximize();
     }
     return { success: true };
   });
 
   ipcMain.handle("app:is-maximized", async () => {
-    return { success: true, data: mainWindow ? mainWindow.isMaximized() : false };
+    return {
+      success: true,
+      data: mainWindow ? mainWindow.isMaximized() : false,
+    };
+  });
+
+  ipcMain.handle("telegram:login-phone", async (_event, phone) => {
+    return await telegramClient.connectWithPhone(mainWindow, phone);
+  });
+
+  ipcMain.handle("telegram:login-qr", async () => {
+    return await telegramClient.connectWithQR(mainWindow);
+  });
+
+  ipcMain.handle(
+    "telegram:send-message",
+    async (_event, { chatId, message }) => {
+      await telegramClient.sendMessage(chatId, message);
+    }
+  );
+
+  ipcMain.handle("telegram:get-dialogs", async () => {
+    return await telegramClient.getDialogs();
   });
 }
 
@@ -569,8 +699,8 @@ async function openDiscordLogin() {
         nodeIntegration: false,
         contextIsolation: true,
         webSecurity: true,
-        sandbox: false
-      }
+        sandbox: false,
+      },
     });
 
     const getRealisticUserAgent = () => {
@@ -641,7 +771,9 @@ async function openDiscordLogin() {
 
     discordWindow.webContents.on("did-navigate", () => {
       setTimeout(() => {
-        discordWindow?.webContents?.executeJavaScript(pollTokenScript)?.catch(console.error);
+        discordWindow?.webContents
+          ?.executeJavaScript(pollTokenScript)
+          ?.catch(console.error);
       }, 3000);
     });
 
@@ -667,7 +799,7 @@ ipcMain.on("send-discord-token", async (event, token) => {
     if (mainWindow) {
       mainWindow.webContents.send("discord-connected", {
         success: false,
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -706,8 +838,8 @@ app.on("activate", () => {
 });
 
 app.on("before-quit", async () => {
-   app.isQuitting = true;
-   if (dbManager) {
+  app.isQuitting = true;
+  if (dbManager) {
     try {
       console.log("[DB] Flushing WAL and closing app quit...");
       // flush WAL into pigeon.db

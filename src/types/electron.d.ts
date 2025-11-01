@@ -2,9 +2,9 @@
 export interface ElectronAPI {
   discord: {
     connect: (token: string) => Promise<{ success: boolean; error?: string }>;
-    getUserId: () => Promise<{ success: boolean; data?:any, error?: string }>
+    getUserId: () => Promise<{ success: boolean; data?: any; error?: string }>;
     disconnect: () => Promise<{ success: boolean; error?: string }>;
-    openLogin: () => Promise<{ success: boolean; data:any, error?: string }>;
+    openLogin: () => Promise<{ success: boolean; data: any; error?: string }>;
     getDMs: () => Promise<{
       success: boolean;
       data?: Array<{
@@ -21,7 +21,7 @@ export interface ElectronAPI {
       success: boolean;
       data?: Array<any>;
       error?: string;
-    }>; 
+    }>;
     attachments: (
       chatId: string,
       files: Array<any>
@@ -36,14 +36,16 @@ export interface ElectronAPI {
       data?: Array<any>;
       error?: string;
     }>;
-    onNewMessage: (
-      callback: (data: any) => void
-    ) => () => void;
+    onNewMessage: (callback: (data: any) => void) => () => void;
     sendMessage: (
       chatId: string,
       message: string,
-      attachments?: Array<{ id: string; filename: string; uploaded_filename: string }>,
-      sticker_ids?:Array<string>,
+      attachments?: Array<{
+        id: string;
+        filename: string;
+        uploaded_filename: string;
+      }>,
+      sticker_ids?: Array<string>,
       message_reference?: any
     ) => Promise<{
       success: boolean;
@@ -62,7 +64,7 @@ export interface ElectronAPI {
       success: boolean;
       error?: string;
     }>;
-    removeReaction: ( 
+    removeReaction: (
       chatId: string,
       messageId: string,
       emoji: string
@@ -72,7 +74,7 @@ export interface ElectronAPI {
     }>;
     deleteMessage: (
       chatId: string,
-      messageId: string 
+      messageId: string
     ) => Promise<{
       success: boolean;
       error?: string;
@@ -86,16 +88,12 @@ export interface ElectronAPI {
       data?: any;
       error?: string;
     }>;
-    getStickers: (
-      locale?: string
-    ) => Promise<{
+    getStickers: (locale?: string) => Promise<{
       success: boolean;
       data?: Array<any>;
       error?: string;
     }>;
-    getStickerById: (
-      stickerId?: string
-    ) => Promise<{
+    getStickerById: (stickerId?: string) => Promise<{
       success: boolean;
       data?: Array<any>;
       error?: string;
@@ -106,6 +104,64 @@ export interface ElectronAPI {
     ) => void;
     removeAllListeners: () => void;
   };
+  telegram: {
+    // === Actions ===
+    loginPhone: (
+      phone: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    verifyCode: (code: string) => Promise<{ success: boolean; error?: string }>;
+    checkPassword: (
+      password: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    loginQR: () => Promise<{ success: boolean; error?: string }>;
+    reconnectFromSaved: () => Promise<{ success: boolean; error?: string }>;
+    disconnect: () => Promise<{ success: boolean; error?: string }>;
+
+    // === Message & Chat ===
+    sendMessage: (
+      chatId: string,
+      message: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    getDialogs: () => Promise<{
+      success: boolean;
+      data?: Array<{
+        id: string;
+        platform: "telegram";
+        type: "dm" | "group" | "channel";
+        name: string;
+        participant_count: number;
+        last_message_timestamp?: string;
+      }>;
+      error?: string;
+    }>;
+
+    getUserId: () => Promise<{ success: boolean; data?: any; error?: string }>;
+    openLogin: () => Promise<{ success: boolean; data?: any; error?: string }>;
+
+    // === Event listeners ===
+    onQR: (callback: (qrImage: string) => void) => void;
+    onLoginError: (callback: (error: string) => void) => void;
+    onQRExpired: (callback: () => void) => void;
+    onLoginSuccess: (callback: (user) => void) => void;
+    onPasswordInvalid: (callback: () => void) => void;
+    onCodeSent: (callback: (data: any) => void) => void;
+    onPasswordRequired: (callback: () => void) => void;
+    sendPassword: (
+      password: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    onConnected: (
+      callback: (user: {
+        id: string;
+        username?: string;
+        firstName?: string;
+        lastName?: string;
+      }) => void
+    ) => void;
+    onNewMessage: (
+      callback: (msg: { chatId: string; message: any }) => void
+    ) => void;
+  };
+
   security: {
     getDiscordToken: () => Promise<{
       success: boolean;
@@ -154,11 +210,14 @@ export interface ElectronAPI {
       error?: string;
     }>;
 
-    getMessagesForSummary:(chatId, timeRange?) => Promise<{
+    getMessagesForSummary: (
+      chatId,
+      timeRange?
+    ) => Promise<{
       success: boolean;
       data?: Array;
       error?: any;
-    }>
+    }>;
 
     getSettings: () => Promise<{
       success: boolean;

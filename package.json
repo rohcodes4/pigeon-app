@@ -34,11 +34,13 @@
       {
         "from": "assets/icons/",
         "to": "icons",
-        "filter": ["logox32.png"]
+        "filter": [
+          "logox32.png"
+        ]
       }
     ],
     "extraFiles": [
-       {
+      {
         "from": "src/main/assets/icons/",
         "to": "icons"
       }
@@ -130,6 +132,7 @@
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-beautiful-dnd": "^13.1.1",
     "react-day-picker": "^8.10.1",
@@ -143,6 +146,7 @@
     "sqlite3": "^5.1.7",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
+    "telegram": "^2.26.22",
     "vaul": "^0.9.3",
     "ws": "^8.18.3",
     "zod": "^3.23.8"

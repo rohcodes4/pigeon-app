@@ -66,37 +66,18 @@ export default function ConnectTelegram({
     setLoading(true);
     setError(null);
     try {
-      console.log("Requesting phone login for:", phoneNumber);
-      const response = await fetch(`${BACKEND_URL}/auth/phone/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phoneNumber }),
+      window.electronAPI.telegram.onCodeSent(() => {
+        console.log("Please enter the code sent to your Telegram app or SMS.");
+        setStep("otp");
+        toast({
+          title: "Code Sent",
+          description:
+            "Please check your Telegram app for the verification code. It may take a few moments to arrive.",
+        });
+        setLoading(false);
       });
-
-      const data = await response.json();
-      console.log("Phone login response:", data);
-
-      if (!response.ok) {
-        // Handle specific error types
-        if (response.status === 429) {
-          throw new Error(
-            "Too many requests. Please wait a few minutes and try again."
-          );
-        } else if (response.status === 408) {
-          throw new Error(
-            "Request timed out. Please check your internet connection and try again."
-          );
-        }
-        throw new Error(data.detail || "Failed to start login");
-      }
-
-      setPhoneToken(data.token);
-      setStep("otp");
-      toast({
-        title: "Code Sent",
-        description:
-          "Please check your Telegram app for the verification code. It may take a few moments to arrive.",
-      });
+      const response = window.electronAPI.telegram.loginPhone(phoneNumber);
+      console.log("Phone login response:", response);
     } catch (e: any) {
       console.error("Phone login error:", e);
       setError(e.message);
@@ -111,7 +92,7 @@ export default function ConnectTelegram({
   }
 
   async function submitOtp() {
-    if (!otp.trim() || !phoneToken) {
+    if (!otp.trim()) {
       setError("Please enter the verification code");
       return;
     }
@@ -119,27 +100,20 @@ export default function ConnectTelegram({
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${BACKEND_URL}/auth/phone/verify`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          token: phoneToken,
-          code: otp.trim(),
-        }),
+      await window.electronAPI.telegram.verifyCode(otp.trim());
+      window.electronAPI.telegram.onConnected((user) => {
+        console.log("Logged in:", user);
+        setStep("success");
+        toast({
+          title: "Success!",
+          description:
+            "Telegram connected successfully! Your chats are being synced in the background.",
+        });
+        if (onConnected) onConnected();
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Verification failed");
-      }
-
-      if (data.status === "password_required") {
-        // 2FA password is required
+      window.electronAPI.telegram.onPasswordRequired(() => {
+        console.log("Password required for 2FA");
         setStep("password");
         setShowPasswordModal(true);
         toast({
@@ -147,29 +121,7 @@ export default function ConnectTelegram({
           description:
             "Please enter your Telegram password to complete the connection.",
         });
-      } else if (data.status === "success") {
-        // Login successful
-        setStep("success");
-        if (data.access_token) {
-          localStorage.setItem("access_token", data.access_token);
-
-          // Note: Chat sync will be triggered manually by the user on the ChatSyncing page
-          console.log(
-            "Telegram phone login successful - chat sync can be started manually"
-          );
-        }
-
-        toast({
-          title: "Success!",
-          description:
-            "Telegram connected successfully! Your chats are being synced in the background.",
-        });
-
-        // Handle successful authentication
-        await handleAuthSuccess();
-      } else {
-        throw new Error(data.detail || "Unexpected response");
-      }
+      });
     } catch (e: any) {
       setError(e.message);
       toast({
@@ -183,7 +135,7 @@ export default function ConnectTelegram({
   }
 
   async function submitPassword() {
-    if (!password.trim() || !phoneToken) {
+    if (!password.trim()) {
       setError("Please enter your password");
       return;
     }
@@ -191,50 +143,33 @@ export default function ConnectTelegram({
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem("access_token");
-      const formData = new FormData();
-      formData.append("password", password);
-
-      const response = await fetch(
-        `${BACKEND_URL}/auth/phone/${phoneToken}/password`,
-        {
-          method: "POST",
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Password verification failed");
-      }
-
-      if (data.status === "success") {
-        setStep("success");
+      await window.electronAPI.telegram.sendPassword(password.trim());
+      window.electronAPI.telegram.onLoginSuccess((user) => {
+        console.log("Telegram ipc login success:", user);
         setShowPasswordModal(false);
-        if (data.access_token) {
-          localStorage.setItem("access_token", data.access_token);
-
-          // Note: Chat sync will be triggered manually by the user on the ChatSyncing page
-          console.log(
-            "Telegram phone 2FA login successful - chat sync can be started manually"
-          );
-        }
-
+        setStep("success");
         toast({
           title: "Success!",
           description:
             "Telegram connected successfully! Your chats are being synced in the background.",
         });
+        if (onConnected) onConnected();
+      });
 
-        // Handle successful authentication
-        await handleAuthSuccess();
-      } else {
-        throw new Error(data.detail || "Unexpected response");
-      }
+      window.electronAPI.telegram.onLoginError((error) => {
+        toast({
+          title: "Authentication Failed",
+          description: "Failed to verify password",
+          variant: "destructive",
+        });
+      });
+      window.electronAPI.telegram.onPasswordInvalid(() => {
+        toast({
+          title: "Authentication Failed",
+          description: "Invalid password. Please try again.",
+          variant: "destructive",
+        });
+      });
     } catch (e: any) {
       setError(e.message);
       toast({

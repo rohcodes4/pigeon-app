@@ -283,6 +283,22 @@ class SecurityManager {
       masterKeyLength: this.masterKey ? this.masterKey.length : 0,
     };
   }
+
+  async saveTelegramSession(session) {
+    this.store.set("telegramSession", session);
+  }
+
+  async getTelegramSession() {
+    return await this.store.get("telegramSession");
+  }
+  async clearTelegramSession() {
+    try {
+      this.store.delete("telegramSession");
+      console.log("[Security] Telegram session cleared");
+    } catch (error) {
+      console.error("[Security] Failed to clear Telegram session:", error);
+    }
+  }
 }
 
 module.exports = SecurityManager;
