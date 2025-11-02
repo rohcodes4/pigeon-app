@@ -1806,7 +1806,8 @@ if(msg.platform.toLowerCase() === "discord"){
           }
         }
       }else{
-      await sendMessage(id, messageText, replyToId);
+        await window.electronAPI.telegram.sendMessage(id, messageText);
+      // await sendMessage(id, messageText, replyToId);
       }
         if (inputRef.current) {
           inputRef.current.value = "";

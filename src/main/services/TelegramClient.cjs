@@ -3,6 +3,8 @@ const { TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const { NewMessage } = require("telegram/events");
 const { EventEmitter } = require("events");
+const moment = require("moment");
+
 const qrcode = require("qrcode");
 const { ipcMain } = require("electron");
 class TelegramService extends EventEmitter {
@@ -29,6 +31,55 @@ class TelegramService extends EventEmitter {
       langCode: "en",
     });
   }
+async connectExisting(mainWindow) {
+  try {
+    await this.init(); // loads saved session & initializes client
+    await this.client.connect();
+
+    // Check if the saved session is still authorized
+    const isAuthorized = await this.client.checkAuthorization();
+
+    if (!isAuthorized) {
+      console.log("[Telegram] Session expired or not authorized");
+      mainWindow.webContents.send("telegram:not-logged-in");
+      return false;
+    }
+
+    // Successfully connected with existing session
+    const user = await this.client.getMe();
+    console.log("[Telegram] Connected as", user.username);
+
+    global.telegramClient = this.client;
+    global.telegramUser = user;
+
+    // Notify renderer
+    mainWindow.webContents.send("telegram:connected", user);
+
+    // (Optional) Listen for incoming messages
+    this.client.addEventHandler(async (event) => {
+      const message = event.message;
+      if (message && message.message) {
+        mainWindow.webContents.send("telegram:newMessage", {
+          chatId: message.chatId?.value,
+          senderId: message.senderId?.value,
+          text: message.message,
+        });
+      }else if(message && event.chatId){
+        mainWindow.webContents.send("telegram:newMessage", {
+          chatId: event.chatId?.value,
+          senderId: event.fromId?.value,
+          text: message,
+        });
+      }
+    });
+
+    return true;
+  } catch (error) {
+    console.error("[Telegram] connectExisting error:", error);
+    mainWindow.webContents.send("telegram:connect-error", error.message);
+    return false;
+  }
+}
 
   verifyCode(code) {
     ipcMain.emit("telegram:code-entered", code);
@@ -250,16 +301,57 @@ class TelegramService extends EventEmitter {
   }
 
   async sendMessage(chatId, message) {
-    await this.client.sendMessage(chatId, { message });
+    // const entity = await this.client.getEntity(chatId);
+    await this.client.sendMessage(-1004786899416, { message });
   }
 
   async getDialogs() {
     const dialogs = await this.client.getDialogs();
-    return dialogs.map((d) => ({
-      id: d.id.toString(),
-      name: d.title,
-      type: d.isUser ? "dm" : d.isGroup ? "group" : "channel",
-    }));
+    const chatList = dialogs.map((dialog) => {
+    const entity = dialog.entity;
+    const message = dialog.message;
+  
+
+    // Determine chat type
+    let chat_type = "private";
+    if (entity.className === "Channel") {
+      chat_type = entity.megagroup ? "group" : "channel";
+    } else if (entity.className === "Chat") {
+      chat_type = "group";
+    } else if (entity.className === "User") {
+      chat_type = "private";
+    }
+
+    // Get display name
+    const name =
+      entity.title ||
+      [entity.firstName, entity.lastName].filter(Boolean).join(" ") ||
+      "Unknown";
+
+    // Compose chat object in your required shape
+    return {
+      _id: entity.id?.value,
+      id: entity.id?.value,
+      chat_type,
+      name,
+      lastMessage: message?.message  || "",
+      last_message: message?.message  || "",
+      unread: dialog.unreadCount || 0,
+      read: dialog.unreadCount === 0,
+      isPinned: dialog.pinned || false,
+      is_dialog: true,
+      is_typing: false,
+      last_seen: moment(dialog.date * 1000).toISOString(),
+      last_ts: moment(dialog.date * 1000).format("YYYY-MM-DDTHH:mm:ss"),
+      timestamp: moment(dialog.date * 1000).format("YYYY-MM-DDTHH:mm:ss"),
+      count: dialog.messages?.length || 0,
+      summary: "",
+      sync_enabled: null,
+      platform: "Telegram",
+      photo_url: `http://api.pigeon.chat/chat_photo/${entity.id?.toString()}`,
+    };
+  });
+  return chatList;
   }
 }
 

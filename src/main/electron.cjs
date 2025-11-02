@@ -679,8 +679,15 @@ function setupIPCHandlers() {
   );
 
   ipcMain.handle("telegram:get-dialogs", async () => {
-    return await telegramClient.getDialogs();
+    const data = await telegramClient.getDialogs();
+    return { success: true, data };
   });
+
+  ipcMain.handle("telegram:connect-existing", async (event) => {
+  const connected = await telegramClient.connectExisting(mainWindow);
+  return {success: connected};
+});
+
 }
 
 async function openDiscordLogin() {

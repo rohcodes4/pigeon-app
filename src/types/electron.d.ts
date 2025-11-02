@@ -160,6 +160,8 @@ export interface ElectronAPI {
     onNewMessage: (
       callback: (msg: { chatId: string; message: any }) => void
     ) => void;
+
+    connectExisting: () => Promise<{ success: boolean; error?: string }>;
   };
 
   security: {

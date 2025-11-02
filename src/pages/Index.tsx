@@ -109,7 +109,7 @@ const Index = () => {
         // const chats2=[]
 
         // Update chats immediately to show progress
-        setTelegramChats(chats2);
+        setTelegramChats(telegramChats);
         console.log(`Poll ${i}: Found ${chats2.length} chats`);
 
         // If we got chats, reset the empty poll counter
@@ -289,7 +289,7 @@ const Index = () => {
             ? data.chats
             : [];
           if (chats.length > 0) {
-            setTelegramChats(chats);
+            setTelegramChats(telegramChats);
             setTelegramLoading(false);
           } else {
             setTelegramLoading(false);
@@ -475,19 +475,7 @@ const Index = () => {
       }
       setChatsLoading(true);
       try {
-        const token = localStorage.getItem("access_token");
-        const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/ui/chats?include_all=true`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
+     
         // setChats(data.chats || []);
         // const res = await window.electronAPI.security.getDiscordToken();
         // if (res?.success && res?.data) {
@@ -498,7 +486,7 @@ const Index = () => {
         const discordChats = dms?.map(mapDiscordToTelegramSchema);
         console.log(dms);
         // Merge both
-        const allChats = [...data.chats, ...discordChats];
+        const allChats = [...telegramChats, ...discordChats];
         allChats.sort((a, b) => {
           if (!a.timestamp && !b.timestamp) return 0; // both null → equal
           if (!a.timestamp) return 1; // a is null → after b
@@ -545,11 +533,29 @@ const Index = () => {
       }
     };
     fetchChats();
-  }, [user, dms, discordGuilds]);
+  }, [user, dms, discordGuilds, telegramChats]);
 
   useEffect(() => {
     setOpenPanel(null);
   }, [selectedChat]);
+  useEffect(() => {
+      window.electronAPI.telegram.onNewMessage((res) => {
+    // Update the specific chat with the new message
+    console.log("New message received for chatId:", res);
+  });
+  window.electronAPI.telegram.connectExisting().then((res) => {
+    console.log("Connected existing telegram session:", res);
+     window.electronAPI.telegram.getDialogs().then((dialogsRes) => {
+      console.log("Fetched telegram dialogs:", dialogsRes);
+      if (dialogsRes.success && dialogsRes.data) {
+        setTelegramChats(dialogsRes.data);
+      }
+    })
+  });
+ 
+  }, []);
+
+  
 
   // Lightweight polling: refresh sidebar chats every 30s with smart merging
   useEffect(() => {
@@ -557,19 +563,10 @@ const Index = () => {
     let timer: any = null;
     const poll = async () => {
       try {
-        const token = localStorage.getItem("access_token");
-        const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/ui/chats?include_all=true`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        if (response.ok) {
-          const data = await response.json();
-          const newChats = data.chats || [];
-          let allChats = newChats;
+     
+       
+        
+          let allChats = telegramChats;
           // Fetch Discord DMs
           // remove listener if supported
           // console.log("Polled guilds:", guilds.data);
@@ -577,7 +574,7 @@ const Index = () => {
           if (dms) {
             const discordChats = dms?.map(mapDiscordToTelegramSchema);
             // Merge both
-            allChats = [...newChats, ...discordChats];
+            allChats = [...telegramChats, ...discordChats];
             allChats.sort((a, b) => {
               if (!a.timestamp && !b.timestamp) return 0; // both null → equal
               if (!a.timestamp) return 1; // a is null → after b
@@ -618,7 +615,7 @@ const Index = () => {
             // Only update if there are actual changes
             return hasChanges ? allChats : prevChats;
           });
-        }
+        
       } catch (_) {
         // ignore transient polling errors
       } finally {

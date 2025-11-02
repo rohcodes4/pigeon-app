@@ -165,6 +165,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     onQRExpired: (callback) => ipcRenderer.on("telegram:qr-expired", callback),
     onLoginSuccess: (callback) =>
       ipcRenderer.on("telegram:login-success", (_, user) => callback(user)),
+    connectExisting: () => ipcRenderer.invoke("telegram:connect-existing"),
   },
   security: {
     getDiscordToken: () => ipcRenderer.invoke("security:get-token"),
