@@ -53,5 +53,6 @@ pnpm-debug.log*
 
 # Optional: lockfiles if you’re not using them
 # package-lock.json
+package-lock.json
 # yarn.lock
 # pnpm-lock.yaml

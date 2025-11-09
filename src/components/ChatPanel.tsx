@@ -50,7 +50,6 @@ function formatChatTime(dateString: string) {
 
   // Handle invalid dates
   if (isNaN(chatDate.getTime())) {
-    // console.log("Invalid date string:", dateString);
     return "now";
   }
 
@@ -143,7 +142,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [tgchats, setTgchats] = useState<any[]>([]);
   const [channelSearch, setChannelSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
-  const [selectedChannels, setSelectedChannels] = useState([]);
   const [isFilteredStreamsOpen, setIsFilteredStreamsOpen] = useState(true);
   const [isChannelsOpen, setIsChannelsOpen] = useState(true);
   const [searchMore, setSearchMore] = useState(false);
@@ -168,22 +166,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [discordDms, setDiscordDms] = useState([]);
   const menuRef = useRef(null);
 
-  // useEffect(() => {
-  //   if (isConnected) {
-  //     refresh();
-  //     console.log(dms,'chtpanel')
-  //   }
-  // }, [isConnected, refresh]);
   // Close on mouse leave from menu
   const handleMenuMouseLeave = () => {
     closeContextMenu();
   };
 
   useEffect(() => {
-    // console.log("Context updated:", { dms, guilds });
     setDiscordDms(dms);
-
-    // console.log("[localguild][localStorage] parsed:", parsed);
     let tempDCchannel = {};
     (async()=>{
     const currentUserId = await window.electronAPI.discord.getUserId();
@@ -196,7 +185,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       // Combine old + new
       const merged = [...prevChannels, ...dms.map(mapDiscordToTelegramSchema)];
 
-      // console.log(merged)
       // Remove duplicates based on `id`
       const unique = merged.filter(
         (channel, index, self) =>
@@ -236,7 +224,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   const handleReadAll = async () => {
     if (contextMenu) {
-      // console.log("Read All clicked for channel", contextMenu.channel);
       // Add your Read All logic here
       try {
         const token = localStorage.getItem("access_token");
@@ -254,9 +241,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           }
         );
 
-        if (response.ok) {
-          // console.log(`Chat ${chatId} marked as read`);
-        }
       } catch (error) {
         console.error("Failed to mark chat as read:", error);
       }
@@ -276,10 +260,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   }, [contextMenu]);
   const handleMuteChat = async () => {
     if (contextMenu) {
-      // console.log("Mute Chat clicked for channel", contextMenu.channel);
       // Add your Mute Chat logic here
       let mute = await fetchMuteStatus(contextMenu.channel.id);
-      // console.log('mute stat', !mute)
       toggleMuteChat(
         contextMenu.channel.id,
         contextMenu.channel.platform.toLowerCase(),
@@ -290,16 +272,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
 
   const handlePinChat = () => {
-    if (contextMenu) {
-      // console.log("Mute Chat clicked for channel", contextMenu.channel);
-      // Add your Mute Chat logic here
-      // toggleMuteChat(contextMenu.channel.id,contextMenu.channel.platform.toLowerCase(),true)
-    }
     closeContextMenu();
   };
 
   useEffect(() => {
-    // console.log(chats,"chats")
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         closeContextMenu();
@@ -319,17 +295,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     };
   }, []);
 
-  // Inside your ChatPanel or the top-level channel context/provider
-  useEffect(() => {
-    // Try to restore channels from localStorage first for instant render
-  }, []);
-
-  useEffect(() => {
-    if (allChannels) {
-      // Save channels to localStorage whenever new data is fetched/updated
-      // localStorage.setItem('channels', JSON.stringify(allChannels));
-    }
-  }, [allChannels]);
 
   useEffect(() => {
     // Save topItems to localStorage whenever it changes
@@ -337,22 +302,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   }, [topItems]);
   const loadChannels = async () => {
     try {
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-      const token = localStorage.getItem("access_token");
-
-      // const resp = await fetch(
-      //   `${import.meta.env.VITE_BACKEND_URL}/ui/chats?include_all=true`,
-      //   {
-      //     headers: {
-      //       Authorization: `Bearer ${token}`,
-      //     },
-      //   }
-      // );
-      // if (resp.ok) {
-        // const chats = await resp.json();
-        let chans = [] ;
-         
-
 
         // Map Discord DMs to unified format
         const discordChats = (dms || [])
@@ -404,8 +353,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   useEffect(() => {
     // Call loadChannels initially
     loadChannels();
-
-
   }, [tgchats,dms]);
 
   useEffect(() => {
@@ -416,7 +363,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           setTgchats(dialogsRes.data);
         
           console.log("tgchans",dialogsRes.data)
-        // setTelegramChats(dialogsRes.data);
       }
     })
   }, []);
@@ -426,7 +372,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       setFilterError(null);
       const filters = await getSmartFilters();
       setSmartFilters(filters);
-      // console.log("Loaded smart filters:", filters);
     } catch (error) {
       console.error("Error loading filters:", error);
       setFilterError(
@@ -525,12 +470,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   useEffect(() => {
     if (channelSearch.trim() === "") {
-      // setSearchResults([]);
       return;
     }
     // Add null checks to prevent errors
     if (!displayChats || !Array.isArray(displayChats)) {
-      // setSearchResults([]);
       return;
     }
     setSearchResults(
@@ -569,15 +512,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     setTimeout(bottomArrows.checkScroll, 300);
   };
 
-  const addFilter = (item: string) => {
-    if (!filters.includes(item)) {
-      setFilters((prev) => [...prev, item]);
-      // Reset limits when filters change
-      setStreamsLimit(5);
-      setChannelsLimit(20);
-      setTimeout(bottomArrows.checkScroll, 300);
-    }
-  };
 
   // Trust backend sorting - only separate pinned from unpinned
   // Backend already sorts chats consistently by messages first, then by name
@@ -595,8 +529,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       ),
   ];
-  // console.log('sortedDisplayChats',sortedDisplayChats)
-
   const getFilteredChannels = () => {
     // Use displayChats directly to maintain backend sorting
     let baseArray = isFocus ? focusChannels : sortedDisplayChats;
@@ -646,8 +578,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   // UI behavior: when "Filtered Streams" is selected in TOP_ITEMS,
   // show only the Filtered Streams section (expanded) and hide Channels
   const showChannelsSection = activeTopItem !== "Filtered Streams";
-  const streamsOpen =
-    activeTopItem === "Filtered Streams" ? true : isFilteredStreamsOpen;
 
   // Show more channels when searching or when filters are applied
   const displayChannels =
@@ -693,7 +623,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
       const data = await response.json();
       setSearchResults(data.results);
-      // console.log("Search results:", searchResults);
       return data;
     } catch (error) {
       setSearchResults([]);
@@ -710,15 +639,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       setSearchResults([]);
     }
   }, [searchTerm]);
-
-  // const channelsToShow =
-  //   searchResults?.length > 1
-  //     ? searchResults
-  //     : isFocus
-  //     ? focusChannels
-  //     : displayChannels;
-
-  //     console.log(channelsToShow)
 
   const channelsToShow = useMemo(() => {
     if (searchResults && searchResults.length > 0) {
@@ -751,112 +671,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         throw new Error(`Failed to mark all as read: ${response.status}`);
       }
       setSearchMore(false);
-      // Optionally, refresh chat list or update local read state
-      // alert("All chats marked as read");
-
-      // For example, refresh chats if you have a method
-      // loadChats();
     } catch (error) {
-      // alert(`Error marking all as read: ${(error as Error).message}`);
+      console.error("Failed to mark all as read:", error);
     }
   };
-
-  // function formatUnreadCount(unread) {
-  //   if (typeof unread !== 'number') return '';
-  //   return unread > 9 ? '9+' : unread.toString();
-  // }
-
-  // if (filterFull) {
-  //   return (
-  //     <FiltersPanel
-  //       onClose={() => setFilterFull(false)}
-  //       loadFilters={getSmartFilters}
-  //       createFilter={async (filterData) => {
-  //         const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  //         const token = localStorage.getItem("access_token");
-
-  //         const formData = new FormData();
-  //         formData.append("name", filterData.name);
-  //         formData.append("channels", filterData.channels.join(","));
-  //         formData.append("keywords", filterData.keywords.join("\n"));
-
-  //         const response = await fetch(`${BACKEND_URL}/filters`, {
-  //           method: "POST",
-  //           headers: {
-  //             Authorization: `Bearer ${token}`,
-  //           },
-  //           body: formData,
-  //         });
-
-  //         if (!response.ok) {
-  //           throw new Error(`Failed to create filter: ${response.status}`);
-  //         }
-
-  //         const newFilter = await response.json();
-  //         setSmartFilters((prev) => [...prev, newFilter]);
-  //         alert("Filter created successfully!");
-  //         refreshSmartFilters();
-  //         return newFilter;
-  //       }}
-  //       updateFilter={async (filterId, filterData) => {
-  //         const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  //         const token = localStorage.getItem("access_token");
-
-  //         const formData = new FormData();
-  //         if (filterData.name) formData.append("name", filterData.name);
-  //         if (filterData.channels)
-  //           formData.append("channels", filterData.channels.join(","));
-  //         if (filterData.keywords)
-  //           formData.append("keywords", filterData.keywords.join("\n"));
-
-  //         const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
-  //           method: "POST",
-  //           headers: {
-  //             Authorization: `Bearer ${token}`,
-  //           },
-  //           body: formData,
-  //         });
-
-  //         if (!response.ok) {
-  //           throw new Error(`Failed to update filter: ${response.status}`);
-  //         }
-
-  //         const updatedFilter = await response.json();
-  //         setSmartFilters((prev) =>
-  //           prev.map((f) => (f.id === filterId ? updatedFilter : f))
-  //         );
-  //         alert("Filter updated successfully!");
-  //         refreshSmartFilters();
-  //         return updatedFilter;
-  //       }}
-  //       deleteFilter={async (filterId) => {
-  //         if (!confirm("Are you sure you want to delete this filter?")) {
-  //           return;
-  //         }
-  //         const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  //         const token = localStorage.getItem("access_token");
-
-  //         const response = await fetch(`${BACKEND_URL}/filters/${filterId}`, {
-  //           method: "DELETE",
-  //           headers: {
-  //             Authorization: `Bearer ${token}`,
-  //           },
-  //         });
-
-  //         if (!response.ok) {
-  //           throw new Error(`Failed to delete filter: ${response.status}`);
-  //         }
-
-  //         setSmartFilters((prev) => prev.filter((f) => f.id !== filterId));
-  //         alert("Filter deleted successfully!");
-  //         refreshSmartFilters();
-  //       }}
-  //       topItems={topItems}
-  //       onTopItemsReorder={setTopItems}
-  //       onFiltersUpdated={refreshSmartFilters}
-  //     />
-  //   );
-  // }
 
   const [openSummary, setOpenSummary] = React.useState(false);
 
@@ -923,7 +741,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       );
       oscillator.stop(audioCtx.currentTime + 0.4);
     } catch (error) {
-      // console.log('beep error: ',error)
+      console.log("beep error: ", error);
     }
   };
   function groupChannelsFlat(channels) {
@@ -944,9 +762,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       } else if (!channel.parent_id) {
         // No parent, so top-level root
         roots.push(channel);
-      } else {
-        // parent_id exists but parent channel missing, consider orphan
-        // orphans.push(channel);
       }
     });
 
@@ -1002,18 +817,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
 
   const discordChannels = dcChannels[selectedDiscordServer] || [];
-  // const grouped = groupChannels(discordChannels);
-  // const headingIds = grouped.filter(c => c.type === 4).map(c => c.id);
-  // const [open, setOpen] = useState(headingIds.reduce((acc, id) => ({ ...acc, [id]: true }), {}));
-  // const toggle = (id) => setOpen((prev) => ({ ...prev, [id]: !prev[id] }));
-  // const sortedChannels = [...discordChannels].sort((a, b) => a.position - b.position);
   const sortedChannels = groupChannelsFlat(discordChannels);
-  const headingIds = sortedChannels
-    .filter((c) => c.type === 4)
-    .map((c) => c.id);
-  const [open, setOpen] = useState(
-    headingIds.reduce((acc, id) => ({ ...acc, [id]: true }), {})
-  );
   const [selectedServer, setSelectedServer] = useState({});
   console.log(sortedChannels,"serverchannels",dcChannels)
   const getSelectedServer = (selectedDiscordServer) => {
@@ -1039,7 +843,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   useEffect(() => {
     getSelectedServer(selectedDiscordServer);
   }, [selectedDiscordServer]);
-  // console.log('sss',selectedServer)
 
   if (selectedDiscordServer && sortedChannels.length > 0) {
     return (
@@ -1065,17 +868,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           <h3 className="mb-3 text-lg font-bold">Channels</h3>
           <RenderChannels channels={sortedChannels} />
         </div>
-        {/* <ul>
-        {discordChannels.map((channel) => (
-          <li key={channel.id} className="py-2 pl-2 cursor-pointer rounded-[12px] hover:bg-[#212121]">
-            # {channel.name}
-          </li>
-        ))}
-      </ul> */}
       </div>
     );
   }
-  // console.log('channelsToShow: ',channelsToShow)
   return (
     <>
       {filterFull ? (
@@ -1353,52 +1148,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             -ms-overflow-style: none;
             scrollbar-width: none;
           }
-      //       .selected-chat::before {
-      //   content: "";
-      //   position: absolute;
-      //   left: -12px;
-      //   top: 12px;
-      //   bottom: 12px;
-      //   width: 4px;
-      //   border-top-right-radius: 4px;
-      //   border-bottom-right-radius: 4px;
-      //   background: #3474ff;
-      //   display: block;
-      // }
-      //       .unread-chat::before {
-      //   content: "";
-      //   position: absolute;
-      //   left: -16px;
-      //   top: 50%;
-      //   transform: translateY(-50%);
-      //   bottom: 12px;
-      //   width: 8px;
-      //   height:8px;
-      //   border-radius: 100%;
-      //   background: #3474ff;
-      //   display: block;
-      // }
         `}
           </style>
-
-          {/* Available Filter Tags */}
-          {/* <div className="pl-3 mt-4">
-        <div className="flex flex-wrap gap-2">
-          {INITIAL_BOTTOM_ITEMS.map((tag) => (
-            <button
-              key={tag}
-              onClick={() => addFilter(tag)}
-              className={`px-3 py-1 text-xs rounded-full cursor-pointer transition ${
-                filters.includes(tag)
-                  ? "bg-[#3474ff] text-white"
-                  : "bg-[#212121] text-[#ffffff80] hover:bg-[#2d2d2d] hover:text-white"
-              }`}
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
-      </div> */}
 
           {/* Chat List */}
           <div className="pl-3 h-min flex-1 overflow-y-scroll overflow-x-visible mt-2 no-scrollbar">
@@ -1750,7 +1501,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                                             : "bg-[#7b5cfa]"
                                         }`}
                                       >
-                                        {/* <span>{formatUnreadCount(chat.unread)}</span> */}
                                         <span>{chat.unread}</span>
                                       </div>
                                     )}

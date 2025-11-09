@@ -1,28 +1,24 @@
-import React, {
+import {
   useEffect,
   useMemo,
   useState,
   useRef,
   useImperativeHandle,
   forwardRef,
+  useCallback,
+  Fragment,
 } from "react";
 import discord from "@/assets/images/discordColor.png";
 import telegram from "@/assets/images/telegramColor.png";
-import discordWhite from "@/assets/images/discord.png";
 import { FaCopy } from "react-icons/fa";
 import { FaReply } from "react-icons/fa";
-import telegramWhite from "@/assets/images/telegram.png";
 import { IoIosMore } from "react-icons/io";
 import aiAll from "@/assets/images/aiAll.png";
 import EmojiPicker from "emoji-picker-react";
-import { Theme } from "emoji-picker-react";
 
 import {
-  Link2,
-  Send,
   X,
   SendHorizonal,
-  SmilePlus,
   SmilePlusIcon,
   Heart,
   ChevronDown,
@@ -30,19 +26,11 @@ import {
   Plus,
   VolumeX,
   Trash2Icon,
-  Mic,
-  Mic2,
-  Mic2Icon,
   MicIcon,
-  MicOffIcon,
   StopCircle,
   List,
   Sticker,
 } from "lucide-react";
-import moreIcon from "@/assets/images/moreIcon.png";
-import pinIcon from "@/assets/images/pinIcon.png";
-import replyIcon from "@/assets/images/replyIcon.png";
-import taskIcon from "@/assets/images/sidebar/Chat.png";
 import smartIcon from "@/assets/images/sidebar/Chat.png";
 import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
 import ChatAvatar from "./ChatAvatar";
@@ -51,30 +39,29 @@ import pLimit from "p-limit";
 import {
   sendReaction,
   getMessageById,
-  sendMessage,
   createBookmark,
 } from "@/utils/apiHelpers";
 import { toast } from "@/hooks/use-toast";
-import { mapDiscordMessageToItem, mapDiscordMessageToTelegram } from "@/lib/utils";
+import { mapDiscordMessageToItem } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
-import { mapToFullChat } from "@/lib/utils";
 import AudioWaveform from "./AudioWaveForm";
 import LiveAudioWaveform from "./LiveAudioWaveForm";
-import { timeStamp } from "console";
-import { useChatMessagesForSummary, useDiscordChatHistory, useDiscordConnectionStatus, useDiscordMessages } from "@/hooks/useDiscord";
-import { isHistoryFetched, setHistoryFetched } from "@/store/discordHistoreStore";
-import { useTaskGeneration } from "@/hooks/discord/useTaskGeneration";
+import {
+  useChatMessagesForSummary,
+  useDiscordChatHistory,
+  useDiscordConnectionStatus,
+  useDiscordMessages,
+} from "@/hooks/useDiscord";
+import {
+  isHistoryFetched,
+  setHistoryFetched,
+} from "@/store/discordHistoreStore";
 import { useSummarizeMessage } from "@/hooks/discord/useSummarizeMessage";
-import { matchesGlob } from "path";
-import MessageWithMentions from "./MessageWithMentions";
 import MessageWithLinkifyAndMentions from "./MessageWithMentions";
 import DiscordSticker from "./DiscordSticker";
 import StickerMenu from "./StickerMenu";
-// import Sticker from "./Sticker";
 
-
-
-const LoadingDots: React.FC = () => {
+const LoadingDots = () => {
   return (
     <span
       aria-label="Loading"
@@ -123,7 +110,7 @@ const LoadingDots: React.FC = () => {
 type ReactionChip = { icon: string; count: number };
 type MessageItem = {
   id: any;
-  chat_id?:string;
+  chat_id?: string;
   originalId: any;
   timestamp: string;
   telegramMessageId?: number; // Telegram message ID for replies
@@ -140,8 +127,8 @@ type MessageItem = {
   hasMedia: boolean;
   media: any;
   stickerItems: any;
-  referenced_message?:any;
-  mentions?:any;
+  referenced_message?: any;
+  mentions?: any;
   message_reference?: any;
   sticker_items?: any;
   link: string | null;
@@ -188,20 +175,6 @@ function formatDate(date: Date) {
   });
 }
 
-// function formatTime(date: Date) {
-//   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-// }
-
-// function formatTime(dateObj) {
-//   // Add 5 hours and 30 minutes (330 minutes total)
-//   const adjustedDate = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
-
-//   return adjustedDate.toLocaleTimeString("en-IN", {
-//     hour: "2-digit",
-//     minute: "2-digit",
-//     hour12: true,
-//   });
-// }
 function gravatarUrl(seed: string) {
   try {
     // Handle Unicode characters safely
@@ -261,11 +234,10 @@ export interface UnifiedChatPanelRef {
 const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
   ({ selectedChat = "all-channels" }, ref) => {
     const location = useLocation();
-    const locationStateChat = location.state?.selectedChat;
-    const [selectedMessageId, setSelectedMessageId] = useState(location.state?.selectedMessageId ?? null)
+    const [selectedMessageId, setSelectedMessageId] = useState(
+      location.state?.selectedMessageId ?? null
+    );
     const refreshAbortController = useRef<AbortController | null>(null);
-
-    // let selectedChat = locationStateChat || propChat || "all-channels";
     // Flag to toggle between real data and dummy data for design inspiration
     const USE_DUMMY_DATA = false; // Set to true to use dummy data, false for real data
     const { user } = useAuth();
@@ -274,85 +246,91 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const pickerRef = useRef(null); // emoji picker container ref
     const hasFetchedFirstMessages = useRef(false);
     const [enlargedMedia, setEnlargedMedia] = useState(null);
-    const { history, loadMore, loading:dcHookLoading, hasMore } = useDiscordChatHistory(selectedChat);
-    const {messages:messageForSummary} = useChatMessagesForSummary(selectedChat?.id,"24h")
-    const { generateTask } = useTaskGeneration()
-    const { summarizeMessages } = useSummarizeMessage()
+    const {
+      history,
+      loadMore,
+      loading: dcHookLoading,
+      hasMore,
+    } = useDiscordChatHistory(selectedChat);
+    const { messages: messageForSummary } = useChatMessagesForSummary(
+      selectedChat?.id,
+      "24h"
+    );
+    const { summarizeMessages } = useSummarizeMessage();
     const [stickerPacks, setStickerPacks] = useState([]);
 
     const [showStickers, setShowStickers] = useState(false);
-const [selectedSticker, setSelectedSticker] = useState([]);
+    const [selectedSticker, setSelectedSticker] = useState([]);
 
-const handleStickerSelect = (sticker) => {
-  console.log("Selected sticker:", sticker);
-  setSelectedSticker([sticker.id])
-  handleSend({sticker:[sticker.id]})
-  // Optionally send sticker as message here
-  setShowStickers(false);
-};
+    const handleStickerSelect = (sticker) => {
+      console.log("Selected sticker:", sticker);
+      setSelectedSticker([sticker.id]);
+      handleSend({ sticker: [sticker.id] });
+      // Optionally send sticker as message here
+      setShowStickers(false);
+    };
 
-useEffect(()=>{
-  console.log("fetching summary chats", messageForSummary)
-},[messageForSummary])
+    useEffect(() => {
+      console.log("fetching summary chats", messageForSummary);
+    }, [messageForSummary]);
 
-useEffect(() => {
-  async function fetchStickers() {
-    try {
-      const packs = await window.electronAPI.discord.getStickers("en-US");
-      console.log('packs',packs)
-      setStickerPacks(packs?.data?.sticker_packs || []);
-    } catch (err) {
-      console.error("Failed to load stickers:", err);
+    useEffect(() => {
+      async function fetchStickers() {
+        try {
+          const packs = await window.electronAPI.discord.getStickers("en-US");
+          console.log("packs", packs);
+          setStickerPacks(packs?.data?.sticker_packs || []);
+        } catch (err) {
+          console.error("Failed to load stickers:", err);
+        }
+      }
+      fetchStickers();
+    }, []);
+
+    function formatTime(dateObj) {
+      if (selectedChat.platform == "discord") {
+        const adjustedDate = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
+
+        let hours = adjustedDate.getUTCHours();
+        const minutes = adjustedDate.getUTCMinutes();
+
+        const ampm = hours >= 12 ? "PM" : "AM";
+        hours = hours % 12 || 12; // Convert 0 -> 12 for 12-hour format
+
+        const formattedHours = hours.toString().padStart(2, "0");
+        const formattedMinutes = minutes.toString().padStart(2, "0");
+
+        return `${formattedHours}:${formattedMinutes} ${ampm}`;
+      }
+      // Add 5 hours and 30 minutes (330 minutes total)
+      const adjustedDate = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
+
+      return adjustedDate.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
     }
-  }
-  fetchStickers();
-}, []);
 
-function formatTime(dateObj) {
-  if(selectedChat.platform=="discord"){
-    const adjustedDate = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
-
-    let hours = adjustedDate.getUTCHours();
-    const minutes = adjustedDate.getUTCMinutes();
-  
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12 || 12; // Convert 0 -> 12 for 12-hour format
-  
-    const formattedHours = hours.toString().padStart(2, "0");
-    const formattedMinutes = minutes.toString().padStart(2, "0");
-  
-    return `${formattedHours}:${formattedMinutes} ${ampm}`;
-  }
-  // Add 5 hours and 30 minutes (330 minutes total)
-  const adjustedDate = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
-
-  return adjustedDate.toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
-
-    useEffect(()=>{
-      setLoadingMore(dcHookLoading)
-    },[dcHookLoading])
+    useEffect(() => {
+      setLoadingMore(dcHookLoading);
+    }, [dcHookLoading]);
 
     const openMedia = (media) => {
       setEnlargedMedia(media);
-      console.log('enlarged media',media)
+      console.log("enlarged media", media);
     };
     const closeMedia = () => setEnlargedMedia(null);
 
-    React.useEffect(() => {
-      setMessages([])
-      if(container){
+    useEffect(() => {
+      setMessages([]);
+      if (container) {
         container.scrollTop = container.scrollHeight;
       }
-      // setShouldAutoScroll(true);
-      setLoadedMediaIds(new Set())
+      setLoadedMediaIds(new Set());
     }, [selectedChat]);
 
-    const handleEmojiClick = (emojiData, event) => {
+    const handleEmojiClick = (emojiData) => {
       if (!inputRef.current) return;
       const emoji = emojiData.emoji;
       const input = inputRef.current;
@@ -361,9 +339,6 @@ function formatTime(dateObj) {
       const newValue = text.slice(0, start) + emoji + text.slice(end);
       setText(newValue);
       setText(newValue);
-
-      // Update input value manually since you use both ref and state
-      // input.value = newValue;
       // Move cursor after inserted emoji
       setTimeout(() => {
         input.focus();
@@ -411,28 +386,28 @@ function formatTime(dateObj) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     // Preserve scroll position when older messages are prepended
-    const scrollRestoreRef = React.useRef<{
+    const scrollRestoreRef = useRef<{
       prevHeight: number;
       prevTop: number;
     } | null>(null);
     // Track current chat to prevent race conditions
-    const currentChatRef = React.useRef<string | null>(null);
-    const [replyTo, setReplyTo] = React.useState<null | MessageItem>(null);
-    const [messages, setMessages] = React.useState<MessageItem[]>(
+    const currentChatRef = useRef<string | null>(null);
+    const [replyTo, setReplyTo] = useState<null | MessageItem>(null);
+    const [messages, setMessages] = useState<MessageItem[]>(
       USE_DUMMY_DATA ? (dummyMessages as unknown as MessageItem[]) : []
     );
-    const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
-    const [loading, setLoading] = React.useState(false);
-    const [loadingMore, setLoadingMore] = React.useState(false);
-    const [hasMoreMessages, setHasMoreMessages] = React.useState(true);
-    const [isNewChat, setIsNewChat] = React.useState(false);
-    const [menuPositions, setMenuPositions] = React.useState({});
-    const [shouldAutoScroll, setShouldAutoScroll] = React.useState(true);
-    const [pinLoading, setPinLoading] = React.useState({});
-    const [pinnedMessages, setPinnedMessages] = React.useState([]);
-    const [showScrollToBottom, setShowScrollToBottom] = React.useState(false);
-    const [isSending, setIsSending] = React.useState(false);
-    const [attachments, setAttachments] = React.useState([]);
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMoreMessages, setHasMoreMessages] = useState(true);
+    const [isNewChat, setIsNewChat] = useState(false);
+    const [menuPositions, setMenuPositions] = useState({});
+    const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+    const [pinLoading, setPinLoading] = useState({});
+    const [pinnedMessages, setPinnedMessages] = useState([]);
+    const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+    const [isSending, setIsSending] = useState(false);
+    const [attachments, setAttachments] = useState([]);
     // Page size for fetching messages from backend
     const PAGE_SIZE = 100;
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -464,7 +439,6 @@ function formatTime(dateObj) {
       if (!buttonElement) return "bottom-[110%]";
 
       const rect = buttonElement.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
       const menuHeight = 500; // Approximate height of your menu
 
       // If there's not enough space above, show below
@@ -632,10 +606,9 @@ function formatTime(dateObj) {
       return pinnedMessages.some((pin) => pin.message_id === messageId);
     };
 
-    const fetchPinnedMessages = React.useCallback(async (chatId = null) => {
+    const fetchPinnedMessages = useCallback(async (chatId = null) => {
       try {
         const pins = await getPinnedMessages(chatId);
-        // console.log("Fetched pins:", pins);
         setPinnedMessages(pins);
       } catch (error) {
         console.error("Failed to fetch pinned messages:", error);
@@ -667,7 +640,7 @@ function formatTime(dateObj) {
     };
 
     // Auto-scroll to bottom when messages change
-    const scrollToBottom = React.useCallback(() => {
+    const scrollToBottom = useCallback(() => {
       const container = messagesContainerRef.current;
       if (!container) return;
 
@@ -685,11 +658,10 @@ function formatTime(dateObj) {
       // Hide the scroll button after scrolling
       setShowScrollToBottom(false);
     }, []);
-    const [showAttachMenu, setShowAttachMenu] = React.useState(false);
-    const attachRef = React.useRef(null);
-    const [uploadedFiles, setUploadedFiles] = React.useState([]);
-    const fileInputRef = React.useRef(null);
-    // console.log("selectedChat", selectedChat);
+    const [showAttachMenu, setShowAttachMenu] = useState(false);
+    const attachRef = useRef(null);
+    const [uploadedFiles, setUploadedFiles] = useState([]);
+    const fileInputRef = useRef(null);
     const getFileType = (file) => {
       if (file.type.startsWith("image/")) return "image";
       if (file.type.startsWith("video/")) return "video";
@@ -782,10 +754,6 @@ function formatTime(dateObj) {
         console.log("📱 Generated URL (fallback):", webUrl);
       }
 
-      console.log("🔗 === DEBUG: OPENING URL ===");
-      console.log("🔗 Final URL to open:", webUrl);
-      console.log("🔍 === DEBUG: openInTelegram END ===");
-
       window.open(webUrl, "_blank");
     };
 
@@ -797,7 +765,6 @@ function formatTime(dateObj) {
 
       // delay scroll to bottom after render
       const timer = setTimeout(() => {
-        // scrollToBottom();
         container.scrollTop = container.scrollHeight;
       }, 100);
 
@@ -806,36 +773,31 @@ function formatTime(dateObj) {
       return () => clearTimeout(timer);
     }, [messages, shouldAutoScroll, isNewChat]);
 
+    const groupedByDate: { [date: string]: typeof messages } = useMemo(() => {
+      const groups: { [date: string]: typeof messages } = {};
+      const uniqueMessages = [
+        ...new Map(messages.map((m) => [m.id, m])).values(),
+      ];
 
-    const groupedByDate: { [date: string]: typeof messages } =
-      React.useMemo(() => {
-        const groups: { [date: string]: typeof messages } = {};
-        const uniqueMessages = [...new Map(messages.map(m => [m.id, m])).values()];
-        // const uniqueMessages = messages
-
-        uniqueMessages.forEach((msg) => {
-          const dateKey = formatDate(msg.date);
-          if (!groups[dateKey]) groups[dateKey] = [];
-          groups[dateKey].push(msg);
-        });
-        return groups;
-      }, [messages]);
+      uniqueMessages.forEach((msg) => {
+        const dateKey = formatDate(msg.date);
+        if (!groups[dateKey]) groups[dateKey] = [];
+        groups[dateKey].push(msg);
+      });
+      return groups;
+    }, [messages]);
 
     // 2. Add these state variables inside your component (around line 150):
-    const [bookmarkLoading, setBookmarkLoading] = React.useState<{
+    const [bookmarkLoading, setBookmarkLoading] = useState<{
       [key: string]: boolean;
     }>({});
 
     // Reaction state management
-    const [reactionLoading, setReactionLoading] = React.useState<{
+    const [reactionLoading, setReactionLoading] = useState<{
       [key: string]: boolean;
     }>({});
-    const [showReactionPicker, setShowReactionPicker] = React.useState<{
+    const [showReactionPicker, setShowReactionPicker] = useState<{
       [key: string]: boolean;
-    }>({});
-    // Local UI reactions (emoji counts) keyed by message id
-    const [localReactions, setLocalReactions] = React.useState<{
-      [messageId: string]: { [emoji: string]: number };
     }>({});
 
     // Common emoji reactions
@@ -849,12 +811,16 @@ function formatTime(dateObj) {
         console.log(
           `Reaction attempt: messageId="${messageId}", isObjectId=${isObjectId}, emoji="${emoji}"`
         );
-        if(selectedChat.platform === "discord") {
-              // For Discord, we need to map the message to Telegram format first
-              const res = await window.electronAPI.discord.addReaction(selectedChat.id, messageId, emoji);
-              console.log("Discord reaction result:", res);
-              return
-            }
+        if (selectedChat.platform === "discord") {
+          // For Discord, we need to map the message to Telegram format first
+          const res = await window.electronAPI.discord.addReaction(
+            selectedChat.id,
+            messageId,
+            emoji
+          );
+          console.log("Discord reaction result:", res);
+          return;
+        }
         if (isObjectId) {
           // Create rollback snapshot visible to catch
           let rollbackSnapshot = messages;
@@ -905,11 +871,11 @@ function formatTime(dateObj) {
             );
 
             let res = null;
-            if(selectedChat.platform === "Telegram") {
-               res = await sendReaction(messageId, emoji, {
+            if (selectedChat.platform === "Telegram") {
+              res = await sendReaction(messageId, emoji, {
                 clear: already,
               });
-            } 
+            }
             console.log(
               `Reaction ${emoji} sent to backend for message ${messageId} (sent_to_telegram=${res?.sent_to_telegram})`
             );
@@ -996,8 +962,8 @@ function formatTime(dateObj) {
     };
 
     // Close reaction picker when clicking outside
-    React.useEffect(() => {
-      setMessages([])
+    useEffect(() => {
+      setMessages([]);
       const handleClickOutside = (event: MouseEvent) => {
         const target = event.target as Element;
         if (!target.closest(".reaction-picker")) {
@@ -1016,9 +982,9 @@ function formatTime(dateObj) {
     ) => {
       // For API data, use the original message ID from the database
       let messageId = msg.originalId || msg.id; // Use originalId if available, fallback to current id
-if(msg.platform.toLowerCase() === "discord"){
-  messageId = msg.id
-}
+      if (msg.platform.toLowerCase() === "discord") {
+        messageId = msg.id;
+      }
       console.log("Bookmarking message:", msg);
 
       if (!messageId) {
@@ -1033,7 +999,11 @@ if(msg.platform.toLowerCase() === "discord"){
       try {
         setBookmarkLoading((prev) => ({ ...prev, [msg.id]: true }));
 
-        const result = await createBookmark(messageId.toString(), type, msg.platform.toLowerCase());
+        const result = await createBookmark(
+          messageId.toString(),
+          type,
+          msg.platform.toLowerCase()
+        );
         console.log("Bookmark result:", result);
 
         const actionText = type === "pin" ? "pinned" : "bookmarked";
@@ -1056,202 +1026,8 @@ if(msg.platform.toLowerCase() === "discord"){
       }
     };
 
-    // Function to fetch messages for a selected chat
-    // const fetchMessages = React.useCallback(
-    //   async (
-    //     chatId: number | string,
-    //     beforeTimestamp?: string,
-    //     append = false
-    //   ) => {
-    //     if (!chatId) return;
-    //     // console.log("chatId: ", chatId);
-    //     // If using dummy data, don't fetch from API
-    //     if (USE_DUMMY_DATA) {
-    //       setMessages(dummyMessages);
-    //       return;
-    //     }
-
-    //     if (append) {
-    //       setLoadingMore(true);
-    //     } else {
-    //       setLoading(true);
-    //       setHasMoreMessages(true); // Reset pagination state for new chat
-    //       setShouldAutoScroll(true);
-    //       // CRITICAL: Clear messages immediately when switching chats to prevent mixing
-    //       setMessages([]);
-    //     }
-
-    //     try {
-    //       const token = localStorage.getItem("access_token");
-
-    //       // Determine the endpoint based on the type of chat selection
-    //       let endpoint: string;
-
-    //       if (chatId === "all-channels") {
-    //         endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/all/messages`;
-    //       } else if (typeof chatId === "object" && chatId && "id" in chatId) {
-    //         // This is a smart filter object
-    //         endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
-    //           (chatId as any).id
-    //         }/messages`;
-    //       } else {
-    //         // This is a regular chat ID
-    //         endpoint = `${
-    //           import.meta.env.VITE_BACKEND_URL
-    //         }/chats/${chatId}/messages`;
-    //       }
-
-    //       // Add pagination parameter if loading older messages
-    //       const params = new URLSearchParams();
-    //       params.append("limit", String(PAGE_SIZE));
-    //       if (beforeTimestamp) {
-    //         params.append("before", beforeTimestamp);
-    //       }
-    //       if (params.toString()) {
-    //         endpoint += `?${params.toString()}`;
-    //       }
-
-    //       const response = await fetch(endpoint, {
-    //         headers: {
-    //           Authorization: `Bearer ${token}`,
-    //           "Content-Type": "application/json",
-    //         },
-    //       });
-
-    //       if (!response.ok) {
-    //         throw new Error(`HTTP error! status: ${response.status}`);
-    //       }
-
-    //       const data = await response.json();
-
-    //       // Debug: Log the first message's chat object to see what we're getting
-    //       if (data.length > 0) {
-    //         // console.log("First message chat object:", data[0].chat);
-    //       }
-
-    //       // Transform the messages to match our component's expected format
-    //       const transformedMessages = data.map((msg: any, index: number) => {
-    //         // Extract chat name and determine channel from the message data
-    //         let chatName = "Unknown";
-    //         let channelName = null; // Default to null (no channel)
-
-    //         if (chatId === "all-channels" && msg.chat) {
-    //           // For "all-channels", extract chat name based on the chat type
-    //           // For Telegram, always set channel to null since we don't have topic/channel data
-    //           // Discord channels will be handled separately when we add Discord support
-    //           if (msg.chat._ === "Channel") {
-    //             // For Telegram channels, use title or username as chat name
-    //             chatName = msg.chat.title || msg.chat.username || "Unknown";
-    //             channelName = null; // No channel display for Telegram
-    //           } else if (msg.chat._ === "Chat") {
-    //             // For Telegram groups, use title or username as chat name, no channel
-    //             chatName = msg.chat.title || msg.chat.username || "Unknown";
-    //             channelName = null; // No channel for groups
-    //           } else if (msg.chat._ === "User") {
-    //             // For users/bots (direct messages), use first_name or username as chat name, no channel
-    //             chatName = msg.chat.first_name || msg.chat.username || "Unknown";
-    //             channelName = null; // No channel for direct messages
-    //           } else {
-    //             // Fallback
-    //             chatName =
-    //               msg.chat.title ||
-    //               msg.chat.username ||
-    //               msg.chat.first_name ||
-    //               "Unknown";
-    //             channelName = null;
-    //           }
-    //         } else {
-    //           // For specific chats, use the selected chat name
-    //           chatName = selectedChat?.name || "Chat";
-    //           channelName = null; // No channel for specific chat view
-    //         }
-
-    //         // Parse Telegram reactions from message payload if present
-    //         const reactionResults =
-    //           (msg?.message?.reactions && msg.message.reactions.results) || [];
-    //         const parsedReactions = Array.isArray(reactionResults)
-    //           ? (reactionResults
-    //               .map((r: any) => {
-    //                 const emoticon =
-    //                   typeof r?.reaction?.emoticon === "string"
-    //                     ? r.reaction.emoticon
-    //                     : typeof r?.reaction === "string"
-    //                     ? r.reaction
-    //                     : null;
-    //                 const normalized =
-    //                   emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
-    //                 return normalized
-    //                   ? { icon: normalized, count: r?.count || 0 }
-    //                   : null;
-    //               })
-    //               .filter(Boolean) as Array<{ icon: string; count: number }>)
-    //           : [];
-
-    //         return {
-    //           id: msg._id || msg.id || String(index + 1),
-    //           originalId: msg._id || msg.id,
-    //           telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
-    //           name: msg.sender?.first_name || msg.sender?.username || "Unknown",
-    //           avatar: msg.sender?.id
-    //             ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
-    //                 msg.sender.id
-    //               }`
-    //             : gravatarUrl(
-    //                 msg.sender?.first_name || msg.sender?.username || "Unknown"
-    //               ),
-    //           platform: "Telegram" as const,
-    //           channel: channelName, // Will be null for DMs and groups, channel name for channels
-    //           server: chatName, // Always the chat/group/channel name
-    //           date: new Date(msg.timestamp),
-    //           message: msg.raw_text || "",
-    //           tags: [],
-    //           reactions: parsedReactions,
-    //           hasLink: (msg.raw_text || "").includes("http"),
-    //           link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
-    //           replyTo: null as any,
-    //           originalChatType: msg.chat?._ || null,
-    //           // telegramMessageId already set above; keep a single definition only
-    //         };
-    //       });
-
-    //       // Sort messages by date (oldest first) so newest appear at bottom
-    //       transformedMessages.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-    //       // Check if we got fewer messages than requested (indicating we've reached the end)
-    //       if (data.length < PAGE_SIZE) {
-    //         setHasMoreMessages(false);
-    //       }
-
-    //       if (append) {
-    //         // Prepend older messages to the existing list
-    //         setShouldAutoScroll(false); // Don't auto-scroll when loading more
-    //         setMessages((prevMessages) => [
-    //           ...transformedMessages,
-    //           ...prevMessages,
-    //         ]);
-    //       } else {
-    //         // Replace messages for new chat
-    //         setShouldAutoScroll(true); // Enable auto-scroll for new chat
-    //         setMessages(transformedMessages);
-    //         setShouldAutoScroll(true);
-    //       }
-
-    //     } catch (error) {
-    //       console.error("Error fetching messages:", error);
-    //       if (!append) {
-    //         setMessages([]); // Set empty array on error only if not appending
-    //       }
-    //     } finally {
-    //       setLoading(false);
-    //       setLoadingMore(false);
-    //     }
-    //   },
-    //   [selectedChat] // Only depend on the name, not the entire object
-    // );
-
     const getMessageMedia = async (id, hasMedia) => {
-    
-      if (!hasMedia || selectedChat.platform==="discord") return null;
+      if (!hasMedia || selectedChat.platform === "discord") return null;
       const token = localStorage.getItem("access_token");
 
       const data = await fetch(`${BACKEND_URL}/api/messages/${id}/media`, {
@@ -1265,19 +1041,17 @@ if(msg.platform.toLowerCase() === "discord"){
         url,
         type: blob.type, // e.g. "image/jpeg", "video/mp4", "audio/mpeg"
       };
-
-      
     };
 
-    const fetchMessages = React.useCallback(
+    const fetchMessages = useCallback(
       async (
         chatId: number | string,
-        beforeTimestamp?: string,        
-        append = false,        
+        beforeTimestamp?: string,
+        append = false,
         afterTimestamp?: string
       ) => {
         if (!chatId) return;
-        if(selectedChat.platform === "discord") return;
+        if (selectedChat.platform === "discord") return;
         if (!append) {
           // Reset flag on fresh load
           hasFetchedFirstMessages.current = false;
@@ -1292,8 +1066,8 @@ if(msg.platform.toLowerCase() === "discord"){
         try {
           const token = localStorage.getItem("access_token");
 
-          if(selectedChat?.platform=='discord'){
-            return
+          if (selectedChat?.platform == "discord") {
+            return;
           }
           let endpoint: string;
           if (chatId === "all-channels") {
@@ -1317,12 +1091,10 @@ if(msg.platform.toLowerCase() === "discord"){
               "Content-Type": "application/json",
             },
           });
-         
 
           if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
           const data = await response.json();
-      
 
           const transformed = await Promise.all(
             data.map(async (msg: any, index: number) => {
@@ -1395,7 +1167,10 @@ if(msg.platform.toLowerCase() === "discord"){
                         msg.sender?.username ||
                         "Unknown"
                     ),
-                platform: selectedChat.platform=='discord'? "Discord" : "Telegram" as const,
+                platform:
+                  selectedChat.platform == "discord"
+                    ? "Discord"
+                    : ("Telegram" as const),
                 channel: channelName,
                 server: chatName,
                 date: new Date(msg.timestamp),
@@ -1407,7 +1182,7 @@ if(msg.platform.toLowerCase() === "discord"){
                 hasMedia: msg.message.has_media,
                 media: msg.media ?? null,
                 replyToId: replyId ?? null,
-                timestamp:msg.timestamp,
+                timestamp: msg.timestamp,
                 replyTo: replyMessage
                   ? {
                       id: replyMessage.message.id,
@@ -1463,31 +1238,28 @@ if(msg.platform.toLowerCase() === "discord"){
     );
 
     // Function to load more messages when scrolling to top
-    const loadMoreMessages = React.useCallback(() => {
-      console.log('loading')
-      if (loadingMore || loading || (!hasMoreMessages && !hasMore) || messages.length === 0)
+    const loadMoreMessages = useCallback(() => {
+      if (
+        loadingMore ||
+        loading ||
+        (!hasMoreMessages && !hasMore) ||
+        messages.length === 0
+      )
         return;
-      
-      console.log('loading2...')
 
-      if(selectedChat.platform==='discord'){
-        setLoadingMore(true)     
-        console.log('calling dc load more')   
-          loadMore()
-          console.log('finished calling dc load more')   
-          setMessages(prev =>
-            [
-              ...history.map(mapDiscordMessageToItem),
-              ...prev
-            ].sort(
-              (a, b) =>
-                Number(new Date(a.timestamp).getTime()) - Number(new Date(b.timestamp).getTime())
-            )
-          );
-        setLoadingMore(false)     
-          return;
+      if (selectedChat.platform === "discord") {
+        setLoadingMore(true);
+        loadMore();
+        setMessages((prev) =>
+          [...history.map(mapDiscordMessageToItem), ...prev].sort(
+            (a, b) =>
+              Number(new Date(a.timestamp).getTime()) -
+              Number(new Date(b.timestamp).getTime())
+          )
+        );
+        setLoadingMore(false);
+        return;
       }
-      console.log('loading more tg chats')
       // Get the timestamp of the oldest message
       const oldestMessage = messages[0];
       if (!oldestMessage) return;
@@ -1516,69 +1288,8 @@ if(msg.platform.toLowerCase() === "discord"){
       fetchMessages,
     ]);
 
-    // Scroll event handler for infinite loading
-    // const handleScroll = React.useCallback(
-    //   (e: React.UIEvent<HTMLDivElement>) => {
-    //     const container = e.currentTarget;
-    //     const scrollTop = container.scrollTop;
-    //     const scrollHeight = container.scrollHeight;
-    //     const clientHeight = container.clientHeight;
-    //     const threshold = 100; // Load more when within 100px of top
-
-    //     // Check if user has scrolled up from bottom (show scroll button)
-    //     const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
-    //     setShowScrollToBottom(!isNearBottom);
-    //     setShouldAutoScroll(isNearBottom);
-
-    //     const isScrollable = scrollHeight > clientHeight + threshold;
-
-    //     if (
-    //       scrollTop <= threshold &&
-    //       hasMoreMessages &&
-    //       !loadingMore &&
-    //       !loading &&
-    //       isScrollable
-    //     ) {
-    //       scrollRestoreRef.current = {
-    //         prevHeight: container.scrollHeight,
-    //         prevTop: container.scrollTop,
-    //       };
-    //       loadMoreMessages();
-    //     }
-    //   },
-    //   [hasMoreMessages, loadingMore, loading, loadMoreMessages]
-    // );
-    // const handleScroll = React.useCallback((e) => {
-    //   const container = e.currentTarget;
-    //   const scrollTop = container.scrollTop;
-    //   const scrollHeight = container.scrollHeight;
-    //   const clientHeight = container.clientHeight;
-
-    //   const threshold = 100;
-    //   const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
-
-    //   setShouldAutoScroll(isNearBottom); // true only if near bottom
-
-    //   setShowScrollToBottom(!isNearBottom);
-
-    //   if (
-    //     scrollTop <= threshold &&
-    //     hasMoreMessages &&
-    //     !loadingMore &&
-    //     !loading &&
-    //     scrollHeight > clientHeight + threshold
-    //   ) {
-    //     // User scrolled to top, load older messages
-    //     scrollRestoreRef.current = {
-    //       prevHeight: scrollHeight,
-    //       prevTop: scrollTop,
-    //     };
-    //     loadMoreMessages();
-    //   }
-    // }, [hasMoreMessages, loadingMore, loading, loadMoreMessages]);
-
     // In the scroll handler:
-    const handleScroll = React.useCallback(
+    const handleScroll = useCallback(
       (e) => {
         const container = e.currentTarget;
         const scrollTop = container.scrollTop;
@@ -1591,27 +1302,39 @@ if(msg.platform.toLowerCase() === "discord"){
         setShowScrollToBottom(!isNearBottom);
 
         // If near top, load more messages
-        if (scrollTop <= 100 && hasMoreMessages && !loadingMore && !loading && selectedChat.platform.toLowerCase() ==="telegram") {
+        if (
+          scrollTop <= 100 &&
+          hasMoreMessages &&
+          !loadingMore &&
+          !loading &&
+          selectedChat.platform.toLowerCase() === "telegram"
+        ) {
           scrollRestoreRef.current = {
             prevHeight: scrollHeight,
             prevTop: scrollTop,
           };
-           setTimeout(() => { loadMoreMessages();}, 1000);
-    
-        }else if (scrollTop <= 100 && hasMore && selectedChat.platform.toLowerCase() ==="discord") {
+          setTimeout(() => {
+            loadMoreMessages();
+          }, 1000);
+        } else if (
+          scrollTop <= 100 &&
+          hasMore &&
+          selectedChat.platform.toLowerCase() === "discord"
+        ) {
           scrollRestoreRef.current = {
             prevHeight: scrollHeight,
             prevTop: scrollTop,
           };
-           setTimeout(() => { loadMoreMessages();}, 1000);
-    
+          setTimeout(() => {
+            loadMoreMessages();
+          }, 1000);
         }
       },
       [hasMoreMessages, loadingMore, loading, loadMoreMessages]
     );
 
     // After messages update, restore scroll position when we just prepended older items
-    React.useEffect(() => {
+    useEffect(() => {
       if (!loadingMore && scrollRestoreRef.current) {
         const container = messagesContainerRef.current;
         if (container) {
@@ -1623,63 +1346,79 @@ if(msg.platform.toLowerCase() === "discord"){
       }
     }, [messages, loadingMore]);
 
-    const getPlatformFromChatId = (chatId: string) => {
-      // Simple heuristic - you might want to store this info in pins
-      // return Math.random() > 0.5 ? 'telegram' : 'discord';
-      return "telegram";
-    };
-
     const handleSend = async ({ sticker = null } = {}) => {
-      console.log('[handleSend] calling send with sticker', selectedSticker)
+      console.log("[handleSend] calling send with sticker", selectedSticker);
       if (
         !inputRef.current ||
-        (!inputRef.current.value.trim() && uploadedFiles.length === 0 && selectedSticker.length <= 0)
+        (!inputRef.current.value.trim() &&
+          uploadedFiles.length === 0 &&
+          selectedSticker.length <= 0)
       ) {
         return;
       }
-      
+
       if (uploadedFiles.length > 0) {
         try {
-          let index=0
+          let index = 0;
           for (const fileWrapper of uploadedFiles) {
-            
             // fileWrapper.file is File object
-            if(selectedChat.platform=='discord'){
+            if (selectedChat.platform == "discord") {
+              const result = await window.electronAPI.discord.attachments(
+                selectedChat.id,
+                [
+                  {
+                    id: "0",
+                    filename: fileWrapper.file.name,
+                    file_size: fileWrapper.file.size,
+                    is_clip: false,
+                  },
+                ]
+              );
+              console.log(result, "uploadedattachments");
+              if (result.success && result.data) {
+                setAttachments(result.data);
 
-         
-            const result = await window.electronAPI.discord.attachments(selectedChat.id, [{id:"0", filename: fileWrapper.file.name, file_size: fileWrapper.file.size, is_clip: false}]);
-            console.log(result,"uploadedattachments");
-            if(result.success && result.data){
-            setAttachments(result.data);
-
-           const resp= await uploadFileToDiscord(
-             result.data.attachments[0].upload_url,
-             fileWrapper.file
-            );
-            console.log("File uploaded to Discord CDN", resp);
-            console.log("replyTo", replyTo)
-            const res = await window.electronAPI.discord.sendMessage(
-              selectedChat.id,
-              inputRef.current.value.trim(),
-              [{id:"0", filename: fileWrapper.file.name, uploaded_filename: result.data.attachments[0].upload_filename}],
-              sticker,
-              {
-                channel_id: replyTo.channel,
-                message_id: replyTo.id
+                const resp = await uploadFileToDiscord(
+                  result.data.attachments[0].upload_url,
+                  fileWrapper.file
+                );
+                console.log("File uploaded to Discord CDN", resp);
+                console.log("replyTo", replyTo);
+                const res = await window.electronAPI.discord.sendMessage(
+                  selectedChat.id,
+                  inputRef.current.value.trim(),
+                  [
+                    {
+                      id: "0",
+                      filename: fileWrapper.file.name,
+                      uploaded_filename:
+                        result.data.attachments[0].upload_filename,
+                    },
+                  ],
+                  sticker,
+                  {
+                    channel_id: replyTo.channel,
+                    message_id: replyTo.id,
+                  }
+                );
+                index++;
+                console.log(res, [
+                  {
+                    id: String(index),
+                    filename: fileWrapper.file.name,
+                    uploaded_filename:
+                      result.data.attachments[0].upload_filename,
+                  },
+                ]);
               }
-            );
-            index++;
-            console.log(res,[{id:String(index), filename: fileWrapper.file.name, uploaded_filename: result.data.attachments[0].upload_filename}]);
-          }
-          
-            }else{
-            await sendMediaToChat({
-              chatId: selectedChat.id,
-              file: fileWrapper.file,
-              caption: inputRef.current.value.trim(), // Optional: could set to message text or empty
-              fileName: fileWrapper.file.name,
-            });
-          }
+            } else {
+              await sendMediaToChat({
+                chatId: selectedChat.id,
+                file: fileWrapper.file,
+                caption: inputRef.current.value.trim(), // Optional: could set to message text or empty
+                fileName: fileWrapper.file.name,
+              });
+            }
           }
           // Clear uploaded files after successful upload
           setUploadedFiles([]);
@@ -1716,16 +1455,6 @@ if(msg.platform.toLowerCase() === "discord"){
         return;
       }
 
-      // Check if this is a smart filter (not a real chat)
-      // if (selectedChat.keywords !== undefined) {
-      //   toast({
-      //     title: "Cannot send to smart filter",
-      //     description: "Please select a real chat instead of a smart filter",
-      //     variant: "destructive",
-      //   });
-      //   return;
-      // }
-
       const chatId = selectedChat.id;
       console.log("replyTo");
       console.log(replyTo);
@@ -1746,13 +1475,16 @@ if(msg.platform.toLowerCase() === "discord"){
       setIsSending(true);
 
       // Create optimistic message for immediate UI feedback
-      const optimisticMessage: MessageItem = {
+      const optimisticMessage: any = {
         id: `temp-${Date.now()}`, // Temporary ID
         originalId: null,
         telegramMessageId: undefined,
         name: user?.username || user?.first_name || "You",
         avatar: user?.photo_url || gravatarUrl(user?.username || "You"),
-        platform: selectedChat.platform=='discord'? "Discord" : "Telegram" as const,
+        platform:
+          selectedChat.platform == "discord"
+            ? "Discord"
+            : ("Telegram" as const),
         channel: selectedChat.channel || null,
         server: selectedChat.name || "Chat",
         date: new Date(),
@@ -1776,44 +1508,41 @@ if(msg.platform.toLowerCase() === "discord"){
       setMessages((prev) => [...prev, optimisticMessage]);
 
       // Clear input and reply state immediately for better UX
-      const originalValue = inputRef.current.value;      
+      const originalValue = inputRef.current.value;
       const originalReplyTo = replyTo;
 
       setShouldAutoScroll(true);
 
       try {
         const id = chatId || replyTo.chat_id;
-        // Send message to backend/Telegram
-        const replyToId = originalReplyTo?.telegramMessageId;
-        
-            if (selectedChat.platform=='discord') {
-              console.log("replyTo originalReplyTo", originalReplyTo)
 
-        const result = await window.electronAPI.discord.sendMessage(
-          id,
-          messageText,
-          [],
-          sticker,
-          originalReplyTo && {
-            channel_id: originalReplyTo?.channel,
-            message_id: originalReplyTo?.id
+        if (selectedChat.platform == "discord") {
+          console.log("replyTo originalReplyTo", originalReplyTo);
+
+          const result = await window.electronAPI.discord.sendMessage(
+            id,
+            messageText,
+            [],
+            sticker,
+            originalReplyTo && {
+              channel_id: originalReplyTo?.channel,
+              message_id: originalReplyTo?.id,
+            }
+          );
+          if (!result.success) {
+            const res = await window.electronAPI.security.getDiscordToken();
+            if (res?.success && res?.data) {
+              await window.electronAPI.discord.connect(res.data);
+            }
           }
-        );
-        if(!result.success){
-          const res = await window.electronAPI.security.getDiscordToken();
-          if (res?.success && res?.data) {
-           await window.electronAPI.discord.connect(res.data);
-          }
+        } else {
+          await window.electronAPI.telegram.sendMessage(id, messageText);
         }
-      }else{
-        await window.electronAPI.telegram.sendMessage(id, messageText);
-      // await sendMessage(id, messageText, replyToId);
-      }
         if (inputRef.current) {
           inputRef.current.value = "";
         }
         setText("");
-       
+
         await refreshLatest();
         scrollToBottom();
         setTimeout(() => {
@@ -1821,12 +1550,6 @@ if(msg.platform.toLowerCase() === "discord"){
             inputRef.current.focus();
           }
         }, 0);
-
-        // Show success toast
-        // toast({
-        //   title: "Message sent",
-        //   description: "Your message has been sent successfully",
-        // });
 
         // Remove optimistic message since the real one will come from the database
         setMessages((prev) =>
@@ -1878,15 +1601,14 @@ if(msg.platform.toLowerCase() === "discord"){
           });
         }
       } finally {
-      inputRef.current.value = "";
+        inputRef.current.value = "";
         setIsSending(false);
-      setText("");
-      setReplyTo(null);
-
+        setText("");
+        setReplyTo(null);
       }
     };
 
-    React.useEffect(() => {
+    useEffect(() => {
       const handleClick = () => setOpenMenuId(null);
       if (openMenuId !== null) {
         window.addEventListener("click", handleClick);
@@ -1894,71 +1616,62 @@ if(msg.platform.toLowerCase() === "discord"){
       }
     }, [openMenuId]);
 
-    console.log(history.map(mapDiscordMessageToItem),"historicdiscordmessages");
-    const { messagesList} = useDiscordMessages(selectedChat?.id);
-    console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
-    useEffect(()=>{
-      console.log(`history fetched for ${selectedChat.id}`,isHistoryFetched(selectedChat.id))
-      if(history.length>0 && selectedChat?.platform=='discord' && !isHistoryFetched(selectedChat.id)){
-        // setMessages([])
-        console.log('hist before set message',history.map(mapDiscordMessageToItem))
-        setMessages(prev =>
-      [
-        ...history.map(mapDiscordMessageToItem),
-        ...prev
-      ].sort(
-        (a, b) =>
-          Number(new Date(a.timestamp).getTime()) - Number(new Date(b.timestamp).getTime())
-      )
+    const { messagesList } = useDiscordMessages(selectedChat?.id);
+    console.log(
+      messagesList.map(mapDiscordMessageToItem),
+      "livediscordmessages"
     );
-    if(history.length>0)setHistoryFetched(selectedChat.id);
-      
-      }
-      setLoading(false)
-      setLoadingMore(false)
-      // if(container && !hasScrolled){
-      //   container.scrollTop = container.scrollHeight;
-      // }
-      // console.log('hasScrolled',hasScrolled)
-      if(!hasScrolled){
-        scrollToBottom()
-        setHasScrolled(true)
-      }
-    },[history])
-
-    // useEffect(() => {
-    //   console.log('messages updated', messages)
-    // }, [messages])
-    
-    // const { messagesList} = useDiscordMessages(selectedChat?.id);
-    // console.log(messagesList.map(mapDiscordMessageToItem),"livediscordmessages");
-    // console.log(messagesList?.[0]?.chat_id ?? null,"messagesList[0].chat_id");
-    // console.log(selectedChat?.id,"selectedChat?.id");
     useEffect(() => {
-     
-      if (messagesList && selectedChat?.platform === 'discord') {
-        setMessages(prev =>
-          [
-            ...messagesList.map(mapDiscordMessageToItem),
-            ...prev
-          ].sort(
+      console.log(
+        `history fetched for ${selectedChat.id}`,
+        isHistoryFetched(selectedChat.id)
+      );
+      if (
+        history.length > 0 &&
+        selectedChat?.platform == "discord" &&
+        !isHistoryFetched(selectedChat.id)
+      ) {
+        console.log(
+          "hist before set message",
+          history.map(mapDiscordMessageToItem)
+        );
+        setMessages((prev) =>
+          [...history.map(mapDiscordMessageToItem), ...prev].sort(
             (a, b) =>
-              Number(new Date(a.timestamp).getTime()) - Number(new Date(b.timestamp).getTime())
+              Number(new Date(a.timestamp).getTime()) -
+              Number(new Date(b.timestamp).getTime())
+          )
+        );
+        if (history.length > 0) setHistoryFetched(selectedChat.id);
+      }
+      setLoading(false);
+      setLoadingMore(false);
+      if (!hasScrolled) {
+        scrollToBottom();
+        setHasScrolled(true);
+      }
+    }, [history]);
+
+    useEffect(() => {
+      if (messagesList && selectedChat?.platform === "discord") {
+        setMessages((prev) =>
+          [...messagesList.map(mapDiscordMessageToItem), ...prev].sort(
+            (a, b) =>
+              Number(new Date(a.timestamp).getTime()) -
+              Number(new Date(b.timestamp).getTime())
           )
         );
       }
       setLoading(false);
       setLoadingMore(false);
-      if(!hasScrolled){
-        scrollToBottom()
-        setHasScrolled(true)
+      if (!hasScrolled) {
+        scrollToBottom();
+        setHasScrolled(true);
       }
     }, [messagesList]);
-    
-    // setMessages((prev) => [...messagesList, ...prev]);
-    
+
     // Silent refresh that avoids toggling loading states and only appends new messages
-    const refreshLatest = React.useCallback(async () => {
+    const refreshLatest = useCallback(async () => {
       if (USE_DUMMY_DATA) return;
       if (refreshAbortController.current) {
         refreshAbortController.current.abort();
@@ -1968,7 +1681,6 @@ if(msg.platform.toLowerCase() === "discord"){
       refreshAbortController.current = abortController;
 
       try {
-        const token = localStorage.getItem("access_token");
         let endpoint: string | null = null;
         let currentChatId: string | null = null; // Track which chat we're fetching for
 
@@ -1994,7 +1706,6 @@ if(msg.platform.toLowerCase() === "discord"){
             endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/${
               (selectedChat as any).id
             }/messages?limit=${PAGE_SIZE}`;
-            // if (params.toString()) endpoint += `?${params.toString()}`;
             currentChatId = String((selectedChat as any).id);
           }
         } else {
@@ -2004,41 +1715,15 @@ if(msg.platform.toLowerCase() === "discord"){
           );
           return;
         }
-    let data = [];
-      if(selectedChat?.platform=='discord'){
-        // const chatID= selectedChat.id || replyTo.chat_id;
-        // // const msg = await window.electronAPI.database.getMessages(chatID,50,0);
-        // const discordSelectedChat = await window.electronAPI.discord.getChatHistory(selectedChat.id);
-        // if(discordSelectedChat.success)
-        //   data=discordSelectedChat.data.map(mapDiscordMessageToTelegram);
-      
-        // else{
-        //   const res = await window.electronAPI.security.getDiscordToken();
-        //   if (res?.success && res?.data) {
-        //    await window.electronAPI.discord.connect(res.data);
-        //   }
-        // }
-      }else{
-        // const response = await fetch(endpoint, {
-        //   headers: {
-        //     Authorization: `Bearer ${token}`,
-        //     "Content-Type": "application/json",
-        //   },
-        // });
-  
-        // if (!response.ok) {
-        //   console.log(
-        //     "DEBUG: Response not OK:",
-        //     response.status,
-        //     response.statusText
-        //   );
-        //   return;
-        // }
-        // data = await response.json();
-        const hist = await window.electronAPI.telegram.getChatHistory(selectedChat.id);
-        data = hist.data
-        console.log('fetched tg history',hist)
-      }
+        let data = [];
+        if (selectedChat?.platform == "discord") {
+        } else {
+          const hist = await window.electronAPI.telegram.getChatHistory(
+            selectedChat.id
+          );
+          data = hist.data;
+          console.log("fetched tg history", hist);
+        }
 
         const toChips = (results: any[]) =>
           results
@@ -2099,7 +1784,10 @@ if(msg.platform.toLowerCase() === "discord"){
                 : gravatarUrl(
                     msg.sender?.first_name || msg.sender?.username || "Unknown"
                   ),
-              platform: selectedChat.platform=='discord'? "Discord" : "Telegram" as const,
+              platform:
+                selectedChat.platform == "discord"
+                  ? "Discord"
+                  : ("Telegram" as const),
               channel: null,
               server: chatName,
               date: new Date(msg.timestamp),
@@ -2111,7 +1799,7 @@ if(msg.platform.toLowerCase() === "discord"){
               hasMedia: msg.message.has_media,
               media: null,
               stickerItems: msg.stickerItems ?? null,
-              timestamp:msg.timestamp,
+              timestamp: msg.timestamp,
               replyTo: replyMessage
                 ? {
                     id: replyMessage.message.id,
@@ -2129,9 +1817,6 @@ if(msg.platform.toLowerCase() === "discord"){
         );
 
         transformed.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-        // console.log("DEBUG: API returned", data.length, "messages");
-        // console.log("DEBUG: Transformed", transformed.length, "messages");
 
         setMessages((prev) => {
           // CRITICAL: Only update messages if we're still on the same chat
@@ -2178,7 +1863,6 @@ if(msg.platform.toLowerCase() === "discord"){
             (a, b) => a.date.getTime() - b.date.getTime()
           );
         });
-    
 
         // Don't set shouldAutoScroll to true - this prevents auto-scroll during polling
         // Only scroll when it's a new chat or user explicitly sends a message
@@ -2189,13 +1873,13 @@ if(msg.platform.toLowerCase() === "discord"){
         }
         console.error("DEBUG: refreshLatest error:", e);
       }
-    }, [USE_DUMMY_DATA, selectedChat]);
+    }, [selectedChat]);
 
     // Fetch messages when selectedChat changes or on initial mount
-    React.useEffect(() => {
+    useEffect(() => {
       // Set flag to indicate this is a new chat (should auto-scroll)
       setIsNewChat(true);
-      setMessages([])
+      setMessages([]);
       // Update current chat ref to help prevent race conditions
       let chatId = null;
       if (selectedChat === "all-channels") {
@@ -2210,36 +1894,40 @@ if(msg.platform.toLowerCase() === "discord"){
       currentChatRef.current = chatId;
 
       if (!USE_DUMMY_DATA) {
-        if(selectedChat.platform == "discord") return;
-        if(selectedChat.platform !="discord"){
-        if (selectedChat?.id ) {
-          if (selectedChat.name && selectedChat.keywords !== undefined) {
-            fetchMessages(selectedChat);
+        if (selectedChat.platform == "discord") return;
+        if (selectedChat.platform != "discord") {
+          if (selectedChat?.id) {
+            if (selectedChat.name && selectedChat.keywords !== undefined) {
+              fetchMessages(selectedChat);
+              fetchPinnedMessages();
+            } else {
+              if (messages.length > 0) {
+                fetchMessages(
+                  selectedChat.id,
+                  null,
+                  null,
+                  messages[0]?.timestamp ?? null
+                );
+              } else {
+                fetchMessages(selectedChat.id);
+              }
+
+              fetchPinnedMessages(selectedChat.id);
+              markChatAsRead(selectedChat.id);
+            }
+          } else if (selectedChat === "all-channels") {
+            fetchMessages("all-channels");
             fetchPinnedMessages();
           } else {
-            if(messages.length>0){
-              fetchMessages(selectedChat.id,null,null,messages[0]?.timestamp??null);
-            } else{
-              fetchMessages(selectedChat.id)
-            }
-            
-            fetchPinnedMessages(selectedChat.id);
-            markChatAsRead(selectedChat.id);
+            setMessages([]);
+            setPinnedMessages([]);
           }
-        } else if (selectedChat === "all-channels") {
-          fetchMessages("all-channels");
-          fetchPinnedMessages();
-        } else {
-          setMessages([]);
-          setPinnedMessages([]);
         }
-      }
       } else {
-        setMessages(dummyMessages);
+        // setMessages(dummyMessages);
         setPinnedMessages([]);
       }
       setShowAttachMenu(false);
-      // setReplyTo(null);
       if (inputRef.current) {
         inputRef.current.value = "";
         setText("");
@@ -2253,18 +1941,15 @@ if(msg.platform.toLowerCase() === "discord"){
       USE_DUMMY_DATA,
     ]);
 
-    React.useEffect(() => {
+    useEffect(() => {
       const refresh = async () => {
         try {
           await refreshLatest();
-        } catch (_) {
-          
-        } 
-      }
-       refresh()
+        } catch (_) {}
+      };
+      refresh();
     }, [selectedChat]);
 
- 
     // Function to mark chat as read
     const markChatAsRead = async (chatId) => {
       try {
@@ -2282,7 +1967,6 @@ if(msg.platform.toLowerCase() === "discord"){
         );
 
         if (response.ok) {
-          // console.log(`Chat ${chatId} marked as read`);
         }
       } catch (error) {
         console.error("Failed to mark chat as read:", error);
@@ -2318,14 +2002,11 @@ if(msg.platform.toLowerCase() === "discord"){
       return response.json();
     }
 
-
-    async function uploadFileToDiscord(
-    uploadUrl: string, file: File
-    ) {
+    async function uploadFileToDiscord(uploadUrl: string, file: File) {
       const url = `${BACKEND_URL}/api/discord/proxy-upload`;
-    const formData = new FormData();
-  formData.append("upload_url", uploadUrl);
-  formData.append("file", file);
+      const formData = new FormData();
+      formData.append("upload_url", uploadUrl);
+      formData.append("file", file);
 
       const response = await fetch(url, {
         method: "POST",
@@ -2344,34 +2025,6 @@ if(msg.platform.toLowerCase() === "discord"){
       return response.json();
     }
 
-    const handleFileUpload = async (
-      event: React.ChangeEvent<HTMLInputElement>
-    ) => {
-      if (!event.target.files || event.target.files.length === 0) return;
-
-      const file = event.target.files[0]; // Get first file
-
-      try {
-        const result = await sendMediaToChat({
-          chatId: selectedChat.id,
-          file,
-          caption: "Here is my photo",
-          fileName: file.name,
-        });
-
-        console.log("Media sent:", result);
-        // You might want to refresh messages here to show the new media message
-      } catch (error) {
-        console.error("Error sending media:", error);
-        toast({
-          title: "Send media failed",
-          description: String(error),
-          variant: "destructive",
-        });
-      }
-    };
-
-    const [isHoveringMenu, setIsHoveringMenu] = useState(false);
     // Use a ref to persist between renders
     const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -2379,7 +2032,6 @@ if(msg.platform.toLowerCase() === "discord"){
       if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
       closeTimeoutRef.current = setTimeout(() => {
         setOpenMenuId(null);
-        setIsHoveringMenu(false);
         closeTimeoutRef.current = null;
       }, 180); // 150-200ms works well
     };
@@ -2390,25 +2042,6 @@ if(msg.platform.toLowerCase() === "discord"){
         if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
       };
     }, []);
-
-    // Add these state and refs at the top together with your menu states:
-    const [isTagsSubmenuOpen, setIsTagsSubmenuOpen] = useState(false);
-    const tagsSubmenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    const startTagsSubmenuCloseTimer = () => {
-      if (tagsSubmenuTimeoutRef.current)
-        clearTimeout(tagsSubmenuTimeoutRef.current);
-      tagsSubmenuTimeoutRef.current = setTimeout(() => {
-        setIsTagsSubmenuOpen(false);
-      }, 150);
-    };
-
-    const cancelTagsSubmenuCloseTimer = () => {
-      if (tagsSubmenuTimeoutRef.current) {
-        clearTimeout(tagsSubmenuTimeoutRef.current);
-        tagsSubmenuTimeoutRef.current = null;
-      }
-    };
 
     const [showFiltersPopup, setShowFiltersPopup] = useState(false); // Controls inner popup
     const [filtersList, setFiltersList] = useState([]);
@@ -2453,11 +2086,15 @@ if(msg.platform.toLowerCase() === "discord"){
       }
     };
 
-    const generateTaskFromMessage = async(msg)=>{
-      if(!msg) return;
+    const generateTaskFromMessage = async (msg) => {
+      if (!msg) return;
 
-      summarizeMessages([{...msg,text:msg.message}], true, selectedChat.platform.toLowerCase())
-    }
+      summarizeMessages(
+        [{ ...msg, text: msg.message }],
+        true,
+        selectedChat.platform.toLowerCase()
+      );
+    };
 
     const handleAddToSmartChannel = async (msg: any, filter: any) => {
       if (!filter || !filter.id) {
@@ -2537,55 +2174,40 @@ if(msg.platform.toLowerCase() === "discord"){
     const flatMessages = messages.slice(); // Oldest first already
     const unreadStart =
       unreadCount > 0 ? flatMessages.length - unreadCount : -1;
-    const [hasScrolledToUnread, setHasScrolledToUnread] = useState(false);
 
     const unreadDividerRef = useRef<HTMLDivElement | null>(null);
 
     const container = messagesContainerRef.current;
-    const unreadDividerEl = unreadDividerRef.current;
-    const unreadEl = unreadDividerRef.current;
-    const [isInitialScrolled, setIsInitialScrolled] = useState(false);
-    const [hasScrolled, setHasScrolled] = React.useState(false);
-    const [highlightedMessageId, setHighlightedMessageId] =
-      React.useState(null);
-    const scrollTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
- const [loadedMedia, setLoadedMediaIds] = useState<Set<string>>(new Set());
+    const [hasScrolled, setHasScrolled] = useState(false);
+    const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+    const [loadedMedia, setLoadedMediaIds] = useState<Set<string>>(new Set());
 
-    // React.useEffect(() => {
-    //   // Reset scroll flag when chat changes
-    //   setMessages([])
-    //   setLoadedMediaIds(new Set())
-    //   // setHasScrolled(false);
-    //   if (container) {
-    //     container.scrollTop = container.scrollHeight;
-    //   }
-    // }, [selectedChat]);
-    
-   const limit = pLimit(5); // only 5 at once
+    const limit = pLimit(5); // only 5 at once
 
-useEffect(() => {
-  const nodes = document.querySelectorAll<HTMLDivElement>(
-    "[data-hasmedia='true'][data-msgid]"
-  );
-
-  nodes.forEach((node) => {
-    const msgId = node.getAttribute("data-msgid");
-    if (!msgId) return;
-
-    if (loadedMedia.has(msgId)) return;
-
-    setLoadedMediaIds((prev) => new Set(prev).add(msgId));
-
-    limit(async () => {
-      if(selectedChat.platform==="discord") return;
-      const media = await getMessageMedia(msgId, true);
-      setMessages((prev) =>
-        prev.map((m) => (m.id === msgId ? { ...m, media } : m))
+    useEffect(() => {
+      const nodes = document.querySelectorAll<HTMLDivElement>(
+        "[data-hasmedia='true'][data-msgid]"
       );
-    });
-  });
-}, [messages, loadedMedia]);
-    React.useEffect(() => {
+
+      nodes.forEach((node) => {
+        const msgId = node.getAttribute("data-msgid");
+        if (!msgId) return;
+
+        if (loadedMedia.has(msgId)) return;
+
+        setLoadedMediaIds((prev) => new Set(prev).add(msgId));
+
+        limit(async () => {
+          if (selectedChat.platform === "discord") return;
+          const media = await getMessageMedia(msgId, true);
+          setMessages((prev) =>
+            prev.map((m) => (m.id === msgId ? { ...m, media } : m))
+          );
+        });
+      });
+    }, [messages, loadedMedia]);
+
+    useEffect(() => {
       if (!selectedMessageId || loading) return;
 
       const tryScrollToMessage = () => {
@@ -2633,8 +2255,9 @@ useEffect(() => {
         // element not found -> keep loading until it appears OR no more messages
         const loadInterval = setInterval(async () => {
           if (!loadingMore && hasMoreMessages) {
-            setTimeout(async() => { loadMoreMessages();}, 1000);
-           
+            setTimeout(async () => {
+              loadMoreMessages();
+            }, 1000);
           }
 
           // Stop if:
@@ -2657,20 +2280,25 @@ useEffect(() => {
 
     const deleteMessage = async (msg) => {
       try {
-        const response = await fetch(`${BACKEND_URL}/api/messages/${msg.id}/delete`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await fetch(
+          `${BACKEND_URL}/api/messages/${msg.id}/delete`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
         if (!response.ok) throw new Error("Delete message failed");
-    
+
         // After successful delete, remove message from state
         setMessages((prev) =>
-          prev.filter((message) => message.id !== msg.id && message.originalId !== msg.id)
+          prev.filter(
+            (message) => message.id !== msg.id && message.originalId !== msg.id
+          )
         );
-    
-        await refreshLatest();  // Optional: refresh latest state from server if desired
+
+        await refreshLatest(); // Optional: refresh latest state from server if desired
       } catch (error) {
         console.error("Failed to delete message", error);
         toast({
@@ -2681,216 +2309,134 @@ useEffect(() => {
       }
     };
 
-    
-    // const deleteMessage = async (msg) => {
-    //   console.log("delete message: ", msg);
-    //   const response = await fetch(
-    //     `${BACKEND_URL}/api/messages/${msg.id}/delete`,
-    //     {
-    //       method: "POST",
-    //       headers: {
-    //         Authorization: `Bearer ${token}`,
-    //       },
-    //     }
-    //   );
-
-    //   if (!response.ok) {
-    //     throw new Error(`Get pins request failed: ${response.status}`);
-    //   }
-
-    //   const res = await response.json();
-      
-    //   await refreshLatest();
-    // };
-   
     const [isRecording, setIsRecording] = useState(false);
-const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-const [audioChunks, setAudioChunks] = useState<BlobPart[]>([]);
-const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+    const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
+      null
+    );
+    const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
 
-const startRecording = async () => {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    // const recorder = new MediaRecorder(stream);
-    const recorder = new MediaRecorder(stream);
-    setAudioChunks([]);
-    setAudioBlob(null);
-    setIsRecording(true);
-    setMediaRecorder(recorder);
+    const startRecording = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        const recorder = new MediaRecorder(stream);
+        setAudioBlob(null);
+        setIsRecording(true);
+        setMediaRecorder(recorder);
 
-    let chunks=[] as BlobPart[];
-    recorder.ondataavailable = (event) => {
-      // chunks = event.data;
-      chunks.push(event.data);
+        let chunks = [] as BlobPart[];
+        recorder.ondataavailable = (event) => {
+          chunks.push(event.data);
+        };
 
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: "audio/ogg" });
+          setAudioBlob(blob);
+          setIsRecording(false);
+          setMediaRecorder(null);
+          mediaRecorder?.stream.getTracks().forEach((track) => track.stop());
+        };
+
+        setMediaRecorder(recorder);
+        recorder.start();
+        setIsRecording(true);
+      } catch (err) {
+        console.error("Error starting audio recording", err);
+      }
     };
 
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'audio/ogg' });
-      setAudioBlob(blob);
-      setIsRecording(false);
-      setMediaRecorder(null);
-      mediaRecorder?.stream.getTracks().forEach(track => track.stop());
+    const stopRecording = () => {
+      if (mediaRecorder) {
+        mediaRecorder.stop();
+      }
     };
-    
-    setMediaRecorder(recorder);
-    recorder.start();
-    setIsRecording(true);
-  } catch (err) {
-    console.error('Error starting audio recording', err);
-  }
-};
 
-const stopRecording = () => {
-  if (mediaRecorder) {
-    mediaRecorder.stop();
-  }
-};
+    const sendAudioMessage = async () => {
+      if (!audioBlob) {
+        console.error("No audio blob to send.");
+        return;
+      }
+      if (!selectedChat) {
+        console.error("No selected chat to send message.");
+        return;
+      }
+      try {
+        setIsSending(true);
+        const audioFile = new File([audioBlob], "voice-message.ogg", {
+          type: "audio/ogg",
+        });
+        if (!audioFile?.size) {
+          console.error("Audio file is empty or invalid:", audioFile);
+          return setIsSending(false);
+        }
+        console.log(
+          "Sending audio file:",
+          audioFile,
+          "Is File:",
+          audioFile instanceof File
+        );
+        await sendMediaToChat({
+          chatId: selectedChat.id,
+          file: audioFile,
+          fileName: "voice-message.ogg",
+        });
 
-const cancelAudio = () => {
-  setAudioBlob(null);
-};
-const sendAudioMessage = async () => {
-  if (!audioBlob) {
-    console.error('No audio blob to send.');
-    return;
-  }
-  if (!selectedChat) {
-    console.error('No selected chat to send message.');
-    return;
-  }
-  try {
-    setIsSending(true)
-    const audioFile = new File([audioBlob], "voice-message.ogg", { type: "audio/ogg" });
-    if(!audioFile?.size)
-    {
-      console.error('Audio file is empty or invalid:', audioFile);
-      return setIsSending(false);
-    }
-    console.log('Sending audio file:', audioFile, 'Is File:', audioFile instanceof File);
-    await sendMediaToChat({chatId: selectedChat.id, file:audioFile, fileName:"voice-message.ogg"});
-  
-    await refreshLatest();
-    scrollToBottom();
-    setAudioBlob(null);
-    setIsSending(false);
-    setAudioChunks([]);
-  } catch (error) {
-    console.error('Failed to send voice message', error);
-    setIsSending(false)
+        await refreshLatest();
+        scrollToBottom();
+        setAudioBlob(null);
+        setIsSending(false);
+      } catch (error) {
+        console.error("Failed to send voice message", error);
+        setIsSending(false);
+      }
+    };
 
-  }
-};
+    const audioUrl = useMemo(() => {
+      return audioBlob ? URL.createObjectURL(audioBlob) : null;
+    }, [audioBlob]);
 
-const audioUrl = useMemo(() => {
-  return audioBlob ? URL.createObjectURL(audioBlob) : null;
-}, [audioBlob]);
+    useEffect(() => {
+      // Clean up URL on unmount or blob change
+      return () => {
+        if (audioUrl) {
+          URL.revokeObjectURL(audioUrl);
+        }
+      };
+    }, [audioUrl]);
 
-useEffect(() => {
-  // Clean up URL on unmount or blob change
-  return () => {
-    if (audioUrl) {
-      URL.revokeObjectURL(audioUrl);
-    }
-  };
-}, [audioUrl]);
+    const clearAudio = () => {
+      setAudioBlob(null);
+      setIsSending(false);
+    };
 
+    const jumpToReply = (msg) => {
+      console.log(msg);
+      setSelectedMessageId(msg.replyToId);
+    };
 
-const clearAudio = () =>{
-  setAudioBlob(null);
-  setIsSending(false);
-  setAudioChunks([]);
+    console.log("messages by date", groupedByDate);
+    const { userId } = useDiscordConnectionStatus();
+    const [telegramUserId, setTelegramUserId] = useState(null);
+    const fetchStatus = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        const tgRes = await fetch(`${BACKEND_URL}/auth/telegram/status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (tgRes.ok) {
+          const tg = await tgRes.json();
+          console.log("tg status res", tg);
+          setTelegramUserId(String(tg.telegram_id));
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    };
+    useEffect(() => {
+      fetchStatus();
+    }, []);
 
-}
-
-const linkify = (msg) => {
-  const text = msg.message;
-  if (!text) return null;
-
-  // console.log("🔹 Original text:", text);
-  // console.log("🔹 Mentions array:", msg.message.mentions);
-
-  // 1. Replace <@12345> with @username
-  const mentionRegex = /<@(\d+)>/g;
- let parsedText = text.replace(mentionRegex, (match, id) => {
-  let mentions: any[] = [];
-
-  if (Array.isArray(msg.mentions)) {
-    mentions = msg.mentions;
-  } else if (typeof msg.mentions === "string") {
-    try {
-      mentions = JSON.parse(msg.mentions);
-    } catch {
-      mentions = [];
-    }
-  }
-
-  const mention = mentions?.find((m) => m.id === id);
-  return mention ? `@${mention.username}` : match; // fallback if not found
-});
-
-  // console.log("✅ After mention replacement:", parsedText);
-
-  // 2. Regex to find URLs
-  const urlRegex = /(\bhttps?:\/\/[^\s]+)/g;
-
-  // 3. Split text by URLs, preserving URLs
-  const parts = parsedText.split(urlRegex);
-  // console.log("🧩 Split parts:", parts);
-
-  return parts.map((part, index) => {
-    if (part.match(urlRegex)) {
-      // console.log("🌐 Found URL:", part);
-      return (
-        <a
-          key={index}
-          href={part}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-500 hover:underline break-words"
-        >
-          {part}
-        </a>
-      );
-    } else {
-      // console.log("📄 Text part:", part);
-      return part;
-    }
-  });
-};
-
-
-const jumpToReply=(msg)=>{
-  // console.log('jump reply')
-  console.log(msg)
-  setSelectedMessageId(msg.replyToId)
-}
-
-console.log('messages by date',groupedByDate)
-const { userId } =useDiscordConnectionStatus()
-const [telegramUserId, setTelegramUserId] = useState(null)
-const fetchStatus = async () => {
-  try {
-    const token = localStorage.getItem("access_token");
-    const tgRes = await fetch(`${BACKEND_URL}/auth/telegram/status`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (tgRes.ok) {
-      const tg = await tgRes.json();
-      console.log('tg status res',tg)
-      setTelegramUserId(String(tg.telegram_id))
-    }
-  } catch (e) {
-    // ignore
-  }
-};
-useEffect(()=>{
-  fetchStatus()
-},[])
-
-
-
-// console.log('dc state', userId)
     return (
       <div className="relative h-[calc(100vh-136px)] flex flex-col flex-shrink-0 min-w-0">
         {/* Selected Chat Info */}
@@ -2972,9 +2518,6 @@ useEffect(()=>{
               </div>
             </div>
           )}
-{/* <p className="text-[#ffffff32] text-xs">{hasMoreMessages?'yes':'no'}</p>
-                <p className="text-[#ffffff32] text-xs">{messages.length}</p>
-                <p className="text-[#ffffff32] text-xs">{loading?'yes':'no'}</p> */}
           {/* No more messages indicator */}
           {!hasMoreMessages && messages.length > 0 && !loading && (
             <div className="flex items-center justify-center py-4">
@@ -3005,23 +2548,26 @@ useEffect(()=>{
                   );
                   const showUnreadDivider =
                     unreadStart >= 0 && globalIndex === unreadStart;
-                    const prevMsg = index > 0 ? msgs[index - 1] : null;
-                    
-                    const isSameSenderAsPrev = prevMsg && prevMsg.name === msg.name;
-                    
-                    const isDiscord = selectedChat?.platform?.toLowerCase() === "discord";
-                    const isTelegram = selectedChat?.platform?.toLowerCase() === "telegram";
-                  
-                    // const isOwnMessage = isDiscord && msg.sender?.id === userId;
-                    const isOwnMessage = (isDiscord && msg.sender?.id === userId) || (isTelegram && msg?.chat_id === telegramUserId);
-                  
+                  const prevMsg = index > 0 ? msgs[index - 1] : null;
+
+                  const isSameSenderAsPrev =
+                    prevMsg && prevMsg.name === msg.name;
+
+                  const isDiscord =
+                    selectedChat?.platform?.toLowerCase() === "discord";
+                  const isTelegram =
+                    selectedChat?.platform?.toLowerCase() === "telegram";
+
+                  const isOwnMessage =
+                    (isDiscord && msg.sender?.id === userId) ||
+                    (isTelegram && msg?.chat_id === telegramUserId);
+
                   return (
                     <div
                       key={String(msg.id)}
                       id={`msg-${msg.telegramMessageId}`}
                       data-hasmedia={msg.hasMedia ? "true" : "false"}
                       data-msgid={msg.id}
-                      // onMouseLeave={() => setOpenMenuId(null)}
                       onMouseLeave={startCloseTimer}
                       className={`rounded-[10px] message-item ${
                         highlightedMessageId === msg.telegramMessageId
@@ -3048,75 +2594,91 @@ useEffect(()=>{
                             : ""
                         }`}
                       >
-                       {isOwnMessage?<></>:isSameSenderAsPrev?<div className="w-10 h-10"></div>: <ChatAvatar
-                          name={msg.name}
-                          avatar={msg.avatar}
-                          backupAvatar={`https://cdn.discordapp.com/avatars/${msg?.id}/${msg?.avatar}.png`}
-                        />}
+                        {isOwnMessage ? (
+                          <></>
+                        ) : isSameSenderAsPrev ? (
+                          <div className="w-10 h-10"></div>
+                        ) : (
+                          <ChatAvatar
+                            name={msg.name}
+                            avatar={msg.avatar}
+                            backupAvatar={`https://cdn.discordapp.com/avatars/${msg?.id}/${msg?.avatar}.png`}
+                          />
+                        )}
 
                         <div className="flex-1 relative max-w-[100%]">
-                          <div className={`absolute ${isOwnMessage?"left-0":"right-0"} top-100 flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity z-10`}>
-                          <div className="relative">
-                                <button
-                                  onClick={() =>
-                                    toggleReactionPicker(
-                                      String(msg.originalId || msg.id)
-                                    )
-                                  }
-                                  className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff] hover:bg-[#ffffff12] transition-all duration-200 cursor-pointer hover:scale-105 hover:bg-[#ffffff16]"
-                                  disabled={
-                                    reactionLoading[
-                                      String(msg.originalId || msg.id)
-                                    ]
-                                  }
-                                  title="Add reaction"
-                                >
-                                  <SmilePlusIcon className="h-4 w-4" />
-                                  {reactionLoading[
+                          <div
+                            className={`absolute ${
+                              isOwnMessage ? "left-0" : "right-0"
+                            } top-100 flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity z-10`}
+                          >
+                            <div className="relative">
+                              <button
+                                onClick={() =>
+                                  toggleReactionPicker(
                                     String(msg.originalId || msg.id)
-                                  ] && (
-                                    <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
-                                  )}
-                                </button>
-
-                                {/* Reaction Picker */}
-                                {showReactionPicker[
+                                  )
+                                }
+                                className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff] hover:bg-[#ffffff12] transition-all duration-200 cursor-pointer hover:scale-105 hover:bg-[#ffffff16]"
+                                disabled={
+                                  reactionLoading[
+                                    String(msg.originalId || msg.id)
+                                  ]
+                                }
+                                title="Add reaction"
+                              >
+                                <SmilePlusIcon className="h-4 w-4" />
+                                {reactionLoading[
                                   String(msg.originalId || msg.id)
                                 ] && (
-                                  <div className={`reaction-picker absolute top-1/2 ${isOwnMessage?"left-[120%]":"right-[120%]"} ml-2 bg-[#2d2d2d]/95 backdrop-blur-sm rounded-2xl p-2 shadow-2xl border border-[#555] z-10 transform -translate-y-1/2 min-w-[max-content]`}>
-                                    {/* Arrow pointer pointing left */}
-                                    <div className="absolute top-1/2 left-0 w-0 h-0 border-t-[8px] border-b-[8px] border-r-[8px] border-t-transparent border-b-transparent border-r-[#2d2d2d] transform -translate-y-1/2 -translate-x-1"></div>
-
-                                    <div className="grid grid-cols-8 gap-0">
-                                      {commonReactions.map((emoji) => (
-                                        <button
-                                          key={emoji}
-                                          onClick={() =>
-                                            handleReaction(
-                                              String(msg.originalId || msg.id),
-                                              emoji
-                                            )
-                                          }
-                                          className="w-8 h-8 text-md hover:bg-[#444] rounded-xl transition-all duration-200 flex items-center justify-center hover:scale-110 active:scale-95 shadow-sm hover:shadow-md hover:bg-[#555]"
-                                          disabled={
-                                            reactionLoading[
-                                              String(msg.originalId || msg.id)
-                                            ]
-                                          }
-                                        >
-                                          {emoji}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
+                                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
                                 )}
-                              </div>
+                              </button>
+
+                              {/* Reaction Picker */}
+                              {showReactionPicker[
+                                String(msg.originalId || msg.id)
+                              ] && (
+                                <div
+                                  className={`reaction-picker absolute top-1/2 ${
+                                    isOwnMessage
+                                      ? "left-[120%]"
+                                      : "right-[120%]"
+                                  } ml-2 bg-[#2d2d2d]/95 backdrop-blur-sm rounded-2xl p-2 shadow-2xl border border-[#555] z-10 transform -translate-y-1/2 min-w-[max-content]`}
+                                >
+                                  {/* Arrow pointer pointing left */}
+                                  <div className="absolute top-1/2 left-0 w-0 h-0 border-t-[8px] border-b-[8px] border-r-[8px] border-t-transparent border-b-transparent border-r-[#2d2d2d] transform -translate-y-1/2 -translate-x-1"></div>
+
+                                  <div className="grid grid-cols-8 gap-0">
+                                    {commonReactions.map((emoji) => (
+                                      <button
+                                        key={emoji}
+                                        onClick={() =>
+                                          handleReaction(
+                                            String(msg.originalId || msg.id),
+                                            emoji
+                                          )
+                                        }
+                                        className="w-8 h-8 text-md hover:bg-[#444] rounded-xl transition-all duration-200 flex items-center justify-center hover:scale-110 active:scale-95 shadow-sm hover:shadow-md hover:bg-[#555]"
+                                        disabled={
+                                          reactionLoading[
+                                            String(msg.originalId || msg.id)
+                                          ]
+                                        }
+                                      >
+                                        {emoji}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                             <button
                               className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
                               title="Reply"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                console.log('replyto',msg)
+                                console.log("replyto", msg);
                                 setReplyTo(msg);
                                 setTimeout(() => {
                                   if (inputRef.current) {
@@ -3137,18 +2699,7 @@ useEffect(()=>{
                             >
                               <FaCopy className="text-[#ffffff] w-3 h-3" />
                             </button>
-                            {/* {selectedChat?.platform?.toLowerCase() ==
-                              "discord" && (
-                              <button
-                                className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
-                                title="Open in Discord"
-                                onClick={(e) => {
-                                  e.stopPropagation(); 
-                                }}
-                              >
-                                <FaDiscord className="text-[#ffffff] w-3 h-3" />
-                              </button>
-                            )} */}
+
                             {selectedChat?.platform?.toLowerCase() ==
                               "telegram" && (
                               <button
@@ -3190,16 +2741,12 @@ useEffect(()=>{
                               {/* Popup menu */}
                               {openMenuId === String(msg.id) && (
                                 <div
-                                  className={`absolute ${isOwnMessage?"left-0":"right-0"} ${
+                                  className={`absolute ${
+                                    isOwnMessage ? "left-0" : "right-0"
+                                  } ${
                                     menuPositions[String(msg.id)] ||
                                     "bottom-[110%]"
                                   } mt-2 bg-[#111111] border border-[#ffffff12] rounded-[10px] shadow-lg z-[9999] flex flex-col p-2 min-w-max`}
-                                  // onMouseEnter={() => {
-                                  //   setShowFiltersPopup(true);
-                                  //   cancelFiltersPopupCloseTimer();
-                                  //   if (filtersList.length === 0 && !isFetchingFilters) fetchFilters();
-                                  // }}
-                                  // onMouseLeave={startFiltersPopupCloseTimer}
                                 >
                                   {showFiltersPopup && (
                                     <div
@@ -3267,11 +2814,11 @@ useEffect(()=>{
                                   <button
                                     className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
                                     onClick={(e) => {
-                                      generateTaskFromMessage(msg)
+                                      generateTaskFromMessage(msg);
                                     }}
                                     style={{ position: "relative", zIndex: 2 }}
                                   >
-                                    <List/>
+                                    <List />
                                     Generate Task
                                   </button>
                                   <button
@@ -3345,14 +2892,7 @@ useEffect(()=>{
                                       ? "Unpin Message"
                                       : "Pin Message"}
                                   </button>
-                                  {/* <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap">
-                              <Plus
-                                className="w-6 h-6"
-                                stroke="currentColor"
-                                fill="currentColor"
-                              />
-                              Add Tags
-                            </button> */}
+
                                   <button className="flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#f36363] hover:text-[#f36363] whitespace-nowrap">
                                     <VolumeX
                                       className="w-6 h-6"
@@ -3376,40 +2916,48 @@ useEffect(()=>{
                               )}
                             </button>
                           </div>
-                          <div className={`flex items-center ${isOwnMessage?"justify-end":"justify-start"} gap-2`}>
-                            {isSameSenderAsPrev || isOwnMessage?(<></>):(<><span className="text-[#ffffff72] font-[300]">
-                              {msg.name}
-                            </span>
-                            <div
-                              className={`flex justify-center pl-2 items-center rounded-[4px] ${
-                                msg.platform === "Telegram"
-                                  ? "bg-[#3474ff]"
-                                  : "bg-[#7b5cfa]"
-                              }`}
-                            >
-                              {msg.platform === "Telegram" ? (
-                                <FaTelegramPlane className="text-[#ffffff] w-3 h-3" />
-                              ) : (
-                                <FaDiscord className="text-[#ffffff] w-3 h-3" />
-                              )}
-
-                              {msg.server && (
-                                <span
-                                  className={`text-xs text-white${
-                                    msg.platform === "Discord" ? "" : ""
-                                  } rounded px-2 py-0.5`}
-                                >
-                                  {msg.server}
+                          <div
+                            className={`flex items-center ${
+                              isOwnMessage ? "justify-end" : "justify-start"
+                            } gap-2`}
+                          >
+                            {isSameSenderAsPrev || isOwnMessage ? (
+                              <></>
+                            ) : (
+                              <>
+                                <span className="text-[#ffffff72] font-[300]">
+                                  {msg.name}
                                 </span>
-                              )}
-                            </div>
+                                <div
+                                  className={`flex justify-center pl-2 items-center rounded-[4px] ${
+                                    msg.platform === "Telegram"
+                                      ? "bg-[#3474ff]"
+                                      : "bg-[#7b5cfa]"
+                                  }`}
+                                >
+                                  {msg.platform === "Telegram" ? (
+                                    <FaTelegramPlane className="text-[#ffffff] w-3 h-3" />
+                                  ) : (
+                                    <FaDiscord className="text-[#ffffff] w-3 h-3" />
+                                  )}
 
-                            <span className="text-xs text-[#fafafa99]">
-                              {selectedChat.name}
-                            </span>
-                            </>)}
+                                  {msg.server && (
+                                    <span
+                                      className={`text-xs text-white${
+                                        msg.platform === "Discord" ? "" : ""
+                                      } rounded px-2 py-0.5`}
+                                    >
+                                      {msg.server}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <span className="text-xs text-[#fafafa99]">
+                                  {selectedChat.name}
+                                </span>
+                              </>
+                            )}
                             <span className="text-xs text-[#ffffff32]">
-                              {/* {console.log('Raw msg.date:', msg.date, 'Type:', typeof msg.date)} */}
                               {formatTime(msg.date)}
                             </span>
                             {String(msg.id).startsWith("temp-") && (
@@ -3418,136 +2966,173 @@ useEffect(()=>{
                               </span>
                             )}
                           </div>
-                          {(selectedChat.platform==="Telegram") && msg.replyTo && (
-                            <div className="cursor-pointer text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1 mt-2 max-w-[100%] break-all" onClick={()=>jumpToReply(msg)}>
-                              Replying to{" "}
-                              <span className="font-semibold">
-                                {msg.replyTo.name}:
-                              </span>{" "}
-                              <span className="text-[#ffffffb0]">
-                                {msg.replyTo.message}
-                                {/* {msg.replyTo.message.length > 40 ? "..." : ""} */}
-                              </span>
-                            </div>
-                          )}
-                          {(selectedChat.platform==="discord") && msg?.referenced_message?.id && (
-                            <div className={`${isOwnMessage?"text-right":""} cursor-pointer text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1 mt-2 max-w-[100%] break-all`} onClick={()=>jumpToReply(msg)}>
-                              Replying to{" "}
-                              <span className="font-semibold">
-                                {msg?.referenced_message?.author?.global_name || msg?.referenced_message?.author?.username}:
-                              </span>{" "}
-                              <span className="text-[#ffffffb0]">
-                                {msg?.referenced_message?.content}
-                                {/* {msg.replyTo.message.length > 40 ? "..." : ""} */}
-                              </span>
-                            </div>
-                          )}
-                          <div className={`mt-1 text-sm text-[#e0e0e] break-words break-all whitespace-pre-wrap max-w-full ${isOwnMessage?"text-right ml-auto w-max":""}`}>
-                          {Array.isArray(msg.media) && msg.media.length > 0 && (
-  <>
-    {msg.media.map((mediaItem, idx) => (
-      <React.Fragment key={mediaItem.url || idx}>
-        {(mediaItem?.content_type?.startsWith("image") ||
-          mediaItem?.type?.startsWith("image")) && (
-          <img
-            src={mediaItem.url}
-            alt="media"
-            style={{
-              maxWidth: 320,
-              cursor: "pointer",
-            }}
-            onClick={() => openMedia(mediaItem)}
-          />
-        )}
-        {mediaItem?.type?.startsWith("video") && (
-          <video
-            src={mediaItem.url}
-            controls
-            style={{
-              maxWidth: 320,
-              cursor: "pointer",
-            }}
-            onClick={() => openMedia(mediaItem)}
-          />
-        )}
-        {mediaItem?.type?.includes("octet") &&
-          selectedChat.platform == "discord" && (
-            <video
-              src={mediaItem.url}
-              autoPlay
-              loop
-              style={{
-                maxWidth: 320,
-                cursor: "pointer",
-              }}
-              onClick={() => openMedia(mediaItem)}
-            />
-        )}
-        {(mediaItem?.type?.includes("audio") ||
-          mediaItem?.type?.includes("ogg") ||
-          mediaItem?.type?.includes("octet")) && (
-          <AudioWaveform audioUrl={mediaItem.url ?? null} />
-        )}
-      </React.Fragment>
-    ))}
+                          {selectedChat.platform === "Telegram" &&
+                            msg.replyTo && (
+                              <div
+                                className="cursor-pointer text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1 mt-2 max-w-[100%] break-all"
+                                onClick={() => jumpToReply(msg)}
+                              >
+                                Replying to{" "}
+                                <span className="font-semibold">
+                                  {msg.replyTo.name}:
+                                </span>{" "}
+                                <span className="text-[#ffffffb0]">
+                                  {msg.replyTo.message}
+                                </span>
+                              </div>
+                            )}
+                          {selectedChat.platform === "discord" &&
+                            msg?.referenced_message?.id && (
+                              <div
+                                className={`${
+                                  isOwnMessage ? "text-right" : ""
+                                } cursor-pointer text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1 mt-2 max-w-[100%] break-all`}
+                                onClick={() => jumpToReply(msg)}
+                              >
+                                Replying to{" "}
+                                <span className="font-semibold">
+                                  {msg?.referenced_message?.author
+                                    ?.global_name ||
+                                    msg?.referenced_message?.author?.username}
+                                  :
+                                </span>{" "}
+                                <span className="text-[#ffffffb0]">
+                                  {msg?.referenced_message?.content}
+                                </span>
+                              </div>
+                            )}
+                          <div
+                            className={`mt-1 text-sm text-[#e0e0e] break-words break-all whitespace-pre-wrap max-w-full ${
+                              isOwnMessage ? "text-right ml-auto w-max" : ""
+                            }`}
+                          >
+                            {Array.isArray(msg.media) &&
+                              msg.media.length > 0 && (
+                                <>
+                                  {msg.media.map((mediaItem, idx) => (
+                                    <Fragment key={mediaItem.url || idx}>
+                                      {(mediaItem?.content_type?.startsWith(
+                                        "image"
+                                      ) ||
+                                        mediaItem?.type?.startsWith(
+                                          "image"
+                                        )) && (
+                                        <img
+                                          src={mediaItem.url}
+                                          alt="media"
+                                          style={{
+                                            maxWidth: 320,
+                                            cursor: "pointer",
+                                          }}
+                                          onClick={() => openMedia(mediaItem)}
+                                        />
+                                      )}
+                                      {mediaItem?.type?.startsWith("video") && (
+                                        <video
+                                          src={mediaItem.url}
+                                          controls
+                                          style={{
+                                            maxWidth: 320,
+                                            cursor: "pointer",
+                                          }}
+                                          onClick={() => openMedia(mediaItem)}
+                                        />
+                                      )}
+                                      {mediaItem?.type?.includes("octet") &&
+                                        selectedChat.platform == "discord" && (
+                                          <video
+                                            src={mediaItem.url}
+                                            autoPlay
+                                            loop
+                                            style={{
+                                              maxWidth: 320,
+                                              cursor: "pointer",
+                                            }}
+                                            onClick={() => openMedia(mediaItem)}
+                                          />
+                                        )}
+                                      {(mediaItem?.type?.includes("audio") ||
+                                        mediaItem?.type?.includes("ogg") ||
+                                        mediaItem?.type?.includes("octet")) && (
+                                        <AudioWaveform
+                                          audioUrl={mediaItem.url ?? null}
+                                        />
+                                      )}
+                                    </Fragment>
+                                  ))}
 
-    {enlargedMedia && (
-      <div
-        onClick={closeMedia}
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
-          height: "100vh",
-          backgroundColor: "rgba(0,0,0,0.8)",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          zIndex: 9999,
-        }}
-      >
-        {(enlargedMedia?.type?.startsWith("image") || enlargedMedia?.content_type?.startsWith("image")) && (
-          <img
-            src={enlargedMedia?.url}
-            alt="enlarged media"
-            style={{
-              maxHeight: "90vh",
-              maxWidth: "90vw",
-            }}
-            onClick={(e) => e.stopPropagation()} // Prevent modal close on click inside image
-          />
-        )}
-        {(enlargedMedia?.type?.startsWith("video") || enlargedMedia?.content_type?.startsWith("video")) && (
-          <video
-            src={enlargedMedia?.url}
-            controls
-            autoPlay
-            style={{
-              maxHeight: "90vh",
-              maxWidth: "90vw",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
-        )}
-      </div>
-    )}
-  </>
-)}
-                          {Array.isArray(msg.sticker_items) && msg.sticker_items.length > 0 && (
-  <>
-    {msg.sticker_items.map((mediaItem, idx) => (
-      <DiscordSticker stickerId={mediaItem.id} />
-    ))}
+                                  {enlargedMedia && (
+                                    <div
+                                      onClick={closeMedia}
+                                      style={{
+                                        position: "fixed",
+                                        top: 0,
+                                        left: 0,
+                                        width: "100vw",
+                                        height: "100vh",
+                                        backgroundColor: "rgba(0,0,0,0.8)",
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                        zIndex: 9999,
+                                      }}
+                                    >
+                                      {(enlargedMedia?.type?.startsWith(
+                                        "image"
+                                      ) ||
+                                        enlargedMedia?.content_type?.startsWith(
+                                          "image"
+                                        )) && (
+                                        <img
+                                          src={enlargedMedia?.url}
+                                          alt="enlarged media"
+                                          style={{
+                                            maxHeight: "90vh",
+                                            maxWidth: "90vw",
+                                          }}
+                                          onClick={(e) => e.stopPropagation()} // Prevent modal close on click inside image
+                                        />
+                                      )}
+                                      {(enlargedMedia?.type?.startsWith(
+                                        "video"
+                                      ) ||
+                                        enlargedMedia?.content_type?.startsWith(
+                                          "video"
+                                        )) && (
+                                        <video
+                                          src={enlargedMedia?.url}
+                                          controls
+                                          autoPlay
+                                          style={{
+                                            maxHeight: "90vh",
+                                            maxWidth: "90vw",
+                                          }}
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      )}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            {Array.isArray(msg.sticker_items) &&
+                              msg.sticker_items.length > 0 && (
+                                <>
+                                  {msg.sticker_items.map((mediaItem, idx) => (
+                                    <DiscordSticker stickerId={mediaItem.id} />
+                                  ))}
+                                </>
+                              )}
 
-  </>
-)}
-
-  {msg.media && (
+                            {msg.media && (
                               <>
                                 {msg.media && (
                                   <>
-                                    {(msg?.media?.content_type?.startsWith("image") ||msg?.media?.type?.startsWith("image")) && (
+                                    {(msg?.media?.content_type?.startsWith(
+                                      "image"
+                                    ) ||
+                                      msg?.media?.type?.startsWith(
+                                        "image"
+                                      )) && (
                                       <img
                                         src={msg?.media?.url}
                                         alt="media"
@@ -3569,22 +3154,27 @@ useEffect(()=>{
                                         onClick={() => openMedia(msg?.media)}
                                       />
                                     )}
-                                    {msg?.media?.type?.includes("octet") && selectedChat.platform == "discord" && (
-                                      <>
-                                      <video
-                                        src={msg.media.url}
-                                        autoPlay
-                                        loop
-                                        style={{
-                                          maxWidth: 320,
-                                          cursor: "pointer",
-                                        }}
-                                        onClick={() => openMedia(msg.media)}
-                                      />                                      
-                                    </>
-                                    )} 
-                                     {(msg?.media?.type?.includes("audio") || msg?.media?.type?.includes("ogg") || msg?.media?.type?.includes("octet")) && (
-                                      <AudioWaveform audioUrl={msg?.media?.url ?? null}/>
+                                    {msg?.media?.type?.includes("octet") &&
+                                      selectedChat.platform == "discord" && (
+                                        <>
+                                          <video
+                                            src={msg.media.url}
+                                            autoPlay
+                                            loop
+                                            style={{
+                                              maxWidth: 320,
+                                              cursor: "pointer",
+                                            }}
+                                            onClick={() => openMedia(msg.media)}
+                                          />
+                                        </>
+                                      )}
+                                    {(msg?.media?.type?.includes("audio") ||
+                                      msg?.media?.type?.includes("ogg") ||
+                                      msg?.media?.type?.includes("octet")) && (
+                                      <AudioWaveform
+                                        audioUrl={msg?.media?.url ?? null}
+                                      />
                                     )}
                                   </>
                                 )}
@@ -3605,8 +3195,9 @@ useEffect(()=>{
                                       zIndex: 9999,
                                     }}
                                   >
-
-                                    {enlargedMedia?.type?.startsWith("image") && (
+                                    {enlargedMedia?.type?.startsWith(
+                                      "image"
+                                    ) && (
                                       <img
                                         src={enlargedMedia.url}
                                         alt="enlarged media"
@@ -3617,7 +3208,9 @@ useEffect(()=>{
                                         onClick={(e) => e.stopPropagation()} // Prevent modal close on click inside image
                                       />
                                     )}
-                                    {enlargedMedia?.type?.startsWith("video") && (
+                                    {enlargedMedia?.type?.startsWith(
+                                      "video"
+                                    ) && (
                                       <video
                                         src={enlargedMedia.url}
                                         controls
@@ -3634,17 +3227,11 @@ useEffect(()=>{
                               </>
                             )}
                             {/* {linkify(msg)} */}
-                            <MessageWithLinkifyAndMentions text={msg.message} mentionsData={msg.mentions} message={msg}/>
-                            {/* {msg.hasLink && msg.link && (
-                              <a
-                                href={msg.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block mt-2 text-blue-500 hover:underline break-words"
-                              >
-                                {msg.link}
-                              </a>
-                            )} */}
+                            <MessageWithLinkifyAndMentions
+                              text={msg.message}
+                              mentionsData={msg.mentions}
+                              message={msg}
+                            />
                           </div>
 
                           {/* Reactions */}
@@ -3663,11 +3250,12 @@ useEffect(()=>{
                                   title="Toggle reaction"
                                 >
                                   {r.icon || r.emoji}
-                                  {typeof r.count === "number" ? " "+r.count : ""}
+                                  {typeof r.count === "number"
+                                    ? " " + r.count
+                                    : ""}
                                 </button>
                               ))}
                               {/* No local reaction chips; Telegram is source of truth */}
-                             
                             </div>
                           }
 
@@ -3708,7 +3296,11 @@ useEffect(()=>{
         )}
         {selectedChat.is_typing && <LoadingDots />}
 
-        <div className={`flex-shrink-0 px-6 py-4 bg-gradient-to-t from-[#181A20] via-[#181A20ee] ${enlargedMedia?"z-10":"z-20"} to-transparent`}>
+        <div
+          className={`flex-shrink-0 px-6 py-4 bg-gradient-to-t from-[#181A20] via-[#181A20ee] ${
+            enlargedMedia ? "z-10" : "z-20"
+          } to-transparent`}
+        >
           {/* Replying to box */}
           {uploadedFiles.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-2">
@@ -3807,25 +3399,20 @@ useEffect(()=>{
                 title={
                   selectedChat === "all-channels" && !replyTo
                     ? "Select a specific chat to attach files"
-                    : // : selectedChat?.keywords !== undefined
-                    // ? "Cannot attach files to smart filters"
-                    isSending
+                    : isSending
                     ? "Please wait for current message to send"
                     : "Attach files"
                 }
               >
                 <Plus
                   className={`text-black bg-[#fafafa60] rounded-full mr-2 w-[18px] h-[18px] cursor-pointer ${
-                    (selectedChat === "all-channels" && !replyTo) ||
-                    // selectedChat?.keywords !== undefined ||
-                    isSending
+                    (selectedChat === "all-channels" && !replyTo) || isSending
                       ? "opacity-50 cursor-not-allowed"
                       : "hover:bg-[#fafafa80]"
                   }`}
                   onClick={() => {
                     if (
                       (selectedChat === "all-channels" && !replyTo) ||
-                      // selectedChat?.keywords !== undefined ||
                       isSending
                     ) {
                       return;
@@ -3848,21 +3435,24 @@ useEffect(()=>{
                         type="file"
                         style={{ display: "none" }}
                         multiple
-                        onChange={async(e) => {const selectedFiles = Array.from(e.target.files || []);
-  const files = await Promise.all(
-    selectedFiles.map(async (file) => {
-      const arrayBuffer = await file.arrayBuffer(); // raw binary
-      return {
-        file,
-        type: getFileType(file),
-        preview: file.type.startsWith("image/")
-          ? URL.createObjectURL(file)
-          : null,
-        status: "uploading",
-        content: arrayBuffer, // this is what you'll PUT to Discord
-      };
-    })
-  )
+                        onChange={async (e) => {
+                          const selectedFiles = Array.from(
+                            e.target.files || []
+                          );
+                          const files = await Promise.all(
+                            selectedFiles.map(async (file) => {
+                              const arrayBuffer = await file.arrayBuffer(); // raw binary
+                              return {
+                                file,
+                                type: getFileType(file),
+                                preview: file.type.startsWith("image/")
+                                  ? URL.createObjectURL(file)
+                                  : null,
+                                status: "uploading",
+                                content: arrayBuffer, // this is what you'll PUT to Discord
+                              };
+                            })
+                          );
                           setUploadedFiles((prev) => [...prev, ...files]);
                           setShowAttachMenu(false);
 
@@ -3898,60 +3488,65 @@ useEffect(()=>{
                     </div>
                   )}
               </div>
-              
+
               {audioBlob || isRecording ? (
-//       <div className="audio-preview">
-// <audio
-//         controls
-//         src={audioUrl ?? undefined}
-//         onEnded={() => console.log('audio ended')}
-//         onError={() => console.error('audio playback error')}
-//       />
-//               <button onClick={sendAudioMessage}>Send</button>
-//         <button onClick={cancelAudio}>Cancel</button>
-//       </div>
-<div className="flex gap-4 justify-stretch items-center w-full">
-<LiveAudioWaveform barMaxHeight={50} cursorHeight={40} />
-{audioBlob && !isRecording && <Trash2Icon onClick={clearAudio} className="cursor-pointer"/>}
-</div>
-    ) : (<>
-              <textarea
-                ref={inputRef}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder={
-                  replyTo && replyTo.name
-                    ? `Replying to ${replyTo.name}...`
-                    : selectedChat === "all-channels"
-                    ? "Select a channel on the sidebar to send messages..."
-                    : // : selectedChat?.keywords !== undefined
-                      // ? "Cannot send messages to smart filters..."
-                      "Type your message..."
-                }
-                disabled={
-                  (selectedChat === "all-channels" && !replyTo) ||
-                  // selectedChat?.keywords !== undefined ||
-                  isSending
-                }
-                rows={1}
-                className="border-none focus:outline-none focus:ring-0 flex-1 bg-transparent outline-none text-white placeholder-[#ffffff48] text-sm disabled:opacity-50"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-              />
-              </>)}
+                <div className="flex gap-4 justify-stretch items-center w-full">
+                  <LiveAudioWaveform barMaxHeight={50} cursorHeight={40} />
+                  {audioBlob && !isRecording && (
+                    <Trash2Icon
+                      onClick={clearAudio}
+                      className="cursor-pointer"
+                    />
+                  )}
+                </div>
+              ) : (
+                <>
+                  <textarea
+                    ref={inputRef}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder={
+                      replyTo && replyTo.name
+                        ? `Replying to ${replyTo.name}...`
+                        : selectedChat === "all-channels"
+                        ? "Select a channel on the sidebar to send messages..."
+                        : "Type your message..."
+                    }
+                    disabled={
+                      (selectedChat === "all-channels" && !replyTo) || isSending
+                    }
+                    rows={1}
+                    className="border-none focus:outline-none focus:ring-0 flex-1 bg-transparent outline-none text-white placeholder-[#ffffff48] text-sm disabled:opacity-50"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                  />
+                </>
+              )}
             </div>
-            {selectedChat.platform === "discord" && <button
-        onClick={() => setShowStickers((s) => !s)}
-        className="mr-0.5 ml-2 text-gray-400 hover:text-white"
-      >
-        <Sticker width={18} height={18}/>
-      </button>}
-            {showStickers && <StickerMenu onStickerSelect={handleStickerSelect} stickerPacks={stickerPacks} />}
-            <button className="mx-2" onClick={() => setShowPicker((val) => !val)}>😊</button>
+            {selectedChat.platform === "discord" && (
+              <button
+                onClick={() => setShowStickers((s) => !s)}
+                className="mr-0.5 ml-2 text-gray-400 hover:text-white"
+              >
+                <Sticker width={18} height={18} />
+              </button>
+            )}
+            {showStickers && (
+              <StickerMenu
+                onStickerSelect={handleStickerSelect}
+                stickerPacks={stickerPacks}
+              />
+            )}
+            <button
+              className="mx-2"
+              onClick={() => setShowPicker((val) => !val)}
+            >
+              😊
+            </button>
             {showPicker && (
               <div
                 ref={pickerRef}
@@ -3961,17 +3556,22 @@ useEffect(()=>{
               </div>
             )}
             {!isRecording ? (
-  <button onClick={startRecording} title="Start recording voice message"><MicIcon/></button>
-) : (
-  <button onClick={stopRecording} title="Stop recording and send"><StopCircle/></button>
-)}
+              <button
+                onClick={startRecording}
+                title="Start recording voice message"
+              >
+                <MicIcon />
+              </button>
+            ) : (
+              <button onClick={stopRecording} title="Stop recording and send">
+                <StopCircle />
+              </button>
+            )}
 
             <button
-              onClick={audioBlob?sendAudioMessage:handleSend}
+              onClick={audioBlob ? sendAudioMessage : handleSend}
               disabled={
-                (selectedChat === "all-channels" && !replyTo) ||
-                // selectedChat?.keywords !== undefined ||
-                isSending
+                (selectedChat === "all-channels" && !replyTo) || isSending
               }
               className="ml-3 p-2 rounded-[10px] bg-[#5389ff] hover:bg-[#5389ff] transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
