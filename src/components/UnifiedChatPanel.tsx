@@ -2019,23 +2019,24 @@ if(msg.platform.toLowerCase() === "discord"){
         //   }
         // }
       }else{
-        const response = await fetch(endpoint, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
+        // const response = await fetch(endpoint, {
+        //   headers: {
+        //     Authorization: `Bearer ${token}`,
+        //     "Content-Type": "application/json",
+        //   },
+        // });
   
-        if (!response.ok) {
-          console.log(
-            "DEBUG: Response not OK:",
-            response.status,
-            response.statusText
-          );
-          return;
-        }
-        data = await response.json();
+        // if (!response.ok) {
+        //   console.log(
+        //     "DEBUG: Response not OK:",
+        //     response.status,
+        //     response.statusText
+        //   );
+        //   return;
+        // }
+        // data = await response.json();
         const hist = await window.electronAPI.telegram.getChatHistory(selectedChat.id);
+        data = hist.data
         console.log('fetched tg history',hist)
       }
 

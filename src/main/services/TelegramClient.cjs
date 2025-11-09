@@ -304,12 +304,90 @@ async connectExisting(mainWindow) {
     // const entity = await this.client.getEntity(-1004786899416);
     await this.client.sendMessage(chatId, { message });
   }
-  async getMessages(chatId, limit = 20, offset = 0) {
-    return this.client.getMessages(chatId, {
+  // async getMessages(chatId, limit = 20, offset = 0) {
+  //   return this.client.getMessages(chatId, {
+  //     limit,
+  //     offsetId: offset,
+  //   });
+
+    
+  // }
+
+  async getMessages(chatId, limit = 50, offset = 0) {
+  try {
+    const messages = await this.client.getMessages(chatId, {
       limit,
-      offsetId: offset,
+      addOffset: offset,
     });
+
+    const formattedMessages = messages.map((msg) => {
+      const safe = (obj) => {
+        if (!obj) return null;
+        return JSON.parse(JSON.stringify(obj)); // remove class refs
+      };
+
+      const sender = safe(msg?.sender);
+      const chat = safe(msg?.chat);
+
+      return {
+        _id: msg.id?.toString(),
+        timestamp: moment(msg.date * 1000).toISOString(),
+        raw_text: msg.message || "",
+        message: {
+          id: msg.id,
+          date: moment(msg.date * 1000).toISOString(),
+          text: msg.message || "",
+          from_id: msg.fromId ? msg.fromId.toString() : null,
+          to_id: msg.peerId ? msg.peerId.toString() : null,
+          reply_to: msg.replyTo ? JSON.stringify(msg.replyTo) : null,
+          forward: msg.fwdFrom || null,
+          edited: !!msg.editDate,
+          media: !!msg.media,
+          has_media: !!msg.media,
+          has_document: !!msg.document,
+          has_photo: !!msg.photo,
+          has_video: !!msg.video,
+          has_voice: !!msg.voice,
+          has_sticker: !!msg.sticker,
+        },
+        sender: sender
+          ? {
+              id: sender.id || null,
+              username: sender.username || null,
+              first_name: sender.firstName || null,
+              last_name: sender.lastName || null,
+              phone: sender.phone || null,
+              is_bot: sender.bot || false,
+            }
+          : null,
+        chat: chat
+          ? {
+              id: chat.id || chatId,
+              title: chat.title || null,
+              username: chat.username || null,
+              first_name: chat.firstName || null,
+              last_name: chat.lastName || null,
+              photo: chat.photo
+                ? { photo_id: chat.photo.photoId }
+                : null,
+              access_hash: chat.accessHash || null,
+              type: chat.className || "unknown",
+              _: chat._ || "unknown",
+              participants_count: chat.participantsCount || null,
+              megagroup: chat.megagroup || false,
+              broadcast: chat.broadcast || false,
+            }
+          : null,
+      };
+    });
+
+    // ✅ Deep clone before sending to renderer
+    return JSON.parse(JSON.stringify(formattedMessages));
+  } catch (error) {
+    console.error("[Telegram] getMessages error:", error);
+    return [];
   }
+}
 
   async getDialogs() {
     const dialogs = await this.client.getDialogs();
