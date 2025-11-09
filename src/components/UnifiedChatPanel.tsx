@@ -1085,16 +1085,20 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           if (afterTimestamp) params.append("after", afterTimestamp);
           if (params.toString()) endpoint += `?${params.toString()}`;
 
-          const response = await fetch(endpoint, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          });
+          // const response = await fetch(endpoint, {
+          //   headers: {
+          //     Authorization: `Bearer ${token}`,
+          //     "Content-Type": "application/json",
+          //   },
+          // });
 
-          if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+          // if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
-          const data = await response.json();
+          // const data = await response.json();
+              const hist = await window.electronAPI.telegram.getChatHistory(
+            selectedChat.id
+          );
+          const data = hist.data;
 
           const transformed = await Promise.all(
             data.map(async (msg: any, index: number) => {
