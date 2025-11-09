@@ -301,8 +301,14 @@ async connectExisting(mainWindow) {
   }
 
   async sendMessage(chatId, message) {
-    // const entity = await this.client.getEntity(chatId);
-    await this.client.sendMessage(-1004786899416, { message });
+    // const entity = await this.client.getEntity(-1004786899416);
+    await this.client.sendMessage(chatId, { message });
+  }
+  async getMessages(chatId, limit = 20, offset = 0) {
+    return this.client.getMessages(chatId, {
+      limit,
+      offsetId: offset,
+    });
   }
 
   async getDialogs() {

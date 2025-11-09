@@ -2035,6 +2035,8 @@ if(msg.platform.toLowerCase() === "discord"){
           return;
         }
         data = await response.json();
+        const hist = await window.electronAPI.telegram.getChatHistory(selectedChat.id);
+        console.log('fetched tg history',hist)
       }
 
         const toChips = (results: any[]) =>
@@ -2250,25 +2252,18 @@ if(msg.platform.toLowerCase() === "discord"){
       USE_DUMMY_DATA,
     ]);
 
-    // Polling: refresh current view every 1s (no websockets)
     React.useEffect(() => {
-      if (USE_DUMMY_DATA) return;
-      let timer: any = null;
-      const poll = async () => {
+      const refresh = async () => {
         try {
           await refreshLatest();
         } catch (_) {
-          // ignore transient polling errors
-        } finally {
-          timer = setTimeout(poll, 1000);
-        }
-      };
-      timer = setTimeout(poll, 1000);
-      return () => {
-        if (timer) clearTimeout(timer);
-      };
-    }, [USE_DUMMY_DATA, selectedChat, refreshLatest]);
+          
+        } 
+      }
+       refresh()
+    }, [selectedChat]);
 
+ 
     // Function to mark chat as read
     const markChatAsRead = async (chatId) => {
       try {

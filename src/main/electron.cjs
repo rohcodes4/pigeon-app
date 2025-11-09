@@ -678,6 +678,11 @@ function setupIPCHandlers() {
     }
   );
 
+  ipcMain.handle("telegram:get-messages", async (_event, { chatId, limit, offset }) => {
+    const data = await telegramClient.getMessages(chatId, limit, offset);
+    return { success: true, data };
+  });
+
   ipcMain.handle("telegram:get-dialogs", async () => {
     const data = await telegramClient.getDialogs();
     return { success: true, data };

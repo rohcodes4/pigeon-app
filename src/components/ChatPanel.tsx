@@ -26,139 +26,21 @@ import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
 import ChatAvatar from "./ChatAvatar";
 import FiltersPanel from "./FiltersPanel";
 import FilterEditor from "./FilterEditor";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+
 import aiIMG from "@/assets/images/aiAll.png";
-// import { Dialog, DialogContent, DialogTitle } from "@radix-ui/react-dialog";
-// import { DialogHeader } from "./ui/dialog";
+
 import SmartSummary from "./SmartSummary";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { useToggleMuteChat } from "@/hooks/discord/useToggleMuteChat";
 import { useGetMuteChatStatus } from "@/hooks/discord/useGetMuteChatStatus";
 import { useDiscordContext } from "@/context/discordContext";
 
 // Helper to generate a random gravatar
-const gravatarUrl = (seed: string) => {
-  try {
-    // Handle Unicode characters safely
-    const safeSeed = seed.replace(/[^\x00-\x7F]/g, ""); // Remove non-ASCII characters
-    if (!safeSeed)
-      return `https://www.gravatar.com/avatar/default?d=identicon&s=80`;
-    return `https://www.gravatar.com/avatar/${btoa(safeSeed)}?d=identicon&s=80`;
-  } catch (error) {
-    // Fallback to default avatar
-    return `https://www.gravatar.com/avatar/default?d=identicon&s=80`;
-  }
-};
-
-// Helper to generate random chat data
-// const chatTypes = ["Group", "DM", "Server"] as const;
-// const platforms = ["discord", "Telegram"] as const;
-// const sampleMessages = [
-//   "Hey, how are you? Hey, how are you? Hey, how are you? Hey, how are you? Hey, how are you?",
-//   "Let's catch up later.",
-//   "Don't forget the meeting.",
-//   "Check out this link!",
-//   "See you soon.",
-//   "Can you review this?",
-//   "Happy birthday!",
-//   "Congrats on the launch!",
-//   "Are you coming tonight?",
-//   "Thanks for your help!",
-// ];
 
 const TOP_ITEMS = ["All", "Unread", "Filtered Streams", "Telegram", "Discord"];
-const INITIAL_BOTTOM_ITEMS = ["Alpha", "Airdrop", "Launch", "Sponsored"];
-
-// function randomFrom<T>(arr: readonly T[]) {
-//   return arr[Math.floor(Math.random() * arr.length)];
-// }
-
-// function randomTags() {
-//   // Each chat can have 0 to all tags
-//   return INITIAL_BOTTOM_ITEMS.filter(() => Math.random() < 0.5);
-// }
-
-// function randomTime() {
-//   const now = new Date();
-//   const minutesAgo = Math.floor(Math.random() * 1440); // up to 24 hours ago
-//   const date = new Date(now.getTime() - minutesAgo * 60000);
-//   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-// }
-
-// const chats = Array.from({ length: 30 }, (_, i) => {
-//   const type = randomFrom(chatTypes);
-//   const platform = randomFrom(platforms);
-//   const pinned = Math.random() < 0.1; // 10% pinned
-//   const read = Math.random() < 0.7; // 30% pinned
-//   const name = `${type === "DM" ? "User" : type} ${i + 1}`;
-//   return {
-//     id: i + 1,
-//     name,
-//     avatar: gravatarUrl(name + platform),
-//     type,
-//     platform,
-//     pinned,
-//     read,
-//     lastMessage: randomFrom(sampleMessages),
-//     time: randomTime(),
-//     tags: randomTags(),
-//   };
-// });
-
-function parseTimeString(timeString: string) {
-  // Handles "HH:MM AM/PM"
-  const [time, modifier] = timeString.split(" ");
-  let [hours, minutes] = time.split(":").map(Number);
-  if (modifier && modifier.toLowerCase() === "pm" && hours !== 12) hours += 12;
-  if (modifier && modifier.toLowerCase() === "am" && hours === 12) hours = 0;
-  return hours * 60 + minutes;
-}
-
-// // Sort all chats by time descending (latest first)
-// const chatsSortedByTime = [...chats].sort((a, b) => {
-//   return parseTimeString(b.time) - parseTimeString(a.time);
-// });
-// const sortedChats = [
-//   ...chatsSortedByTime.filter((chat) => chat.pinned),
-//   ...chatsSortedByTime.filter((chat) => !chat.pinned),
-// ];
-
-// function formatChatTime(dateString: string) {
-//   const now = new Date();
-//   const chatDate = new Date(dateString); // Parse directly as a Date object
-
-//   // Handle invalid dates
-//   if (isNaN(chatDate.getTime())) {
-//     console.log("Invalid date string:", dateString);
-//     return "now";
-//   }
-
-//   const diffMs = now.getTime() - chatDate.getTime();
-//   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-//   const diffWeeks = Math.floor(diffDays / 7);
-//   const diffMonths = Math.floor(diffDays / 30);
-
-//   if (diffDays === 0) {
-//     // Same day, show time
-//     return chatDate.toLocaleTimeString([], {
-//       hour: "2-digit",
-//       minute: "2-digit",
-//     });
-//   } else if (diffDays === 1) {
-//     return "1d";
-//   } else if (diffDays < 7) {
-//     return `${diffDays}d`;
-//   } else if (diffWeeks < 4) {
-//     return `${diffWeeks}wk`;
-//   } else {
-//     return `${diffMonths}mo`;
-//   }
-// }
 
 function formatChatTime(dateString: string) {
   const now = new Date();
@@ -258,6 +140,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [selectedId, setSelectedId] = useState<string | number>(
     selectedChat?.id || "all-channels"
   );
+  const [tgchats, setTgchats] = useState<any[]>([]);
   const [channelSearch, setChannelSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [selectedChannels, setSelectedChannels] = useState([]);
@@ -457,17 +340,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
       const token = localStorage.getItem("access_token");
 
-      const resp = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/ui/chats?include_all=true`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (resp.ok) {
-        const chats = await resp.json();
-        const chans = chats.chats || [];
+      // const resp = await fetch(
+      //   `${import.meta.env.VITE_BACKEND_URL}/ui/chats?include_all=true`,
+      //   {
+      //     headers: {
+      //       Authorization: `Bearer ${token}`,
+      //     },
+      //   }
+      // );
+      // if (resp.ok) {
+        // const chats = await resp.json();
+        let chans = [] ;
+         
+
 
         // Map Discord DMs to unified format
         const discordChats = (dms || [])
@@ -477,7 +362,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         // Sort Discord chats (most recent first)
 
         // Merge Telegram + Discord chats
-        const allChats = [...chans, ...discordChats].filter(
+        const allChats = [...tgchats, ...discordChats].filter(
           (c: any) => c?.id != null
         );
 
@@ -509,25 +394,32 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             (a, b) => Number(b.id) - Number(a.id)
           );
         });
-      }
+      // }
     } catch (_) {
       // ignore
     }
   };
+
   // Load channel list for FilterEditor (id/name mapping)
   useEffect(() => {
     // Call loadChannels initially
     loadChannels();
 
-    // Set interval timer to call loadChannels every 5000 ms (5 seconds)
-    const intervalId = setInterval(() => {
-      loadChannels();
-    }, 5000);
 
-    // Cleanup interval on component unmount
-    return () => clearInterval(intervalId);
+  }, [tgchats,dms]);
+
+  useEffect(() => {
+         window.electronAPI.telegram.getDialogs().then((dialogsRes) => {
+      console.log("Fetched telegram dialogs:", dialogsRes);
+      if (dialogsRes.success && dialogsRes.data) 
+        {
+          setTgchats(dialogsRes.data);
+        
+          console.log("tgchans",dialogsRes.data)
+        // setTelegramChats(dialogsRes.data);
+      }
+    })
   }, []);
-
   const refreshSmartFilters = async () => {
     try {
       setIsLoadingFilters(true);

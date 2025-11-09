@@ -122,6 +122,19 @@ export interface ElectronAPI {
       chatId: string,
       message: string
     ) => Promise<{ success: boolean; error?: string }>;
+    getChatHistory: (
+      chatId: string,
+      limit?: number,
+      offset?: number
+    ) => Promise<{
+      success: boolean;
+      data?: Array<any>;
+      error?: string;
+    }>;
+    deleteMessage: (
+      chatId: string,
+      messageId: string
+    ) => Promise<{ success: boolean; error?: string }>;
     getDialogs: () => Promise<{
       success: boolean;
       data?: Array<{

@@ -142,6 +142,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     loginQR: () => ipcRenderer.invoke("telegram:login-qr"),
     sendMessage: (chatId, message) =>
       ipcRenderer.invoke("telegram:send-message", { chatId, message }),
+    getChatHistory: (chatId, limit, offset) =>
+      ipcRenderer.invoke("telegram:get-messages", {
+        chatId,
+        limit,
+        offset,
+      }),
     getDialogs: () => ipcRenderer.invoke("telegram:get-dialogs"),
     verifyCode: (code) => ipcRenderer.send("telegram:verify-code", code),
     sendPassword: (password) =>
