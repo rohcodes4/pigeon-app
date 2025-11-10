@@ -1095,7 +1095,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           // if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
           // const data = await response.json();
-              const hist = await window.electronAPI.telegram.getChatHistory(
+          const hist = await window.electronAPI.telegram.getChatHistory(
             selectedChat.id
           );
           const data = hist.data;
@@ -2041,6 +2041,14 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     };
 
     useEffect(() => {
+      window.electronAPI.telegram.onNewMessage((res) => {
+        // Update the specific chat with the new message
+        console.log("New message received for chatId:", res);
+        if (selectedChat?.id == res?.chatId?.toString()) {
+          setMessages((prev) => [...prev, res]);
+        }
+      });
+
       // Cleanup timer on unmount
       return () => {
         if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);

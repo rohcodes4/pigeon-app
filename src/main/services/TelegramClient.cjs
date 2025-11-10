@@ -55,20 +55,173 @@ async connectExisting(mainWindow) {
     // Notify renderer
     mainWindow.webContents.send("telegram:connected", user);
 
+    const formattedMessages = messages.map((msg) => {
+      const safe = (obj) => {
+        if (!obj) return null;
+        return JSON.parse(JSON.stringify(obj)); // remove class refs
+      };
+
+      const sender = safe(msg?.sender);
+      const chat = safe(msg?.chat);
+
+      return {
+        _id: msg.id?.toString(),
+        timestamp: moment(msg.date * 1000).toISOString(),
+        raw_text: msg.message || "",
+        message: {
+          id: msg.id,
+          date: moment(msg.date * 1000).toISOString(),
+          text: msg.message || "",
+          from_id: msg.fromId ? msg.fromId.toString() : null,
+          to_id: msg.peerId ? msg.peerId.toString() : null,
+          reply_to: msg.replyTo ? JSON.stringify(msg.replyTo) : null,
+          forward: msg.fwdFrom || null,
+          edited: !!msg.editDate,
+          media: !!msg.media,
+          has_media: !!msg.media,
+          has_document: !!msg.document,
+          has_photo: !!msg.photo,
+          has_video: !!msg.video,
+          has_voice: !!msg.voice,
+          has_sticker: !!msg.sticker,
+        },
+        sender: sender
+          ? {
+              id: sender.id || null,
+              username: sender.username || null,
+              first_name: sender.firstName || null,
+              last_name: sender.lastName || null,
+              phone: sender.phone || null,
+              is_bot: sender.bot || false,
+            }
+          : null,
+        chat: chat
+          ? {
+              id: chat.id || chatId,
+              title: chat.title || null,
+              username: chat.username || null,
+              first_name: chat.firstName || null,
+              last_name: chat.lastName || null,
+              photo: chat.photo
+                ? { photo_id: chat.photo.photoId }
+                : null,
+              access_hash: chat.accessHash || null,
+              type: chat.className || "unknown",
+              _: chat._ || "unknown",
+              participants_count: chat.participantsCount || null,
+              megagroup: chat.megagroup || false,
+              broadcast: chat.broadcast || false,
+            }
+          : null,
+      };
+    });
+
     // (Optional) Listen for incoming messages
     this.client.addEventHandler(async (event) => {
-      const message = event.message;
-      if (message && message.message) {
+      const msg = event.message;
+      if (msg && msg.message) {
         mainWindow.webContents.send("telegram:newMessage", {
-          chatId: message.chatId?.value,
-          senderId: message.senderId?.value,
-          text: message.message,
+         
+           _id: msg.id?.toString(),
+        timestamp: moment(msg.date * 1000).toISOString(),
+        raw_text: msg.message || "",
+        message: {
+          id: msg.id,
+          date: moment(msg.date * 1000).toISOString(),
+          text: msg.message || "",
+          from_id: msg.fromId ? msg.fromId.toString() : null,
+          to_id: msg.peerId ? msg.peerId.toString() : null,
+          reply_to: msg.replyTo ? JSON.stringify(msg.replyTo) : null,
+          forward: msg.fwdFrom || null,
+          edited: !!msg.editDate,
+          media: !!msg.media,
+          has_media: !!msg.media,
+          has_document: !!msg.document,
+          has_photo: !!msg.photo,
+          has_video: !!msg.video,
+          has_voice: !!msg.voice,
+          has_sticker: !!msg.sticker,
+        },
+        sender: sender
+          ? {
+              id: sender.id || null,
+              username: sender.username || null,
+              first_name: sender.firstName || null,
+              last_name: sender.lastName || null,
+              phone: sender.phone || null,
+              is_bot: sender.bot || false,
+            }
+          : null,
+        chat: chat
+          ? {
+              id: chat.id || chatId,
+              title: chat.title || null,
+              username: chat.username || null,
+              first_name: chat.firstName || null,
+              last_name: chat.lastName || null,
+              photo: chat.photo
+                ? { photo_id: chat.photo.photoId }
+                : null,
+              access_hash: chat.accessHash || null,
+              type: chat.className || "unknown",
+              _: chat._ || "unknown",
+              participants_count: chat.participantsCount || null,
+              megagroup: chat.megagroup || false,
+              broadcast: chat.broadcast || false,
+            }
+          : null,
         });
-      }else if(message && event.chatId){
+      }else if(msg && event.chatId){
         mainWindow.webContents.send("telegram:newMessage", {
-          chatId: event.chatId?.value,
-          senderId: event.fromId?.value,
-          text: message,
+         
+           _id: msg.id?.toString(),
+        timestamp: moment(msg.date * 1000).toISOString(),
+        raw_text: msg.message || "",
+        message: {
+          id: msg.id,
+          date: moment(msg.date * 1000).toISOString(),
+          text: msg.message || "",
+          from_id: msg.fromId ? msg.fromId.toString() : null,
+          to_id: msg.peerId ? msg.peerId.toString() : null,
+          reply_to: msg.replyTo ? JSON.stringify(msg.replyTo) : null,
+          forward: msg.fwdFrom || null,
+          edited: !!msg.editDate,
+          media: !!msg.media,
+          has_media: !!msg.media,
+          has_document: !!msg.document,
+          has_photo: !!msg.photo,
+          has_video: !!msg.video,
+          has_voice: !!msg.voice,
+          has_sticker: !!msg.sticker,
+        },
+        sender: sender
+          ? {
+              id: sender.id || null,
+              username: sender.username || null,
+              first_name: sender.firstName || null,
+              last_name: sender.lastName || null,
+              phone: sender.phone || null,
+              is_bot: sender.bot || false,
+            }
+          : null,
+        chat: chat
+          ? {
+              id: chat.id || chatId,
+              title: chat.title || null,
+              username: chat.username || null,
+              first_name: chat.firstName || null,
+              last_name: chat.lastName || null,
+              photo: chat.photo
+                ? { photo_id: chat.photo.photoId }
+                : null,
+              access_hash: chat.accessHash || null,
+              type: chat.className || "unknown",
+              _: chat._ || "unknown",
+              participants_count: chat.participantsCount || null,
+              megagroup: chat.megagroup || false,
+              broadcast: chat.broadcast || false,
+            }
+          : null,
         });
       }
     });

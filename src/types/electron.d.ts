@@ -171,7 +171,7 @@ export interface ElectronAPI {
       }) => void
     ) => void;
     onNewMessage: (
-      callback: (msg: { chatId: string; message: any }) => void
+      callback: (msg: any) => void
     ) => void;
 
     connectExisting: () => Promise<{ success: boolean; error?: string }>;
