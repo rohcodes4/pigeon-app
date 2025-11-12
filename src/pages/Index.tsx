@@ -539,10 +539,6 @@ const Index = () => {
     setOpenPanel(null);
   }, [selectedChat]);
   useEffect(() => {
-      window.electronAPI.telegram.onNewMessage((res) => {
-    // Update the specific chat with the new message
-    console.log("New message received for chatId:", res);
-  });
   window.electronAPI.telegram.connectExisting().then((res) => {
     console.log("Connected existing telegram session:", res);
      window.electronAPI.telegram.getDialogs().then((dialogsRes) => {

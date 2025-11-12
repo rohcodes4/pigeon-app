@@ -55,176 +55,215 @@ async connectExisting(mainWindow) {
     // Notify renderer
     mainWindow.webContents.send("telegram:connected", user);
 
-    const formattedMessages = messages.map((msg) => {
-      const safe = (obj) => {
-        if (!obj) return null;
-        return JSON.parse(JSON.stringify(obj)); // remove class refs
-      };
+    // const formattedMessages = messages.map((msg) => {
+    //   const safe = (obj) => {
+    //     if (!obj) return null;
+    //     return JSON.parse(JSON.stringify(obj)); // remove class refs
+    //   };
 
-      const sender = safe(msg?.sender);
-      const chat = safe(msg?.chat);
+    //   const sender = safe(msg?.sender);
+    //   const chat = safe(msg?.chat);
 
-      return {
-        _id: msg.id?.toString(),
-        timestamp: moment(msg.date * 1000).toISOString(),
-        raw_text: msg.message || "",
-        message: {
-          id: msg.id,
-          date: moment(msg.date * 1000).toISOString(),
-          text: msg.message || "",
-          from_id: msg.fromId ? msg.fromId.toString() : null,
-          to_id: msg.peerId ? msg.peerId.toString() : null,
-          reply_to: msg.replyTo ? JSON.stringify(msg.replyTo) : null,
-          forward: msg.fwdFrom || null,
-          edited: !!msg.editDate,
-          media: !!msg.media,
-          has_media: !!msg.media,
-          has_document: !!msg.document,
-          has_photo: !!msg.photo,
-          has_video: !!msg.video,
-          has_voice: !!msg.voice,
-          has_sticker: !!msg.sticker,
-        },
-        sender: sender
-          ? {
-              id: sender.id || null,
-              username: sender.username || null,
-              first_name: sender.firstName || null,
-              last_name: sender.lastName || null,
-              phone: sender.phone || null,
-              is_bot: sender.bot || false,
-            }
-          : null,
-        chat: chat
-          ? {
-              id: chat.id || chatId,
-              title: chat.title || null,
-              username: chat.username || null,
-              first_name: chat.firstName || null,
-              last_name: chat.lastName || null,
-              photo: chat.photo
-                ? { photo_id: chat.photo.photoId }
-                : null,
-              access_hash: chat.accessHash || null,
-              type: chat.className || "unknown",
-              _: chat._ || "unknown",
-              participants_count: chat.participantsCount || null,
-              megagroup: chat.megagroup || false,
-              broadcast: chat.broadcast || false,
-            }
-          : null,
-      };
-    });
+    //   return {
+    //     _id: msg.id?.toString(),
+    //     timestamp: moment(msg.date * 1000).toISOString(),
+    //     raw_text: msg.message || "",
+    //     message: {
+    //       id: msg.id,
+    //       date: moment(msg.date * 1000).toISOString(),
+    //       text: msg.message || "",
+    //       from_id: msg.fromId ? msg.fromId.toString() : null,
+    //       to_id: msg.peerId ? msg.peerId.toString() : null,
+    //       reply_to: msg.replyTo ? JSON.stringify(msg.replyTo) : null,
+    //       forward: msg.fwdFrom || null,
+    //       edited: !!msg.editDate,
+    //       media: !!msg.media,
+    //       has_media: !!msg.media,
+    //       has_document: !!msg.document,
+    //       has_photo: !!msg.photo,
+    //       has_video: !!msg.video,
+    //       has_voice: !!msg.voice,
+    //       has_sticker: !!msg.sticker,
+    //     },
+    //     sender: sender
+    //       ? {
+    //           id: sender.id || null,
+    //           username: sender.username || null,
+    //           first_name: sender.firstName || null,
+    //           last_name: sender.lastName || null,
+    //           phone: sender.phone || null,
+    //           is_bot: sender.bot || false,
+    //         }
+    //       : null,
+    //     chat: chat
+    //       ? {
+    //           id: chat.id || chatId,
+    //           title: chat.title || null,
+    //           username: chat.username || null,
+    //           first_name: chat.firstName || null,
+    //           last_name: chat.lastName || null,
+    //           photo: chat.photo
+    //             ? { photo_id: chat.photo.photoId }
+    //             : null,
+    //           access_hash: chat.accessHash || null,
+    //           type: chat.className || "unknown",
+    //           _: chat._ || "unknown",
+    //           participants_count: chat.participantsCount || null,
+    //           megagroup: chat.megagroup || false,
+    //           broadcast: chat.broadcast || false,
+    //         }
+    //       : null,
+    //   };
+    // });
 
     // (Optional) Listen for incoming messages
-    this.client.addEventHandler(async (event) => {
-      const msg = event.message;
-      if (msg && msg.message) {
-        mainWindow.webContents.send("telegram:newMessage", {
-         
-           _id: msg.id?.toString(),
-        timestamp: moment(msg.date * 1000).toISOString(),
-        raw_text: msg.message || "",
-        message: {
-          id: msg.id,
-          date: moment(msg.date * 1000).toISOString(),
-          text: msg.message || "",
-          from_id: msg.fromId ? msg.fromId.toString() : null,
-          to_id: msg.peerId ? msg.peerId.toString() : null,
-          reply_to: msg.replyTo ? JSON.stringify(msg.replyTo) : null,
-          forward: msg.fwdFrom || null,
-          edited: !!msg.editDate,
-          media: !!msg.media,
-          has_media: !!msg.media,
-          has_document: !!msg.document,
-          has_photo: !!msg.photo,
-          has_video: !!msg.video,
-          has_voice: !!msg.voice,
-          has_sticker: !!msg.sticker,
-        },
-        sender: sender
-          ? {
-              id: sender.id || null,
-              username: sender.username || null,
-              first_name: sender.firstName || null,
-              last_name: sender.lastName || null,
-              phone: sender.phone || null,
-              is_bot: sender.bot || false,
-            }
-          : null,
-        chat: chat
-          ? {
-              id: chat.id || chatId,
-              title: chat.title || null,
-              username: chat.username || null,
-              first_name: chat.firstName || null,
-              last_name: chat.lastName || null,
-              photo: chat.photo
-                ? { photo_id: chat.photo.photoId }
-                : null,
-              access_hash: chat.accessHash || null,
-              type: chat.className || "unknown",
-              _: chat._ || "unknown",
-              participants_count: chat.participantsCount || null,
-              megagroup: chat.megagroup || false,
-              broadcast: chat.broadcast || false,
-            }
-          : null,
-        });
-      }else if(msg && event.chatId){
-        mainWindow.webContents.send("telegram:newMessage", {
-         
-           _id: msg.id?.toString(),
-        timestamp: moment(msg.date * 1000).toISOString(),
-        raw_text: msg.message || "",
-        message: {
-          id: msg.id,
-          date: moment(msg.date * 1000).toISOString(),
-          text: msg.message || "",
-          from_id: msg.fromId ? msg.fromId.toString() : null,
-          to_id: msg.peerId ? msg.peerId.toString() : null,
-          reply_to: msg.replyTo ? JSON.stringify(msg.replyTo) : null,
-          forward: msg.fwdFrom || null,
-          edited: !!msg.editDate,
-          media: !!msg.media,
-          has_media: !!msg.media,
-          has_document: !!msg.document,
-          has_photo: !!msg.photo,
-          has_video: !!msg.video,
-          has_voice: !!msg.voice,
-          has_sticker: !!msg.sticker,
-        },
-        sender: sender
-          ? {
-              id: sender.id || null,
-              username: sender.username || null,
-              first_name: sender.firstName || null,
-              last_name: sender.lastName || null,
-              phone: sender.phone || null,
-              is_bot: sender.bot || false,
-            }
-          : null,
-        chat: chat
-          ? {
-              id: chat.id || chatId,
-              title: chat.title || null,
-              username: chat.username || null,
-              first_name: chat.firstName || null,
-              last_name: chat.lastName || null,
-              photo: chat.photo
-                ? { photo_id: chat.photo.photoId }
-                : null,
-              access_hash: chat.accessHash || null,
-              type: chat.className || "unknown",
-              _: chat._ || "unknown",
-              participants_count: chat.participantsCount || null,
-              megagroup: chat.megagroup || false,
-              broadcast: chat.broadcast || false,
-            }
-          : null,
-        });
+this.client.addEventHandler(async (event) => {
+  const msg = event.message;
+  if (!msg) return;
+
+  const safe = (obj) => {
+    if (!obj) return null;
+    return JSON.parse(JSON.stringify(obj)); // remove circular refs
+  };
+
+  const extractPeerId = (peer) => {
+    if (!peer) return null;
+    if (peer.userId) return peer.userId.toString();
+    if (peer.chatId) return peer.chatId.toString();
+    if (peer.channelId) return peer.channelId.toString();
+    return peer.toString ? peer.toString() : null;
+  };
+
+  const sender = safe(msg?.sender);
+  const chat = safe(msg?.chat);
+  const chatId =
+    event.chatId || extractPeerId(msg?.peerId) || chat?.id || null;
+
+  // 🧩 Handle media extraction (photo, video, document, audio, voice, etc.)
+  const getMediaInfo = (media) => {
+    if (!media) return null;
+    try {
+      if (media.photo) {
+        return {
+          type: "photo",
+          photo_id: media.photo.id?.toString(),
+          sizes: media.photo.sizes || [],
+          caption: msg.message || "",
+        };
+      } else if (media.document) {
+        const mime = media.document.mimeType || "unknown";
+        let type = "document";
+        if (mime.startsWith("video")) type = "video";
+        if (mime.startsWith("audio")) type = "audio";
+        if (mime.includes("voice")) type = "voice";
+        if (mime.includes("sticker")) type = "sticker";
+        return {
+          type,
+          mime,
+          size: media.document.size,
+          name: media.document.attributes?.find(a => a.fileName)?.fileName || null,
+          caption: msg.message || "",
+        };
+      } else if (media.webpage) {
+        return {
+          type: "webpage",
+          url: media.webpage.url,
+          title: media.webpage.title,
+          description: media.webpage.description,
+          site_name: media.webpage.site_name,
+        };
+      } else if (media.poll) {
+        return {
+          type: "poll",
+          question: media.poll.question,
+          options: media.poll.answers?.map((a) => a.text),
+        };
       }
-    });
+    } catch (err) {
+      console.warn("Error parsing media:", err);
+    }
+    return { type: "unknown" };
+  };
+
+  // 🧩 Handle reactions if available (Telegram MTProto v146+)
+  const getReactions = (msg) => {
+    if (!msg.reactions) return [];
+    try {
+      return msg.reactions.results?.map((r) => ({
+        reaction: r.reaction.emoticon || r.reaction,
+        count: r.count,
+        chosen: r.chosenOrder,
+      })) || [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const formattedMessage = {
+    _id: msg.id?.toString(),
+    timestamp: msg.date
+      ? new Date(msg.date * 1000).toISOString()
+      : new Date().toISOString(),
+    raw_text: msg.message || "",
+    message: {
+      id: msg.id,
+      date: msg.date ? new Date(msg.date * 1000).toISOString() : null,
+      text: msg.message || "",
+      from_id: extractPeerId(msg.fromId),
+      to_id: extractPeerId(msg.peerId),
+      reply_to: msg.replyTo ? JSON.stringify(msg.replyTo) : null,
+      forward: msg.fwdFrom || null,
+      edited: !!msg.editDate,
+      media: getMediaInfo(msg.media),
+      has_media: !!msg.media,
+      has_document: !!msg.document,
+      has_photo: !!msg.photo,
+      has_video: !!msg.video,
+      has_voice: !!msg.voice,
+      has_sticker: !!msg.sticker,
+      reactions: getReactions(msg),
+    },
+    sender: sender
+      ? {
+          id: sender.id || null,
+          username: sender.username || null,
+          first_name: sender.firstName || null,
+          last_name: sender.lastName || null,
+          phone: sender.phone || null,
+          is_bot: sender.bot || false,
+        }
+      : null,
+    chat: chat
+      ? {
+          id: chat.id || chatId,
+          title: chat.title || null,
+          username: chat.username || null,
+          first_name: chat.firstName || null,
+          last_name: chat.lastName || null,
+          photo: chat.photo ? { photo_id: chat.photo.photoId } : null,
+          access_hash: chat.accessHash || null,
+          type: chat.className || "unknown",
+          _: chat._ || "unknown",
+          participants_count: chat.participantsCount || null,
+          megagroup: chat.megagroup || false,
+          broadcast: chat.broadcast || false,
+        }
+      : {
+          id: chatId,
+          type: "unknown",
+        },
+  };
+
+  // ✅ Emit to frontend safely
+  try {
+    mainWindow.webContents.send("telegram:newMessage", formattedMessage);
+  } catch (err) {
+    console.error("Error sending to renderer:", err);
+  }
+});
+
+
+
 
     return true;
   } catch (error) {

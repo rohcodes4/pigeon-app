@@ -170,9 +170,8 @@ export interface ElectronAPI {
         lastName?: string;
       }) => void
     ) => void;
-    onNewMessage: (
-      callback: (msg: any) => void
-    ) => void;
+ onNewMessage: (callback: (msg: any) => void) => () => void;
+
 
     connectExisting: () => Promise<{ success: boolean; error?: string }>;
   };

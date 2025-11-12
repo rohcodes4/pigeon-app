@@ -162,8 +162,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.on("telegram:password-required", callback),
     onConnected: (callback) =>
       ipcRenderer.on("telegram:connected", (_, user) => callback(user)),
-    onNewMessage: (callback) =>
-      ipcRenderer.on("telegram:newMessage", (_, msg) => callback(msg)),
+    onNewMessage: (callback) => {
+      const listener = function (_event, msg) {
+        callback(msg);
+      };
+
+      ipcRenderer.on("telegram:newMessage", listener);
+
+      return function () {
+        ipcRenderer.removeListener("telegram:newMessage", listener);
+      };
+    },
+
     onLoginError: (callback) =>
       ipcRenderer.on("telegram:login-error", (_, error) => callback(error)),
     onPasswordInvalid: (callback) =>

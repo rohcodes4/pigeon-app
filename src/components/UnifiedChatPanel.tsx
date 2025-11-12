@@ -167,13 +167,22 @@ function randomDate(daysBack: number) {
   return date;
 }
 
-function formatDate(date: Date) {
-  return date.toLocaleDateString(undefined, {
+function formatDate(date?: string | Date | null) {
+  if (!date) return ""; // handle undefined/null
+
+  // Convert string to Date if necessary
+  const d = typeof date === "string" ? new Date(date) : date;
+
+  // Validate that it’s a real date
+  if (isNaN(d.getTime())) return "";
+
+  return d.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
 }
+
 
 function gravatarUrl(seed: string) {
   try {
@@ -287,30 +296,36 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       fetchStickers();
     }, []);
 
-    function formatTime(dateObj) {
-      if (selectedChat.platform == "discord") {
-        const adjustedDate = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
+ function formatTime(dateObj?: string | Date | null) {
+  if (!dateObj) return ""; // handle missing date
 
-        let hours = adjustedDate.getUTCHours();
-        const minutes = adjustedDate.getUTCMinutes();
+  // Convert strings to Date safely
+  const d = typeof dateObj === "string" ? new Date(dateObj) : dateObj;
 
-        const ampm = hours >= 12 ? "PM" : "AM";
-        hours = hours % 12 || 12; // Convert 0 -> 12 for 12-hour format
+  // Bail out if it's not a valid date
+  if (isNaN(d.getTime())) return "";
 
-        const formattedHours = hours.toString().padStart(2, "0");
-        const formattedMinutes = minutes.toString().padStart(2, "0");
+  // Apply +5.5 hour offset (IST)
+  const adjustedDate = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
 
-        return `${formattedHours}:${formattedMinutes} ${ampm}`;
-      }
-      // Add 5 hours and 30 minutes (330 minutes total)
-      const adjustedDate = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
+  if (selectedChat.platform === "discord") {
+    let hours = adjustedDate.getUTCHours();
+    const minutes = adjustedDate.getUTCMinutes();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12 || 12;
+    const formattedHours = hours.toString().padStart(2, "0");
+    const formattedMinutes = minutes.toString().padStart(2, "0");
+    return `${formattedHours}:${formattedMinutes} ${ampm}`;
+  }
 
-      return adjustedDate.toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
-    }
+  // Default (Telegram, etc.)
+  return adjustedDate.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 
     useEffect(() => {
       setLoadingMore(dcHookLoading);
@@ -1863,9 +1878,15 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           }
           if (!changed) return prev;
           // Return in chronological order
-          return Array.from(prevMap.values()).sort(
-            (a, b) => a.date.getTime() - b.date.getTime()
-          );
+          return Array.from(prevMap.values()).sort((a, b) => {
+  const dateA = a.date instanceof Date ? a.date : new Date(a.date);
+  const dateB = b.date instanceof Date ? b.date : new Date(b.date);
+  return dateA.getTime() - dateB.getTime();
+});
+
+          // return Array.from(prevMap.values()).sort(
+          //   (a, b) => a.date.getTime() - b.date.getTime()
+          // );
         });
 
         // Don't set shouldAutoScroll to true - this prevents auto-scroll during polling
@@ -2040,20 +2061,131 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       }, 180); // 150-200ms works well
     };
 
-    useEffect(() => {
-      window.electronAPI.telegram.onNewMessage((res) => {
-        // Update the specific chat with the new message
-        console.log("New message received for chatId:", res);
-        if (selectedChat?.id == res?.chatId?.toString()) {
-          setMessages((prev) => [...prev, res]);
-        }
-      });
+useEffect(() => {
+  if (!selectedChat) return;
+  console.log("Setting up new message listener for chat", selectedChat.id);
+  // Subscribe to new messages, get unsubscribe
+  const unsubscribe = window.electronAPI.telegram.onNewMessage((msg) => {
+    if (msg?.chat?.id?.toString() === selectedChat?.id?.toString()) {
+      const data=[msg]; // Wrap single message in array for uniform processing
+           
+        const transformed=    data.map( (msg: any, index: number) => {
+              let chatName = "Unknown";
+              let channelName: string | null = null;
 
-      // Cleanup timer on unmount
-      return () => {
-        if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
-      };
-    }, []);
+              if (selectedChat === "all-channels" && msg.chat) {
+                if (
+                  msg.chat._ === "Channel" ||
+                  msg.chat._ === "Chat" ||
+                  msg.chat._ === "User"
+                ) {
+                  chatName =
+                    msg.chat.title ||
+                    msg.chat.username ||
+                    msg.chat.first_name ||
+                    "Unknown";
+                }
+                channelName = null;
+              } else {
+                chatName =
+                  (selectedChat && typeof selectedChat === "object"
+                    ? selectedChat.name
+                    : typeof selectedChat === "string"
+                    ? selectedChat
+                    : "") || "Chat";
+              }
+
+              // Parse reactions
+              const reactionsData =
+                (msg.message &&
+                  msg.message.reactions &&
+                  msg.message.reactions.results) ||
+                [];
+              const reactions = ((reactionsData as any[]) ?? [])
+                .map((r) => {
+                  const emoticon =
+                    typeof r?.reaction === "string"
+                      ? r.reaction
+                      : r?.reaction?.emoticon;
+                  const normalized =
+                    emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
+                  return normalized
+                    ? { icon: normalized, count: r.count || 0 }
+                    : null;
+                })
+                .filter(Boolean);
+
+              const replyToStr = msg?.message?.reply_to;
+              let replyId: number | null = null;
+              if (replyToStr && typeof replyToStr === "string") {
+                const match = replyToStr.match(/reply_to_msg_id=(\d+)/);
+                replyId = match ? parseInt(match[1], 10) : null;
+              }
+
+              const replyMessage = replyId
+                ? data.find((m) => m.message?.id === replyId) || null
+                : null;
+              return {
+                id: msg._id || msg.id || String(index + 1),
+                originalId: msg._id || msg.id,
+                telegramMessageId: msg.message?.id,
+                mentions: msg?.message?.mentions ?? [],
+                name:
+                  msg.sender?.first_name || msg.sender?.username || "Unknown",
+                avatar: msg.sender?.id
+                  ? `${BACKEND_URL}/contact_photo/${msg.sender.id}`
+                  : gravatarUrl(
+                      msg.sender?.first_name ||
+                        msg.sender?.username ||
+                        "Unknown"
+                    ),
+                platform:
+                  selectedChat.platform == "discord"
+                    ? "Discord"
+                    : ("Telegram" as const),
+                channel: channelName,
+                server: chatName,
+                date: new Date(msg.timestamp),
+                message: msg.raw_text || "",
+                tags: [],
+                reactions,
+                hasLink: (msg.raw_text || "").includes("http"),
+                link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
+                hasMedia: msg.message.has_media,
+                media: msg.media ?? null,
+                replyToId: replyId ?? null,
+                timestamp: msg.timestamp,
+                replyTo: replyMessage
+                  ? {
+                      id: replyMessage.message.id,
+                      name:
+                        replyMessage.sender?.first_name ||
+                        replyMessage.sender?.username ||
+                        "Unknown",
+                      message: replyMessage.raw_text || "",
+                      chat_id: replyMessage.chat?.id || null,
+                    }
+                  : null,
+                originalChatType: msg.chat?._ || null,
+              };
+            })
+        
+
+         
+
+      setMessages((prev) => [...prev, ...transformed]);
+    }
+  });
+
+  // Cleanup when selectedChat changes or component unmounts
+  return () => unsubscribe?.();
+}, [selectedChat]);
+
+
+
+    // useEffect(() => {
+    //   console.log("selectedChat changed", selectedChat);
+    // }, [selectedChat]);
 
     const [showFiltersPopup, setShowFiltersPopup] = useState(false); // Controls inner popup
     const [filtersList, setFiltersList] = useState([]);
@@ -3249,7 +3381,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                           {/* Reactions */}
                           {
                             <div className="flex gap-3 mt-2">
-                              {msg.reactions.map((r: any, i: number) => (
+                              {msg?.reactions?.map((r: any, i: number) => (
                                 <button
                                   key={i}
                                   onClick={() =>
@@ -3272,7 +3404,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                           }
 
                           {/* Tags */}
-                          {msg.tags.length > 0 && (
+                          {msg?.tags?.length > 0 && (
                             <div className="flex gap-2 mt-2">
                               {msg.tags.map((tag) => (
                                 <span

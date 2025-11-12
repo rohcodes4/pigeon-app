@@ -72,8 +72,8 @@ function MessageWithLinkifyAndMentions({ text, mentionsData, message }) {
     lastIndex = end;
   }
 
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
+  if (lastIndex < text?.length) {
+    parts.push(text?.slice(lastIndex));
   }
 
   return (
