@@ -1,9 +1,10 @@
 // services/TelegramClient.cjs
-const { TelegramClient } = require("telegram");
+const { TelegramClient,Api } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const { NewMessage } = require("telegram/events");
 const { EventEmitter } = require("events");
 const moment = require("moment");
+
 
 const qrcode = require("qrcode");
 const { ipcMain } = require("electron");
@@ -256,40 +257,54 @@ class TelegramService extends EventEmitter {
   }
   
 // === GLOBAL SAFE LOCK + CACHE ===
+async getDialogsForChat(entity) {
+ 
+const inputDialogPeer = new Api.InputDialogPeer({
+  peer: entity  // entity returned from getEntity(chatId)
+});
+const dialogs = await this.client.invoke(
+  new Api.messages.GetPeerDialogs({
+    peers: [inputDialogPeer]   // ONLY the chat you care about
+  })
+);
+return dialogs;
+
+}
 
 
 async getSingleDialog(chatId) {
   try {
     // 1) CACHE: refresh only every 10 seconds
     const now = Date.now();
-    if (!_dialogsCache || now - _dialogsCacheTime > 60000) {
-      // 2) LOCK: prevent multiple parallel getDialogs() calls
-      while (_dialogLock) {
-        await new Promise((r) => setTimeout(r, 500));
-      }
+    // if (!_dialogsCache || now - _dialogsCacheTime > 10000) {
+    //   // 2) LOCK: prevent multiple parallel getDialogs() calls
+    //   while (_dialogLock) {
+    //     await new Promise((r) => setTimeout(r, 150));
+    //   }
 
-      _dialogLock = true;
-      try {
-        _dialogsCache = await this.client.getDialogs();
-        _dialogsCacheTime = Date.now();
-      } catch (err) {
-        console.error("getDialogs error:", err);
-      } finally {
-        _dialogLock = false;
-      }
-    }
+    //   _dialogLock = true;
+    //   try {
+    //     _dialogsCache = await this.client.getDialogs();
+    //     _dialogsCacheTime = Date.now();
+    //   } catch (err) {
+    //     console.error("getDialogs error:", err);
+    //   } finally {
+    //     _dialogLock = false;
+    //   }
+    // }
 
-    // 3) FIND DIALOG FROM CACHE
-    const dialogs = _dialogsCache || [];
-    const dialog = dialogs.find((d) => {
-      const id = d.entity?.id?.value;
-      return String(id) === String(chatId);
-    });
-
+    // // 3) FIND DIALOG FROM CACHE
+    // const dialogs = _dialogsCache || [];
+    // const dialog = dialogs.find((d) => {
+    //   const id = d.entity?.id?.value;
+    //   return String(id) === String(chatId);
+    // });
+    const entity = await this.client.getEntity(chatId);
+    const dialogs= await this.getDialogsForChat(entity);
+    const dialog = dialogs.dialogs[0];
     if (!dialog) return null;
 
-    const entity = dialog.entity;
-    const message = dialog.message;
+    const message = dialogs.messages[0];
 
     // Determine chat type
     let chat_type = "private";
@@ -319,10 +334,10 @@ async getSingleDialog(chatId) {
       isPinned: dialog.pinned || false,
       is_dialog: true,
       is_typing: false,
-      last_seen: moment(dialog.date * 1000).toISOString(),
-      last_ts: moment(dialog.date * 1000).format("YYYY-MM-DDTHH:mm:ss"),
-      timestamp: moment(dialog.date * 1000).format("YYYY-MM-DDTHH:mm:ss"),
-      count: dialog.messages?.length || 0,
+      last_seen: moment(message.date * 1000).toISOString(),
+      last_ts: moment(message.date * 1000).format("YYYY-MM-DDTHH:mm:ss"),
+      timestamp: moment(message.date * 1000).format("YYYY-MM-DDTHH:mm:ss"),
+      count:  dialogs.messages?.length || 0,
       summary: "",
       sync_enabled: null,
       platform: "Telegram",

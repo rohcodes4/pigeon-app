@@ -135,14 +135,6 @@ const Index = () => {
       }
       setChatsLoading(true);
       try {
-     
-        // setChats(data.chats || []);
-        // const res = await window.electronAPI.security.getDiscordToken();
-        // if (res?.success && res?.data) {
-        //   await window.electronAPI.discord.connect(res.data);
-        // }
-        // const dms = await window.electronAPI.discord.getDMs(); // remove listener if supported
-        // if (dms.success) {
         const discordChats = dms?.map(mapDiscordToTelegramSchema);
         console.log(dms);
         // Merge both
