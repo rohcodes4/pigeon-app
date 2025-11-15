@@ -209,22 +209,6 @@ const Index = () => {
     })
     
   });
-   const off = window.electronAPI.telegram.onDialogUpdated((updated) => {
-    console.log("Telegram dialog updated event received:", updated);
-    setTelegramChats((prev) => {
-      const exists = prev.some((d) => d.id === updated.id);
-
-      if (!exists) {
-        // NEW CHAT CREATED
-        return [updated, ...prev];
-      }
-
-      // UPDATE EXISTING CHAT
-      return prev.map((d) => (d.id === updated.id ? updated : d));
-    });
-  });
-
-  return () => off && off();
   }, []);
 
 
