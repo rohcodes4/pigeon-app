@@ -147,7 +147,7 @@ export interface ElectronAPI {
       }>;
       error?: string;
     }>;
-  getMediaInfo: (message: any) => Promise<{
+    getMediaInfo: (message: any) => Promise<{
       success: boolean;
       data?: any;
       error?: string;
@@ -160,6 +160,8 @@ export interface ElectronAPI {
     onLoginError: (callback: (error: string) => void) => void;
     onQRExpired: (callback: () => void) => void;
     onLoginSuccess: (callback: (user) => void) => void;
+    onDialogUpdated: (callback: (dialog: any) => void) => () => void;
+
     onPasswordInvalid: (callback: () => void) => void;
     onCodeSent: (callback: (data: any) => void) => void;
     onPasswordRequired: (callback: () => void) => void;
@@ -174,10 +176,131 @@ export interface ElectronAPI {
         lastName?: string;
       }) => void
     ) => void;
- onNewMessage: (callback: (msg: any) => void) => () => void;
-
+    onNewMessage: (callback: (msg: any) => void) => () => void;
 
     connectExisting: () => Promise<{ success: boolean; error?: string }>;
+
+    // === Message & Chat ===
+    sendMessage: (
+      chatId: string,
+      message: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    sendPhoto: (
+      chatId: string,
+      photo: string,
+      caption?: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    sendDocument: (
+      chatId: string,
+      document: string,
+      caption?: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    sendVideo: (
+      chatId: string,
+      video: string,
+      caption?: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    sendVoice: (
+      chatId: string,
+      voice: string,
+      caption?: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    sendSticker: (
+      chatId: string,
+      sticker: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    replyMessage: (
+      chatId: string,
+      messageId: string,
+      message: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    forwardMessage: (
+      chatId: string,
+      fromChatId: string,
+      messageId: string
+    ) => Promise<{ success: boolean; error?: string }>;
+
+    getChatHistory: (
+      chatId: string,
+      limit?: number,
+      offset?: number
+    ) => Promise<{
+      success: boolean;
+      data?: Array<any>;
+      error?: string;
+    }>;
+    searchMessages: (
+      chatId: string,
+      query: string,
+      limit?: number
+    ) => Promise<{ success: boolean; data?: any; error?: string }>;
+    getPinnedMessages: (
+      chatId: string
+    ) => Promise<{ success: boolean; data?: any; error?: string }>;
+    pinMessage: (
+      chatId: string,
+      messageId: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    unpinMessage: (
+      chatId: string,
+      messageId: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    markAsRead: (
+      chatId: any
+    ) => Promise<{ success: boolean; error?: string }>;
+
+    // === Chat / Group Info ===
+    getChatInfo: (
+      chatId: string
+    ) => Promise<{ success: boolean; data?: any; error?: string }>;
+    getParticipants: (
+      chatId: string
+    ) => Promise<{ success: boolean; data?: any; error?: string }>;
+    joinChat: (chatId: string) => Promise<{ success: boolean; error?: string }>;
+    leaveChat: (
+      chatId: string
+    ) => Promise<{ success: boolean; error?: string }>;
+
+    // === Profile / User ===
+    getUserInfo: (
+      userId: string
+    ) => Promise<{ success: boolean; data?: any; error?: string }>;
+    updateProfilePhoto: (
+      photo: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    updateBio: (bio: string) => Promise<{ success: boolean; error?: string }>;
+
+    // === Typing & Status ===
+    sendTyping: (
+      chatId: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    sendUploading: (
+      chatId: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    sendRecording: (
+      chatId: string
+    ) => Promise<{ success: boolean; error?: string }>;
+
+    // === Utility / Advanced ===
+    downloadFile: (
+      message: any
+    ) => Promise<{ success: boolean; data?: any; error?: string }>;
+    downloadMediaById: (
+      chatId: string,
+      messageId: string
+    ) => Promise<{ success: boolean; data?: any; error?: string }>;
+    uploadFile: (
+      chatId: string,
+      file: string
+    ) => Promise<{ success: boolean; error?: string }>;
+    getMessageLink: (
+      chatId: string,
+      messageId: string
+    ) => Promise<{ success: boolean; data?: string; error?: string }>;
+    openMessageThread: (
+      chatId: string,
+      messageId: string
+    ) => Promise<{ success: boolean; data?: any; error?: string }>;
   };
 
   security: {

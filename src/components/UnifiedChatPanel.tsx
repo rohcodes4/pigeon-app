@@ -183,7 +183,6 @@ function formatDate(date?: string | Date | null) {
   });
 }
 
-
 function gravatarUrl(seed: string) {
   try {
     // Handle Unicode characters safely
@@ -296,36 +295,35 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       fetchStickers();
     }, []);
 
- function formatTime(dateObj?: string | Date | null) {
-  if (!dateObj) return ""; // handle missing date
+    function formatTime(dateObj?: string | Date | null) {
+      if (!dateObj) return ""; // handle missing date
 
-  // Convert strings to Date safely
-  const d = typeof dateObj === "string" ? new Date(dateObj) : dateObj;
+      // Convert strings to Date safely
+      const d = typeof dateObj === "string" ? new Date(dateObj) : dateObj;
 
-  // Bail out if it's not a valid date
-  if (isNaN(d.getTime())) return "";
+      // Bail out if it's not a valid date
+      if (isNaN(d.getTime())) return "";
 
-  // Apply +5.5 hour offset (IST)
-  const adjustedDate = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+      // Apply +5.5 hour offset (IST)
+      const adjustedDate = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
 
-  if (selectedChat.platform === "discord") {
-    let hours = adjustedDate.getUTCHours();
-    const minutes = adjustedDate.getUTCMinutes();
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12 || 12;
-    const formattedHours = hours.toString().padStart(2, "0");
-    const formattedMinutes = minutes.toString().padStart(2, "0");
-    return `${formattedHours}:${formattedMinutes} ${ampm}`;
-  }
+      if (selectedChat.platform === "discord") {
+        let hours = adjustedDate.getUTCHours();
+        const minutes = adjustedDate.getUTCMinutes();
+        const ampm = hours >= 12 ? "PM" : "AM";
+        hours = hours % 12 || 12;
+        const formattedHours = hours.toString().padStart(2, "0");
+        const formattedMinutes = minutes.toString().padStart(2, "0");
+        return `${formattedHours}:${formattedMinutes} ${ampm}`;
+      }
 
-  // Default (Telegram, etc.)
-  return adjustedDate.toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
-
+      // Default (Telegram, etc.)
+      return adjustedDate.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    }
 
     useEffect(() => {
       setLoadingMore(dcHookLoading);
@@ -342,7 +340,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       if (container) {
         container.scrollTop = container.scrollHeight;
       }
-    
     }, [selectedChat]);
 
     const handleEmojiClick = (emojiData) => {
@@ -1673,306 +1670,314 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     }, [messagesList]);
 
     // Silent refresh that avoids toggling loading states and only appends new messages
-//     const refreshLatest = useCallback(async () => {
-//       if (USE_DUMMY_DATA) return;
-//       if (refreshAbortController.current) {
-//         refreshAbortController.current.abort();
-//       }
+    //     const refreshLatest = useCallback(async () => {
+    //       if (USE_DUMMY_DATA) return;
+    //       if (refreshAbortController.current) {
+    //         refreshAbortController.current.abort();
+    //       }
 
-//       const abortController = new AbortController();
-//       refreshAbortController.current = abortController;
+    //       const abortController = new AbortController();
+    //       refreshAbortController.current = abortController;
 
-//       try {
-//         let endpoint: string | null = null;
-//         let currentChatId: string | null = null; // Track which chat we're fetching for
+    //       try {
+    //         let endpoint: string | null = null;
+    //         let currentChatId: string | null = null; // Track which chat we're fetching for
 
-//         if (selectedChat === "all-channels") {
-//           endpoint = `${
-//             import.meta.env.VITE_BACKEND_URL
-//           }/chats/all/messages?limit=${PAGE_SIZE}`;
-//           currentChatId = "all-channels";
-//         } else if (
-//           selectedChat &&
-//           typeof selectedChat === "object" &&
-//           (selectedChat as any).id
-//         ) {
-//           if (
-//             (selectedChat as any).name &&
-//             (selectedChat as any).keywords !== undefined
-//           ) {
-//             endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
-//               (selectedChat as any).id
-//             }/messages?limit=${PAGE_SIZE}`;
-//             currentChatId = `filter-${(selectedChat as any).id}`;
-//           } else {
-//             endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/${
-//               (selectedChat as any).id
-//             }/messages?limit=${PAGE_SIZE}`;
-//             currentChatId = String((selectedChat as any).id);
-//           }
-//         } else {
-//           console.log(
-//             "DEBUG: No valid selectedChat, skipping refresh",
-//             selectedChat
-//           );
-//           return;
-//         }
-//         let data = [];
-//         if (selectedChat?.platform == "discord") {
-//         } else {
-//           const hist = await window.electronAPI.telegram.getChatHistory(
-//             selectedChat.id
-//           );
-//           data = hist.data;
-//           console.log("fetched tg history", hist);
-//         }
+    //         if (selectedChat === "all-channels") {
+    //           endpoint = `${
+    //             import.meta.env.VITE_BACKEND_URL
+    //           }/chats/all/messages?limit=${PAGE_SIZE}`;
+    //           currentChatId = "all-channels";
+    //         } else if (
+    //           selectedChat &&
+    //           typeof selectedChat === "object" &&
+    //           (selectedChat as any).id
+    //         ) {
+    //           if (
+    //             (selectedChat as any).name &&
+    //             (selectedChat as any).keywords !== undefined
+    //           ) {
+    //             endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
+    //               (selectedChat as any).id
+    //             }/messages?limit=${PAGE_SIZE}`;
+    //             currentChatId = `filter-${(selectedChat as any).id}`;
+    //           } else {
+    //             endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/${
+    //               (selectedChat as any).id
+    //             }/messages?limit=${PAGE_SIZE}`;
+    //             currentChatId = String((selectedChat as any).id);
+    //           }
+    //         } else {
+    //           console.log(
+    //             "DEBUG: No valid selectedChat, skipping refresh",
+    //             selectedChat
+    //           );
+    //           return;
+    //         }
+    //         let data = [];
+    //         if (selectedChat?.platform == "discord") {
+    //         } else {
+    //           const hist = await window.electronAPI.telegram.getChatHistory(
+    //             selectedChat.id
+    //           );
+    //           data = hist.data;
+    //           console.log("fetched tg history", hist);
+    //         }
 
-//         const toChips = (results: any[]) =>
-//           results
-//             .map((r: any) => {
-//               const emoticon =
-//                 typeof r?.reaction?.emoticon === "string"
-//                   ? r.reaction.emoticon
-//                   : typeof r?.reaction === "string"
-//                   ? r.reaction
-//                   : null;
-//               const normalized =
-//                 emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
-//               return normalized
-//                 ? { icon: normalized, count: r?.count || 0 }
-//                 : null;
-//             })
-//             .filter(Boolean) as Array<{ icon: string; count: number }>;
+    //         const toChips = (results: any[]) =>
+    //           results
+    //             .map((r: any) => {
+    //               const emoticon =
+    //                 typeof r?.reaction?.emoticon === "string"
+    //                   ? r.reaction.emoticon
+    //                   : typeof r?.reaction === "string"
+    //                   ? r.reaction
+    //                   : null;
+    //               const normalized =
+    //                 emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
+    //               return normalized
+    //                 ? { icon: normalized, count: r?.count || 0 }
+    //                 : null;
+    //             })
+    //             .filter(Boolean) as Array<{ icon: string; count: number }>;
 
-//         const transformed = await Promise.all(
-//           (data || []).map(async (msg: any, index: number) => {
-//             const reactionResults =
-//               ((msg?.message || {}).reactions || {}).results || [];
-//             const parsedReactions = Array.isArray(reactionResults)
-//               ? toChips(reactionResults)
-//               : [];
-//             const chatName = msg.chat
-//               ? msg.chat.title ||
-//                 msg.chat.username ||
-//                 msg.chat.first_name ||
-//                 selectedChat.name ||
-//                 "Unknown"
-//               : selectedChat && typeof selectedChat === "object"
-//               ? (selectedChat as any).name || "Chat"
-//               : "Unknown";
+    //         const transformed = await Promise.all(
+    //           (data || []).map(async (msg: any, index: number) => {
+    //             const reactionResults =
+    //               ((msg?.message || {}).reactions || {}).results || [];
+    //             const parsedReactions = Array.isArray(reactionResults)
+    //               ? toChips(reactionResults)
+    //               : [];
+    //             const chatName = msg.chat
+    //               ? msg.chat.title ||
+    //                 msg.chat.username ||
+    //                 msg.chat.first_name ||
+    //                 selectedChat.name ||
+    //                 "Unknown"
+    //               : selectedChat && typeof selectedChat === "object"
+    //               ? (selectedChat as any).name || "Chat"
+    //               : "Unknown";
 
-//             const replyToStr = msg?.message?.reply_to;
-//             let replyId: number | null = null;
-//             if (replyToStr && typeof replyToStr === "string") {
-//               const match = replyToStr.match(/reply_to_msg_id=(\d+)/);
-//               replyId = match ? parseInt(match[1], 10) : null;
-//             }
+    //             const replyToStr = msg?.message?.reply_to;
+    //             let replyId: number | null = null;
+    //             if (replyToStr && typeof replyToStr === "string") {
+    //               const match = replyToStr.match(/reply_to_msg_id=(\d+)/);
+    //               replyId = match ? parseInt(match[1], 10) : null;
+    //             }
 
-//             const replyMessage = replyId
-//               ? data.find((m) => m.message?.id === replyId) || null
-//               : null;
+    //             const replyMessage = replyId
+    //               ? data.find((m) => m.message?.id === replyId) || null
+    //               : null;
 
-//             return {
-//               id: msg._id || msg.id || String(index + 1),
-//               originalId: msg._id || msg.id,
-//               telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
-//               mentions: msg?.message?.mentions ?? [],
-//               name: msg.sender?.first_name || msg.sender?.username || "Unknown",
-//               chat_id: msg.sender.id,
-//               avatar: msg.sender?.id
-//                 ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
-//                     msg.sender.id
-//                   }`
-//                 : gravatarUrl(
-//                     msg.sender?.first_name || msg.sender?.username || "Unknown"
-//                   ),
-//               platform:
-//                 selectedChat.platform == "discord"
-//                   ? "Discord"
-//                   : ("Telegram" as const),
-//               channel: null,
-//               server: chatName,
-//               date: new Date(msg.timestamp),
-//               message: msg.raw_text || "",
-//               tags: [],
-//               reactions: parsedReactions,
-//               hasLink: (msg.raw_text || "").includes("http"),
-//               link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
-//               hasMedia: msg.message.has_media,
-//               media: msg.message?.media ?? null,
-//               stickerItems: msg.stickerItems ?? null,
-//               timestamp: msg.timestamp,
-//               replyTo: replyMessage
-//                 ? {
-//                     id: replyMessage.message.id,
-//                     name:
-//                       replyMessage.sender?.first_name ||
-//                       replyMessage.sender?.username ||
-//                       "Unknown",
-//                     message: replyMessage.raw_text || "",
-//                     chat_id: replyMessage.chat?.id || null,
-//                   }
-//                 : null,
-//               originalChatType: msg.chat?._ || null,
-//             } as MessageItem;
-//           })
-//         );
+    //             return {
+    //               id: msg._id || msg.id || String(index + 1),
+    //               originalId: msg._id || msg.id,
+    //               telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
+    //               mentions: msg?.message?.mentions ?? [],
+    //               name: msg.sender?.first_name || msg.sender?.username || "Unknown",
+    //               chat_id: msg.sender.id,
+    //               avatar: msg.sender?.id
+    //                 ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
+    //                     msg.sender.id
+    //                   }`
+    //                 : gravatarUrl(
+    //                     msg.sender?.first_name || msg.sender?.username || "Unknown"
+    //                   ),
+    //               platform:
+    //                 selectedChat.platform == "discord"
+    //                   ? "Discord"
+    //                   : ("Telegram" as const),
+    //               channel: null,
+    //               server: chatName,
+    //               date: new Date(msg.timestamp),
+    //               message: msg.raw_text || "",
+    //               tags: [],
+    //               reactions: parsedReactions,
+    //               hasLink: (msg.raw_text || "").includes("http"),
+    //               link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
+    //               hasMedia: msg.message.has_media,
+    //               media: msg.message?.media ?? null,
+    //               stickerItems: msg.stickerItems ?? null,
+    //               timestamp: msg.timestamp,
+    //               replyTo: replyMessage
+    //                 ? {
+    //                     id: replyMessage.message.id,
+    //                     name:
+    //                       replyMessage.sender?.first_name ||
+    //                       replyMessage.sender?.username ||
+    //                       "Unknown",
+    //                     message: replyMessage.raw_text || "",
+    //                     chat_id: replyMessage.chat?.id || null,
+    //                   }
+    //                 : null,
+    //               originalChatType: msg.chat?._ || null,
+    //             } as MessageItem;
+    //           })
+    //         );
 
-//         transformed.sort((a, b) => a.date.getTime() - b.date.getTime());
+    //         transformed.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-//         setMessages((prev) => {
-//           // CRITICAL: Only update messages if we're still on the same chat
-//           // This prevents race conditions when switching between chats rapidly
-//           const stillOnSameChat = currentChatId === currentChatRef.current;
+    //         setMessages((prev) => {
+    //           // CRITICAL: Only update messages if we're still on the same chat
+    //           // This prevents race conditions when switching between chats rapidly
+    //           const stillOnSameChat = currentChatId === currentChatRef.current;
 
-//           if (!stillOnSameChat) {
-//             console.log(
-//               "DEBUG: Chat changed during refresh, ignoring stale data",
-//               {
-//                 currentChatId,
-//                 currentChat: currentChatRef.current,
-//                 selectedChat,
-//               }
-//             );
-//             return prev; // Don't update if we've switched chats
-//           }
+    //           if (!stillOnSameChat) {
+    //             console.log(
+    //               "DEBUG: Chat changed during refresh, ignoring stale data",
+    //               {
+    //                 currentChatId,
+    //                 currentChat: currentChatRef.current,
+    //                 selectedChat,
+    //               }
+    //             );
+    //             return prev; // Don't update if we've switched chats
+    //           }
 
-//           const idOf = (x: any) => String(x.originalId || x.id);
-//           const prevMap = new Map(prev.map((m) => [idOf(m), m]));
-//           let changed = false;
-//           for (const m of transformed) {
-//             const key = idOf(m);
-//             if (prevMap.has(key)) {
-//               // Update existing entry (reactions/timestamp/etc.)
-//               const old = prevMap.get(key)!;
-//               // Preserve any local fields (e.g., replyTo)
-//               const merged = {
-//                 ...old,
-//                 ...m,
-//                 media: old.media ?? m.media, // preserve UI-fetched media
-//               };
+    //           const idOf = (x: any) => String(x.originalId || x.id);
+    //           const prevMap = new Map(prev.map((m) => [idOf(m), m]));
+    //           let changed = false;
+    //           for (const m of transformed) {
+    //             const key = idOf(m);
+    //             if (prevMap.has(key)) {
+    //               // Update existing entry (reactions/timestamp/etc.)
+    //               const old = prevMap.get(key)!;
+    //               // Preserve any local fields (e.g., replyTo)
+    //               const merged = {
+    //                 ...old,
+    //                 ...m,
+    //                 media: old.media ?? m.media, // preserve UI-fetched media
+    //               };
 
-//               prevMap.set(key, merged);
-//               changed = true;
-//             } else {
-//               prevMap.set(key, m);
-//               changed = true;
-//             }
-//           }
-//           if (!changed) return prev;
-//           // Return in chronological order
-//           return Array.from(prevMap.values()).sort((a, b) => {
-//   const dateA = a.date instanceof Date ? a.date : new Date(a.date);
-//   const dateB = b.date instanceof Date ? b.date : new Date(b.date);
-//   return dateA.getTime() - dateB.getTime();
-// });
+    //               prevMap.set(key, merged);
+    //               changed = true;
+    //             } else {
+    //               prevMap.set(key, m);
+    //               changed = true;
+    //             }
+    //           }
+    //           if (!changed) return prev;
+    //           // Return in chronological order
+    //           return Array.from(prevMap.values()).sort((a, b) => {
+    //   const dateA = a.date instanceof Date ? a.date : new Date(a.date);
+    //   const dateB = b.date instanceof Date ? b.date : new Date(b.date);
+    //   return dateA.getTime() - dateB.getTime();
+    // });
 
-//           // return Array.from(prevMap.values()).sort(
-//           //   (a, b) => a.date.getTime() - b.date.getTime()
-//           // );
-//         });
+    //           // return Array.from(prevMap.values()).sort(
+    //           //   (a, b) => a.date.getTime() - b.date.getTime()
+    //           // );
+    //         });
 
-//         // Don't set shouldAutoScroll to true - this prevents auto-scroll during polling
-//         // Only scroll when it's a new chat or user explicitly sends a message
-//       } catch (e) {
-//         if (e.name === "AbortError") {
-//           // Silently ignore aborts
-//           return;
-//         }
-//         console.error("DEBUG: refreshLatest error:", e);
-//       }
-//     }, [selectedChat]);
-const refreshLatest = useCallback(async () => {
-  if (!selectedChat || USE_DUMMY_DATA) return;
+    //         // Don't set shouldAutoScroll to true - this prevents auto-scroll during polling
+    //         // Only scroll when it's a new chat or user explicitly sends a message
+    //       } catch (e) {
+    //         if (e.name === "AbortError") {
+    //           // Silently ignore aborts
+    //           return;
+    //         }
+    //         console.error("DEBUG: refreshLatest error:", e);
+    //       }
+    //     }, [selectedChat]);
+    const refreshLatest = useCallback(async () => {
+      if (!selectedChat || USE_DUMMY_DATA) return;
 
-  // Cancel previous fetch if ongoing
-  if (refreshAbortController.current) {
-    refreshAbortController.current.abort();
-  }
+      // Cancel previous fetch if ongoing
+      if (refreshAbortController.current) {
+        refreshAbortController.current.abort();
+      }
 
-  const abortController = new AbortController();
-  refreshAbortController.current = abortController;
+      const abortController = new AbortController();
+      refreshAbortController.current = abortController;
 
-  const chatKey =
-    selectedChat === "all-channels"
-      ? "all-channels"
-      : selectedChat.platform === "discord"
-      ? `${selectedChat.id}`
-      : `${selectedChat.id}`;
+      const chatKey =
+        selectedChat === "all-channels"
+          ? "all-channels"
+          : selectedChat.platform === "discord"
+          ? `${selectedChat.id}`
+          : `${selectedChat.id}`;
 
-  try {
-    // Fetch Telegram history
-    let rawMessages = [];
-    if (selectedChat.platform !== "discord") {
-      const hist = await window.electronAPI.telegram.getChatHistory(
-        selectedChat.id
-      );
-      rawMessages = hist?.data || [];
-      console.log("refreshLatest fetched tg history", rawMessages);
-    }
+      try {
+        // Fetch Telegram history
+        let rawMessages = [];
+        if (selectedChat.platform !== "discord") {
+          const hist = await window.electronAPI.telegram.getChatHistory(
+            selectedChat.id
+          );
+          rawMessages = hist?.data || [];
+          console.log("refreshLatest fetched tg history", rawMessages);
+        }
 
-    // Transform each message into UI format
-    const transformed = rawMessages.map((msg, index) => {
-      const reactions =
-        msg?.message?.reactions?.results?.map((r) => {
-          const icon =
-            typeof r?.reaction === "string"
-              ? r.reaction
-              : r?.reaction?.emoticon;
+        // Transform each message into UI format
+        const transformed = rawMessages.map((msg, index) => {
+          const reactions =
+            msg?.message?.reactions?.results
+              ?.map((r) => {
+                const icon =
+                  typeof r?.reaction === "string"
+                    ? r.reaction
+                    : r?.reaction?.emoticon;
 
-          return icon ? { icon, count: r.count || 0 } : null;
-        }).filter(Boolean) ?? [];
+                return icon ? { icon, count: r.count || 0 } : null;
+              })
+              .filter(Boolean) ?? [];
 
-      const replyId = msg?.message?.reply_to?.match(/reply_to_msg_id=(\d+)/);
-      const replyMessage = replyId
-        ? rawMessages.find((m) => m.message?.id === Number(replyId[1]))
-        : null;
+          const replyId = msg?.message?.reply_to?.match(
+            /reply_to_msg_id=(\d+)/
+          );
+          const replyMessage = replyId
+            ? rawMessages.find((m) => m.message?.id === Number(replyId[1]))
+            : null;
 
-      return {
-        id: msg._id || msg.id || String(index + 1),
-        telegramMessageId: msg.message?.id,
-        name: msg.sender?.first_name || msg.sender?.username || "Unknown",
-        avatar: msg.sender?.id
-          ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${msg.sender.id}`
-          : gravatarUrl(msg.sender?.username || "Unknown"),
-        platform: selectedChat.platform === "discord" ? "Discord" : "Telegram",
-        server:
-          msg.chat?.title ||
-          msg.chat?.username ||
-          msg.chat?.first_name ||
-          "Unknown",
-        date: new Date(msg.timestamp),
-        message: msg.raw_text || "",
-        reactions,
-        hasLink: (msg.raw_text || "").includes("http"),
-        link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
-        hasMedia: msg.message.has_media,
-        media: msg.message?.media || null,
-        timestamp: msg.timestamp,
-        replyTo: replyMessage
-          ? {
-              id: replyMessage.message.id,
-              name:
-                replyMessage.sender?.first_name ||
-                replyMessage.sender?.username ||
-                "Unknown",
-              message: replyMessage.raw_text || "",
-            }
-          : null,
-      };
-    });
+          return {
+            id: msg._id || msg.id || String(index + 1),
+            telegramMessageId: msg.message?.id,
+            name: msg.sender?.first_name || msg.sender?.username || "Unknown",
+            avatar: msg.sender?.id
+              ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
+                  msg.sender.id
+                }`
+              : gravatarUrl(msg.sender?.username || "Unknown"),
+            platform:
+              selectedChat.platform === "discord" ? "Discord" : "Telegram",
+            server:
+              msg.chat?.title ||
+              msg.chat?.username ||
+              msg.chat?.first_name ||
+              "Unknown",
+            date: new Date(msg.timestamp),
+            message: msg.raw_text || "",
+            reactions,
+            hasLink: (msg.raw_text || "").includes("http"),
+            link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
+            hasMedia: msg.message.has_media,
+            media: msg.message?.media || null,
+            timestamp: msg.timestamp,
+            replyTo: replyMessage
+              ? {
+                  id: replyMessage.message.id,
+                  name:
+                    replyMessage.sender?.first_name ||
+                    replyMessage.sender?.username ||
+                    "Unknown",
+                  message: replyMessage.raw_text || "",
+                }
+              : null,
+          };
+        });
 
-    // Sort chronologically
-    transformed.sort((a, b) => a.date.getTime() - b.date.getTime());
+        // Sort chronologically
+        transformed.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-    // Safe update — ignore stale fetches
-    if (chatKey === currentChatRef.current) {
-      setMessages(transformed);
-    }
-  } catch (err) {
-    if (err.name !== "AbortError") console.error("refreshLatest error:", err);
-  }
-}, [selectedChat]);
+        // Safe update — ignore stale fetches
+        if (chatKey === currentChatRef.current) {
+          setMessages(transformed);
+        }
+      } catch (err) {
+        if (err.name !== "AbortError")
+          console.error("refreshLatest error:", err);
+      }
+    }, [selectedChat]);
 
     // Fetch messages when selectedChat changes or on initial mount
     useEffect(() => {
@@ -1996,6 +2001,17 @@ const refreshLatest = useCallback(async () => {
         if (selectedChat.platform == "discord") return;
         if (selectedChat.platform != "discord") {
           if (selectedChat?.id) {
+            const markRead = async () => {
+              try {
+                await markChatAsRead(selectedChat.id);
+                console.log("Marked as read");
+              } catch (err) {
+                console.error("Failed to mark as read:", err);
+              }
+            };
+
+            markRead();
+
             if (selectedChat.name && selectedChat.keywords !== undefined) {
               fetchMessages(selectedChat);
               // fetchPinnedMessages();
@@ -2012,7 +2028,6 @@ const refreshLatest = useCallback(async () => {
               }
 
               // fetchPinnedMessages(selectedChat.id);
-              // markChatAsRead(selectedChat.id);
             }
           } else if (selectedChat === "all-channels") {
             fetchMessages("all-channels");
@@ -2032,13 +2047,7 @@ const refreshLatest = useCallback(async () => {
         setText("");
       }
       setUploadedFiles([]);
-    }, [
-      selectedChat?.id,
-      selectedChat,
-      fetchMessages,
-      fetchPinnedMessages,
-      USE_DUMMY_DATA,
-    ]);
+    }, [selectedChat?.id, selectedChat, fetchMessages, fetchPinnedMessages]);
 
     useEffect(() => {
       const refresh = async () => {
@@ -2052,21 +2061,7 @@ const refreshLatest = useCallback(async () => {
     // Function to mark chat as read
     const markChatAsRead = async (chatId) => {
       try {
-        const token = localStorage.getItem("access_token");
-        const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/chats/${chatId}/read`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: "read=true",
-          }
-        );
-
-        if (response.ok) {
-        }
+        await window.electronAPI.telegram.markAsRead(chatId);
       } catch (error) {
         console.error("Failed to mark chat as read:", error);
       }
@@ -2135,128 +2130,119 @@ const refreshLatest = useCallback(async () => {
       }, 180); // 150-200ms works well
     };
 
+    useEffect(() => {
+      if (!selectedChat) return;
+      console.log("Setting up new message listener for chat", selectedChat.id);
+      // Subscribe to new messages, get unsubscribe
+      const unsubscribe = window.electronAPI.telegram.onNewMessage((msg) => {
+        if (msg?.chat?.id?.toString() === selectedChat?.id?.toString()) {
+          const data = [msg]; // Wrap single message in array for uniform processing
+          console.log("New message for selected chat:", msg);
+          const transformed = data.map((msg: any, index: number) => {
+            let chatName = "Unknown";
+            let channelName: string | null = null;
 
-useEffect(() => {
-  if (!selectedChat) return;
-  console.log("Setting up new message listener for chat", selectedChat.id);
-  // Subscribe to new messages, get unsubscribe
-  const unsubscribe = window.electronAPI.telegram.onNewMessage((msg) => {
-
-    if (msg?.chat?.id?.toString() === selectedChat?.id?.toString()) {
-      const data=[msg]; // Wrap single message in array for uniform processing
-           console.log("New message for selected chat:", msg);
-        const transformed=    data.map( (msg: any, index: number) => {
-              let chatName = "Unknown";
-              let channelName: string | null = null;
-
-              if (selectedChat === "all-channels" && msg.chat) {
-                if (
-                  msg.chat._ === "Channel" ||
-                  msg.chat._ === "Chat" ||
-                  msg.chat._ === "User"
-                ) {
-                  chatName =
-                    msg.chat.title ||
-                    msg.chat.username ||
-                    msg.chat.first_name ||
-                    "Unknown";
-                }
-                channelName = null;
-              } else {
+            if (selectedChat === "all-channels" && msg.chat) {
+              if (
+                msg.chat._ === "Channel" ||
+                msg.chat._ === "Chat" ||
+                msg.chat._ === "User"
+              ) {
                 chatName =
-                  (selectedChat && typeof selectedChat === "object"
-                    ? selectedChat.name
-                    : typeof selectedChat === "string"
-                    ? selectedChat
-                    : "") || "Chat";
+                  msg.chat.title ||
+                  msg.chat.username ||
+                  msg.chat.first_name ||
+                  "Unknown";
               }
+              channelName = null;
+            } else {
+              chatName =
+                (selectedChat && typeof selectedChat === "object"
+                  ? selectedChat.name
+                  : typeof selectedChat === "string"
+                  ? selectedChat
+                  : "") || "Chat";
+            }
 
-              // Parse reactions
-              const reactionsData =
-                (msg.message &&
-                  msg.message.reactions &&
-                  msg.message.reactions.results) ||
-                [];
-              const reactions = ((reactionsData as any[]) ?? [])
-                .map((r) => {
-                  const emoticon =
-                    typeof r?.reaction === "string"
-                      ? r.reaction
-                      : r?.reaction?.emoticon;
-                  const normalized =
-                    emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
-                  return normalized
-                    ? { icon: normalized, count: r.count || 0 }
-                    : null;
-                })
-                .filter(Boolean);
+            // Parse reactions
+            const reactionsData =
+              (msg.message &&
+                msg.message.reactions &&
+                msg.message.reactions.results) ||
+              [];
+            const reactions = ((reactionsData as any[]) ?? [])
+              .map((r) => {
+                const emoticon =
+                  typeof r?.reaction === "string"
+                    ? r.reaction
+                    : r?.reaction?.emoticon;
+                const normalized =
+                  emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
+                return normalized
+                  ? { icon: normalized, count: r.count || 0 }
+                  : null;
+              })
+              .filter(Boolean);
 
-              const replyToStr = msg?.message?.reply_to;
-              let replyId: number | null = null;
-              if (replyToStr && typeof replyToStr === "string") {
-                const match = replyToStr.match(/reply_to_msg_id=(\d+)/);
-                replyId = match ? parseInt(match[1], 10) : null;
-              }
+            const replyToStr = msg?.message?.reply_to;
+            let replyId: number | null = null;
+            if (replyToStr && typeof replyToStr === "string") {
+              const match = replyToStr.match(/reply_to_msg_id=(\d+)/);
+              replyId = match ? parseInt(match[1], 10) : null;
+            }
 
-              const replyMessage = replyId
-                ? data.find((m) => m.message?.id === replyId) || null
-                : null;
-              return {
-                id: msg._id || msg.id || String(index + 1),
-                originalId: msg._id || msg.id,
-                telegramMessageId: msg.message?.id,
-                mentions: msg?.message?.mentions ?? [],
-                name:
-                  msg.sender?.first_name || msg.sender?.username || "Unknown",
-                avatar: msg.sender?.id
-                  ? `${BACKEND_URL}/contact_photo/${msg.sender.id}`
-                  : gravatarUrl(
-                      msg.sender?.first_name ||
-                        msg.sender?.username ||
-                        "Unknown"
-                    ),
-                platform:
-                  selectedChat.platform == "discord"
-                    ? "Discord"
-                    : ("Telegram" as const),
-                channel: channelName,
-                server: chatName,
-                date: new Date(msg.timestamp),
-                message: msg.raw_text || "",
-                tags: [],
-                reactions,
-                hasLink: (msg.raw_text || "").includes("http"),
-                link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
-                hasMedia: msg.message.has_media,
-                media: msg.message.media ?? null,
-                replyToId: replyId ?? null,
-                timestamp: msg.timestamp,
-                replyTo: replyMessage
-                  ? {
-                      id: replyMessage.message.id,
-                      name:
-                        replyMessage.sender?.first_name ||
-                        replyMessage.sender?.username ||
-                        "Unknown",
-                      message: replyMessage.raw_text || "",
-                      chat_id: replyMessage.chat?.id || null,
-                    }
-                  : null,
-                originalChatType: msg.chat?._ || null,
-              };
-            })
-        
+            const replyMessage = replyId
+              ? data.find((m) => m.message?.id === replyId) || null
+              : null;
+            return {
+              id: msg._id || msg.id || String(index + 1),
+              originalId: msg._id || msg.id,
+              telegramMessageId: msg.message?.id,
+              mentions: msg?.message?.mentions ?? [],
+              name: msg.sender?.first_name || msg.sender?.username || "Unknown",
+              avatar: msg.sender?.id
+                ? `${BACKEND_URL}/contact_photo/${msg.sender.id}`
+                : gravatarUrl(
+                    msg.sender?.first_name || msg.sender?.username || "Unknown"
+                  ),
+              platform:
+                selectedChat.platform == "discord"
+                  ? "Discord"
+                  : ("Telegram" as const),
+              channel: channelName,
+              server: chatName,
+              date: new Date(msg.timestamp),
+              message: msg.raw_text || "",
+              tags: [],
+              reactions,
+              hasLink: (msg.raw_text || "").includes("http"),
+              link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
+              hasMedia: msg.message.has_media,
+              media: msg.message.media ?? null,
+              replyToId: replyId ?? null,
+              timestamp: msg.timestamp,
+              replyTo: replyMessage
+                ? {
+                    id: replyMessage.message.id,
+                    name:
+                      replyMessage.sender?.first_name ||
+                      replyMessage.sender?.username ||
+                      "Unknown",
+                    message: replyMessage.raw_text || "",
+                    chat_id: replyMessage.chat?.id || null,
+                  }
+                : null,
+              originalChatType: msg.chat?._ || null,
+            };
+          });
 
-         
+          setMessages((prev) => [...prev, ...transformed]);
+        }
+      });
 
-      setMessages((prev) => [...prev, ...transformed]);
-    }
-  });
-
-  // Cleanup when selectedChat changes or component unmounts
-  return () => unsubscribe?.();
-}, [selectedChat]);
-
+      // Cleanup when selectedChat changes or component unmounts
+      return () => unsubscribe?.();
+    }, [selectedChat]);
 
     const [showFiltersPopup, setShowFiltersPopup] = useState(false); // Controls inner popup
     const [filtersList, setFiltersList] = useState([]);
@@ -2395,7 +2381,7 @@ useEffect(() => {
     const container = messagesContainerRef.current;
     const [hasScrolled, setHasScrolled] = useState(false);
     const [highlightedMessageId, setHighlightedMessageId] = useState(null);
-  
+
     useEffect(() => {
       if (!selectedMessageId || loading) return;
 
@@ -2469,16 +2455,10 @@ useEffect(() => {
 
     const deleteMessage = async (msg) => {
       try {
-        const response = await fetch(
-          `${BACKEND_URL}/api/messages/${msg.id}/delete`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
+        await window.electronAPI.telegram.deleteMessage(
+          selectedChat.id,
+          msg.id
         );
-        if (!response.ok) throw new Error("Delete message failed");
 
         // After successful delete, remove message from state
         setMessages((prev) =>
@@ -3199,14 +3179,11 @@ useEffect(() => {
                               msg.media.length > 0 && (
                                 <>
                                   {msg.media.map((mediaItem, idx) => (
-                                 
                                     <Fragment key={mediaItem.data || idx}>
                                       {(mediaItem?.content_type?.startsWith(
                                         "image"
                                       ) ||
-                                        mediaItem?.type?.startsWith(
-                                          "image"
-                                        ) ||
+                                        mediaItem?.type?.startsWith("image") ||
                                         mediaItem?.type?.startsWith(
                                           "photo"
                                         )) && (
@@ -3317,23 +3294,21 @@ useEffect(() => {
                               )}
 
                             {msg.media && (
-                            
                               <>
                                 {msg.media && (
                                   <>
                                     {(msg?.media?.content_type?.startsWith(
                                       "image"
                                     ) ||
+                                      msg?.media?.type?.startsWith("image") ||
                                       msg?.media?.type?.startsWith(
-                                        "image"
-                                      )
-                                    ||
-                                        msg?.media?.type?.startsWith(
-                                          "photo"
-                                        )) && (
+                                        "photo"
+                                      )) && (
                                       <img
-                                        src={msg?.media?.data || msg?.media?.url}
-                                          alt="media"
+                                        src={
+                                          msg?.media?.data || msg?.media?.url
+                                        }
+                                        alt="media"
                                         style={{
                                           maxWidth: 320,
                                           cursor: "pointer",
@@ -3343,7 +3318,9 @@ useEffect(() => {
                                     )}
                                     {msg?.media?.type?.startsWith("video") && (
                                       <video
-                                        src={msg?.media?.data || msg?.media?.url}
+                                        src={
+                                          msg?.media?.data || msg?.media?.url
+                                        }
                                         controls
                                         style={{
                                           maxWidth: 320,

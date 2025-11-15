@@ -7,6 +7,9 @@ const moment = require("moment");
 
 const qrcode = require("qrcode");
 const { ipcMain } = require("electron");
+let _dialogLock = false;
+let _dialogsCache = null;
+let _dialogsCacheTime = 0;
 class TelegramService extends EventEmitter {
   constructor(dbManager, securityManager) {
     super();
@@ -54,6 +57,7 @@ class TelegramService extends EventEmitter {
 
       // Notify renderer
       mainWindow.webContents.send("telegram:connected", user);
+
       this.client.addEventHandler(async (event) => {
         try {
           const msg = event.message;
@@ -75,6 +79,7 @@ class TelegramService extends EventEmitter {
 
           const chatEntity = await getEntitySafely(msg.peerId);
 
+          
           const safe = (obj) => {
             try {
               return JSON.parse(JSON.stringify(obj));
@@ -229,6 +234,14 @@ class TelegramService extends EventEmitter {
             "telegram:newMessage",
             safe(formattedMessage) // prevents IPC crash
           );
+
+          const updated = await this.getSingleDialog(chatEntity?.id);
+          if (updated) {
+            mainWindow.webContents.send(
+              "telegram:dialog-updated",
+              updated
+            );
+          }
         } catch (e) {
           console.error("Error in telegram event handler:", e);
         }
@@ -241,6 +254,86 @@ class TelegramService extends EventEmitter {
       return false;
     }
   }
+  
+// === GLOBAL SAFE LOCK + CACHE ===
+
+
+async getSingleDialog(chatId) {
+  try {
+    // 1) CACHE: refresh only every 10 seconds
+    const now = Date.now();
+    if (!_dialogsCache || now - _dialogsCacheTime > 60000) {
+      // 2) LOCK: prevent multiple parallel getDialogs() calls
+      while (_dialogLock) {
+        await new Promise((r) => setTimeout(r, 500));
+      }
+
+      _dialogLock = true;
+      try {
+        _dialogsCache = await this.client.getDialogs();
+        _dialogsCacheTime = Date.now();
+      } catch (err) {
+        console.error("getDialogs error:", err);
+      } finally {
+        _dialogLock = false;
+      }
+    }
+
+    // 3) FIND DIALOG FROM CACHE
+    const dialogs = _dialogsCache || [];
+    const dialog = dialogs.find((d) => {
+      const id = d.entity?.id?.value;
+      return String(id) === String(chatId);
+    });
+
+    if (!dialog) return null;
+
+    const entity = dialog.entity;
+    const message = dialog.message;
+
+    // Determine chat type
+    let chat_type = "private";
+    if (entity.className === "Channel") {
+      chat_type = entity.megagroup ? "group" : "channel";
+    } else if (entity.className === "Chat") {
+      chat_type = "group";
+    } else if (entity.className === "User") {
+      chat_type = "private";
+    }
+
+    const name =
+      entity.title ||
+      [entity.firstName, entity.lastName].filter(Boolean).join(" ") ||
+      "Unknown";
+
+    // 4) RETURN EXACT STRUCTURE (no changes)
+    return {
+      _id: entity.id?.value,
+      id: entity.id?.value,
+      chat_type,
+      name,
+      lastMessage: message?.message || "",
+      last_message: message?.message || "",
+      unread: dialog.unreadCount || 0,
+      read: dialog.unreadCount === 0,
+      isPinned: dialog.pinned || false,
+      is_dialog: true,
+      is_typing: false,
+      last_seen: moment(dialog.date * 1000).toISOString(),
+      last_ts: moment(dialog.date * 1000).format("YYYY-MM-DDTHH:mm:ss"),
+      timestamp: moment(dialog.date * 1000).format("YYYY-MM-DDTHH:mm:ss"),
+      count: dialog.messages?.length || 0,
+      summary: "",
+      sync_enabled: null,
+      platform: "Telegram",
+      photo_url: `http://api.pigeon.chat/chat_photo/${entity.id?.toString()}`,
+    };
+  } catch (err) {
+    console.error("getSingleDialog error:", err);
+    return null;
+  }
+}
+
 
   verifyCode(code) {
     ipcMain.emit("telegram:code-entered", code);
@@ -620,8 +713,8 @@ class TelegramService extends EventEmitter {
     }
   }
   async getMediaInfo(ms) {
-    if (!ms ) return null;
-  
+    if (!ms) return null;
+
     const messages = await this.client.getMessages(ms.chat.id, {
       ids: [ms.message.id],
     });
@@ -734,6 +827,302 @@ class TelegramService extends EventEmitter {
       };
     });
     return chatList;
+  }
+
+
+  // ------------------------------
+  // MESSAGE ACTIONS
+  // ------------------------------
+
+  async searchMessages(chatId, query, limit = 50) {
+    try {
+      const messages = await this.client.searchMessages(chatId, {
+        filter: undefined,
+        limit,
+        search: query,
+      });
+      return messages;
+    } catch (err) {
+      console.error("[Telegram] searchMessages error:", err);
+      return [];
+    }
+  }
+
+  async getMessageReplies(chatId, messageId) {
+    try {
+      const replies = await this.client.getMessages(chatId, {
+        replyTo: messageId,
+      });
+      return replies;
+    } catch (err) {
+      console.error("[Telegram] getMessageReplies error:", err);
+      return [];
+    }
+  }
+
+  async getMessageForwardInfo(chatId, messageId) {
+    try {
+      const msg = await this.getMessageById(chatId, messageId);
+      return msg?.fwdFrom || null;
+    } catch (err) {
+      console.error("[Telegram] getMessageForwardInfo error:", err);
+      return null;
+    }
+  }
+
+  async getMessageReactions(chatId, messageId) {
+    try {
+      const msg = await this.getMessageById(chatId, messageId);
+      return msg?.reactions?.results || [];
+    } catch (err) {
+      console.error("[Telegram] getMessageReactions error:", err);
+      return [];
+    }
+  }
+
+  async getPinnedMessages(chatId) {
+    try {
+      const chat = await this.client.getEntity(chatId);
+      return chat.pinnedMessage ? [chat.pinnedMessage] : [];
+    } catch (err) {
+      console.error("[Telegram] getPinnedMessages error:", err);
+      return [];
+    }
+  }
+
+  async pinMessage(chatId, messageId) {
+    try {
+      await this.client.pinMessage(chatId, messageId);
+      return true;
+    } catch (err) {
+      console.error("[Telegram] pinMessage error:", err);
+      return false;
+    }
+  }
+
+  async unpinMessage(chatId, messageId) {
+    try {
+      await this.client.unpinMessage(chatId, messageId);
+      return true;
+    } catch (err) {
+      console.error("[Telegram] unpinMessage error:", err);
+      return false;
+    }
+  }
+
+  async deleteMessage(chatId, messageId) {
+    try {
+      await this.client.deleteMessages(chatId, [Number(messageId)], {
+        revoke: true,
+      });
+      return true;
+    } catch (err) {
+      console.error("[Telegram] deleteMessage error:", err);
+      return false;
+    }
+  }
+
+  async markAsRead(chatId) {
+    try {
+      await this.client.markAsRead(chatId);
+      return true;
+    } catch (err) {
+      console.error("[Telegram] markAsRead error:", err);
+      return false;
+    }
+  }
+
+  // ------------------------------
+  // SENDING
+  // ------------------------------
+  async sendPhoto(chatId, photo, caption = "") {
+    return await this.client.sendFile(chatId, { file: photo, caption });
+  }
+
+  async sendDocument(chatId, document, caption = "") {
+    return await this.client.sendFile(chatId, { file: document, caption });
+  }
+
+  async sendVideo(chatId, video, caption = "") {
+    return await this.client.sendFile(chatId, { file: video, caption });
+  }
+
+  async sendVoice(chatId, voice, caption = "") {
+    return await this.client.sendFile(chatId, {
+      file: voice,
+      voice: true,
+      caption,
+    });
+  }
+
+  async sendSticker(chatId, sticker) {
+    return await this.client.sendFile(chatId, { file: sticker, sticker: true });
+  }
+
+  async replyMessage(chatId, messageId, message) {
+    return await this.client.sendMessage(chatId, {
+      message,
+      replyTo: messageId,
+    });
+  }
+
+  async forwardMessage(chatId, fromChatId, messageId) {
+    return await this.client.forwardMessages(chatId, {
+      fromPeer: fromChatId,
+      id: [messageId],
+    });
+  }
+
+  // ------------------------------
+  // CHAT / GROUP INFO
+  // ------------------------------
+  async getChatInfo(chatId) {
+    try {
+      const chat = await this.client.getEntity(chatId);
+      return chat;
+    } catch (err) {
+      console.error("[Telegram] getChatInfo error:", err);
+      return null;
+    }
+  }
+
+  async getParticipants(chatId) {
+    try {
+      const participants = await this.client.getParticipants(chatId);
+      return participants;
+    } catch (err) {
+      console.error("[Telegram] getParticipants error:", err);
+      return [];
+    }
+  }
+
+  async joinChat(chatId) {
+    try {
+      await this.client.joinChannel(chatId);
+      return true;
+    } catch (err) {
+      console.error("[Telegram] joinChat error:", err);
+      return false;
+    }
+  }
+
+  async leaveChat(chatId) {
+    try {
+      await this.client.leaveChannel(chatId);
+      return true;
+    } catch (err) {
+      console.error("[Telegram] leaveChat error:", err);
+      return false;
+    }
+  }
+
+  // ------------------------------
+  // PROFILE / USER
+  // ------------------------------
+  async getUserInfo(userId) {
+    try {
+      const user = await this.client.getEntity(userId);
+      return user;
+    } catch (err) {
+      console.error("[Telegram] getUserInfo error:", err);
+      return null;
+    }
+  }
+
+  async updateProfilePhoto(photo) {
+    try {
+      await this.client.updateProfile({ photo });
+      return true;
+    } catch (err) {
+      console.error("[Telegram] updateProfilePhoto error:", err);
+      return false;
+    }
+  }
+
+  async updateBio(bio) {
+    try {
+      await this.client.updateProfile({ about: bio });
+      return true;
+    } catch (err) {
+      console.error("[Telegram] updateBio error:", err);
+      return false;
+    }
+  }
+
+  // ------------------------------
+  // TYPING & STATUS
+  // ------------------------------
+  async sendTyping(chatId) {
+    try {
+      await this.client.sendChatAction(chatId, "typing");
+    } catch (err) {
+      console.error("[Telegram] sendTyping error:", err);
+    }
+  }
+
+  async sendUploading(chatId) {
+    try {
+      await this.client.sendChatAction(chatId, "upload_photo");
+    } catch (err) {
+      console.error("[Telegram] sendUploading error:", err);
+    }
+  }
+
+  async sendRecording(chatId) {
+    try {
+      await this.client.sendChatAction(chatId, "record_voice");
+    } catch (err) {
+      console.error("[Telegram] sendRecording error:", err);
+    }
+  }
+
+  // ------------------------------
+  // UTILITY / ADVANCED
+  // ------------------------------
+  async downloadFile(msg) {
+    try {
+      const buffer = await this.client.downloadMedia(msg);
+      return buffer;
+    } catch (err) {
+      console.error("[Telegram] downloadFile error:", err);
+      return null;
+    }
+  }
+
+  async downloadMediaById(chatId, messageId) {
+    const messages = await this.client.getMessages(chatId, {
+      ids: [messageId],
+    });
+    if (!messages.length) return null;
+    return await this.downloadFile(messages[0]);
+  }
+
+  async uploadFile(chatId, file) {
+    try {
+      return await this.client.sendFile(chatId, { file });
+    } catch (err) {
+      console.error("[Telegram] uploadFile error:", err);
+      return null;
+    }
+  }
+
+  async getMessageLink(chatId, messageId) {
+    try {
+      const msg = await this.getMessageById(chatId, messageId);
+      return msg?.link || null;
+    } catch (err) {
+      console.error("[Telegram] getMessageLink error:", err);
+      return null;
+    }
+  }
+
+  async openMessageThread(chatId, messageId) {
+    try {
+      return await this.client.getMessages(chatId, { replyTo: messageId });
+    } catch (err) {
+      console.error("[Telegram] openMessageThread error:", err);
+      return [];
+    }
   }
 }
 

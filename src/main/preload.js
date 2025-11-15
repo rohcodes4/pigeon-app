@@ -184,6 +184,82 @@ contextBridge.exposeInMainWorld("electronAPI", {
     onLoginSuccess: (callback) =>
       ipcRenderer.on("telegram:login-success", (_, user) => callback(user)),
     connectExisting: () => ipcRenderer.invoke("telegram:connect-existing"),
+
+    pinMessage: (chatId, messageId) =>
+    ipcRenderer.invoke("telegram:pin-message", { chatId, messageId }),
+  unpinMessage: (chatId, messageId) =>
+    ipcRenderer.invoke("telegram:unpin-message", { chatId, messageId }),
+  deleteMessage: (chatId, messageId) =>
+    ipcRenderer.invoke("telegram:delete-message", { chatId, messageId }),
+  markAsRead: (chatId) =>
+    ipcRenderer.invoke("telegram:mark-as-read", chatId),
+
+  // ------------------------------
+  // SENDING
+  // ------------------------------
+  sendPhoto: (chatId, photo, caption) =>
+    ipcRenderer.invoke("telegram:send-photo", { chatId, photo, caption }),
+  sendDocument: (chatId, document, caption) =>
+    ipcRenderer.invoke("telegram:send-document", { chatId, document, caption }),
+  sendVideo: (chatId, video, caption) =>
+    ipcRenderer.invoke("telegram:send-video", { chatId, video, caption }),
+  sendVoice: (chatId, voice, caption) =>
+    ipcRenderer.invoke("telegram:send-voice", { chatId, voice, caption }),
+  sendSticker: (chatId, sticker) =>
+    ipcRenderer.invoke("telegram:send-sticker", { chatId, sticker }),
+  replyMessage: (chatId, messageId, message) =>
+    ipcRenderer.invoke("telegram:reply-message", { chatId, messageId, message }),
+  forwardMessage: (chatId, fromChatId, messageId) =>
+    ipcRenderer.invoke("telegram:forward-message", { chatId, fromChatId, messageId }),
+
+  // ------------------------------
+  // CHAT / GROUP INFO
+  // ------------------------------
+  getChatInfo: (chatId) => ipcRenderer.invoke("telegram:get-chat-info", chatId),
+  getParticipants: (chatId) =>
+    ipcRenderer.invoke("telegram:get-participants", chatId),
+  joinChat: (chatId) => ipcRenderer.invoke("telegram:join-chat", chatId),
+  leaveChat: (chatId) => ipcRenderer.invoke("telegram:leave-chat", chatId),
+
+  // ------------------------------
+  // PROFILE / USER
+  // ------------------------------
+  getUserInfo: (userId) => ipcRenderer.invoke("telegram:get-user-info", userId),
+  updateProfilePhoto: (photo) =>
+    ipcRenderer.invoke("telegram:update-profile-photo", photo),
+  updateBio: (bio) => ipcRenderer.invoke("telegram:update-bio", bio),
+
+  // ------------------------------
+  // TYPING & STATUS
+  // ------------------------------
+  sendTyping: (chatId) => ipcRenderer.invoke("telegram:send-typing", chatId),
+  sendUploading: (chatId) => ipcRenderer.invoke("telegram:send-uploading", chatId),
+  sendRecording: (chatId) => ipcRenderer.invoke("telegram:send-recording", chatId),
+
+  // ------------------------------
+  // UTILITY / ADVANCED
+  // ------------------------------
+  downloadFile: (msg) => ipcRenderer.invoke("telegram:download-file", msg),
+  downloadMediaById: (chatId, messageId) =>
+    ipcRenderer.invoke("telegram:download-media-by-id", { chatId, messageId }),
+  uploadFile: (chatId, file) => ipcRenderer.invoke("telegram:upload-file", { chatId, file }),
+  getMessageLink: (chatId, messageId) =>
+    ipcRenderer.invoke("telegram:get-message-link", { chatId, messageId }),
+  openMessageThread: (chatId, messageId) =>
+    ipcRenderer.invoke("telegram:open-message-thread", { chatId, messageId }),
+
+onDialogUpdated: (callback) => {
+  const listener = (_, dialog) => callback(dialog);
+
+  ipcRenderer.on("telegram:dialog-updated", listener);
+
+  return () => {
+    ipcRenderer.removeListener("telegram:dialog-updated", listener);
+  };
+},
+
+
+
   },
   security: {
     getDiscordToken: () => ipcRenderer.invoke("security:get-token"),
