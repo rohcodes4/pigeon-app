@@ -54,8 +54,6 @@ class TelegramService extends EventEmitter {
 
       // Notify renderer
       mainWindow.webContents.send("telegram:connected", user);
-
-      await this.client.getDialogs();
       this.client.addEventHandler(async (event) => {
         try {
           const msg = event.message;
