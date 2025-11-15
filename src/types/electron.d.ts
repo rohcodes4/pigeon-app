@@ -147,7 +147,11 @@ export interface ElectronAPI {
       }>;
       error?: string;
     }>;
-
+  getMediaInfo: (message: any) => Promise<{
+      success: boolean;
+      data?: any;
+      error?: string;
+    }>;
     getUserId: () => Promise<{ success: boolean; data?: any; error?: string }>;
     openLogin: () => Promise<{ success: boolean; data?: any; error?: string }>;
 

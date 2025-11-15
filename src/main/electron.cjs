@@ -688,6 +688,11 @@ function setupIPCHandlers() {
     return { success: true, data };
   });
 
+  ipcMain.handle("telegram:get-media-info", async (_event, message) => {
+    const data = await telegramClient.getMediaInfo(message);
+    return { success: true, data };
+  });
+
   ipcMain.handle("telegram:connect-existing", async (event) => {
   const connected = await telegramClient.connectExisting(mainWindow);
   return {success: connected};

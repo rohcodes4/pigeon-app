@@ -149,6 +149,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
         offset,
       }),
     getDialogs: () => ipcRenderer.invoke("telegram:get-dialogs"),
+    getMediaInfo: (message) =>
+      ipcRenderer.invoke("telegram:get-media-info", message),
     verifyCode: (code) => ipcRenderer.send("telegram:verify-code", code),
     sendPassword: (password) =>
       ipcRenderer.send("telegram:2fa-submit", password),
