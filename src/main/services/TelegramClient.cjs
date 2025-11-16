@@ -279,7 +279,7 @@ class TelegramService extends EventEmitter {
               reply_to: safe(msg.replyTo),
               forward: safe(msg.fwdFrom),
               edited: !!msg.editDate,
-              media: msg.media, //await getMediaInfo(msg),
+              media: await getMediaInfo(msg),
               reactions: getReactions(msg),
             },
 
@@ -641,7 +641,7 @@ class TelegramService extends EventEmitter {
     await this.client.sendMessage(chatId, { message });
   }
 
-  async getMessages(chatId, limit = 25, offset = 0) {
+  async getMessages(chatId, limit = 10, offset = 0) {
     try {
       const messages = await this.client.getMessages(chatId, {
         limit,
@@ -749,7 +749,7 @@ class TelegramService extends EventEmitter {
               reply_to: msg.replyTo ? JSON.stringify(msg.replyTo) : null,
               forward: msg.fwdFrom || null,
               edited: !!msg.editDate,
-              media: msg.media, //await getMediaInfo(msg),
+              media: await getMediaInfo(msg),
               reactions: getReactions(msg),
               has_media: !!msg.media,
               has_document: !!msg.document,
