@@ -406,7 +406,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const currentChatRef = useRef<string | null>(null);
     const [replyTo, setReplyTo] = useState<null | MessageItem>(null);
     const [messages, setMessages] = useState<MessageItem[]>(
-      USE_DUMMY_DATA ? (dummyMessages as unknown as MessageItem[]) : []
+       []
     );
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -1059,7 +1059,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         }
 
         try {
-          const token = localStorage.getItem("access_token");
+        
 
           if (selectedChat?.platform == "discord") {
             return;
@@ -1080,16 +1080,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           if (afterTimestamp) params.append("after", afterTimestamp);
           if (params.toString()) endpoint += `?${params.toString()}`;
 
-          // const response = await fetch(endpoint, {
-          //   headers: {
-          //     Authorization: `Bearer ${token}`,
-          //     "Content-Type": "application/json",
-          //   },
-          // });
-
-          // if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-
-          // const data = await response.json();
           const hist = await window.electronAPI.telegram.getChatHistory(
             selectedChat.id
           );
@@ -1203,17 +1193,20 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           if (data.length < PAGE_SIZE) {
             setHasMoreMessages(false);
           }
+          setTimeout(() => {
+            if (append) {
+              console.log("Appending older messages:", transformed);
+              setMessages((prev) => [...transformed, ...prev]);
+              setLoadingMore(false);
 
-          if (append) {
-            setMessages((prev) => [...transformed, ...prev]);
-            setLoadingMore(false);
-            // Don't auto scroll on loading older messages
-          } else {
-            setMessages(transformed);
-            setLoading(false);
-            setShouldAutoScroll(true);
-          }
-
+              // Don't auto scroll on loading older messages
+            } else {
+              console.log("Setting messages:", transformed);
+              setMessages(transformed);
+              setLoading(false);
+              setShouldAutoScroll(true);
+            }
+          }, 100);
           // Scroll only once after initial load
           if (!hasFetchedFirstMessages.current && !append) {
             hasFetchedFirstMessages.current = true;
@@ -1233,7 +1226,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           setLoadingMore(false);
         }
       },
-      [BACKEND_URL, PAGE_SIZE]
+      [selectedChat]
     );
 
     // Function to load more messages when scrolling to top
@@ -1971,7 +1964,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
         // Safe update — ignore stale fetches
         if (chatKey === currentChatRef.current) {
+          setTimeout(() => {
           setMessages(transformed);
+          }, 200);
         }
       } catch (err) {
         if (err.name !== "AbortError")
