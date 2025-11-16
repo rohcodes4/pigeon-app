@@ -1,16 +1,13 @@
 // services/TelegramClient.cjs
-const { TelegramClient,Api } = require("telegram");
+const { TelegramClient, Api } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const { NewMessage } = require("telegram/events");
 const { EventEmitter } = require("events");
 const moment = require("moment");
 
-
 const qrcode = require("qrcode");
 const { ipcMain } = require("electron");
-let _dialogLock = false;
-let _dialogsCache = null;
-let _dialogsCacheTime = 0;
+
 class TelegramService extends EventEmitter {
   constructor(dbManager, securityManager) {
     super();
@@ -35,6 +32,80 @@ class TelegramService extends EventEmitter {
       langCode: "en",
     });
   }
+
+  async formatShortMessage(msg,mainWindow) {
+    const senderId = msg.userId?.value?.toString(); // DM sender
+    const chatId = senderId; // DM chat = sender
+    const getEntitySafely = async (id) => {
+      if (!id) return null;
+      try {
+        return await this.client.getEntity(id);
+      } catch {
+        return null; // no crash
+      }
+    };
+    const senderEntity = await getEntitySafely(senderId);
+    const chatEntity = senderEntity; // in DM, chat = user
+
+    const formatttedMessage = {
+      _id: msg.id.toString(),
+      timestamp: new Date(msg.date * 1000).toISOString(),
+
+      raw_text: msg.message || "",
+
+      message: {
+        id: msg.id,
+        date: new Date(msg.date * 1000).toISOString(),
+        text: msg.message || "",
+        from_id: senderId,
+        to_id: senderId, // DM always 1-to-1
+        reply_to: null,
+        forward: null,
+        edited: false,
+        media: null,
+        reactions: [],
+      },
+
+      sender: senderEntity
+        ? {
+            id: senderEntity.id,
+            username: senderEntity.username || null,
+            first_name: senderEntity.firstName || null,
+            last_name: senderEntity.lastName || null,
+            photo: senderEntity.photo || null,
+          }
+        : null,
+
+      chat: chatEntity
+        ? {
+            id: chatEntity.id,
+            title:
+              [chatEntity.firstName, chatEntity.lastName]
+                .filter(Boolean)
+                .join(" ") || chatEntity.username,
+            username: chatEntity.username || null,
+            type: "private",
+          }
+        : null,
+    };
+   const safe = (obj) => {
+            try {
+              return JSON.parse(JSON.stringify(obj));
+            } catch {
+              return null;
+            }
+          };
+    mainWindow.webContents.send(
+      "telegram:newMessage",
+      safe(formatttedMessage) // prevents IPC crash
+    );
+
+    const updated = await this.getSingleDialog(chatEntity?.id);
+    if (updated) {
+      mainWindow.webContents.send("telegram:dialog-updated", updated);
+    }
+  }
+
   async connectExisting(mainWindow) {
     try {
       await this.init(); // loads saved session & initializes client
@@ -62,6 +133,11 @@ class TelegramService extends EventEmitter {
       this.client.addEventHandler(async (event) => {
         try {
           const msg = event.message;
+          if (event.className === "UpdateShortMessage") {
+            await this.formatShortMessage(event,mainWindow);
+            return;
+          }
+
           if (!msg) return;
 
           // ------------------------------
@@ -76,11 +152,10 @@ class TelegramService extends EventEmitter {
             }
           };
 
-          let senderEntity = await getEntitySafely(msg.fromId);
+          let senderEntity = await getEntitySafely(msg.fromId || msg.senderId);
 
           const chatEntity = await getEntitySafely(msg.peerId);
 
-          
           const safe = (obj) => {
             try {
               return JSON.parse(JSON.stringify(obj));
@@ -204,7 +279,7 @@ class TelegramService extends EventEmitter {
               reply_to: safe(msg.replyTo),
               forward: safe(msg.fwdFrom),
               edited: !!msg.editDate,
-              media: await getMediaInfo(msg),
+              media: msg.media, //await getMediaInfo(msg),
               reactions: getReactions(msg),
             },
 
@@ -238,10 +313,7 @@ class TelegramService extends EventEmitter {
 
           const updated = await this.getSingleDialog(chatEntity?.id);
           if (updated) {
-            mainWindow.webContents.send(
-              "telegram:dialog-updated",
-              updated
-            );
+            mainWindow.webContents.send("telegram:dialog-updated", updated);
           }
         } catch (e) {
           console.error("Error in telegram event handler:", e);
@@ -255,100 +327,96 @@ class TelegramService extends EventEmitter {
       return false;
     }
   }
-  
-// === GLOBAL SAFE LOCK + CACHE ===
-async getDialogsForChat(entity) {
- 
-const inputDialogPeer = new Api.InputDialogPeer({
-  peer: entity  // entity returned from getEntity(chatId)
-});
-const dialogs = await this.client.invoke(
-  new Api.messages.GetPeerDialogs({
-    peers: [inputDialogPeer]   // ONLY the chat you care about
-  })
-);
-return dialogs;
 
-}
-
-
-async getSingleDialog(chatId) {
-  try {
-    // 1) CACHE: refresh only every 10 seconds
-    const now = Date.now();
-    // if (!_dialogsCache || now - _dialogsCacheTime > 10000) {
-    //   // 2) LOCK: prevent multiple parallel getDialogs() calls
-    //   while (_dialogLock) {
-    //     await new Promise((r) => setTimeout(r, 150));
-    //   }
-
-    //   _dialogLock = true;
-    //   try {
-    //     _dialogsCache = await this.client.getDialogs();
-    //     _dialogsCacheTime = Date.now();
-    //   } catch (err) {
-    //     console.error("getDialogs error:", err);
-    //   } finally {
-    //     _dialogLock = false;
-    //   }
-    // }
-
-    // // 3) FIND DIALOG FROM CACHE
-    // const dialogs = _dialogsCache || [];
-    // const dialog = dialogs.find((d) => {
-    //   const id = d.entity?.id?.value;
-    //   return String(id) === String(chatId);
-    // });
-    const entity = await this.client.getEntity(chatId);
-    const dialogs= await this.getDialogsForChat(entity);
-    const dialog = dialogs.dialogs[0];
-    if (!dialog) return null;
-
-    const message = dialogs.messages[0];
-
-    // Determine chat type
-    let chat_type = "private";
-    if (entity.className === "Channel") {
-      chat_type = entity.megagroup ? "group" : "channel";
-    } else if (entity.className === "Chat") {
-      chat_type = "group";
-    } else if (entity.className === "User") {
-      chat_type = "private";
-    }
-
-    const name =
-      entity.title ||
-      [entity.firstName, entity.lastName].filter(Boolean).join(" ") ||
-      "Unknown";
-
-    // 4) RETURN EXACT STRUCTURE (no changes)
-    return {
-      _id: entity.id?.value,
-      id: entity.id?.value,
-      chat_type,
-      name,
-      lastMessage: message?.message || "",
-      last_message: message?.message || "",
-      unread: dialog.unreadCount || 0,
-      read: dialog.unreadCount === 0,
-      isPinned: dialog.pinned || false,
-      is_dialog: true,
-      is_typing: false,
-      last_seen: moment(message.date * 1000).toISOString(),
-      last_ts: moment(message.date * 1000).format("YYYY-MM-DDTHH:mm:ss"),
-      timestamp: moment(message.date * 1000).format("YYYY-MM-DDTHH:mm:ss"),
-      count:  dialogs.messages?.length || 0,
-      summary: "",
-      sync_enabled: null,
-      platform: "Telegram",
-      photo_url: `http://api.pigeon.chat/chat_photo/${entity.id?.toString()}`,
-    };
-  } catch (err) {
-    console.error("getSingleDialog error:", err);
-    return null;
+  // === GLOBAL SAFE LOCK + CACHE ===
+  async getDialogsForChat(entity) {
+    const inputDialogPeer = new Api.InputDialogPeer({
+      peer: entity, // entity returned from getEntity(chatId)
+    });
+    const dialogs = await this.client.invoke(
+      new Api.messages.GetPeerDialogs({
+        peers: [inputDialogPeer], // ONLY the chat you care about
+      })
+    );
+    return dialogs;
   }
-}
 
+  async getSingleDialog(chatId) {
+    try {
+      // 1) CACHE: refresh only every 10 seconds
+      const now = Date.now();
+      // if (!_dialogsCache || now - _dialogsCacheTime > 10000) {
+      //   // 2) LOCK: prevent multiple parallel getDialogs() calls
+      //   while (_dialogLock) {
+      //     await new Promise((r) => setTimeout(r, 150));
+      //   }
+
+      //   _dialogLock = true;
+      //   try {
+      //     _dialogsCache = await this.client.getDialogs();
+      //     _dialogsCacheTime = Date.now();
+      //   } catch (err) {
+      //     console.error("getDialogs error:", err);
+      //   } finally {
+      //     _dialogLock = false;
+      //   }
+      // }
+
+      // // 3) FIND DIALOG FROM CACHE
+      // const dialogs = _dialogsCache || [];
+      // const dialog = dialogs.find((d) => {
+      //   const id = d.entity?.id?.value;
+      //   return String(id) === String(chatId);
+      // });
+      const entity = await this.client.getEntity(chatId);
+      const dialogs = await this.getDialogsForChat(entity);
+      const dialog = dialogs.dialogs[0];
+      if (!dialog) return null;
+
+      const message = dialogs.messages[0];
+
+      // Determine chat type
+      let chat_type = "private";
+      if (entity.className === "Channel") {
+        chat_type = entity.megagroup ? "group" : "channel";
+      } else if (entity.className === "Chat") {
+        chat_type = "group";
+      } else if (entity.className === "User") {
+        chat_type = "private";
+      }
+
+      const name =
+        entity.title ||
+        [entity.firstName, entity.lastName].filter(Boolean).join(" ") ||
+        "Unknown";
+
+      // 4) RETURN EXACT STRUCTURE (no changes)
+      return {
+        _id: entity.id?.value,
+        id: entity.id?.value,
+        chat_type,
+        name,
+        lastMessage: message?.message || "",
+        last_message: message?.message || "",
+        unread: dialog.unreadCount || 0,
+        read: dialog.unreadCount === 0,
+        isPinned: dialog.pinned || false,
+        is_dialog: true,
+        is_typing: false,
+        last_seen: moment(message.date * 1000).toISOString(),
+        last_ts: moment(message.date * 1000).format("YYYY-MM-DDTHH:mm:ss"),
+        timestamp: moment(message.date * 1000).format("YYYY-MM-DDTHH:mm:ss"),
+        count: dialogs.messages?.length || 0,
+        summary: "",
+        sync_enabled: null,
+        platform: "Telegram",
+        photo_url: `http://api.pigeon.chat/chat_photo/${entity.id?.toString()}`,
+      };
+    } catch (err) {
+      console.error("getSingleDialog error:", err);
+      return null;
+    }
+  }
 
   verifyCode(code) {
     ipcMain.emit("telegram:code-entered", code);
@@ -681,7 +749,7 @@ async getSingleDialog(chatId) {
               reply_to: msg.replyTo ? JSON.stringify(msg.replyTo) : null,
               forward: msg.fwdFrom || null,
               edited: !!msg.editDate,
-              media: await getMediaInfo(msg),
+              media: msg.media, //await getMediaInfo(msg),
               reactions: getReactions(msg),
               has_media: !!msg.media,
               has_document: !!msg.document,
@@ -843,7 +911,6 @@ async getSingleDialog(chatId) {
     });
     return chatList;
   }
-
 
   // ------------------------------
   // MESSAGE ACTIONS
