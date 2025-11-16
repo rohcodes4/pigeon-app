@@ -138,7 +138,7 @@ class TelegramService extends EventEmitter {
             return;
           }
 
-          if (!msg) return;
+          if (!msg?.id) return;
 
           // ------------------------------
           // SAFE ENTITY FETCH
