@@ -33,7 +33,7 @@ class TelegramService extends EventEmitter {
     });
   }
 
-  async formatShortMessage(msg,mainWindow) {
+  async formatShortMessage(msg, mainWindow) {
     const senderId = msg.userId?.value?.toString(); // DM sender
     const chatId = senderId; // DM chat = sender
     const getEntitySafely = async (id) => {
@@ -88,13 +88,13 @@ class TelegramService extends EventEmitter {
           }
         : null,
     };
-   const safe = (obj) => {
-            try {
-              return JSON.parse(JSON.stringify(obj));
-            } catch {
-              return null;
-            }
-          };
+    const safe = (obj) => {
+      try {
+        return JSON.parse(JSON.stringify(obj));
+      } catch {
+        return null;
+      }
+    };
     mainWindow.webContents.send(
       "telegram:newMessage",
       safe(formatttedMessage) // prevents IPC crash
@@ -134,7 +134,7 @@ class TelegramService extends EventEmitter {
         try {
           const msg = event.message;
           if (event.className === "UpdateShortMessage") {
-            await this.formatShortMessage(event,mainWindow);
+            await this.formatShortMessage(event, mainWindow);
             return;
           }
 
