@@ -15,7 +15,7 @@ import { FaReply } from "react-icons/fa";
 import { IoIosMore } from "react-icons/io";
 import aiAll from "@/assets/images/aiAll.png";
 import EmojiPicker from "emoji-picker-react";
-
+import { Buffer } from "buffer";
 import {
   X,
   SendHorizonal,
@@ -2062,34 +2062,72 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       }
     };
 
-    async function sendMediaToChat({
+    async function sendMediaToChat({ chatId, file, caption = "",tempName }) {
+ 
+
+  const fileName = file.name?.toLowerCase() || tempName;
+
+  // Detect file type
+  const isPhoto =
+    file.type.startsWith("image/") &&
+    !fileName.endsWith(".gif") &&
+    !fileName.endsWith(".webp");
+
+  const isVideo = file.type.startsWith("video/");
+  const isSticker = fileName.endsWith(".webp") || fileName.endsWith(".tgs");
+  const isGif = fileName.endsWith(".gif");
+  const isVoice =
+    file.type === "audio/ogg" ||
+    fileName.endsWith(".oga") ||
+    fileName.endsWith(".ogg");
+
+  // Convert File → ArrayBuffer → Buffer
+  const arrayBuffer = await file.arrayBuffer();
+  // const buffer = new Uint8Array(await file.arrayBuffer());
+ 
+  const buffer = Buffer.from(arrayBuffer);
+
+  if (isPhoto) {
+    return await window.electronAPI.telegram.sendPhoto( 
       chatId,
-      file, // File object (from file input)
-      caption = "", // Optional string
-      fileName = "file", // Optional, default 'file'
-    }) {
-      const url = `${BACKEND_URL}/api/chats/${chatId}/send_media`;
-      const formData = new FormData();
-      formData.append("file", file, fileName);
-      formData.append("caption", caption);
-      formData.append("file_name", fileName);
+      arrayBuffer,
+      caption,
+      fileName
+    );
+  }
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          // Do NOT set Content-Type header, fetch will set it automatically for FormData!
-        },
-        body: formData,
-      });
+  if (isVideo) {
+    return await window.electronAPI.telegram.sendVideo(
+      chatId,
+       arrayBuffer,
+      caption,
+      fileName
+    );
+  }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `Failed: ${response.status}`);
-      }
+  if (isVoice) {
+    return await window.electronAPI.telegram.sendVoice(
+      chatId,
+       arrayBuffer,
+      caption,
+    );
+  }
 
-      return response.json();
-    }
+  if (isSticker) {
+    return await window.electronAPI.telegram.sendSticker(
+      chatId,
+       arrayBuffer,
+    );
+  }
+
+  // Fallback for documents
+  return await window.electronAPI.telegram.sendDocument(
+    chatId,
+    buffer,
+    caption,
+);
+}
+
 
     async function uploadFileToDiscord(uploadUrl: string, file: File) {
       const url = `${BACKEND_URL}/api/discord/proxy-upload`;

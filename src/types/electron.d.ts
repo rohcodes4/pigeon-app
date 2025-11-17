@@ -186,28 +186,30 @@ export interface ElectronAPI {
       message: string
     ) => Promise<{ success: boolean; error?: string }>;
     sendPhoto: (
-      chatId: string,
-      photo: string,
-      caption?: string
+      chatId: any,
+      file: any,
+      caption?: string,
+      filename?: string
     ) => Promise<{ success: boolean; error?: string }>;
     sendDocument: (
       chatId: string,
-      document: string,
+      document: any,
       caption?: string
     ) => Promise<{ success: boolean; error?: string }>;
     sendVideo: (
       chatId: string,
-      video: string,
-      caption?: string
+      video: any,
+      caption?: string,
+      filename?: string
     ) => Promise<{ success: boolean; error?: string }>;
     sendVoice: (
       chatId: string,
-      voice: string,
+      voice: any,
       caption?: string
     ) => Promise<{ success: boolean; error?: string }>;
     sendSticker: (
       chatId: string,
-      sticker: string
+      sticker: any
     ) => Promise<{ success: boolean; error?: string }>;
     replyMessage: (
       chatId: string,
@@ -412,6 +414,7 @@ export interface ElectronAPI {
 declare global {
   interface Window {
     electronAPI: ElectronAPI;
+    Buffer: typeof Buffer;
   }
 }
 

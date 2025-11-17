@@ -2,7 +2,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 console.log("[telegramPreload] preload loaded");
-
+contextBridge.exposeInMainWorld("Buffer", Buffer);
 contextBridge.exposeInMainWorld("electronAPI", {
   sendTelegramAuth: (authData) => {
     console.log("[telegramPreload] Sending Telegram auth to main:", authData);

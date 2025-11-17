@@ -725,9 +725,9 @@ ipcMain.handle("telegram:mark-as-read", async (_event, chatId) => {
   }
 });
 // === Sending Media ===
-ipcMain.handle("telegram:send-photo", async (_event, { chatId, photo, caption }) => {
+ipcMain.handle("telegram:send-photo", async (_event, { chatId, file, caption,filename }) => {
   try {
-    await telegramClient.sendPhoto(chatId, photo, caption);
+    await telegramClient.sendPhoto(chatId, file, caption,filename);
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
@@ -743,9 +743,9 @@ ipcMain.handle("telegram:send-document", async (_event, { chatId, document, capt
   }
 });
 
-ipcMain.handle("telegram:send-video", async (_event, { chatId, video, caption }) => {
+ipcMain.handle("telegram:send-video", async (_event, { chatId, video, caption,filename }) => {
   try {
-    await telegramClient.sendVideo(chatId, video, caption);
+    await telegramClient.sendVideo(chatId, video, caption,filename);
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };

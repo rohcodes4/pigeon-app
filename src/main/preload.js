@@ -1,5 +1,5 @@
 const { contextBridge, ipcRenderer } = require("electron");
-
+contextBridge.exposeInMainWorld("Buffer", Buffer);
 contextBridge.exposeInMainWorld("electronAPI", {
   discord: {
     connect: (token) => ipcRenderer.invoke("discord:connect", token),
@@ -197,12 +197,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // ------------------------------
   // SENDING
   // ------------------------------
-  sendPhoto: (chatId, photo, caption) =>
-    ipcRenderer.invoke("telegram:send-photo", { chatId, photo, caption }),
+  sendPhoto: (chatId, file, caption,filename) =>
+    ipcRenderer.invoke("telegram:send-photo", { chatId, file, caption,filename }),
   sendDocument: (chatId, document, caption) =>
     ipcRenderer.invoke("telegram:send-document", { chatId, document, caption }),
-  sendVideo: (chatId, video, caption) =>
-    ipcRenderer.invoke("telegram:send-video", { chatId, video, caption }),
+  sendVideo: (chatId, video, caption,filename) =>
+    ipcRenderer.invoke("telegram:send-video", { chatId, video, caption,filename }),
   sendVoice: (chatId, voice, caption) =>
     ipcRenderer.invoke("telegram:send-voice", { chatId, voice, caption }),
   sendSticker: (chatId, sticker) =>

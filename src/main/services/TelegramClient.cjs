@@ -3,8 +3,11 @@ const { TelegramClient, Api } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const { NewMessage } = require("telegram/events");
 const { EventEmitter } = require("events");
+const { CustomFile } = require("telegram/client/uploads");
 const moment = require("moment");
-
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
 const qrcode = require("qrcode");
 const { ipcMain } = require("electron");
 
@@ -1017,17 +1020,58 @@ class TelegramService extends EventEmitter {
   // ------------------------------
   // SENDING
   // ------------------------------
-  async sendPhoto(chatId, photo, caption = "") {
-    return await this.client.sendFile(chatId, { file: photo, caption });
+  async sendPhoto(chatId, photo, caption = "", filename = "photo.jpg") {
+    // const buffer = Buffer.from(photo);
+    const buffer = Buffer.from(new Uint8Array(photo));
+
+    const file = new CustomFile(filename, buffer.length, "", buffer);
+    return await this.client.sendFile(chatId, {
+      file: file,
+      caption
+    });
   }
 
   async sendDocument(chatId, document, caption = "") {
     return await this.client.sendFile(chatId, { file: document, caption });
   }
 
-  async sendVideo(chatId, video, caption = "") {
-    return await this.client.sendFile(chatId, { file: video, caption });
+  // async sendVideo(chatId, video, caption = "", filename = "video.mp4") {
+  //    const buffer = Buffer.from(new Uint8Array(video));
+     
+  //   const file = new CustomFile(filename, buffer.length, null, buffer);
+  //   console.log(buffer?.constructor?.name, buffer?.byteLength ?? buffer?.length);
+
+  //   return await this.client.sendFile(chatId, { file: file, caption, fileSize: buffer.length,     // ensures video properly uploads
+  //   supportsStreaming: true,     // allow streaming playback
+  //   workers: 4, });
+  // }
+
+  async sendVideo(chatId, video, caption = "", filename = "video.mp4") {
+  const buffer = Buffer.from(new Uint8Array(video));
+  
+  // If >20MB → must use file path
+  const MAX_BUFFER_MB = 20 * 1024 * 1024;
+
+  let file;
+
+  if (buffer.length > MAX_BUFFER_MB) {
+    // create temp file
+    const tmpPath = path.join(os.tmpdir(), `${Date.now()}-${filename}`);
+    await fs.promises.writeFile(tmpPath, buffer);
+
+    file = new CustomFile(filename, buffer.length, tmpPath);
+  } else {
+    // under 20MB → buffer method works fine
+    file = new CustomFile(filename, buffer.length, null, buffer);
   }
+
+  return await this.client.sendFile(chatId, {
+    file,
+    caption,
+    fileSize: buffer.length,
+    supportsStreaming: false,
+  });
+}
 
   async sendVoice(chatId, voice, caption = "") {
     return await this.client.sendFile(chatId, {
