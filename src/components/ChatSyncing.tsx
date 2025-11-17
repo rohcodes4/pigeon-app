@@ -451,7 +451,7 @@ export const ChatSyncing = ({
     } else {
       setSyncProgress((prev) => ({ ...prev, telegram: 0 }));
     }
-
+    setTelegramLoading(false)
     // Cleanup
     return () => {
       if (discordInterval) clearInterval(discordInterval);
