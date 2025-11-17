@@ -1299,7 +1299,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           hasMoreMessages &&
           !loadingMore &&
           !loading &&
-          selectedChat.platform.toLowerCase() === "telegram"
+          selectedChat?.platform?.toLowerCase() === "telegram"
         ) {
           scrollRestoreRef.current = {
             prevHeight: scrollHeight,
@@ -1311,7 +1311,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         } else if (
           scrollTop <= 100 &&
           hasMore &&
-          selectedChat.platform.toLowerCase() === "discord"
+          selectedChat?.platform?.toLowerCase() === "discord"
         ) {
           scrollRestoreRef.current = {
             prevHeight: scrollHeight,
