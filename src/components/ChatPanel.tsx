@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { Pin, PinOff } from "lucide-react";
 import aiAll from "@/assets/images/aiAll.png";
-import { mapDiscordToTelegramSchema } from "@/lib/utils";
+import { buildGuildChannelsWithPermissions, mapDiscordToTelegramSchema } from "@/lib/utils";
 import discord from "@/assets/images/discord.png";
 import telegram from "@/assets/images/telegram.png";
 import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
@@ -295,22 +295,21 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const handleMenuMouseLeave = () => {
     closeContextMenu();
   };
+
   useEffect(() => {
     // console.log("Context updated:", { dms, guilds });
     setDiscordDms(dms);
 
     // console.log("[localguild][localStorage] parsed:", parsed);
-    const tempDCchannel = {};
-    if (Array.isArray(guilds) && guilds.length > 0) {
-      guilds.forEach((guild) => {
-        if (guild.channels && Array.isArray(guild.channels)) {
-          tempDCchannel[guild.id] = guild.channels;
-        }
-      });
-
+    let tempDCchannel = {};
+    (async()=>{
+    const currentUserId = await window.electronAPI.discord.getUserId();
+    console.log("userid", currentUserId)
+    if(currentUserId.data)
+    tempDCchannel = buildGuildChannelsWithPermissions(guilds, currentUserId.data);
+  console.log(tempDCchannel,"tempDCchannel")
       setDcChannels(tempDCchannel);
-    }
-    setAllChannels((prevChannels) => {
+        setAllChannels((prevChannels) => {
       // Combine old + new
       const merged = [...prevChannels, ...dms.map(mapDiscordToTelegramSchema)];
 
@@ -323,6 +322,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
       return unique.filter((c) => c.id != null);
     });
+    })();
+
+  
+  
   }, [dms, guilds]);
 
   const handleRightClick = (event, channel) => {
@@ -467,18 +470,26 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         const chans = chats.chats || [];
 
         // Map Discord DMs to unified format
-        const discordChats = (discordDms || [])
+        const discordChats = (dms || [])
           .map(mapDiscordToTelegramSchema)
           .filter((c: any) => c?.id != null);
 
         // Sort Discord chats (most recent first)
-        discordChats.sort((a, b) => Number(b.id) - Number(a.id));
 
         // Merge Telegram + Discord chats
         const allChats = [...chans, ...discordChats].filter(
           (c: any) => c?.id != null
         );
 
+                allChats.sort((a, b) => {
+          if (!a.timestamp && !b.timestamp) return 0; // both null → equal
+          if (!a.timestamp) return 1; // a is null → after b
+          if (!b.timestamp) return -1; // b is null → after a
+
+          return (
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          );
+        });
         // ✅ Update state by preserving previous and avoiding duplicates
         setAllChannels((prevChannels) => {
           const map = new Map();
@@ -1027,7 +1038,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     const channelMap = new Map();
     const roots = [];
     const orphans = [];
-
+    console.log(channels,"guildscannel")
     // Initialize map entries
     channels.forEach((channel) => {
       channel.children = [];
@@ -1057,6 +1068,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         {channels.map((channel) => {
           if (channel.type === 2) return;
           return (
+            <>
+         { channel.canView  &&
             <li
               key={channel.id}
               className={`${channel.type === 4 ? "mt-4" : ""}`}
@@ -1088,6 +1101,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 <RenderChannels channels={channel.children} />
               )}
             </li>
+         }
+               </>
           );
         })}
       </ul>
@@ -1108,7 +1123,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     headingIds.reduce((acc, id) => ({ ...acc, [id]: true }), {})
   );
   const [selectedServer, setSelectedServer] = useState({});
-
+  console.log(sortedChannels,"serverchannels",dcChannels)
   const getSelectedServer = (selectedDiscordServer) => {
     const cachedGuilds = localStorage.getItem("discordGuilds");
     // console.log("[localguild][localStorage] raw:", cachedGuilds);

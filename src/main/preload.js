@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("electronAPI", {
   discord: {
     connect: (token) => ipcRenderer.invoke("discord:connect", token),
+    getUserId: () => ipcRenderer.invoke("discord:getUserId"),
     disconnect: () => ipcRenderer.invoke("discord:disconnect"),
     isConnected: () => ipcRenderer.invoke("discord:isConnected"),
     getState: () => ipcRenderer.invoke("discord:getState"),

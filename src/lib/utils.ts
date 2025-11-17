@@ -268,3 +268,135 @@ export function snowflakeToDate(id) {
   // Format like "YYYY-MM-DDTHH:mm:ss"
   return date.toISOString().slice(0, 19);
 }
+
+const ADMINISTRATOR = 1n << 3n;   // 8
+const VIEW_CHANNEL  = 1n << 10n; // 1024
+const SEND_MESSAGES = 1n << 11n; // 2048
+  function applyOverwriteSet(permissions, overwrites = [], memberRoleIds = [], userId, guildId) {
+  // 1) @everyone overwrite (id === guildId)
+  const everyoneOw = overwrites.find(o => o.type === 0 && (o.id === guildId || o.id === String(guildId)));
+  if (everyoneOw) {
+    permissions &= ~BigInt(everyoneOw.deny || "0");
+    permissions |= BigInt(everyoneOw.allow || "0");
+  }
+
+  // 2) Aggregate role overwrites for this member
+  let roleDeny = 0n, roleAllow = 0n;
+  for (const ow of overwrites) {
+    if (ow.type !== 0) continue;
+    if (!memberRoleIds.includes(ow.id)) continue;
+    roleDeny  |= BigInt(ow.deny || "0");
+    roleAllow |= BigInt(ow.allow || "0");
+  }
+  permissions &= ~roleDeny;
+  permissions |= roleAllow;
+
+  // 3) Member-specific overwrite (highest precedence)
+  const memberOw = overwrites.find(o => o.type === 1 && o.id === userId);
+  if (memberOw) {
+    permissions &= ~BigInt(memberOw.deny || "0");
+    permissions |= BigInt(memberOw.allow || "0");
+  }
+
+  return permissions;
+}
+
+// Compute base permissions (OR of @everyone + all member roles)
+function computeBasePermissions(member, guildRoles = [], guildId) {
+  let perms = 0n;
+  // find @everyone role by id OR name (robust)
+  const everyoneRole = guildRoles.find(r => r.id === guildId || r.name === '@everyone');
+  if (everyoneRole) perms |= BigInt(everyoneRole.permissions || "0");
+
+  // member.roles may be at member.roles or member.role_ids - handle both
+  const memberRoleIds = member?.roles || member?.role_ids || [];
+  for (const rid of memberRoleIds) {
+    const role = guildRoles.find(r => r.id === rid);
+    if (role) perms |= BigInt(role.permissions || "0");
+  }
+  return perms;
+}
+  // Compute final perms for a channel, including ancestor (category) overwrites
+function computeChannelPermsWithParents(channel, guild, member, channelsById, debug = false) {
+  const guildRoles = guild.roles || [];
+  const guildId = guild.id;
+  const memberRoleIds = member?.roles || member?.role_ids || [];
+  const userId = member?.user?.id || member?.id; // tolerate both shapes
+
+  // 1) base perms
+  let permissions = computeBasePermissions(member, guildRoles, guildId);
+
+  // 2) Admin/owner shortcuts
+  if ((permissions & ADMINISTRATOR) !== 0n || guild.owner_id === userId) {
+    if (debug) console.log(`[debug] ${channel.name}: admin or owner => full perms`);
+    return { canView: true, canSend: true, permissions };
+  }
+
+  // 3) gather ancestor (category) chain (root-most first)
+  const chain = [];
+  let pid = channel.parent_id;
+  while (pid) {
+    const p = channelsById.get(pid);
+    if (!p) break;
+    chain.push(p);
+    pid = p.parent_id;
+  }
+  // chain currently [immediateParent, parentOfParent, ...] -> reverse to root-first
+  chain.reverse();
+
+  // 4) apply each ancestor's overwrites (root -> ... -> immediateParent)
+  for (const ancestor of chain) {
+    permissions = applyOverwriteSet(permissions, ancestor.permission_overwrites || [], memberRoleIds, userId, guildId);
+  }
+
+  // 5) apply channel overwrites
+  permissions = applyOverwriteSet(permissions, channel.permission_overwrites || [], memberRoleIds, userId, guildId);
+
+  const canView = (permissions & VIEW_CHANNEL) !== 0n;
+  const canSend = canView && (permissions & SEND_MESSAGES) !== 0n;
+
+  if (debug) {
+    console.log(`[debug] ${guild.name} / ${channel.name} -> perms: ${permissions.toString()} canView:${canView} canSend:${canSend}`);
+    // optional: print which ancestor overwrites were applied
+  }
+
+  return { canView, canSend, permissions };
+}
+  
+  export function buildGuildChannelsWithPermissions(guilds, currentUserId, debug = false) {
+  const tempDCchannel = {};
+
+  if (!Array.isArray(guilds)) return tempDCchannel;
+
+  for (const guild of guilds) {
+    // build channels map for parent traversal
+    const channels = guild.channels || [];
+    const channelsById = new Map();
+    // support both flattened channels or category-with-children structure
+    for (const ch of channels) {
+      channelsById.set(ch.id, ch);
+      // if 'children' exists (your category structure) also map children
+      if (Array.isArray(ch.children) && ch.children.length) {
+        for (const child of ch.children) {
+          channelsById.set(child.id, child);
+        }
+      }
+    }
+
+    // find member object for current user
+    const member = (guild.members || []).find(m => (m.user && m.user.id === currentUserId) || m.id === currentUserId);
+    if (!member) continue;
+
+    // iterate channels (preserve original list shape)
+    const updatedChannels = channels.map(channel => {
+      // channel might be a category (type 4) or child under 'children' — handle both
+      const ch = channel;
+      const { canView, canSend } = computeChannelPermsWithParents(ch, guild, member, channelsById, debug);
+      return { ...ch, canView, canSend };
+    });
+
+    tempDCchannel[guild.id] = updatedChannels;
+  }
+
+  return tempDCchannel;
+}
