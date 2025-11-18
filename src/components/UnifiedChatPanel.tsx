@@ -12,7 +12,7 @@ import discord from "@/assets/images/discordColor.png";
 import telegram from "@/assets/images/telegramColor.png";
 import { FaCopy } from "react-icons/fa";
 import { FaReply } from "react-icons/fa";
-import { IoIosMore } from "react-icons/io";
+import { IoIosMore, IoMdArrowDropleftCircle } from "react-icons/io";
 import aiAll from "@/assets/images/aiAll.png";
 import EmojiPicker from "emoji-picker-react";
 import { Buffer } from "buffer";
@@ -60,6 +60,7 @@ import { useSummarizeMessage } from "@/hooks/discord/useSummarizeMessage";
 import MessageWithLinkifyAndMentions from "./MessageWithMentions";
 import DiscordSticker from "./DiscordSticker";
 import StickerMenu from "./StickerMenu";
+import replyArrow from "../assets/images/replyArrow.png";
 
 const LoadingDots = () => {
   return (
@@ -2323,10 +2324,12 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const generateTaskFromMessage = async (msg) => {
       if (!msg) return;
 
+      console.log('generateTaskFromMessage entry test')
+      console.log(msg)
       summarizeMessages(
         [{ ...msg, text: msg.message }],
         true,
-        selectedChat.platform.toLowerCase()
+        selectedChat?.platform?.toLowerCase()
       );
     };
 
@@ -2640,7 +2643,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     }, []);
 
     return (
-      <div className="relative h-[calc(100vh-136px)] flex flex-col flex-shrink-0 min-w-0">
+      <div className="relative h-[calc(100vh-64px)] flex flex-1 flex-col flex-shrink-0 min-w-0">
         {/* Selected Chat Info */}
         {selectedChat && (
           <div className="px-6 py-4 border-b border-[#23272f]  flex-shrink-0 relative z-0">
@@ -2755,6 +2758,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                   const isSameSenderAsPrev =
                     prevMsg && prevMsg.name === msg.name;
 
+                  const nextMsg = index === msgs.length - 1 ? null : msgs[index + 1];
+                  const isSameSenderAsNext = nextMsg ? nextMsg.name === msg.name : false;
+
                   const isDiscord =
                     selectedChat?.platform?.toLowerCase() === "discord";
                   const isTelegram =
@@ -2790,11 +2796,11 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                         </div>
                       )}
                       <div
-                        className={`flex items-start gap-3 py-3 px-4 rounded-[10px] shadow-sm mb-2 group hover:bg-[#212121] ${
+                        className={`flex items-start gap-3 px-4 rounded-[10px] shadow-sm group hover:bg-[#212121] ${
                           String(msg.id).startsWith("temp-")
                             ? "opacity-70 bg-[#1a1a1a]"
                             : ""
-                        }`}
+                        } ${(isSameSenderAsPrev || isSameSenderAsNext)?"mb-0 py-1":"mb-2 py-3"} `}
                       >
                         {isOwnMessage ? (
                           <></>
@@ -2812,7 +2818,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                           <div
                             className={`absolute ${
                               isOwnMessage ? "left-0" : "right-0"
-                            } top-100 flex gap-2 items-center opacity-0 group-hover:opacity-100 transition-opacity z-10`}
+                            } -top-[25px] flex gap-0 bg-[#161717] border-[#fafafa10] border-[1px] rounded-[6px] items-center opacity-0 group-hover:opacity-100 transition-opacity z-10`}
                           >
                             <div className="relative">
                               <button
@@ -2821,7 +2827,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                                     String(msg.originalId || msg.id)
                                   )
                                 }
-                                className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff] hover:bg-[#ffffff12] transition-all duration-200 cursor-pointer hover:scale-105 hover:bg-[#ffffff16]"
+                                className="flex rounded-l-[6px] items-center gap-1 text-xs px-2 py-1 text-[#ffffff] hover:bg-[#ffffff12] transition-all duration-200 cursor-pointer hover:scale-105 hover:bg-[#ffffff16]"
                                 disabled={
                                   reactionLoading[
                                     String(msg.originalId || msg.id)
@@ -2829,7 +2835,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                                 }
                                 title="Add reaction"
                               >
-                                <SmilePlusIcon className="h-4 w-4" />
+                                <SmilePlusIcon className="h-4 w-4 hover:text-[#3474FF]" />
                                 {reactionLoading[
                                   String(msg.originalId || msg.id)
                                 ] && (
@@ -2846,7 +2852,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                                     isOwnMessage
                                       ? "left-[120%]"
                                       : "right-[120%]"
-                                  } ml-2 bg-[#2d2d2d]/95 backdrop-blur-sm rounded-2xl p-2 shadow-2xl border border-[#555] z-10 transform -translate-y-1/2 min-w-[max-content]`}
+                                  } ml-2 bg-[#2d2d2d]/95 backdrop-blur-sm rounded-[6px] p-2 shadow-2xl border border-[#555] z-10 transform -translate-y-1/2 min-w-[max-content]`}
                                 >
                                   {/* Arrow pointer pointing left */}
                                   <div className="absolute top-1/2 left-0 w-0 h-0 border-t-[8px] border-b-[8px] border-r-[8px] border-t-transparent border-b-transparent border-r-[#2d2d2d] transform -translate-y-1/2 -translate-x-1"></div>
@@ -2876,7 +2882,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                               )}
                             </div>
                             <button
-                              className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
+                              className="h-6 w-6 items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] border border-[#ffffff03]"
                               title="Reply"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -2889,34 +2895,70 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                                 }, 0);
                               }}
                             >
-                              <FaReply className="text-[#ffffff] w-3 h-3" />
+                              <FaReply className="text-[#ffffff] hover:text-[#3474FF] w-3 h-3" />
                             </button>
                             <button
-                              className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
+                                    className="h-6 w-6 items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] border border-[#ffffff03]"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenMenuId(null);
+                                      handlePin(msg);
+                                    }}
+                                    disabled={pinLoading[msg.id]}
+                                  >
+                                    <Pin
+                                      className={`w-3 h-3 text-[#ffffff] hover:text-[#3474FF] ${
+                                        isMessagePinned(
+                                          (msg.originalId || msg.id)?.toString()
+                                        )
+                                          ? "text-blue-400"
+                                          : ""
+                                      }`}
+                                      stroke="currentColor"
+                                      fill={
+                                        isMessagePinned(
+                                          (msg.originalId || msg.id)?.toString()
+                                        )
+                                          ? "currentColor"
+                                          : "none"
+                                      }
+                                    />                                   
+                                  </button>
+                                  <button
+                                    className="h-6 w-6 items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] border border-[#ffffff03]"
+                                    onClick={(e) => {
+                                      generateTaskFromMessage(msg);
+                                    }}
+                                    style={{ position: "relative", zIndex: 2 }}
+                                  >
+                                    <List className="text-[#ffffff] hover:text-[#3474FF] w-3 h-3"/>                                    
+                                  </button>
+                            <button
+                              className="h-6 w-6 items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] border border-[#ffffff03]"
                               title="Copy"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigator.clipboard.writeText(msg.message);
                               }}
                             >
-                              <FaCopy className="text-[#ffffff] w-3 h-3" />
+                              <FaCopy className="text-[#ffffff] hover:text-[#3474FF] w-3 h-3" />
                             </button>
 
                             {selectedChat?.platform?.toLowerCase() ==
                               "telegram" && (
                               <button
-                                className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
+                                className="h-6 w-6 items-center justify-center duration-100 ease-in flex hover:bg-[#3c3c3c] border border-[#ffffff03]"
                                 title="Open in Telegram"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   openInTelegram(msg); // Pass the message to open specific message
                                 }}
                               >
-                                <FaTelegramPlane className="text-[#ffffff] w-3 h-3" />
+                                <FaTelegramPlane className="text-[#ffffff] hover:text-[#3474FF] w-3 h-3" />
                               </button>
                             )}
                             <button
-                              className="h-6 w-6 rounded-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] bg-[#2d2d2d] border border-[#ffffff03]"
+                              className="h-6 w-6 rounded-r-[6px] items-center justify-center duration-100 ease-in  flex hover:bg-[#3c3c3c] border border-[#ffffff03]"
                               title="More"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -2939,7 +2981,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                                 setOpenMenuId(newOpenMenuId);
                               }}
                             >
-                              <IoIosMore className="text-[#ffffff] w-3 h-3" />
+                              <IoIosMore className="text-[#ffffff] hover:text-[#3474FF] w-3 h-3" />
                               {/* Popup menu */}
                               {openMenuId === String(msg.id) && (
                                 <div
@@ -3171,36 +3213,44 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                           {selectedChat.platform === "Telegram" &&
                             msg.replyTo && (
                               <div
-                                className="cursor-pointer text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1 mt-2 max-w-[100%] break-all"
+                                className="cursor-pointer text-xs text-[#84afff] bg-[#1E3BA0] rounded-[10px] px-2 py-1 mb-1 mt-2 max-w-[100%] break-all"
                                 onClick={() => jumpToReply(msg)}
                               >
-                                Replying to{" "}
+                                {/* Replying to{" "} */}
                                 <span className="font-semibold">
-                                  {msg.replyTo.name}:
+                                  {msg.replyTo.name}
                                 </span>{" "}
-                                <span className="text-[#ffffffb0]">
+                                <p className="text-[#ffffffb0]">
                                   {msg.replyTo.message}
-                                </span>
+                                </p>
                               </div>
                             )}
                           {selectedChat.platform === "discord" &&
                             msg?.referenced_message?.id && (
                               <div
                                 className={`${
-                                  isOwnMessage ? "text-right" : ""
-                                } cursor-pointer text-xs text-[#84afff] bg-[#23272f] rounded px-2 py-1 mb-1 mt-2 max-w-[100%] break-all`}
+                                  isOwnMessage ? "text-right flex flex-col items-end" : ""
+                                } cursor-pointer text-xs text-[#84afff] bg-[#1E3BA0] rounded-[10px] px-2 py-1 mb-1 mt-2 max-w-[100%] break-all`}
                                 onClick={() => jumpToReply(msg)}
                               >
-                                Replying to{" "}
+                                
+                                {/* Replying to{" "} */}
+                                <div className="flex items-center gap-2">
+                                  <img src={replyArrow}/>
+                                <ChatAvatar 
+                                name={msg?.referenced_message?.author?.global_name || msg?.referenced_message?.author?.username} 
+                                avatar={`https://cdn.discordapp.com/avatars/${msg?.referenced_message?.author.id}/${msg?.referenced_message?.author.avatar}.png`}
+                                size={20} />
                                 <span className="font-semibold">
                                   {msg?.referenced_message?.author
                                     ?.global_name ||
                                     msg?.referenced_message?.author?.username}
-                                  :
+                                  
                                 </span>{" "}
-                                <span className="text-[#ffffffb0]">
+                                </div>
+                                <p className="text-[#ffffffb0]">
                                   {msg?.referenced_message?.content}
-                                </span>
+                                </p>
                               </div>
                             )}
                           <div
@@ -3444,7 +3494,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
                           {/* Reactions */}
                           {
-                            <div className="flex gap-3 mt-2">
+                            <div className="flex gap-1 mt-2">
                               {msg?.reactions?.map((r: any, i: number) => (
                                 <button
                                   key={i}
@@ -3454,13 +3504,15 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                                       r.icon
                                     )
                                   }
-                                  className="flex items-center gap-1 text-xs bg-[#ffffff06] rounded-full px-2 py-1 text-[#ffffff] hover:bg-[#ffffff12] transition"
+                                  className="font-caption flex items-center gap-1 text-xs bg-[#fafafa10] rounded-[4px] px-2 py-1 text-[#ffffff] hover:bg-[#ffffff12] transition"
                                   title="Toggle reaction"
                                 >
                                   {r.icon || r.emoji}
+                                  <span className="text-[#fafafa60]">
                                   {typeof r.count === "number"
                                     ? " " + r.count
                                     : ""}
+                                    </span>
                                 </button>
                               ))}
                               {/* No local reaction chips; Telegram is source of truth */}

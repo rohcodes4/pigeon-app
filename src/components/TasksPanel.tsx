@@ -658,7 +658,7 @@ const [newTask, setNewTask] = useState({
 
     if (loading) {
       return (
-        <div className="bg-[#171717] text-white flex items-center justify-center h-[calc(100vh-121px)]">
+        <div className="bg-[#171717] text-white flex flex-1 items-center justify-center h-[calc(100vh-121px)]">
           <div className="text-[#ffffff72]">Loading tasks...</div>
         </div>
       );
@@ -666,7 +666,7 @@ const [newTask, setNewTask] = useState({
 
     if (error) {
       return (
-        <div className="bg-[#171717] text-white flex items-center justify-center h-[calc(100vh-121px)]">
+        <div className="bg-[#171717] text-white flex flex-1 items-center justify-center h-[calc(100vh-121px)]">
           <div className="text-red-400">{error}</div>
           <button 
             onClick={() => loadTasks()} 
@@ -734,7 +734,7 @@ const [newTask, setNewTask] = useState({
     
 
     return (
-      <div className="bg-[#171717] text-white flex flex-col h-[calc(100vh-121px)] overflow-y-scroll">
+      <div className="bg-[#171717] text-white flex flex-1 flex-col h-[calc(100vh-59px)] overflow-y-scroll">
         <div className=" flex items-center justify-between gap-4 p-4 border-b border-gray-700">
           <div className="flex gap-4 items-center text-sm">
           <div className="border-r border-r-[#ffffff32] 2xl:pr-4 pr-0">

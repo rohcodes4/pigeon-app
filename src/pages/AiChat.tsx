@@ -12,10 +12,13 @@ import AddFriend from "@/components/AddFriend";
 
 import AiChatBox from "@/components/AiChatBox"; // Your AI chat rendering component
 import { SearchPanel } from "@/components/SearchPanel";
+import { useDiscordContext } from "@/context/discordContext";
 
 const AiChat = () => {
   const { user, loading } = useAuth();
+  const { dms, channels, guilds: discordGuilds, refresh } = useDiscordContext();
   const navigate = useNavigate();
+  const [isFocusMode, setIsFocusMode] = useState(false)
 
   const [openPanel, setOpenPanel] = useState<
     null | "notification" | "pinned" | "search"
@@ -125,9 +128,12 @@ const AiChat = () => {
   return (
     <Layout
     selectedDiscordServer={selectedDiscordServer}
-    onSelectDiscordServer={handleSelectDiscordServer}>
+    onSelectDiscordServer={handleSelectDiscordServer}
+    guilds={discordGuilds}
+    isFocusMode={isFocusMode}
+    setIsFocusMode={setIsFocusMode}>
       <div className="flex-1 flex flex-col">
-        <AppHeader
+        {/* <AppHeader
           isNotificationPanel={openPanel === "notification"}
           setIsNotificationPanel={(open) =>
             setOpenPanel(open ? "notification" : null)
@@ -140,14 +146,16 @@ const AiChat = () => {
           setSearchTerm={setSearchTerm}
           selectedOptions={selectedOptions}
           setSelectedOptions={setSelectedOptions}
-        />
-        <main className="flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
+        /> */}
+        <main className="flex-1 pb-0 pr-0 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
           <ChatPanel
             chats={chats}
             onChatSelect={handleChatSelect}
             selectedChat={selectedChat}
             selectedDiscordServer={selectedDiscordServer}
+            onSelectDiscordServer={handleSelectDiscordServer}
             onBack={() => setSelectedDiscordServer(null)}
+            isFocusMode={isFocusMode}
           />
           <div className="w-full flex flex-col">
             <UnifiedHeader
@@ -157,11 +165,23 @@ const AiChat = () => {
               isContact={false}
               isAI={true}
               selectedChat={selectedChat}
+              isNotificationPanel={openPanel === "notification"}
+          setIsNotificationPanel={(open) =>
+            setOpenPanel(open ? "notification" : null)
+          }
+          isPinnedOpen={openPanel === "pinned"}
+          setIsPinnedOpen={(open) => setOpenPanel(open ? "pinned" : null)}
+          isSearchOpen={openPanel === "search"}
+          setIsSearchOpen={(open) => setOpenPanel(open ? "search" : null)}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          selectedOptions={selectedOptions}
+          setSelectedOptions={setSelectedOptions}
             />
+            <div className="flex">
             <AiChatBox/>
-          </div>
 
-          {openPanel === "notification" && <NotificationsPanel />}
+            {openPanel === "notification" && <NotificationsPanel />}
           {openPanel === "pinned" && <PinnedPanel />}
           {openPanel === "search" && (
             <SearchPanel
@@ -171,6 +191,10 @@ const AiChat = () => {
               selectedOptions={selectedOptions}
             />
           )}
+            </div>
+          </div>
+
+         
         </main>
       </div>
     </Layout>

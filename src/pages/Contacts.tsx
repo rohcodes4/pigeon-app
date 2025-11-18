@@ -37,8 +37,10 @@ import AddFriend from "@/components/AddFriend";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
 import ContactsPanel from "@/components/ContactsPanel";
+import { useDiscordContext } from "@/context/discordContext";
 
 const Contacts = () => {
+  const { dms, channels, guilds: discordGuilds, refresh } = useDiscordContext();
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [isOnboarded, setIsOnboarded] = useState(false);
@@ -51,6 +53,7 @@ const Contacts = () => {
   const [openPanel, setOpenPanel] = useState<
     null | "friend" | "notification" | "pinned" | "search"
   >(null);
+  const [isFocusMode, setIsFocusMode] = useState(false)
 
   // ✅ ADD: Missing chat state variables
   const [chats, setChats] = useState([]); // State to store fetched chats
@@ -185,9 +188,12 @@ const Contacts = () => {
   return (
     <Layout
     selectedDiscordServer={selectedDiscordServer}
-    onSelectDiscordServer={handleSelectDiscordServer}>
+    onSelectDiscordServer={handleSelectDiscordServer}
+    guilds={discordGuilds}
+      isFocusMode={isFocusMode}
+      setIsFocusMode={setIsFocusMode}>
       <div className="flex-1 flex flex-col">
-        <AppHeader
+        {/* <AppHeader
           isNotificationPanel={openPanel === "notification"}
           setIsNotificationPanel={(open) =>
             setOpenPanel(open ? "notification" : null)
@@ -205,15 +211,17 @@ const Contacts = () => {
           setSearchTerm={setSearchTerm}
           selectedOptions={selectedOptions}
           setSelectedOptions={setSelectedOptions}
-        />
-        <main className="flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
+        /> */}
+        <main className="flex-1 pb-0 pr-0 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
           {/* ✅ FIX: Add missing props to ChatPanel */}
           <ChatPanel
             chats={chats}
             onChatSelect={handleChatSelect}
             selectedChat={selectedChat}
             selectedDiscordServer={selectedDiscordServer}
+            onSelectDiscordServer={handleSelectDiscordServer}
             onBack={() => setSelectedDiscordServer(null)}
+            isFocusMode={isFocusMode}
           />
           <div className="w-full">
             <UnifiedHeader
@@ -226,11 +234,27 @@ const Contacts = () => {
               setIsSmartSummary={(open) =>
                 setOpenPanel(open ? "friend" : null)
               }
+              isNotificationPanel={openPanel === "notification"}
+              setIsNotificationPanel={(open) =>
+                setOpenPanel(open ? "notification" : null)
+              }
+              // onOpenPinnedPanel={() => setOpenPanel("pinned")}
+              isPinnedOpen={openPanel === "pinned"}
+              setIsPinnedOpen={(open) => {
+                setOpenPanel(open ? "pinned" : null);
+              }}
+              isSearchOpen={openPanel === "search"}
+              setIsSearchOpen={(open) => {
+                setOpenPanel(open ? "search" : null);
+              }}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              selectedOptions={selectedOptions}
+              setSelectedOptions={setSelectedOptions}
             />
+            <div className="flex">
             <ContactsPanel />
-          </div>
-
-          {openPanel === "friend" && <AddFriend />}
+            {openPanel === "friend" && <AddFriend />}
           {openPanel === "notification" && <NotificationsPanel />}
           {openPanel === "pinned" && <PinnedPanel />}
           {openPanel === "search" && (
@@ -241,6 +265,10 @@ const Contacts = () => {
               selectedOptions={selectedOptions}
             />
           )}
+            </div>
+          </div>
+
+          
         </main>
       </div>
     </Layout>

@@ -7,6 +7,8 @@ import Help from "@/assets/images/sidebar/Help.png";
 import Lobby from "@/assets/images/sidebar/Lobby.png";
 import Logs from "@/assets/images/sidebar/Logs.png";
 import Notification from "@/assets/images/sidebar/Notification.png";
+import focusEnable from "@/assets/images/focusLoading.svg";
+import focusDisable from "@/assets/images/focusSleep.svg";
 import Discord from "@/assets/images/discord.png";
 import Telegram from "@/assets/images/telegram.png";
 import { useState, useRef, useEffect } from "react";
@@ -28,9 +30,14 @@ import { useNavigate } from "react-router-dom";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useTheme, Theme } from "@/hooks/useTheme"; // Correctly import Theme
 import ChatAvatar from "./ChatAvatar";
+import DiscordSidebar from "./DiscordSidebar";
+import { Checkbox } from "@radix-ui/react-checkbox";
+import FocusToggle from "./FocusToggle";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 interface SidebarNavProps {
+  isFocusMode: boolean;
+  setIsFocusMode: (boolean) => void;
   activePage: string;
   onSelectDiscordServer: (serverId: string | null) => void;
   selectedDiscordServer: string | null;
@@ -52,9 +59,10 @@ const dummyServers = [
   { id: "12", name: "Discord Server Twelve" },
 ];
 
-export const SidebarNav: React.FC<SidebarNavProps> = ({ activePage,  onSelectDiscordServer, selectedDiscordServer, guilds }) => {
+export const SidebarNav: React.FC<SidebarNavProps> = ({ isFocusMode, setIsFocusMode, activePage,  onSelectDiscordServer, selectedDiscordServer, guilds }) => {
   // console.log(Object.values(guilds))
   const [guild, setGuild] = useState([])
+  
   // if(guilds.length>0){
   //   setGuild(Object.values(guild))
   // } 
@@ -402,8 +410,14 @@ const isHelpPage = activePage === "/help";
             } w-6 h-6`}
           />
         </button>
+        {/* <div onClick={()=>setIsFocusMode(!isFocusMode)}>{isFocusMode?"Unfocus":"Focus"}</div> */}
+        <FocusToggle 
+          imgTop={focusDisable}
+          imgBottom={focusEnable}
+          onToggle={()=>setIsFocusMode(!isFocusMode)}/>
+
       </nav>
-      <div className="discord-servers my-4 pl-2 overflow-y-auto w-full flex flex-col items-center">
+      {/* <div className="discord-servers my-4 pl-2 overflow-y-auto w-full flex flex-col items-center">
   {discordServers.length > 0 && discordConnected &&
     discordServers.map((server) => (
       <button
@@ -430,7 +444,7 @@ const isHelpPage = activePage === "/help";
         )}
       </button>
     ))}
-</div>
+</div> */}
 
       <div className="flex flex-col items-center gap-6 mt-auto mb-4">
         {/* Discord Icon with Connected Badge */}

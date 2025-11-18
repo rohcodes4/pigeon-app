@@ -18,6 +18,7 @@ import Settings from "./pages/Settings";
 import { DashboardSettings } from "./components/DashboardSettings";
 import AiChat from "./pages/AiChat";
 import TaskTrackerWrapper from "./components/taskTrackerWrapper";
+import { FocusModeProvider } from "./context/focusModeContext";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
     <ThemeProvider>
       <TooltipProvider>
         <AuthProvider>
+          <FocusModeProvider>
           <Toaster />
           <Sonner />
           <HashRouter>
@@ -48,6 +50,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </HashRouter>
+          </FocusModeProvider>
         </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>
