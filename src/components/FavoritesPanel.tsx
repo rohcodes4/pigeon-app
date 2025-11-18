@@ -102,7 +102,7 @@ const FavoritesPanel = () => {
 
   if (isLoading) {
     return (
-      <aside className="h-[calc(100vh-60px)] flex-1 overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]">
+      <aside className="h-[calc(100vh-60px)] flex-1 overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] bg-[#111111] text-white flex flex-col shadow-lg border border-[#23242a]">
         <div className="text-[#84AFFF] flex items-center gap-2 p-4">
           <Heart className="w-4 h-4 fill-[#84AFFF]" />
           <span>Favorite Messages</span>
@@ -116,7 +116,7 @@ const FavoritesPanel = () => {
 
   if (error) {
     return (
-      <aside className="h-[calc(100vh-60px)] flex-1 overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]">
+      <aside className="h-[calc(100vh-60px)] flex-1 overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] bg-[#111111] text-white flex flex-col shadow-lg border border-[#23242a]">
         <div className="text-[#84AFFF] flex items-center gap-2 p-4">
           <Heart className="w-4 h-4 fill-[#84AFFF]" />
           <span>Favorite Messages</span>
@@ -129,7 +129,7 @@ const FavoritesPanel = () => {
   }
 // console.log('favoriteMessages',favoriteMessages)
   return (
-    <aside className="h-[calc(100vh-60px)] flex-1 overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] bg-[#111111] text-white rounded-2xl flex flex-col shadow-lg border border-[#23242a]">
+    <aside className="h-[calc(100vh-60px)] flex-1 overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] bg-[#111111] text-white flex flex-col shadow-lg border border-[#23242a]">
       <div className="text-[#84AFFF] flex items-center gap-2 p-4">
         <Heart className="w-4 h-4 fill-[#84AFFF]" />
         <span>Favorite Messages ({favoriteMessages.length})</span>
