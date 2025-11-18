@@ -796,7 +796,7 @@ const SmartSummary = ({
   }
 
   return (
-    <aside className="rounded-[10px] h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] max-w-[400px] bg-[#111111] text-white   flex flex-col shadow-lg border border-[#23242a] grow">
+    <aside className={`rounded-[10px] h-[calc(100vh-72px)] overflow-y-scroll overflow-x-hidden min-w-[400px] 2xl:min-w-[500px] ${autoFetch?"max-w-full":"max-w-[400px]"} bg-[#111111] text-white flex flex-col shadow-lg border border-[#23242a] grow`}>
       {/* Header */}
       <div className="flex items-center justify-left gap-4 px-2  py-3 border-b">
         <div className="flex items-center justify-center">
@@ -848,12 +848,12 @@ const SmartSummary = ({
             {summaryLoading ? "Generating..." : "Summarize"}
           </button>
         </div>
-        <div
+       {!autoFetch && <div
           className="ml-auto text-[#ffffff72] cursor-pointer"
           onClick={closePanel}
         >
           <X />
-        </div>
+        </div>}
       </div>
 
       {/* Tabs */}
