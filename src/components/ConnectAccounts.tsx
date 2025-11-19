@@ -696,7 +696,7 @@ export const ConnectAccounts = ({
                           src={play}
                           className="fill-black rounded-full w-4 h-4 object-contain"
                         />
-                        Continue
+                        Continue to inbox
                       </Button>
                     )}
                   </div>
