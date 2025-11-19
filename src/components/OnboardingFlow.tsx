@@ -264,7 +264,8 @@ setCurrentStep }: OnboardingFlowProps) => {
         return (
           <ConnectAccounts
             onAccountsConnected={handleAccountsConnected}
-            onContinue={nextStep}
+            // onContinue={nextStep}
+            onContinue={onComplete}
             telegramConnected={telegramConnected}
             setTelegramConnected={setTelegramConnected}
             discordConnected={discordConnected}
