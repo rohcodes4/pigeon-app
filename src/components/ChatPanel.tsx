@@ -37,6 +37,8 @@ import {
 import { useToggleMuteChat } from "@/hooks/discord/useToggleMuteChat";
 import { useGetMuteChatStatus } from "@/hooks/discord/useGetMuteChatStatus";
 import { useDiscordContext } from "@/context/discordContext";
+import DiscordSidebar from "./DiscordSidebar";
+import { useGlobalFocus } from "@/context/focusModeContext";
 
 // Helper to generate a random gravatar
 
@@ -114,7 +116,9 @@ interface ChatPanelProps {
   onChatSelect?: (chat: any) => void; // Chat selection handler
   selectedChat?: any; // Currently selected chat
   selectedDiscordServer: string | null;
+  onSelectDiscordServer: (serverId: string | null) => void;
   onBack: () => void;
+  // isFocusMode: boolean;
 }
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({
@@ -122,12 +126,16 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onChatSelect,
   selectedChat,
   selectedDiscordServer,
+  onSelectDiscordServer,
   onBack,
+  // isFocusMode
 }) => {
   // Use ONLY real chats; never fall back to dummy/sample data
   const { dms, channels: dcChannel, guilds, refresh } = useDiscordContext();
   const displayChats = chats;
-  const [isFocus, setIsFocus] = useState(false);
+  const { value:isFocusMode, setValue } = useGlobalFocus();
+  const [isFocus, setIsFocus] = useState(!!isFocusMode);
+  console.log('focuss',isFocus)
   const [filters, setFilters] = useState([]);
   const SCROLL_AMOUNT = 100; // px
   const topRowRef = useRef<HTMLDivElement>(null);
@@ -165,7 +173,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [dcChannels, setDcChannels] = useState({});
   const [discordDms, setDiscordDms] = useState([]);
   const menuRef = useRef(null);
-
   // Close on mouse leave from menu
   const handleMenuMouseLeave = () => {
     closeContextMenu();
@@ -253,7 +260,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [isMuted, setisMuted] = useState(false);
   useEffect(() => {
     async function checkMute() {
-      let mute = await fetchMuteStatus(contextMenu.channel.id);
+      let mute = await fetchMuteStatus(contextMenu?.channel?.id);
       setisMuted(mute);
     }
     checkMute();
@@ -271,7 +278,44 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     closeContextMenu();
   };
 
-  const handlePinChat = () => {
+  const handlePinChat = async () => {
+    try {
+      const authToken = localStorage.getItem("access_token");
+      const response = await fetch(`${BACKEND_URL}/chats/${contextMenu.channel.id}/pin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (
+          response.status === 400 &&
+          errorData.detail === "Chat is already pinned"
+        ) {
+          // → Unpin if already pinned
+          const unpinResponse = await fetch(
+            `${BACKEND_URL}/chats/${contextMenu.channel.id}/pin`,
+            {
+              method: "DELETE",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${authToken}`
+              }
+            }
+          );
+          if (!unpinResponse.ok) throw new Error("Failed to unpin channel");
+        } else {
+          throw new Error("Failed to pin channel");
+        }
+      }
+      // refresh pinned list
+      // getPinnedChats();
+    } catch (error) {
+      console.error(error);
+    }
     closeContextMenu();
   };
 
@@ -549,7 +593,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   ];
   const getFilteredChannels = () => {
     // Use displayChats directly to maintain backend sorting
-    let baseArray = isFocus ? focusChannels : sortedDisplayChats;
+    console.log('[focusss] focusChannels', focusChannels)
+    console.log('[focusss] sortedDisplayChats', sortedDisplayChats)
+    let baseArray = isFocus ? sortedDisplayChats.filter((chat) => chat.pinned || chat.isPinned) : sortedDisplayChats;
     let filtered = baseArray;
 
     // Apply search term filter
@@ -589,7 +635,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       searchTerm,
       activeTopItem,
       filters,
-      isFocus,
+      isFocus,      
       allChannels,
     ]
   );
@@ -604,22 +650,44 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       : channels.slice(0, channelsLimit); // Use dynamic limit
 
   const handleFocusMode = () => {
-    setIsFocus((prevIsFocus) => {
-      const newIsFocus = !prevIsFocus;
-      if (newIsFocus) {
-        setFocusChannels(
-          displayChannels.filter((chat) => chat.pinned || chat.isPinned)
-        );
-      } else {
-        setFocusChannels(displayChannels);
-      }
-      return newIsFocus;
-    });
+    // console.log('[focuss] dc', displayChannels)
+    // setIsFocus((prevIsFocus) => {
+    //   const newIsFocus = !prevIsFocus;
+    //   if (newIsFocus) {
+    //     setFocusChannels(
+    //       displayChannels.filter((chat) => chat.pinned || chat.isPinned)
+    //     );
+    //   } else {
+    //     setFocusChannels(displayChannels);
+    //   }
+
+    //   return newIsFocus;
+    // });
+    setIsFocus(isFocusMode)
+    if (isFocusMode) {
+      setFocusChannels(
+        displayChannels.filter((chat) => chat.pinned || chat.isPinned)
+      );
+    } else {
+      setFocusChannels(displayChannels);
+    }
+    
   };
+
+  useEffect(()=>{
+    // setIsFocus(!isFocusMode)
+    handleFocusMode()
+  },[isFocusMode, sortedDisplayChats])
+  
+  const filteredChats = useMemo(() => {
+    return isFocus
+      ? sortedDisplayChats.filter(chat => chat.pinned || chat.isPinned)
+      : sortedDisplayChats;
+  }, [sortedDisplayChats, isFocus]);
 
   const [fetchedUsers, setFetchedUsers] = useState<any[]>([]);
 
-  async function fetchSearchUsers(query = "rohcodes", limit = 10) {
+  async function fetchSearchUsers(query, limit = 10) {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL; // or your backend URL string
     const token = localStorage.getItem("access_token");
 
@@ -862,9 +930,93 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     getSelectedServer(selectedDiscordServer);
   }, [selectedDiscordServer]);
 
+  const [discordServers, setDiscordServers] = useState([]);
+  const [guild, setGuild] = useState([])
+  // if(guilds.length>0){
+  //   setGuild(Object.values(guild))
+  // } 
+
+
+  useEffect(() => {
+    // Try to load guilds from localStorage first
+    const cachedGuilds = localStorage.getItem("discordGuilds");
+    // console.log("[localguild][localStorage] raw:", cachedGuilds);
+  
+    if (cachedGuilds) {
+      try {
+        const parsed = JSON.parse(cachedGuilds);
+        // console.log("[localguild][localStorage] parsed:", parsed);
+  
+        if (Array.isArray(parsed)) {
+          setDiscordServers(parsed);
+          // console.log("[localguild][localStorage] setGuilds:", parsed);
+        }
+      } catch (err) {
+        console.error("[localguild][localStorage] parse error:", err);
+        // fail silently, will refetch
+      }
+    }
+  
+    // Always fetch fresh from Discord and update cache
+    async function fetchGuilds() {
+      const guilds = await window.electronAPI.discord.getGuilds();
+      // console.log("[localguild][discord API] raw:", guilds);
+  
+      // convert object of objects to array of objects with id
+      let arr = [];
+      if (guilds.data && typeof guilds.data === "object") {
+        arr = [...guilds.data.entries()].map(([key, value]) => ({
+        id: key,
+        ...value,
+      }));   
+        // console.log("[localguild][discord API] mapped array:", arr);
+      }
+      if(arr.length>0){
+        setDiscordServers(arr);
+        localStorage.setItem("discordGuilds", JSON.stringify(arr));
+        // console.log("[localguild][discord API] saved to localStorage");
+      }
+      
+    }
+    setTimeout(()=>{
+      fetchGuilds();
+    },5000)
+    
+  }, []);
+
+  useEffect(()=>{
+    let timer: any = null;
+    const poll = async () => {
+      const guilds = await window.electronAPI.discord.getGuilds(); 
+      // console.log("gggg",guilds.data)
+      // const guildArray = Array.from(guilds.data);   
+      const guildArray = [...guilds.data.entries()].map(([key, value]) => ({
+        id: key,
+        ...value,
+      }));   
+      // console.log("ggg",guildArray)
+      setGuild(guildArray)
+      localStorage.setItem("discordGuilds", JSON.stringify(guildArray));
+      setDiscordServers(guildArray)
+    }
+    timer = setTimeout(poll, 30000);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  },[])
+
+  function getRandomColor() {
+    const r = Math.floor(180 + Math.random() * 75); // 180–255
+  const g = Math.floor(180 + Math.random() * 75);
+  const b = Math.floor(180 + Math.random() * 75);
+  return `rgb(${r}, ${g}, ${b})`;
+  }
+
   if (selectedDiscordServer && sortedChannels.length > 0) {
     return (
-      <div className="h-[calc(100vh-73px)] min-w-[350px] p-3 flex flex-col border-r border-[#23272f] bg-[#111111]">
+      <div className="h-[calc(100vh-0px)] flex">
+      <DiscordSidebar discordServers={discordServers} selectedDiscordServer={selectedDiscordServer} onSelectDiscordServer={onSelectDiscordServer}/>
+<div className="min-w-[350px] p-3 flex flex-col border-r border-[#23272f] bg-[#111111]">
         <button
           onClick={() => {
             onBack();
@@ -876,7 +1028,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           &larr; Back to Chats
         </button>
         <h3 className="mb-3 text-lg font-bold">{selectedServer?.name}</h3>
-        <div className="overflow-y-scroll h-full">
+        <div className="overflow-y-scroll overflow-x-hidden h-full">
           {selectedServer?.banner && (
             <img
               className="max-w-[320px] rounded-t-[12px]"
@@ -885,6 +1037,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           )}
           <h3 className="mb-3 text-lg font-bold">Channels</h3>
           <RenderChannels channels={sortedChannels} />
+        </div>
         </div>
       </div>
     );
@@ -980,8 +1133,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           onFiltersUpdated={refreshSmartFilters}
         />
       ) : (
-        <aside className="h-[calc(100vh-73px)] w-[350px] p-3 pl-0 flex flex-col border-r border-[#23272f] bg-[#111111]">
-          <Button
+        <aside className="h-[calc(100vh-0px)] flex">
+      <DiscordSidebar discordServers={discordServers} selectedDiscordServer={selectedDiscordServer} onSelectDiscordServer={onSelectDiscordServer}/>
+<div className="flex flex-col w-[350px] p-3 pl-0 flex border-r border-[#23272f] bg-[#111111]">
+          {/* <Button
             variant="ghost"
             onClick={handleFocusMode}
             className={`ml-3 bg-[#171717] rounded-[8px] ${
@@ -989,13 +1144,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             } p-0 `}
           >
             <Eye /> Focus Mode
-          </Button>
+          </Button> */}
           <Button
             onClick={handleGenerateSummary}
-            className={`ml-3 mt-2 bg-[#171717] rounded-[8px] text-[#ffffff] bg-[#3474ff] hover:text-[#ffffff] hover:bg-[#3474ff] p-0 `}
+            className={`ml-3 mt-2 bg-[#171717] rounded-[8px] text-[#ffffff] bg-[#3474ff] hover:text-[#ffffff] hover:bg-[#3474ff] p-0 h-8`}
           >
-            <img src={aiIMG} className="w-10 h-10" />
-            {"Summarize All Channels"}
+            <img src={aiIMG} className="w-8 h-8" />
+            {"Summarize All"}
           </Button>
           {/* Search Bar */}
           <div className="flex items-center gap-2 pl-3 ">
@@ -1265,12 +1420,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                             }
                           }}
                         >
-                          <div className="w-10 h-10 flex items-center justify-center rounded-full bg-[#3474ff] text-white text-xs">
+                          <div className="w-10 h-10 flex items-center justify-center rounded-full text-black text-xs"
+                            style={{ background: getRandomColor() }}>
                             {filter.name
                               .split(" ")
                               .map((word: string) => word[0])
                               .join("")
-                              .slice(0, 2)}
+                              .slice(0, 2)
+                              .toUpperCase()}
                           </div>
                           <div className="flex-1 text-left">
                             <div className="flex justify-between items-center">
@@ -1574,6 +1731,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             onSave={handleEditorSave}
             allChannels={allChannels}
           />
+          </div>
         </aside>
       )}
       <Dialog

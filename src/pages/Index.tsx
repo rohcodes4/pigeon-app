@@ -53,7 +53,7 @@ const Index = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const { dms, channels, guilds: discordGuilds, refresh } = useDiscordContext();
   const [isDiscordSyced, setDiscordSyced] = useState(false);
-
+  const [isFocusMode, setIsFocusMode] = useState(false)
 
 
 
@@ -339,9 +339,11 @@ const Index = () => {
       selectedDiscordServer={selectedDiscordServer}
       onSelectDiscordServer={handleSelectDiscordServer}
       guilds={discordGuilds}
+      isFocusMode={isFocusMode}
+      setIsFocusMode={setIsFocusMode}
     >
       <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
-        <AppHeader
+        {/* <AppHeader
           isNotificationPanel={openPanel === "notification"}
           setIsNotificationPanel={(open) =>
             setOpenPanel(open ? "notification" : null)
@@ -359,20 +361,22 @@ const Index = () => {
           setSearchTerm={setSearchTerm}
           selectedOptions={selectedOptions}
           setSelectedOptions={setSelectedOptions}
-        />
-        <main className="h-[calc(100vh-72px)] flex flex-row pb-0  space-x-0 max-w-screen justify-stretch border border-[FFFFFF17] rounded-tl-[12px] overflow-hidden">
+        /> */}
+        <main className="h-[calc(100vh-0px)] flex flex-row pb-0  space-x-0 max-w-screen justify-stretch border border-[FFFFFF17] rounded-tl-[12px] overflow-hidden">
           {/* Left Side - Chat Panel (Fixed) */}
           <ChatPanel
             chats={chats}
             onChatSelect={handleChatSelect}
             selectedChat={selectedChat}
             selectedDiscordServer={selectedDiscordServer}
+            onSelectDiscordServer={handleSelectDiscordServer}
             onBack={() => setSelectedDiscordServer(null)}
+            // isFocusMode={isFocusMode}
           />
 
           {/* Middle - Main Content Area (Flexible) */}
           <div
-            className={`h-[calc(100vh-72px)] min-w-0 flex flex-col transition-all duration-300 ${
+            className={`h-[calc(100vh-0px)] min-w-0 flex flex-col transition-all duration-300 ${
               openPanel !== null
                 ? "flex-1" // Takes remaining space when panel is open
                 : "flex-grow" // Takes all available space when no panel
@@ -388,12 +392,27 @@ const Index = () => {
               }
               isPinnable={true}
               selectedChat={selectedChat}
+              isNotificationPanel={openPanel === "notification"}
+          setIsNotificationPanel={(open) =>
+            setOpenPanel(open ? "notification" : null)
+          }
+          // onOpenPinnedPanel={() => setOpenPanel("pinned")}
+          isPinnedOpen={openPanel === "pinned"}
+          setIsPinnedOpen={(open) => {
+            setOpenPanel(open ? "pinned" : null);
+          }}
+          isSearchOpen={openPanel === "search"}
+          setIsSearchOpen={(open) => {
+            setOpenPanel(open ? "search" : null);
+          }}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          selectedOptions={selectedOptions}
+          setSelectedOptions={setSelectedOptions}
             />
+            <div className="flex">
             <UnifiedChatPanel selectedChat={selectedChat} />
-          </div>
-
-          {/* Right Side - Panels Container */}
-          {openPanel === "smartSummary" && (
+            {openPanel === "smartSummary" && (
             <SmartSummary
               selectedChat={selectedChat}
               chatId={selectedChat.id}
@@ -410,6 +429,28 @@ const Index = () => {
               selectedOptions={selectedOptions}
             />
           )}
+            </div>
+            
+          </div>
+
+          {/* Right Side - Panels Container */}
+          {/* {openPanel === "smartSummary" && (
+            <SmartSummary
+              selectedChat={selectedChat}
+              chatId={selectedChat.id}
+              closePanel={() => setOpenPanel(null)}
+            />
+          )}
+          {openPanel === "notification" && <NotificationsPanel />}
+          {openPanel === "pinned" && <PinnedPanel />}
+          {openPanel === "search" && (
+            <SearchPanel
+              searchQuery={searchTerm}
+              selectedSource={selectedSource}
+              setSelectedSource={setSelectedSource}
+              selectedOptions={selectedOptions}
+            />
+          )} */}
         </main>
       </div>
     </Layout>

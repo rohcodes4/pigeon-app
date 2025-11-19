@@ -38,8 +38,10 @@ import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
 import SmartBookmark from "@/components/SmartBookmark";
 import FavoritesPanel from "@/components/FavoritesPanel";
+import { useDiscordContext } from "@/context/discordContext";
 
 const Bookmarks = () => {
+  const { dms, channels, guilds: discordGuilds, refresh } = useDiscordContext();
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [isOnboarded, setIsOnboarded] = useState(false);
@@ -63,6 +65,7 @@ const Bookmarks = () => {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [selectedSource, setSelectedSource] = useState("All sources");
+  const [isFocusMode, setIsFocusMode] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -288,9 +291,12 @@ const Bookmarks = () => {
   return (
     <Layout
     selectedDiscordServer={selectedDiscordServer}
-    onSelectDiscordServer={handleSelectDiscordServer}>
+    onSelectDiscordServer={handleSelectDiscordServer}
+    guilds={discordGuilds}
+    isFocusMode={isFocusMode}
+    setIsFocusMode={setIsFocusMode}>
       <div className="flex-1 flex flex-col">
-        <AppHeader
+        {/* <AppHeader
           isNotificationPanel={openPanel === "notification"}
           setIsNotificationPanel={(open) =>
             setOpenPanel(open ? "notification" : null)
@@ -307,17 +313,16 @@ const Bookmarks = () => {
           setSearchTerm={setSearchTerm}
           selectedOptions={selectedOptions}
           setSelectedOptions={setSelectedOptions}
-        />
-        <main className="flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
+        /> */}
+        <main className="flex-1 pb-0 pr-0 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
           <ChatPanel
             chats={favoriteChats}
             onChatSelect={handleChatSelect}
             selectedChat={selectedId}
             selectedDiscordServer={selectedDiscordServer}
+            onSelectDiscordServer={handleSelectDiscordServer}
             onBack={() => setSelectedDiscordServer(null)}
-            // chats={chats} // RC/FixesNew
-            // onChatSelect={handleChatSelect} // RC/FixesNew
-            // selectedChat={selectedChat} // RC/FixesNew
+            isFocusMode={isFocusMode}
           />
           <div className="w-full">
             <UnifiedHeader
@@ -329,13 +334,26 @@ const Bookmarks = () => {
               setIsSmartSummary={(open) =>
                 setOpenPanel(open ? "smartTask" : null)
               }
+              isNotificationPanel={openPanel === "notification"}
+              setIsNotificationPanel={(open) =>
+                setOpenPanel(open ? "notification" : null)
+              }
+              isPinnedOpen={openPanel === "pinned"}
+              setIsPinnedOpen={(open) => {
+                setOpenPanel(open ? "pinned" : null);
+              }}
+              isSearchOpen={openPanel === "search"}
+              setIsSearchOpen={(open) => {
+                setOpenPanel(open ? "search" : null);
+              }}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              selectedOptions={selectedOptions}
+              setSelectedOptions={setSelectedOptions}
             />
-            {/* Show FavoritesPanel by default */}
+            <div className="flex">
             <FavoritesPanel />
-            {/* <UnifiedChatPanel selectedChat={selectedChat} />  Flex's changes */}
-          </div>
-
-          {openPanel === "smartTask" && <SmartBookmark />}
+            {openPanel === "smartTask" && <SmartBookmark />}
           {openPanel === "notification" && <NotificationsPanel />}
           {openPanel === "pinned" && <PinnedPanel />}
           {openPanel === "search" && (
@@ -346,6 +364,12 @@ const Bookmarks = () => {
               selectedOptions={selectedOptions}
             />
           )}
+            </div>
+            
+            
+          </div>
+
+         
         </main>
       </div>
     </Layout>

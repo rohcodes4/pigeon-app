@@ -163,16 +163,16 @@ const ContactsPanel = () => {
     }
   };
   return (
-    <div className="p-4 0 text-white bg-[#1a1a1e]">
+    <div className="p-4 flex-1 text-white bg-[#1a1a1e]">
       <div
         className={`overflow-y-scroll ${
           selectedUser && uploadedFiles.length == 0
-            ? "h-[calc(100vh-280px)]"
+            ? "h-[calc(100vh-210px)]"
             : uploadedFiles.length >= 1
             ? `h-[calc(100vh-${infoDivHeight + 150}px)]`
-            : "h-[calc(100vh-150px)]"
+            : "h-[calc(100vh-80px)]"
         }`}
-        style={{ height: `calc(100vh - ${infoDivHeight + 150}px)` }}
+        style={{ height: `calc(100vh - ${infoDivHeight + 80}px)` }}
       >
         {users.length > 0 &&
           users.map((user, index) => (
@@ -372,7 +372,6 @@ const ContactsPanel = () => {
           </div>
         </div>
       )}
-      <UnifiedChatPanel ref={chatPanelRef} />
     </div>
   );
 };

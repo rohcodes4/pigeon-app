@@ -196,7 +196,7 @@ const AiChatBox: React.FC<AiChatBoxProps> = ({ selectedChat }) => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-136px)] border-gray-700">
+    <div className="flex flex-1 flex-col h-[calc(100vh-64px)] border-gray-700">
       <div className="flex-1 p-4 overflow-y-auto">
       {messages.map(({ id, role, content, loading }) => (
           <div

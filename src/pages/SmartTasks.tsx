@@ -36,8 +36,11 @@ import TasksPanel from "@/components/TasksPanel";
 import SmartTask from "@/components/SmartTasks";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import PinnedPanel from "@/components/PinnedPanel";
+import { useDiscordContext } from "@/context/discordContext";
 
 const SmartTasks = () => {
+  const { dms, channels, guilds: discordGuilds, refresh } = useDiscordContext();
+  const [isFocusMode, setIsFocusMode] = useState(false)
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [isOnboarded, setIsOnboarded] = useState(false);
@@ -179,9 +182,12 @@ const SmartTasks = () => {
   return (
     <Layout
     selectedDiscordServer={selectedDiscordServer}
-    onSelectDiscordServer={handleSelectDiscordServer}>
+    onSelectDiscordServer={handleSelectDiscordServer}
+    guilds={discordGuilds}
+      isFocusMode={isFocusMode}
+      setIsFocusMode={setIsFocusMode}>
       <div className="flex-1 flex flex-col">
-        <AppHeader
+        {/* <AppHeader
           isNotificationPanel={openPanel === "notification"}
           setIsNotificationPanel={(open) =>
             setOpenPanel(open ? "notification" : null)
@@ -199,14 +205,16 @@ const SmartTasks = () => {
           setSearchTerm={setSearchTerm}
           selectedOptions={selectedOptions}
           setSelectedOptions={setSelectedOptions}
-        />
-        <main className="flex-1 pb-0 pr-3 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
+        /> */}
+        <main className="flex-1 pb-0 pr-0 overflow-y-auto flex w-full justify-stretch border-t border-l border-[#23272f] rounded-tl-[12px] ">
           <ChatPanel
             chats={chats}
             onChatSelect={handleChatSelect}
             selectedChat={selectedChat}
             selectedDiscordServer={selectedDiscordServer}
+            onSelectDiscordServer={handleSelectDiscordServer}
             onBack={() => setSelectedDiscordServer(null)}
+            isFocusMode={isFocusMode}
           />
           <div className="w-full">
             <UnifiedHeader
@@ -218,12 +226,27 @@ const SmartTasks = () => {
               setIsSmartSummary={(open) =>
                 setOpenPanel(open ? "smartTask" : null)
               }
+              isNotificationPanel={openPanel === "notification"}
+              setIsNotificationPanel={(open) =>
+                setOpenPanel(open ? "notification" : null)
+              }
+              // onOpenPinnedPanel={() => setOpenPanel("pinned")}
+              isPinnedOpen={openPanel === "pinned"}
+              setIsPinnedOpen={(open) => {
+                setOpenPanel(open ? "pinned" : null);
+              }}
+              isSearchOpen={openPanel === "search"}
+              setIsSearchOpen={(open) => {
+                setOpenPanel(open ? "search" : null);
+              }}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              selectedOptions={selectedOptions}
+              setSelectedOptions={setSelectedOptions}
             />
-            {/* <UnifiedChatPanel/> */}
-          <TasksPanel />
-          </div>
-
-          {openPanel === "smartTask" && <SmartTask />}
+           <div className="flex">
+           <TasksPanel />  
+           {openPanel === "smartTask" && <SmartTask />}
           {openPanel === "notification" && <NotificationsPanel />}
           {openPanel === "pinned" && <PinnedPanel />}
           {openPanel === "search" && (
@@ -234,6 +257,11 @@ const SmartTasks = () => {
               selectedOptions={selectedOptions}
             />
           )}
+          </div> 
+          
+          </div>
+
+          
         </main>
       </div>
     </Layout>
