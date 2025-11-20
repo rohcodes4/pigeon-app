@@ -2849,7 +2849,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                         </div>
                       )}
                       <div
-                        className={`flex items-start gap-3 px-4 rounded-[10px] shadow-sm group hover:bg-[#212121] ${
+                        className={`flex items-start gap-3 px-4 rounded-[10px] shadow-sm group hover:bg-[#fafafa10] ${
                           String(msg.id).startsWith("temp-")
                             ? "opacity-70 bg-[#1a1a1a]"
                             : ""

@@ -26,7 +26,7 @@ const Layout: React.FC<LayoutProps> = ({
   const location = useLocation();
 
   return (
-    <div className="flex min-h-screen max-w-screen bg-[#161717]">
+    <div className="flex min-h-screen max-w-screen bg-[#1a1a1e]">
       <SidebarNav
         guilds={guilds}
         activePage={location.pathname}

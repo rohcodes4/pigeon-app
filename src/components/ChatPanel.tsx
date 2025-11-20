@@ -1288,8 +1288,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               <button
                 className={`w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ${
                   selectedId === "all-channels"
-                    ? "bg-[#212121] selected-chat"
-                    : "hover:bg-[#212121] focus:bg-[#212121]"
+                    ? "bg-[#fafafa10] selected-chat"
+                    : "hover:bg-[#fafafa10] focus:bg-[#fafafa10]"
                 }`}
                 onClick={() => {
                   setSelectedId("all-channels");
