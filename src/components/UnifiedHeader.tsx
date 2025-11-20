@@ -347,6 +347,19 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
         )}
       </div>
       <div className="flex items-center gap-3 relative">
+        <div className="absolute h-[150%] w-[1px] bg-[#fafafa10] -top-2 left-0"></div>
+      <div className="p-2 ml-2 rounded-[10px] inline-flex items-center justify-center cursor-pointer">
+          <Pin
+            className="h-4 w-4 fill-[#fafafa] text-[#fafafa]"
+            onClick={() => setIsPinnedOpen(!isPinnedOpen)}
+          />
+        </div>
+        <div className="p-2 rounded-[10px] inline-flex items-center justify-center cursor-pointer">
+          <Bell
+            className="h-4 w-4 fill-[#fafafa] text-[#fafafa]"
+            onClick={() => setIsNotificationPanel(!isNotificationPanel)}
+          />
+        </div>
         <div className="relative flex-1 flex items-center border border-[#FAFAFA10] py-2 px-4 rounded-[8px] h-8">
           <Search className="w-5 h-5 text-[#ffffff48] absolute left-2" />
           <input
@@ -432,18 +445,7 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
           </div>
         )}
 
-        <div className="p-2 border rounded-[10px] border-[#ffffff09] inline-flex items-center justify-center cursor-pointer">
-          <Pin
-            className="h-4 w-4 fill-[#84afff] text-[#84afff]"
-            onClick={() => setIsPinnedOpen(!isPinnedOpen)}
-          />
-        </div>
-        <div className="p-2 border rounded-[10px] border-[#ffffff09] inline-flex items-center justify-center cursor-pointer">
-          <Bell
-            className="h-4 w-4 fill-[#84afff] text-[#84afff]"
-            onClick={() => setIsNotificationPanel(!isNotificationPanel)}
-          />
-        </div>
+      
       </div>
     </header>
   );

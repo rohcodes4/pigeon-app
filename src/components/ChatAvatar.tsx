@@ -6,6 +6,7 @@ interface ChatAvatarProps {
   avatar?: string | string[]; // ✅ single URL or array for groups
   backupAvatar?: string;
   size?: number;
+  debug?: boolean;
 }
 
 const ChatAvatar: React.FC<ChatAvatarProps> = ({
@@ -13,9 +14,18 @@ const ChatAvatar: React.FC<ChatAvatarProps> = ({
   avatar,
   backupAvatar,
   size = 40,
+  debug = false,
 }) => {
   const gravatar = logo;
   const [fallbackStep, setFallbackStep] = useState(0);
+
+  // Log avatar, backupAvatar, fallbackStep, and current src on relevant changes
+  useEffect(() => {
+    if (debug) {
+      console.log("[chatav] avatar:", avatar);
+      console.log("[chatav] backupAvatar:", backupAvatar);
+    }
+  }, [avatar, backupAvatar, debug]);
 
   const isArray = Array.isArray(avatar);
 
@@ -30,21 +40,33 @@ const ChatAvatar: React.FC<ChatAvatarProps> = ({
   const [src, setSrc] = useState(initialSrc);
 
   useEffect(() => {
+    if (debug) {
+      console.log("[chatav] initialSrc changed:", initialSrc);
+      console.log("[chatav] resetting src and fallbackStep");
+    }
     setSrc(initialSrc);
     setFallbackStep(0);
-  }, [avatar, backupAvatar, initialSrc]);
+  }, [avatar, backupAvatar, initialSrc, debug]);
 
   const handleError = () => {
+    if (debug) console.log("[chatav] handleError called. fallbackStep:", fallbackStep, "current src:", src);
+
     if (fallbackStep === 0 && backupAvatar && src !== backupAvatar) {
+      if (debug) console.log("[chatav] Switching src to backupAvatar");
       setSrc(backupAvatar);
       setFallbackStep(1);
     } else if (fallbackStep <= 1 && src !== gravatar) {
+      if (debug) console.log("[chatav] Switching src to gravatar");
       setSrc(gravatar);
       setFallbackStep(2);
+    } else {
+      if (debug) console.log("[chatav] No more fallbacks available");
     }
   };
 
   if (isArray) {
+    if (debug) console.log("[chatav] rendering array of avatars", avatar);
+
     const isTwoImageLayout = avatar.length <= 30;
     const avatars = isTwoImageLayout ? avatar.slice(0, 2) : avatar.slice(0, 4);
     const gridClass = isTwoImageLayout
@@ -62,7 +84,8 @@ const ChatAvatar: React.FC<ChatAvatarProps> = ({
               className="object-cover w-full h-full"
               loading="lazy"
               decoding="async"
-              onError={(e) => {                
+              onError={(e) => {
+                if (debug) console.log(`[chatav] img #${i} failed to load, src: ${src}`);
                 (e.target as HTMLImageElement).src = backupAvatar || gravatar;
               }}
             />
@@ -77,6 +100,8 @@ const ChatAvatar: React.FC<ChatAvatarProps> = ({
       </div>
     );
   }
+
+  if (debug) console.log("[chatav] rendering single avatar with src:", src);
 
   return (
     <img
