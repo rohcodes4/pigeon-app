@@ -13,7 +13,8 @@ import {
   PinOff,
   SmilePlusIcon,
 } from "lucide-react";
-import aiIMG from "@/assets/images/aiBlue.png";
+// import aiIMG from "@/assets/images/aiBlue.png";
+import aiIMG from "@/assets/images/aiWhite.png";
 import { useAuth } from "@/hooks/useAuth";
 
 type UnifiedHeaderProps = {
@@ -336,9 +337,9 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                 onClick={() =>
                   setIsSmartSummary && setIsSmartSummary(!isSmartSummary)
                 }
-                className="p-1 font-[600]  px-3 flex gap-2 text-[11px] items-center rounded-[6px] cursor-pointer text-[#84afff] bg-[#3474ff12] hover:text-[#ffffff] hover:bg-[#3474ff] transition"
+                className="p-1 font-[600] py-[7px] px-3 flex gap-2 text-[11px] items-center rounded-[6px] cursor-pointer text-[#fafafa] bg-[#fafafa10] hover:text-[#ffffff] hover:bg-[#3474ff] transition"
               >
-                <img src={aiIMG} className="w-5 h-5" />
+                <img src={aiIMG} className="w-3 h-3" />
                 <span>{smartText}</span>
               </button>
             )}

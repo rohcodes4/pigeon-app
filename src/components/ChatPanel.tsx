@@ -97,7 +97,7 @@ function useScrollArrows(ref: React.RefObject<HTMLDivElement>) {
 
   useEffect(() => {
     checkScroll();
-  });
+  },[]);
 
   return { canScrollLeft, canScrollRight, checkScroll };
 }
@@ -121,9 +121,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onBack,
   // isFocusMode
 }) => {
-  useEffect(() => {
-    console.log("[sds]", selectedDiscordServer);
-  }, [selectedDiscordServer]);
   const { dms, channels: dcChannel, guilds, refresh } = useDiscordContext();
   const displayChats = chats;
   const { value: isFocusMode, setValue } = useGlobalFocus();
@@ -794,9 +791,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   }
 
   const RenderChannels = ({ channels }) => {
-    console.log("[sdc] sdc", selectedServer);
-    // console.log('[sdc] sdc.id', selectedServer.id)
-    // console.log('[sdc] sdc.icon', selectedServer.icon)
     return (
       <ul>
         {channels.map((channel) => {
@@ -810,7 +804,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 >
                   <div
                     onClick={() => {
-                      console.log("[dc channel] clicked");
                       if (channel.type === 4) return;
                       onChatSelect({
                         id: channel.id,
@@ -851,15 +844,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     const cachedGuilds = localStorage.getItem("discordGuilds");
 
     if (cachedGuilds) {
-      console.log("[selectedServer] a");
       try {
         const parsed = JSON.parse(cachedGuilds);
-        console.log("[selectedServer] parsed", parsed);
         const filtered = parsed.filter((guild) => {
           return String(guild.id) == String(selectedDiscordServer);
         });
-        console.log("[selectedServer] filtered", filtered[0]);
-
         setSelectedServer(filtered[0]);
         return filtered[0];
       } catch {
@@ -869,33 +858,21 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
 
   useEffect(() => {
-    console.log("[sdcc]", selectedDiscordServer);
-    // getSelectedServer(selectedDiscordServer);
     const cachedGuilds = localStorage.getItem("discordGuilds");
 
     if (cachedGuilds) {
-      console.log("[selectedServer] a");
       try {
         const parsed = JSON.parse(cachedGuilds);
-        console.log("[selectedServer] parsed", parsed);
         const filtered = parsed.filter((guild) => {
           return String(guild.id) == String(selectedDiscordServer);
         });
-        console.log("[selectedServer] filtered", filtered[0]);
-
         setSelectedServer(filtered[0]);
       } catch {}
     }
   }, [selectedDiscordServer]);
 
-  useEffect(() => {
-    console.log("[selectedServer]", selectedServer);
-  }, [selectedServer]);
   const [discordServers, setDiscordServers] = useState([]);
   const [guild, setGuild] = useState([]);
-  // if(guilds.length>0){
-  //   setGuild(Object.values(guild))
-  // }
 
   useEffect(() => {
     // Try to load guilds from localStorage first
@@ -1311,8 +1288,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               <button
                 className={`w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ${
                   selectedId === "all-channels"
-                    ? "bg-[#212121] selected-chat"
-                    : "hover:bg-[#212121] focus:bg-[#212121]"
+                    ? "bg-[#fafafa10] selected-chat"
+                    : "hover:bg-[#fafafa10] focus:bg-[#fafafa10]"
                 }`}
                 onClick={() => {
                   setSelectedId("all-channels");

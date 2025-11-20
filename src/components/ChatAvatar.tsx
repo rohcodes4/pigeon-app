@@ -1,20 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import logo from "@/assets/images/logo.svg";
-
-function gravatarUrl(seed: string) {
-  try {
-    const safeSeed = seed.replace(/[^\x00-\x7F]/g, ""); // Remove non-ASCII
-    if (!safeSeed)
-      return `https://www.gravatar.com/avatar/default?d=identicon&s=80`;
-    return `https://www.gravatar.com/avatar/${btoa(safeSeed)}?d=identicon&s=80`;
-  } catch (error) {
-    return `https://www.gravatar.com/avatar/default?d=identicon&s=80`;
-  }
-}
 
 interface ChatAvatarProps {
   name: string;
-  avatar?: string | string[]; // ✅ can be single URL or array for group
+  avatar?: string | string[]; // ✅ single URL or array for groups
   backupAvatar?: string;
   size?: number;
 }
@@ -28,17 +17,22 @@ const ChatAvatar: React.FC<ChatAvatarProps> = ({
   const gravatar = logo;
   const [fallbackStep, setFallbackStep] = useState(0);
 
-  // Single or multiple avatars
   const isArray = Array.isArray(avatar);
-  const [src, setSrc] = useState(
-    isArray
-      ? avatar[0]
-      : avatar
-      ? avatar
-      : backupAvatar
-      ? backupAvatar
-      : gravatar
-  );
+
+  const initialSrc = isArray
+    ? avatar[0]
+    : avatar
+    ? avatar
+    : backupAvatar
+    ? backupAvatar
+    : gravatar;
+
+  const [src, setSrc] = useState(initialSrc);
+
+  useEffect(() => {
+    setSrc(initialSrc);
+    setFallbackStep(0);
+  }, [avatar, backupAvatar, initialSrc]);
 
   const handleError = () => {
     if (fallbackStep === 0 && backupAvatar && src !== backupAvatar) {
@@ -50,7 +44,6 @@ const ChatAvatar: React.FC<ChatAvatarProps> = ({
     }
   };
 
-  // ✅ If multiple avatars (group)
   if (isArray) {
     const isTwoImageLayout = avatar.length <= 30;
     const avatars = isTwoImageLayout ? avatar.slice(0, 2) : avatar.slice(0, 4);
@@ -60,21 +53,22 @@ const ChatAvatar: React.FC<ChatAvatarProps> = ({
 
     return (
       <div className={gridClass}>
-        {avatars.map((src, i) => (
-          <img
-            key={i}
-            src={src}
-            alt={name + i}
-            className="object-cover w-full h-full"
-            loading="lazy"
-            decoding="async"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = backupAvatar || gravatar;
-            }}
-          />
-        ))}
+        {avatars.map((src, i) => {
+          return (
+            <img
+              key={i}
+              src={src}
+              alt={name + i}
+              className="object-cover w-full h-full"
+              loading="lazy"
+              decoding="async"
+              onError={(e) => {                
+                (e.target as HTMLImageElement).src = backupAvatar || gravatar;
+              }}
+            />
+          );
+        })}
 
-        {/* Fill empty slots if < required */}
         {Array.from({
           length: (isTwoImageLayout ? 2 : 4) - avatars.length,
         }).map((_, i) => (
@@ -84,7 +78,6 @@ const ChatAvatar: React.FC<ChatAvatarProps> = ({
     );
   }
 
-  // ✅ Default single avatar
   return (
     <img
       src={src}

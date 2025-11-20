@@ -270,6 +270,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
     const [showStickers, setShowStickers] = useState(false);
     const [selectedSticker, setSelectedSticker] = useState([]);
+    const [chatPhotoUrl, setChatPhotoUrl] = useState(null);
 
     const handleStickerSelect = (sticker) => {
       console.log("Selected sticker:", sticker);
@@ -341,6 +342,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       if (container) {
         container.scrollTop = container.scrollHeight;
       }
+      setChatPhotoUrl(selectedChat.photo_url)
     }, [selectedChat]);
 
     const handleEmojiClick = (emojiData) => {
@@ -2668,20 +2670,16 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                     .toUpperCase()}
                 </div>
               ) : (
-                // Regular chat avatar
-                <img
-                  src={selectedChat.photo_url}
-                  onError={(e) => {
-                    // On error (image fail to load), fallback to gravatar url
-                    const target = e.currentTarget;
-                    target.onerror = null; // Prevent infinite loop in case gravatar also fails
-                    target.src = gravatarUrl(selectedChat.name || "User");
-                  }}
-                  alt={selectedChat.name || "User"}
-                  className="w-10 h-10 rounded-full object-cover"
-                  loading="lazy"
-                  decoding="async"
-                />
+               chatPhotoUrl && <ChatAvatar
+                name={selectedChat.name || selectedChat.first_name}
+                avatar={
+                  Array.isArray(chatPhotoUrl)
+                    ? chatPhotoUrl
+                    : chatPhotoUrl ||
+                      `${BACKEND_URL}/chat_photo/${selectedChat.chat_id}`
+                }
+                backupAvatar={`${BACKEND_URL}/contact_photo/${selectedChat.chat_id}`}
+              />
               )}
               <div>
                 <h3 className="text-white z-0 font-medium">
@@ -2851,7 +2849,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                         </div>
                       )}
                       <div
-                        className={`flex items-start gap-3 px-4 rounded-[10px] shadow-sm group hover:bg-[#212121] ${
+                        className={`flex items-start gap-3 px-4 rounded-[10px] shadow-sm group hover:bg-[#fafafa10] ${
                           String(msg.id).startsWith("temp-")
                             ? "opacity-70 bg-[#1a1a1a]"
                             : ""
