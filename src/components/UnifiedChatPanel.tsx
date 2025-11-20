@@ -3281,9 +3281,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                           {selectedChat.platform === "discord" &&
                             msg?.referenced_message?.id && (
                               <div
-                                className={`${
-                                  isOwnMessage ? "text-right flex flex-col items-end mb-2" : ""
-                                } cursor-pointer text-xs text-[#84afff] bg-[#1E3BA0] rounded-[10px] px-2 py-2 mb-1 mt-2 max-w-[100%] break-all border-l-2 border-[#3474FF]`}
+                                className={` cursor-pointer text-xs text-[#84afff] bg-[#1E3BA0] rounded-[10px] px-2 py-2 mb-1 mt-2 max-w-[100%] break-all border-l-2 border-[#3474FF]`}
                                 onClick={() => jumpToReply(msg)}
                               >
                                 
@@ -3546,7 +3544,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                             />
                           </div>
 
-                          {/* Reactions */}
                           {
                             <div className="flex gap-1 mt-2">
                               {msg?.reactions?.map((r: any, i: number) => (

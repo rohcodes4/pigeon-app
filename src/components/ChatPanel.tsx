@@ -1205,7 +1205,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     className={`px-4 py-2 rounded-full whitespace-nowrap cursor-pointer hover:text-white text-[13px] transition ${
                       activeTopItem === item
                         ? "text-white bg-[#3474ff60]"
-                        : "text-[#FFFFFF48]"
+                        : "text-[#fafafa60]"
                     }`}
                   >
                     {item}
@@ -1339,7 +1339,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     setIsFilteredStreamsOpen(!isFilteredStreamsOpen)
                   }
                 >
-                  <span className="text-white font-medium">
+                  <span className="text-white text-xs">
                     Filtered Streams
                   </span>
                   <div className="flex">
@@ -1472,7 +1472,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     className="flex justify-between items-center cursor-pointer"
                     onClick={() => setIsChannelsOpen(!isChannelsOpen)}
                   >
-                    <span className="text-white font-medium">Channels</span>
+                    <span className="text-white text-xs">Channels</span>
                     {isChannelsOpen ? (
                       <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5 " />
                     ) : (
