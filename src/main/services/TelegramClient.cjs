@@ -413,7 +413,7 @@ class TelegramService extends EventEmitter {
         summary: "",
         sync_enabled: null,
         platform: "Telegram",
-        photo_url: `http://api.pigeon.chat/chat_photo/${entity.id?.toString()}`,
+        photo_url: `https://api.pigeon.chat/chat_photo/${entity.id?.toString()}`,
       };
     } catch (err) {
       console.error("getSingleDialog error:", err);
@@ -909,7 +909,7 @@ class TelegramService extends EventEmitter {
         summary: "",
         sync_enabled: null,
         platform: "Telegram",
-        photo_url: `http://api.pigeon.chat/chat_photo/${entity.id?.toString()}`,
+        photo_url: `https://api.pigeon.chat/chat_photo/${entity.id?.toString()}`,
       };
     });
     return chatList;
