@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import logo from "@/assets/images/logo.svg";
 
 function gravatarUrl(seed: string) {
   try {
@@ -24,7 +25,7 @@ const ChatAvatar: React.FC<ChatAvatarProps> = ({
   backupAvatar,
   size = 40,
 }) => {
-  const gravatar = gravatarUrl(name + "Telegram");
+  const gravatar = logo;
   const [fallbackStep, setFallbackStep] = useState(0);
 
   // Single or multiple avatars

@@ -12,26 +12,31 @@ type LayoutProps = {
   guilds: any[] | null;
   isFocusMode: boolean;
   setIsFocusMode: (boolean) => void;
-
 };
 
-const Layout: React.FC<LayoutProps> = ({ isFocusMode, setIsFocusMode, children, onSelectDiscordServer, selectedDiscordServer, guilds }) => {
+const Layout: React.FC<LayoutProps> = ({
+  isFocusMode,
+  setIsFocusMode,
+  children,
+  onSelectDiscordServer,
+  selectedDiscordServer,
+  guilds,
+}) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
   return (
-    <div className="flex min-h-screen max-w-screen bg-[#171717]">
-    {/* Sidebar: full height, fixed width */}
-    <SidebarNav guilds={guilds} activePage={location.pathname} isFocusMode={isFocusMode} setIsFocusMode={setIsFocusMode} selectedDiscordServer={selectedDiscordServer} onSelectDiscordServer={onSelectDiscordServer}/>
-{children}
-    {/* Right side: header at top, content below */}
-    {/* <div className="flex-1 flex flex-col min-h-screen">
-      <AppHeader title={title}/>
-      <main className="flex-1 p-6 overflow-y-auto">
-        {children}
-      </main>
-    </div> */}
-  </div>
+    <div className="flex min-h-screen max-w-screen bg-[#161717]">
+      <SidebarNav
+        guilds={guilds}
+        activePage={location.pathname}
+        isFocusMode={isFocusMode}
+        setIsFocusMode={setIsFocusMode}
+        selectedDiscordServer={selectedDiscordServer}
+        onSelectDiscordServer={onSelectDiscordServer}
+      />
+      {children}
+    </div>
   );
 };
 

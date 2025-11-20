@@ -18,8 +18,11 @@ import {
   X,
 } from "lucide-react";
 import { Pin, PinOff } from "lucide-react";
-import aiAll from "@/assets/images/aiAll.png";
-import { buildGuildChannelsWithPermissions, mapDiscordToTelegramSchema } from "@/lib/utils";
+import aiAll from "@/assets/images/allChannels.png";
+import {
+  buildGuildChannelsWithPermissions,
+  mapDiscordToTelegramSchema,
+} from "@/lib/utils";
 import discord from "@/assets/images/discord.png";
 import telegram from "@/assets/images/telegram.png";
 import { FaDiscord, FaTelegramPlane } from "react-icons/fa";
@@ -27,30 +30,22 @@ import ChatAvatar from "./ChatAvatar";
 import FiltersPanel from "./FiltersPanel";
 import FilterEditor from "./FilterEditor";
 
-import aiIMG from "@/assets/images/aiAll.png";
+import aiIMG from "@/assets/images/aiTransparent.png";
 
 import SmartSummary from "./SmartSummary";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useToggleMuteChat } from "@/hooks/discord/useToggleMuteChat";
 import { useGetMuteChatStatus } from "@/hooks/discord/useGetMuteChatStatus";
 import { useDiscordContext } from "@/context/discordContext";
 import DiscordSidebar from "./DiscordSidebar";
 import { useGlobalFocus } from "@/context/focusModeContext";
 
-// Helper to generate a random gravatar
-
 const TOP_ITEMS = ["All", "Unread", "Filtered Streams", "Telegram", "Discord"];
 
 function formatChatTime(dateString: string) {
   const now = new Date();
-
-  // Parse as UTC by adding 'Z', then it will be properly converted
   const chatDate = new Date(dateString + "Z");
 
-  // Handle invalid dates
   if (isNaN(chatDate.getTime())) {
     return "now";
   }
@@ -61,7 +56,6 @@ function formatChatTime(dateString: string) {
   const diffMonths = Math.floor(diffDays / 30);
 
   if (diffDays === 0) {
-    // Same day, show time in IST
     return chatDate.toLocaleTimeString("en-IN", {
       hour: "2-digit",
       minute: "2-digit",
@@ -99,13 +93,10 @@ function useScrollArrows(ref: React.RefObject<HTMLDivElement>) {
       el.removeEventListener("scroll", checkScroll);
       window.removeEventListener("resize", checkScroll);
     };
-    // eslint-disable-next-line
   }, [ref.current]);
 
-  // Also check on mount and when content changes
   useEffect(() => {
     checkScroll();
-    // eslint-disable-next-line
   });
 
   return { canScrollLeft, canScrollRight, checkScroll };
@@ -130,12 +121,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onBack,
   // isFocusMode
 }) => {
-  // Use ONLY real chats; never fall back to dummy/sample data
+  useEffect(() => {
+    console.log("[sds]", selectedDiscordServer);
+  }, [selectedDiscordServer]);
   const { dms, channels: dcChannel, guilds, refresh } = useDiscordContext();
   const displayChats = chats;
-  const { value:isFocusMode, setValue } = useGlobalFocus();
+  const { value: isFocusMode, setValue } = useGlobalFocus();
   const [isFocus, setIsFocus] = useState(!!isFocusMode);
-  console.log('focuss',isFocus)
   const [filters, setFilters] = useState([]);
   const SCROLL_AMOUNT = 100; // px
   const topRowRef = useRef<HTMLDivElement>(null);
@@ -162,8 +154,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [topItems, setTopItems] = useState<string[]>(() => {
     const savedTopItems = localStorage.getItem("topItemsOrder");
     return savedTopItems ? JSON.parse(savedTopItems) : TOP_ITEMS;
-  }); // State for TOP_ITEMS, initialized from localStorage
-  // Inline editor state for editing a Smart Filter from ChatPanel
+  });
   const [showFilterEditor, setShowFilterEditor] = useState(false);
   const [editingFilter, setEditingFilter] = useState<any>(null);
   const [allChannels, setAllChannels] = useState<any[]>([]);
@@ -173,7 +164,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [dcChannels, setDcChannels] = useState({});
   const [discordDms, setDiscordDms] = useState([]);
   const menuRef = useRef(null);
-  // Close on mouse leave from menu
   const handleMenuMouseLeave = () => {
     closeContextMenu();
   };
@@ -181,35 +171,34 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   useEffect(() => {
     setDiscordDms(dms);
     let tempDCchannel = {};
-    (async()=>{
-    const currentUserId = await window.electronAPI.discord.getUserId();
-    console.log("userid", currentUserId)
-    if(currentUserId.data)
-    tempDCchannel = buildGuildChannelsWithPermissions(guilds, currentUserId.data);
-  console.log(tempDCchannel,"tempDCchannel")
+    (async () => {
+      const currentUserId = await window.electronAPI.discord.getUserId();
+      if (currentUserId.data)
+        tempDCchannel = buildGuildChannelsWithPermissions(
+          guilds,
+          currentUserId.data
+        );
       setDcChannels(tempDCchannel);
-        setAllChannels((prevChannels) => {
-      // Combine old + new
-      const merged = [...prevChannels, ...dms.map(mapDiscordToTelegramSchema)];
+      setAllChannels((prevChannels) => {
+        const merged = [
+          ...prevChannels,
+          ...dms.map(mapDiscordToTelegramSchema),
+        ];
 
-      // Remove duplicates based on `id`
-      const unique = merged.filter(
-        (channel, index, self) =>
-          index === self.findIndex((c) => c.id === channel.id)
-      );
+        const unique = merged.filter(
+          (channel, index, self) =>
+            index === self.findIndex((c) => c.id === channel.id)
+        );
 
-      return unique.filter((c) => c.id != null);
-    });
+        return unique.filter((c) => c.id != null);
+      });
     })();
-
-  
-  
   }, [dms, guilds]);
 
   const handleRightClick = (event, channel) => {
     event.preventDefault();
 
-    const menuHeight = 120; // set according to actual menu height
+    const menuHeight = 120;
     const padding = 10;
     const viewportHeight = window.innerHeight;
 
@@ -231,7 +220,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   const handleReadAll = async () => {
     if (contextMenu) {
-      // Add your Read All logic here
       try {
         const token = localStorage.getItem("access_token");
         const response = await fetch(
@@ -247,7 +235,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             body: "read=true",
           }
         );
-
       } catch (error) {
         console.error("Failed to mark chat as read:", error);
       }
@@ -267,7 +254,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   }, [contextMenu]);
   const handleMuteChat = async () => {
     if (contextMenu) {
-      // Add your Mute Chat logic here
       let mute = await fetchMuteStatus(contextMenu.channel.id);
       toggleMuteChat(
         contextMenu.channel.id,
@@ -281,13 +267,16 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const handlePinChat = async () => {
     try {
       const authToken = localStorage.getItem("access_token");
-      const response = await fetch(`${BACKEND_URL}/chats/${contextMenu.channel.id}/pin`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`
+      const response = await fetch(
+        `${BACKEND_URL}/chats/${contextMenu.channel.id}/pin`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
         }
-      });
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -295,15 +284,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           response.status === 400 &&
           errorData.detail === "Chat is already pinned"
         ) {
-          // → Unpin if already pinned
           const unpinResponse = await fetch(
             `${BACKEND_URL}/chats/${contextMenu.channel.id}/pin`,
             {
               method: "DELETE",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${authToken}`
-              }
+                Authorization: `Bearer ${authToken}`,
+              },
             }
           );
           if (!unpinResponse.ok) throw new Error("Failed to unpin channel");
@@ -311,7 +299,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           throw new Error("Failed to pin channel");
         }
       }
-      // refresh pinned list
       // getPinnedChats();
     } catch (error) {
       console.error(error);
@@ -339,93 +326,77 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     };
   }, []);
 
-
   useEffect(() => {
-    // Save topItems to localStorage whenever it changes
     localStorage.setItem("topItemsOrder", JSON.stringify(topItems));
   }, [topItems]);
   const loadChannels = async () => {
     try {
+      const discordChats = (dms || [])
+        .map(mapDiscordToTelegramSchema)
+        .filter((c: any) => c?.id != null);
 
-        // Map Discord DMs to unified format
-        const discordChats = (dms || [])
-          .map(mapDiscordToTelegramSchema)
-          .filter((c: any) => c?.id != null);
+      const allChats = [...tgchats, ...discordChats].filter(
+        (c: any) => c?.id != null
+      );
 
-        // Sort Discord chats (most recent first)
+      allChats.sort((a, b) => {
+        if (!a.timestamp && !b.timestamp) return 0; // both null → equal
+        if (!a.timestamp) return 1; // a is null → after b
+        if (!b.timestamp) return -1; // b is null → after a
 
-        // Merge Telegram + Discord chats
-        const allChats = [...tgchats, ...discordChats].filter(
-          (c: any) => c?.id != null
+        return (
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
+      });
+      setAllChannels((prevChannels) => {
+        const map = new Map();
 
-                allChats.sort((a, b) => {
-          if (!a.timestamp && !b.timestamp) return 0; // both null → equal
-          if (!a.timestamp) return 1; // a is null → after b
-          if (!b.timestamp) return -1; // b is null → after a
-
-          return (
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-          );
+        prevChannels.forEach((ch) => {
+          if (ch?.id != null) map.set(ch.id, ch);
         });
-        // ✅ Update state by preserving previous and avoiding duplicates
-        setAllChannels((prevChannels) => {
-          const map = new Map();
 
-          // Add previous channels first
-          prevChannels.forEach((ch) => {
-            if (ch?.id != null) map.set(ch.id, ch);
-          });
-
-          // Then add new channels (overwrite old if same id)
-          allChats.forEach((ch) => {
-            if (ch?.id != null) map.set(ch.id, ch);
-          });
-
-          // Convert map to array and sort (descending by ID)
-          return Array.from(map.values()).sort(
-            (a, b) => Number(b.id) - Number(a.id)
-          );
+        allChats.forEach((ch) => {
+          if (ch?.id != null) map.set(ch.id, ch);
         });
+
+        return Array.from(map.values()).sort(
+          (a, b) => Number(b.id) - Number(a.id)
+        );
+      });
       // }
     } catch (_) {
       // ignore
     }
   };
 
-  // Load channel list for FilterEditor (id/name mapping)
   useEffect(() => {
-    // Call loadChannels initially
     loadChannels();
-  }, [tgchats,dms]);
+  }, [tgchats, dms]);
 
   useEffect(() => {
-         window.electronAPI.telegram.getDialogs().then((dialogsRes) => {
+    window.electronAPI.telegram.getDialogs().then((dialogsRes) => {
       console.log("Fetched telegram dialogs:", dialogsRes);
-      if (dialogsRes.success && dialogsRes.data) 
-        {
-          setTgchats(dialogsRes.data);
-        
-          console.log("tgchans",dialogsRes.data)
+      if (dialogsRes.success && dialogsRes.data) {
+        setTgchats(dialogsRes.data);
+
+        console.log("tgchans", dialogsRes.data);
       }
-    })
-
-      const off = window.electronAPI.telegram.onDialogUpdated((updated) => {
-    console.log("Telegram dialog updated event received:", updated);
-    setTgchats((prev) => {
-      const exists = prev.some((d) => d.id === updated.id);
-
-      if (!exists) {
-        // NEW CHAT CREATED
-        return [updated, ...prev];
-      }
-
-      // UPDATE EXISTING CHAT
-      return prev.map((d) => (d.id === updated.id ? updated : d));
     });
-  });
 
-  return () => off && off();
+    const off = window.electronAPI.telegram.onDialogUpdated((updated) => {
+      console.log("Telegram dialog updated event received:", updated);
+      setTgchats((prev) => {
+        const exists = prev.some((d) => d.id === updated.id);
+
+        if (!exists) {
+          return [updated, ...prev];
+        }
+
+        return prev.map((d) => (d.id === updated.id ? updated : d));
+      });
+    });
+
+    return () => off && off();
   }, []);
 
   const refreshSmartFilters = async () => {
@@ -448,13 +419,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     refreshSmartFilters();
   }, []);
 
-  // Open editor for a filter
   const handleEdit = (filter: any) => {
     setEditingFilter(filter);
     setShowFilterEditor(true);
   };
 
-  // Delete a filter
   const handleDelete = async (filterId: string) => {
     if (!confirm("Are you sure you want to delete this filter?")) return;
     try {
@@ -472,7 +441,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     }
   };
 
-  // Save from FilterEditor (create/update)
   const handleEditorSave = async (
     data: { name: string; channels: number[]; keywords: string[] },
     filterId?: string
@@ -511,7 +479,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     }
   };
 
-  // API function to get all smart filters
   const getSmartFilters = async () => {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const token = localStorage.getItem("access_token");
@@ -534,7 +501,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     if (channelSearch.trim() === "") {
       return;
     }
-    // Add null checks to prevent errors
     if (!displayChats || !Array.isArray(displayChats)) {
       return;
     }
@@ -546,9 +512,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           ch.name.toLowerCase().includes(channelSearch.toLowerCase())
       )
     );
-  }, [channelSearch, displayChats]); // Add displayChats to dependency array
+  }, [channelSearch, displayChats]);
 
-  // Reset limits when search term or filters change
   useEffect(() => {
     setStreamsLimit(5);
     setChannelsLimit(20);
@@ -564,7 +529,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         left: dir === "left" ? -SCROLL_AMOUNT : SCROLL_AMOUNT,
         behavior: "smooth",
       });
-      // Wait for scroll to finish, then check
       setTimeout(checkScroll, 300);
     }
   };
@@ -574,9 +538,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     setTimeout(bottomArrows.checkScroll, 300);
   };
 
-
-  // Trust backend sorting - only separate pinned from unpinned
-  // Backend already sorts chats consistently by messages first, then by name
   const sortedDisplayChats = [
     ...(allChannels || displayChats || [])
       .filter((chat) => chat?.isPinned || chat?.pinned)
@@ -592,13 +553,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       ),
   ];
   const getFilteredChannels = () => {
-    // Use displayChats directly to maintain backend sorting
-    console.log('[focusss] focusChannels', focusChannels)
-    console.log('[focusss] sortedDisplayChats', sortedDisplayChats)
-    let baseArray = isFocus ? sortedDisplayChats.filter((chat) => chat.pinned || chat.isPinned) : sortedDisplayChats;
+    let baseArray = isFocus
+      ? sortedDisplayChats.filter((chat) => chat.pinned || chat.isPinned)
+      : sortedDisplayChats;
     let filtered = baseArray;
 
-    // Apply search term filter
     if (searchTerm.trim()) {
       filtered = filtered.filter(
         (chat) =>
@@ -607,7 +566,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       );
     }
 
-    // Apply top item filters
     if (activeTopItem === "Telegram") {
       filtered = filtered.filter((chat) => chat.platform === "Telegram");
     }
@@ -618,7 +576,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       filtered = filtered.filter((chat) => !chat.read);
     }
 
-    // Apply tag filters
     if (filters.length > 0) {
       filtered = filtered.filter((chat) =>
         filters.every((tag) => chat.tags?.includes(tag))
@@ -635,35 +592,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       searchTerm,
       activeTopItem,
       filters,
-      isFocus,      
+      isFocus,
       allChannels,
     ]
   );
-  // UI behavior: when "Filtered Streams" is selected in TOP_ITEMS,
-  // show only the Filtered Streams section (expanded) and hide Channels
   const showChannelsSection = activeTopItem !== "Filtered Streams";
 
-  // Show more channels when searching or when filters are applied
   const displayChannels =
     searchTerm.trim() || filters.length > 0
       ? channels
-      : channels.slice(0, channelsLimit); // Use dynamic limit
+      : channels.slice(0, channelsLimit);
 
   const handleFocusMode = () => {
-    // console.log('[focuss] dc', displayChannels)
-    // setIsFocus((prevIsFocus) => {
-    //   const newIsFocus = !prevIsFocus;
-    //   if (newIsFocus) {
-    //     setFocusChannels(
-    //       displayChannels.filter((chat) => chat.pinned || chat.isPinned)
-    //     );
-    //   } else {
-    //     setFocusChannels(displayChannels);
-    //   }
-
-    //   return newIsFocus;
-    // });
-    setIsFocus(isFocusMode)
+    setIsFocus(isFocusMode);
     if (isFocusMode) {
       setFocusChannels(
         displayChannels.filter((chat) => chat.pinned || chat.isPinned)
@@ -671,24 +612,22 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     } else {
       setFocusChannels(displayChannels);
     }
-    
   };
 
-  useEffect(()=>{
-    // setIsFocus(!isFocusMode)
-    handleFocusMode()
-  },[isFocusMode, sortedDisplayChats])
-  
+  useEffect(() => {
+    handleFocusMode();
+  }, [isFocusMode, sortedDisplayChats]);
+
   const filteredChats = useMemo(() => {
     return isFocus
-      ? sortedDisplayChats.filter(chat => chat.pinned || chat.isPinned)
+      ? sortedDisplayChats.filter((chat) => chat.pinned || chat.isPinned)
       : sortedDisplayChats;
   }, [sortedDisplayChats, isFocus]);
 
   const [fetchedUsers, setFetchedUsers] = useState<any[]>([]);
 
   async function fetchSearchUsers(query, limit = 10) {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL; // or your backend URL string
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const token = localStorage.getItem("access_token");
 
     const url = `${BACKEND_URL}/api/search/users?query=${encodeURIComponent(
@@ -750,7 +689,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           Authorization: token ? `Bearer ${token}` : "",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ read: true }), // if your backend expects a body, adjust accordingly, else omit body
+        body: JSON.stringify({ read: true }),
       });
 
       if (!response.ok) {
@@ -834,7 +773,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     const channelMap = new Map();
     const roots = [];
     const orphans = [];
-    console.log(channels,"guildscannel")
     // Initialize map entries
     channels.forEach((channel) => {
       channel.children = [];
@@ -856,46 +794,50 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   }
 
   const RenderChannels = ({ channels }) => {
+    console.log("[sdc] sdc", selectedServer);
+    // console.log('[sdc] sdc.id', selectedServer.id)
+    // console.log('[sdc] sdc.icon', selectedServer.icon)
     return (
       <ul>
         {channels.map((channel) => {
           if (channel.type === 2) return;
           return (
             <>
-         { channel.canView  &&
-            <li
-              key={channel.id}
-              className={`${channel.type === 4 ? "mt-4" : ""}`}
-            >
-              <div
-                onClick={() => {
-                  if (channel.type === 4) return;
-                  onChatSelect({
-                    id: channel.id,
-                    platform: "discord",
-                    name: channel.name,
-                    photo_url: `https://cdn.discordapp.com/icons/${selectedServer.id}/${selectedServer.icon}.png`,
-                  });
-                  setSelectedId(channel.id);
-                }}
-                className="hover:bg-[#212121] cursor-pointer px-4 py-2 rounded-[12px]"
-              >
-                {channel.type === 4 && (
-                  <strong className="flex gap-2">
-                    {channel.name}
-                    <ChevronRight />
-                  </strong>
-                )}
-                {channel.type === 0 && <># {channel.name}</>}
-                {channel.type === 15 && <>📝 {channel.name}</>}
-                {![0, 2, 4, 15].includes(channel.type) && channel.name}
-              </div>
-              {channel.children && channel.children.length > 0 && (
-                <RenderChannels channels={channel.children} />
+              {channel.canView && (
+                <li
+                  key={channel.id}
+                  className={`${channel.type === 4 ? "mt-4" : ""}`}
+                >
+                  <div
+                    onClick={() => {
+                      console.log("[dc channel] clicked");
+                      if (channel.type === 4) return;
+                      onChatSelect({
+                        id: channel.id,
+                        platform: "discord",
+                        name: channel.name,
+                        photo_url: `https://cdn.discordapp.com/icons/${selectedServer?.id}/${selectedServer?.icon}.png`,
+                      });
+                      setSelectedId(channel.id);
+                    }}
+                    className="hover:bg-[#212121] cursor-pointer px-4 py-2 rounded-[12px]"
+                  >
+                    {channel.type === 4 && (
+                      <strong className="flex gap-2">
+                        {channel.name}
+                        <ChevronRight />
+                      </strong>
+                    )}
+                    {channel.type === 0 && <># {channel.name}</>}
+                    {channel.type === 15 && <>📝 {channel.name}</>}
+                    {![0, 2, 4, 15].includes(channel.type) && channel.name}
+                  </div>
+                  {channel.children && channel.children.length > 0 && (
+                    <RenderChannels channels={channel.children} />
+                  )}
+                </li>
               )}
-            </li>
-         }
-               </>
+            </>
           );
         })}
       </ul>
@@ -903,21 +845,21 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
 
   const discordChannels = dcChannels[selectedDiscordServer] || [];
-  const sortedChannels = groupChannelsFlat(discordChannels);
+  // const sortedChannels = groupChannelsFlat(discordChannels);
   const [selectedServer, setSelectedServer] = useState({});
-  console.log(sortedChannels,"serverchannels",dcChannels)
   const getSelectedServer = (selectedDiscordServer) => {
     const cachedGuilds = localStorage.getItem("discordGuilds");
-    // console.log("[localguild][localStorage] raw:", cachedGuilds);
 
     if (cachedGuilds) {
+      console.log("[selectedServer] a");
       try {
         const parsed = JSON.parse(cachedGuilds);
+        console.log("[selectedServer] parsed", parsed);
         const filtered = parsed.filter((guild) => {
           return String(guild.id) == String(selectedDiscordServer);
         });
+        console.log("[selectedServer] filtered", filtered[0]);
 
-        // console.log('ssss',filtered[0])
         setSelectedServer(filtered[0]);
         return filtered[0];
       } catch {
@@ -927,117 +869,151 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
 
   useEffect(() => {
-    getSelectedServer(selectedDiscordServer);
+    console.log("[sdcc]", selectedDiscordServer);
+    // getSelectedServer(selectedDiscordServer);
+    const cachedGuilds = localStorage.getItem("discordGuilds");
+
+    if (cachedGuilds) {
+      console.log("[selectedServer] a");
+      try {
+        const parsed = JSON.parse(cachedGuilds);
+        console.log("[selectedServer] parsed", parsed);
+        const filtered = parsed.filter((guild) => {
+          return String(guild.id) == String(selectedDiscordServer);
+        });
+        console.log("[selectedServer] filtered", filtered[0]);
+
+        setSelectedServer(filtered[0]);
+      } catch {}
+    }
   }, [selectedDiscordServer]);
 
+  useEffect(() => {
+    console.log("[selectedServer]", selectedServer);
+  }, [selectedServer]);
   const [discordServers, setDiscordServers] = useState([]);
-  const [guild, setGuild] = useState([])
+  const [guild, setGuild] = useState([]);
   // if(guilds.length>0){
   //   setGuild(Object.values(guild))
-  // } 
-
+  // }
 
   useEffect(() => {
     // Try to load guilds from localStorage first
     const cachedGuilds = localStorage.getItem("discordGuilds");
-    // console.log("[localguild][localStorage] raw:", cachedGuilds);
-  
+
     if (cachedGuilds) {
       try {
         const parsed = JSON.parse(cachedGuilds);
-        // console.log("[localguild][localStorage] parsed:", parsed);
-  
+
         if (Array.isArray(parsed)) {
           setDiscordServers(parsed);
-          // console.log("[localguild][localStorage] setGuilds:", parsed);
         }
       } catch (err) {
         console.error("[localguild][localStorage] parse error:", err);
         // fail silently, will refetch
       }
     }
-  
+
     // Always fetch fresh from Discord and update cache
     async function fetchGuilds() {
       const guilds = await window.electronAPI.discord.getGuilds();
-      // console.log("[localguild][discord API] raw:", guilds);
-  
+
       // convert object of objects to array of objects with id
       let arr = [];
       if (guilds.data && typeof guilds.data === "object") {
         arr = [...guilds.data.entries()].map(([key, value]) => ({
-        id: key,
-        ...value,
-      }));   
-        // console.log("[localguild][discord API] mapped array:", arr);
+          id: key,
+          ...value,
+        }));
       }
-      if(arr.length>0){
+      if (arr.length > 0) {
         setDiscordServers(arr);
         localStorage.setItem("discordGuilds", JSON.stringify(arr));
-        // console.log("[localguild][discord API] saved to localStorage");
       }
-      
     }
-    setTimeout(()=>{
+    setTimeout(() => {
       fetchGuilds();
-    },5000)
-    
+    }, 5000);
   }, []);
 
-  useEffect(()=>{
+  useEffect(() => {
     let timer: any = null;
     const poll = async () => {
-      const guilds = await window.electronAPI.discord.getGuilds(); 
-      // console.log("gggg",guilds.data)
-      // const guildArray = Array.from(guilds.data);   
+      const guilds = await window.electronAPI.discord.getGuilds();
+      // const guildArray = Array.from(guilds.data);
       const guildArray = [...guilds.data.entries()].map(([key, value]) => ({
         id: key,
         ...value,
-      }));   
-      // console.log("ggg",guildArray)
-      setGuild(guildArray)
+      }));
+      setGuild(guildArray);
       localStorage.setItem("discordGuilds", JSON.stringify(guildArray));
-      setDiscordServers(guildArray)
-    }
+      setDiscordServers(guildArray);
+    };
     timer = setTimeout(poll, 30000);
     return () => {
       if (timer) clearTimeout(timer);
     };
-  },[])
+  }, []);
 
   function getRandomColor() {
-    const r = Math.floor(180 + Math.random() * 75); // 180–255
-  const g = Math.floor(180 + Math.random() * 75);
-  const b = Math.floor(180 + Math.random() * 75);
-  return `rgb(${r}, ${g}, ${b})`;
+    const hue = Math.floor(Math.random() * 360); // full hue range
+    const saturation = Math.floor(70 + Math.random() * 30); // 70-100%
+    const lightness = Math.floor(70 + Math.random() * 20); // 70-90%
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
   }
+
+  const [colorMap, setColorMap] = useState({});
+
+  useEffect(() => {
+    const newColorMap = {};
+    smartFilters.forEach((stream) => {
+      if (!colorMap[stream.id]) {
+        newColorMap[stream.id] = getRandomColor();
+      } else {
+        newColorMap[stream.id] = colorMap[stream.id];
+      }
+    });
+    setColorMap(newColorMap);
+  }, [smartFilters]);
+  const sortedChannels = useMemo(() => {
+    return groupChannelsFlat(dcChannels[selectedDiscordServer] || []);
+  }, [dcChannels, selectedDiscordServer, selectedServer]);
+  const renderedChannels = useMemo(
+    () => <RenderChannels channels={sortedChannels} />,
+    [sortedChannels, selectedServer]
+  );
 
   if (selectedDiscordServer && sortedChannels.length > 0) {
     return (
       <div className="h-[calc(100vh-0px)] flex">
-      <DiscordSidebar discordServers={discordServers} selectedDiscordServer={selectedDiscordServer} onSelectDiscordServer={onSelectDiscordServer}/>
-<div className="min-w-[350px] p-3 flex flex-col border-r border-[#23272f] bg-[#111111]">
-        <button
-          onClick={() => {
-            onBack();
-            onChatSelect("all-channels");
-            setSelectedId("all-channels");
-          }}
-          className="mb-4 bg-gray-800 hover:bg-gray-700 text-white py-1 px-3 rounded"
-        >
-          &larr; Back to Chats
-        </button>
-        <h3 className="mb-3 text-lg font-bold">{selectedServer?.name}</h3>
-        <div className="overflow-y-scroll overflow-x-hidden h-full">
-          {selectedServer?.banner && (
-            <img
-              className="max-w-[320px] rounded-t-[12px]"
-              src={`https://cdn.discordapp.com/banners/${selectedServer?.id}/${selectedServer?.banner}.webp?size=320`}
-            />
-          )}
-          <h3 className="mb-3 text-lg font-bold">Channels</h3>
-          <RenderChannels channels={sortedChannels} />
-        </div>
+        <DiscordSidebar
+          discordServers={discordServers}
+          selectedDiscordServer={selectedDiscordServer}
+          onSelectDiscordServer={onSelectDiscordServer}
+        />
+        <div className="min-w-[350px] p-3 flex flex-col border-r border-[#23272f] bg-[#111111]">
+          <button
+            onClick={() => {
+              onBack();
+              onChatSelect("all-channels");
+              setSelectedId("all-channels");
+            }}
+            className="mb-4 bg-gray-800 hover:bg-gray-700 text-white py-1 px-3 rounded"
+          >
+            &larr; Back to Chats
+          </button>
+          <h3 className="mb-3 text-lg font-bold">{selectedServer?.name}</h3>
+          <div className="overflow-y-scroll overflow-x-hidden h-full">
+            {selectedServer?.banner && (
+              <img
+                className="max-w-[320px] rounded-t-[12px]"
+                src={`https://cdn.discordapp.com/banners/${selectedServer?.id}/${selectedServer?.banner}.webp?size=320`}
+              />
+            )}
+            <h3 className="mb-3 text-lg font-bold">Channels</h3>
+            {/* <RenderChannels channels={sortedChannels} /> */}
+            {renderedChannels}
+          </div>
         </div>
       </div>
     );
@@ -1134,9 +1110,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         />
       ) : (
         <aside className="h-[calc(100vh-0px)] flex">
-      <DiscordSidebar discordServers={discordServers} selectedDiscordServer={selectedDiscordServer} onSelectDiscordServer={onSelectDiscordServer}/>
-<div className="flex flex-col w-[350px] p-3 pl-0 flex border-r border-[#23272f] bg-[#111111]">
-          {/* <Button
+          <DiscordSidebar
+            discordServers={discordServers}
+            selectedDiscordServer={selectedDiscordServer}
+            onSelectDiscordServer={onSelectDiscordServer}
+          />
+          <div className="flex flex-col w-[350px] p-3 pl-0 flex border-r border-[#23272f] bg-[#161717]">
+            {/* <Button
             variant="ghost"
             onClick={handleFocusMode}
             className={`ml-3 bg-[#171717] rounded-[8px] ${
@@ -1145,175 +1125,177 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           >
             <Eye /> Focus Mode
           </Button> */}
-          <Button
-            onClick={handleGenerateSummary}
-            className={`ml-3 mt-2 bg-[#171717] rounded-[8px] text-[#ffffff] bg-[#3474ff] hover:text-[#ffffff] hover:bg-[#3474ff] p-0 h-8`}
-          >
-            <img src={aiIMG} className="w-8 h-8" />
-            {"Summarize All"}
-          </Button>
-          {/* Search Bar */}
-          <div className="flex items-center gap-2 pl-3 ">
-            <div className="relative flex grow items-center bg-[#212121] py-2 px-4 rounded-[12px] mt-4">
-              <Search className="w-5 h-5 text-[#ffffff48] absolute left-2" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search"
-                className="bg-transparent outline-none text-white flex-1 placeholder:text-[#ffffff48] pl-8 pr-8"
-              />
-              {searchTerm && (
-                <button
-                  className="absolute right-2 text-[#ffffff48] hover:text-white"
-                  onClick={() => setSearchTerm("")}
-                  tabIndex={-1}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-            {/* Advanced Filters */}
-            <div className="mt-4 flex-1">
-              <div className="relative">
-                <button
-                  onClick={() => setSearchMore((open) => !open)}
-                  className="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#23262F]"
-                >
-                  <MoreVertical className="h-full w-4 text-[#5389ff]" />
-                </button>
-                {searchMore && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setSearchMore(false)}
-                      style={{ background: "transparent" }}
-                    />
-
-                    <div className="bg-[#171717] rounded-lg p-4 shadow-lg w-72 absolute right-[40px] -top-[15px] z-50 rounded-[10px]">
-                      <div
-                        className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
-                        onClick={() => {
-                          setSearchMore(false);
-                          setFilterFull(true);
-                        }}
-                      >
-                        <Filter className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
-                        <span className="text-white">Filters</span>
-                      </div>
-                      <div
-                        className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
-                        onClick={() => {
-                          markAllRead();
-                        }}
-                      >
-                        <Check className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
-                        <span className="text-white">Read All</span>
-                      </div>
-                      <div
-                        className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
-                        onClick={() => setSearchMore(false)}
-                      >
-                        <VolumeX className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
-                        <span className="text-white">Mute all Channels</span>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-          {/* Top Row  */}
-          <div className=" pl-3  relative flex items-center mt-6">
-            {topArrows.canScrollLeft && (
-              <button
-                className="absolute left-0 z-10  p-1 rounded-full shadow"
-                onClick={() => scroll(topRowRef, "left", topArrows.checkScroll)}
-                aria-label="Scroll left"
-              >
-                <ChevronLeft className="w-5 h-5 text-white" />
-              </button>
-            )}
-            <div
-              ref={topRowRef}
-              className={`flex gap-2 overflow-x-auto no-scrollbar mx-0`}
-              style={{ scrollBehavior: "smooth" }}
+            <Button
+              onClick={handleGenerateSummary}
+              className={`gap-1 ml-3 mt-2 bg-[#171717] rounded-[8px] text-[#ffffff] bg-[#3474ff] hover:text-[#ffffff] hover:bg-[#3474ff] p-0 h-7 font-normal`}
             >
-              {topItems.map((item) => (
-                <div
-                  key={item}
-                  onClick={() => setActiveTopItem(item)}
-                  className={`px-4 py-2 rounded-full whitespace-nowrap cursor-pointer hover:text-white text-[13px] transition ${
-                    activeTopItem === item
-                      ? "text-white bg-[#3474ff60]"
-                      : "text-[#FFFFFF48]"
-                  }`}
-                >
-                  {item}
-                </div>
-              ))}
-            </div>
-            {topArrows.canScrollRight && (
-              <button
-                className="absolute right-0 z-10  p-1 rounded-full shadow"
-                onClick={() =>
-                  scroll(topRowRef, "right", topArrows.checkScroll)
-                }
-                aria-label="Scroll right"
-              >
-                <ChevronRight className="w-5 h-5 text-white" />
-              </button>
-            )}
-          </div>
-          {/* Bottom row */}
-          <div className="pl-3 relative flex items-center mt-4">
-            {bottomArrows.canScrollLeft && (
-              <button
-                className="absolute left-0 z-10  p-1 rounded-full shadow"
-                onClick={() =>
-                  scroll(bottomRowRef, "left", bottomArrows.checkScroll)
-                }
-                aria-label="Scroll left"
-              >
-                <ChevronLeft className="w-5 h-5 text-white" />
-              </button>
-            )}
-            <div
-              ref={bottomRowRef}
-              className={`flex gap-2 overflow-x-auto no-scrollbar`}
-              style={{ scrollBehavior: "smooth" }}
-            >
-              {filters.map((item) => (
-                <div
-                  key={item}
-                  className="flex items-center px-2 py-1 text-[#84afff] text-[13px] border-2 border-[#3474ff24] bg-[#212121] rounded-full whitespace-nowrap"
-                >
-                  <span>{item}</span>
+              <img src={aiIMG} className="w-4 h-4" />
+              {"Summarize All"}
+            </Button>
+            {/* Search Bar */}
+            <div className="flex items-center gap-2 pl-3 ">
+              <div className="relative flex grow items-center border border-[#FAFAFA10] py-2 px-4 rounded-[12px] mt-4 h-8">
+                <Search className="w-5 h-5 text-[#ffffff48] absolute left-2" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search"
+                  className="bg-transparent outline-none text-white flex-1 placeholder:text-[#ffffff48] pl-8 pr-8"
+                />
+                {searchTerm && (
                   <button
-                    className="ml-2"
-                    onClick={() => removeItem(item)}
-                    aria-label={`Remove ${item}`}
+                    className="absolute right-2 text-[#ffffff48] hover:text-white"
+                    onClick={() => setSearchTerm("")}
+                    tabIndex={-1}
                   >
                     <X className="w-4 h-4" />
                   </button>
+                )}
+              </div>
+              {/* Advanced Filters */}
+              <div className="mt-4 flex-1">
+                <div className="relative">
+                  <button
+                    onClick={() => setSearchMore((open) => !open)}
+                    className="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#23262F]"
+                  >
+                    <MoreVertical className="h-full w-4 text-[#5389ff]" />
+                  </button>
+                  {searchMore && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setSearchMore(false)}
+                        style={{ background: "transparent" }}
+                      />
+
+                      <div className="bg-[#171717] rounded-lg p-4 shadow-lg w-72 absolute right-[40px] -top-[15px] z-50 rounded-[10px]">
+                        <div
+                          className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
+                          onClick={() => {
+                            setSearchMore(false);
+                            setFilterFull(true);
+                          }}
+                        >
+                          <Filter className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
+                          <span className="text-white">Filters</span>
+                        </div>
+                        <div
+                          className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
+                          onClick={() => {
+                            markAllRead();
+                          }}
+                        >
+                          <Check className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
+                          <span className="text-white">Read All</span>
+                        </div>
+                        <div
+                          className="flex items-center gap-2 p-2 hover:bg-[#fafafa10] rounded-[10px] cursor-pointer"
+                          onClick={() => setSearchMore(false)}
+                        >
+                          <VolumeX className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
+                          <span className="text-white">Mute all Channels</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
-              ))}
+              </div>
             </div>
-            {bottomArrows.canScrollRight && (
-              <button
-                className="absolute right-0 z-10 p-1 shadow bg-[#00000020]"
-                onClick={() =>
-                  scroll(bottomRowRef, "right", bottomArrows.checkScroll)
-                }
-                aria-label="Scroll right"
+            {/* Top Row  */}
+            <div className=" pl-3 relative flex items-center mt-3">
+              {topArrows.canScrollLeft && (
+                <button
+                  className="absolute left-0 z-10  p-1 rounded-full shadow"
+                  onClick={() =>
+                    scroll(topRowRef, "left", topArrows.checkScroll)
+                  }
+                  aria-label="Scroll left"
+                >
+                  <ChevronLeft className="w-5 h-5 text-white" />
+                </button>
+              )}
+              <div
+                ref={topRowRef}
+                className={`flex gap-2 overflow-x-auto no-scrollbar mx-0`}
+                style={{ scrollBehavior: "smooth" }}
               >
-                <ChevronRight className="w-5 h-5 text-white" />
-              </button>
-            )}
-          </div>
-          {/* Hide scrollbar utility (Tailwind plugin or custom CSS) */}
-          <style>
-            {`
+                {topItems.map((item) => (
+                  <div
+                    key={item}
+                    onClick={() => setActiveTopItem(item)}
+                    className={`px-4 py-2 rounded-full whitespace-nowrap cursor-pointer hover:text-white text-[13px] transition ${
+                      activeTopItem === item
+                        ? "text-white bg-[#3474ff60]"
+                        : "text-[#FFFFFF48]"
+                    }`}
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+              {topArrows.canScrollRight && (
+                <button
+                  className="absolute right-0 z-10  p-1 rounded-full shadow"
+                  onClick={() =>
+                    scroll(topRowRef, "right", topArrows.checkScroll)
+                  }
+                  aria-label="Scroll right"
+                >
+                  <ChevronRight className="w-5 h-5 text-white" />
+                </button>
+              )}
+            </div>
+            {/* Bottom row */}
+            <div className="pl-3 relative flex items-center mt-2">
+              {bottomArrows.canScrollLeft && (
+                <button
+                  className="absolute left-0 z-10  p-1 rounded-full shadow"
+                  onClick={() =>
+                    scroll(bottomRowRef, "left", bottomArrows.checkScroll)
+                  }
+                  aria-label="Scroll left"
+                >
+                  <ChevronLeft className="w-5 h-5 text-white" />
+                </button>
+              )}
+              <div
+                ref={bottomRowRef}
+                className={`flex gap-2 overflow-x-auto no-scrollbar`}
+                style={{ scrollBehavior: "smooth" }}
+              >
+                {filters.map((item) => (
+                  <div
+                    key={item}
+                    className="flex items-center px-2 py-1 text-[#84afff] text-[13px] border-2 border-[#3474ff24] bg-[#212121] rounded-full whitespace-nowrap"
+                  >
+                    <span>{item}</span>
+                    <button
+                      className="ml-2"
+                      onClick={() => removeItem(item)}
+                      aria-label={`Remove ${item}`}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {bottomArrows.canScrollRight && (
+                <button
+                  className="absolute right-0 z-10 p-1 shadow bg-[#00000020]"
+                  onClick={() =>
+                    scroll(bottomRowRef, "right", bottomArrows.checkScroll)
+                  }
+                  aria-label="Scroll right"
+                >
+                  <ChevronRight className="w-5 h-5 text-white" />
+                </button>
+              )}
+            </div>
+            {/* Hide scrollbar utility (Tailwind plugin or custom CSS) */}
+            <style>
+              {`
           .no-scrollbar::-webkit-scrollbar {
             display: none;
           }
@@ -1322,294 +1304,305 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             scrollbar-width: none;
           }
         `}
-          </style>
+            </style>
 
-          {/* Chat List */}
-          <div className="pl-3 h-min flex-1 overflow-y-scroll overflow-x-visible mt-2 no-scrollbar">
-            <button
-              className={`w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ${
-                selectedId === "all-channels"
-                  ? "bg-[#212121] selected-chat"
-                  : "hover:bg-[#212121] focus:bg-[#212121]"
-              }`}
-              onClick={() => {
-                setSelectedId("all-channels");
-                if (onChatSelect) {
-                  onChatSelect("all-channels");
-                }
-              }}
-            >
-              <img
-                src={aiAll}
-                className="w-10 h-10 rounded-full object-cover"
-                loading="lazy"
-                decoding="async"
-              />
-              <div className="flex-1 text-left">
-                <div className="flex justify-between items-center">
-                  <span className="text-[#fafafa] font-200 flex justify-between items-center w-full">
-                    <div className="flex items-center gap-1 font-[200]">
-                      <FaDiscord className="text-[#7B5CFA]" />
-                      <FaTelegramPlane className="text-[#3474FF]" />
-                      All Channels
-                    </div>
-                    <div className="text-[#fafafa60] text-xs">
-                      {displayChats.length > 0 && displayChats[0]?.timestamp
-                        ? formatChatTime(displayChats[0].timestamp)
-                        : "now"}
-                    </div>
-                  </span>
-                </div>
-                <div className="flex items-center gap-2"></div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-[#fafafa] font-[200] truncate max-w-[170px]">
-                    {displayChats.length > 0 && displayChats[0]?.lastMessage
-                      ? displayChats[0].lastMessage.length > 50
-                        ? displayChats[0].lastMessage.slice(0, 50) + "..."
-                        : displayChats[0].lastMessage
-                      : "No messages yet"}
-                  </span>
-                </div>
-              </div>
-            </button>
-            {/* Filtered Streams Section */}
-            <div className="pl-3 mt-4">
-              <div
-                className="flex justify-between items-center cursor-pointer"
-                onClick={() => setIsFilteredStreamsOpen(!isFilteredStreamsOpen)}
+            {/* Chat List */}
+            <div className="pl-3 h-min flex-1 overflow-y-scroll overflow-x-visible mt-0 no-scrollbar">
+              <button
+                className={`w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ${
+                  selectedId === "all-channels"
+                    ? "bg-[#212121] selected-chat"
+                    : "hover:bg-[#212121] focus:bg-[#212121]"
+                }`}
+                onClick={() => {
+                  setSelectedId("all-channels");
+                  if (onChatSelect) {
+                    onChatSelect("all-channels");
+                  }
+                }}
               >
-                <span className="text-white font-medium">Filtered Streams</span>
-                <div className="flex">
-                  <Plus
-                    className="hover:text-white text-[#fafafa60] w-5 h-5"
-                    onClick={(e) => {
-                      e.stopPropagation(); // Stop event propagation
-                      setFilterFull(true);
-                    }}
-                  />
-                  {isFilteredStreamsOpen ? (
-                    <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5" />
-                  ) : (
-                    <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
-                  )}
-                </div>
-              </div>
-              {isFilteredStreamsOpen && (
-                <div className="mt-2">
-                  {isLoadingFilters ? (
-                    <div className="text-[#ffffff80] text-sm px-4 py-2">
-                      Loading filters...
-                    </div>
-                  ) : filterError ? (
-                    <div className="text-red-400 text-sm px-4 py-2">
-                      Error: {filterError}
-                    </div>
-                  ) : smartFilters.length === 0 ? (
-                    <div className="text-[#ffffff80] text-sm px-4 py-2">
-                      No filtered streams yet
-                    </div>
-                  ) : (
-                    smartFilters.slice(0, 3).map((filter) => (
-                      <div key={filter.id} className="relative group">
-                        <button
-                          className="w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] hover:bg-[#212121] focus:bg-[#212121]"
-                          onClick={() => {
-                            setSelectedId(filter.id);
-                            if (onChatSelect) {
-                              onChatSelect(filter);
-                            }
-                          }}
-                        >
-                          <div className="w-10 h-10 flex items-center justify-center rounded-full text-black text-xs"
-                            style={{ background: getRandomColor() }}>
-                            {filter.name
-                              .split(" ")
-                              .map((word: string) => word[0])
-                              .join("")
-                              .slice(0, 2)
-                              .toUpperCase()}
-                          </div>
-                          <div className="flex-1 text-left">
-                            <div className="flex justify-between items-center">
-                              <span className="text-[#ffffff48] font-200">
-                                {filter.name}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-[#ffffff32] font-100">
-                                {filter.keywords?.slice(0, 2).join(", ")}
-                                {filter.keywords?.length > 2 && "..."}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-center gap-1">
-                            <span className="self-end text-xs text-gray-400">
-                              now
-                            </span>
-                          </div>
-                        </button>
-
-                        {/* Edit/Delete buttons - show on hover */}
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEdit(filter);
-                            }}
-                            className="p-1 bg-[#3474ff] rounded hover:bg-[#2563eb] text-white"
-                            title="Edit filter"
-                          >
-                            <svg
-                              className="w-3 h-3"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(filter.id);
-                            }}
-                            className="p-1 bg-red-600 rounded hover:bg-red-700 text-white"
-                            title="Delete filter"
-                          >
-                            <svg
-                              className="w-3 h-3"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          </button>
-                        </div>
+                <img
+                  src={aiAll}
+                  className="w-10 h-10 rounded-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <div className="flex-1 text-left">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#fafafa] font-200 flex justify-between items-center w-full">
+                      <div className="flex items-center gap-1 font-[200]">
+                        <FaDiscord className="text-[#7B5CFA]" />
+                        <FaTelegramPlane className="text-[#3474FF]" />
+                        All Channels
                       </div>
-                    ))
-                  )}
+                      <div className="text-[#fafafa60] text-xs">
+                        {displayChats.length > 0 && displayChats[0]?.timestamp
+                          ? formatChatTime(displayChats[0].timestamp)
+                          : "now"}
+                      </div>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2"></div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-[#fafafa] font-[200] truncate max-w-[170px]">
+                      {displayChats.length > 0 && displayChats[0]?.lastMessage
+                        ? displayChats[0].lastMessage.length > 50
+                          ? displayChats[0].lastMessage.slice(0, 50) + "..."
+                          : displayChats[0].lastMessage
+                        : "No messages yet"}
+                    </span>
+                  </div>
                 </div>
-              )}
-            </div>
-
-            {/* Channels Section */}
-            {showChannelsSection && (
+              </button>
+              {/* Filtered Streams Section */}
               <div className="pl-3 mt-4">
                 <div
                   className="flex justify-between items-center cursor-pointer"
-                  onClick={() => setIsChannelsOpen(!isChannelsOpen)}
+                  onClick={() =>
+                    setIsFilteredStreamsOpen(!isFilteredStreamsOpen)
+                  }
                 >
-                  <span className="text-white font-medium">Channels</span>
-                  {isChannelsOpen ? (
-                    <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5 " />
-                  ) : (
-                    <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
-                  )}
+                  <span className="text-white font-medium">
+                    Filtered Streams
+                  </span>
+                  <div className="flex">
+                    <Plus
+                      className="hover:text-white text-[#fafafa60] w-5 h-5"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Stop event propagation
+                        setFilterFull(true);
+                      }}
+                    />
+                    {isFilteredStreamsOpen ? (
+                      <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5" />
+                    ) : (
+                      <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
+                    )}
+                  </div>
                 </div>
-                {isChannelsOpen && (
-                  <div className="mt-2" onClick={closeContextMenu}>
-                    {channelsToShow.length === 0 && searchTerm.trim() ? (
-                      <div className="text-[#ffffff48] text-sm px-4 py-3">
-                        No channels found for "{searchTerm}"
+                {isFilteredStreamsOpen && (
+                  <div className="mt-2">
+                    {isLoadingFilters ? (
+                      <div className="text-[#ffffff80] text-sm px-4 py-2">
+                        Loading filters...
+                      </div>
+                    ) : filterError ? (
+                      <div className="text-red-400 text-sm px-4 py-2">
+                        Error: {filterError}
+                      </div>
+                    ) : smartFilters.length === 0 ? (
+                      <div className="text-[#ffffff80] text-sm px-4 py-2">
+                        No filtered streams yet
                       </div>
                     ) : (
-                      channelsToShow.map((chat) => {
-                        const isPinned = chat.isPinned;
+                      smartFilters.slice(0, 3).map((filter) => {
                         return (
-                          <div key={chat.id}>
-                            {contextMenu && (
-                              <ul
-                                ref={menuRef}
-                                onMouseLeave={handleMenuMouseLeave}
-                                style={{
-                                  position: "fixed",
-                                  top: contextMenu.y,
-                                  left: contextMenu.x,
-                                  backgroundColor: "#111111",
-                                  borderRadius: "10px",
-                                  listStyle: "none",
-                                  padding: "8px",
-                                  zIndex: 1000,
-                                  minWidth: "120px",
-                                }}
-                                className="shadow-lg border border-[#ffffff12]"
-                              >
-                                <li
-                                  onClick={handleReadAll}
-                                  className="cursor-pointer flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
-                                >
-                                  <CheckCheck className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
-                                  Read All
-                                </li>
-                                <li
-                                  onClick={handleMuteChat}
-                                  className="cursor-pointer flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#f36363] hover:text-[#f36363] whitespace-nowrap"
-                                >
-                                  <VolumeX
-                                    className="w-6 h-6"
-                                    stroke="currentColor"
-                                    fill="currentColor"
-                                  />
-                                  {isMuted ? "Unmute Chat" : "Mute Chat"}
-                                </li>
-                                <li
-                                  onClick={handlePinChat}
-                                  className="cursor-pointer flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
-                                >
-                                  <PinIcon className="w-6 h-6 text-[#ffffff]" />
-
-                                  {isPinned}
-                                  {isPinned ? "Remove Pin" : "Pin Chat"}
-                                </li>
-                              </ul>
-                            )}
+                          <div key={filter.id} className="relative group">
                             <button
-                              key={chat.id}
-                              onContextMenu={(e) => handleRightClick(e, chat)}
-                              style={{ cursor: "pointer" }}
-                              className={
-                                `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
-                                (selectedId === chat.id
-                                  ? "bg-[#212121] selected-chat "
-                                  : "hover:bg-[#212121] focus:bg-[#212121] ") +
-                                (selectedId !== chat.id && !chat.read
-                                  ? "unread-chat "
-                                  : "")
-                              }
+                              className="w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] hover:bg-[#212121] focus:bg-[#212121]"
                               onClick={() => {
-                                setSelectedId(chat.id);
-                                if (onChatSelect && selectedServer) {
-                                  onChatSelect({
-                                    ...chat,
-                                    photo_url: `https://cdn.discordapp.com/icons/${selectedServer.id}/${selectedServer.icon}.png`,
-                                  });
-                                } else {
-                                  onChatSelect(chat);
+                                setSelectedId(filter.id);
+                                if (onChatSelect) {
+                                  onChatSelect(filter);
                                 }
                               }}
                             >
-                              {/* Avatar */}
-                              <div className="relative">
-                                <ChatAvatar
-                                  name={chat.name || chat.first_name}
-                                  avatar={
-                                    Array.isArray(chat.photo_url)
-                                      ? chat.photo_url
-                                      : chat.photo_url ||
-                                        `${BACKEND_URL}/chat_photo/${chat.chat_id}`
+                              <div
+                                className="w-10 h-10 flex items-center justify-center rounded-full text-black text-xs"
+                                style={{ background: colorMap[filter.id] }}
+                              >
+                                {filter.name
+                                  .split(" ")
+                                  .map((word: string) => word[0])
+                                  .join("")
+                                  .slice(0, 2)
+                                  .toUpperCase()}
+                              </div>
+                              <div className="flex-1 text-left">
+                                <div className="flex justify-between items-center">
+                                  <span
+                                    className="font-200"
+                                    style={{ color: colorMap[filter.id] }}
+                                  >
+                                    {filter.name}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm text-[#fafafa60] font-100">
+                                    {filter.keywords?.slice(0, 2).join(", ")}
+                                    {filter.keywords?.length > 2 && "..."}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="self-end text-xs text-gray-400">
+                                  now
+                                </span>
+                              </div>
+                            </button>
+
+                            {/* Edit/Delete buttons - show on hover */}
+                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEdit(filter);
+                                }}
+                                className="p-1 bg-[#3474ff] rounded hover:bg-[#2563eb] text-white"
+                                title="Edit filter"
+                              >
+                                <svg
+                                  className="w-3 h-3"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(filter.id);
+                                }}
+                                className="p-1 bg-red-600 rounded hover:bg-red-700 text-white"
+                                title="Delete filter"
+                              >
+                                <svg
+                                  className="w-3 h-3"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Channels Section */}
+              {showChannelsSection && (
+                <div className="pl-3 mt-4">
+                  <div
+                    className="flex justify-between items-center cursor-pointer"
+                    onClick={() => setIsChannelsOpen(!isChannelsOpen)}
+                  >
+                    <span className="text-white font-medium">Channels</span>
+                    {isChannelsOpen ? (
+                      <ChevronDown className="hover:text-white text-[#fafafa60] w-5 h-5 " />
+                    ) : (
+                      <ChevronRight className="hover:text-white text-[#fafafa60] w-5 h-5" />
+                    )}
+                  </div>
+                  {isChannelsOpen && (
+                    <div className="mt-2" onClick={closeContextMenu}>
+                      {channelsToShow.length === 0 && searchTerm.trim() ? (
+                        <div className="text-[#ffffff48] text-sm px-4 py-3">
+                          No channels found for "{searchTerm}"
+                        </div>
+                      ) : (
+                        channelsToShow.map((chat) => {
+                          const isPinned = chat.isPinned;
+                          return (
+                            <div key={chat.id}>
+                              {contextMenu && (
+                                <ul
+                                  ref={menuRef}
+                                  onMouseLeave={handleMenuMouseLeave}
+                                  style={{
+                                    position: "fixed",
+                                    top: contextMenu.y,
+                                    left: contextMenu.x,
+                                    backgroundColor: "#111111",
+                                    borderRadius: "10px",
+                                    listStyle: "none",
+                                    padding: "8px",
+                                    zIndex: 1000,
+                                    minWidth: "120px",
+                                  }}
+                                  className="shadow-lg border border-[#ffffff12]"
+                                >
+                                  <li
+                                    onClick={handleReadAll}
+                                    className="cursor-pointer flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+                                  >
+                                    <CheckCheck className="text-[#ffffff] hover:text-[#5389ff] w-4 h-4" />
+                                    Read All
+                                  </li>
+                                  <li
+                                    onClick={handleMuteChat}
+                                    className="cursor-pointer flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#f36363] hover:text-[#f36363] whitespace-nowrap"
+                                  >
+                                    <VolumeX
+                                      className="w-6 h-6"
+                                      stroke="currentColor"
+                                      fill="currentColor"
+                                    />
+                                    {isMuted ? "Unmute Chat" : "Mute Chat"}
+                                  </li>
+                                  <li
+                                    onClick={handlePinChat}
+                                    className="cursor-pointer flex gap-2 items-center justify-start rounded-[10px] px-4 py-2 text-left hover:bg-[#23272f] text-[#ffffff72] hover:text-white whitespace-nowrap"
+                                  >
+                                    <PinIcon className="w-6 h-6 text-[#ffffff]" />
+
+                                    {isPinned}
+                                    {isPinned ? "Remove Pin" : "Pin Chat"}
+                                  </li>
+                                </ul>
+                              )}
+                              <button
+                                key={chat.id}
+                                onContextMenu={(e) => handleRightClick(e, chat)}
+                                style={{ cursor: "pointer" }}
+                                className={
+                                  `w-full flex items-center gap-3 px-4 py-3 transition relative rounded-[10px] ` +
+                                  (selectedId === chat.id
+                                    ? "bg-[#212121] selected-chat "
+                                    : "hover:bg-[#212121] focus:bg-[#212121] ") +
+                                  (selectedId !== chat.id && !chat.read
+                                    ? "unread-chat "
+                                    : "")
+                                }
+                                onClick={() => {
+                                  setSelectedId(chat.id);
+                                  if (onChatSelect && selectedServer) {
+                                    onChatSelect({
+                                      ...chat,
+                                      photo_url: `https://cdn.discordapp.com/icons/${selectedServer.id}/${selectedServer.icon}.png`,
+                                    });
+                                  } else {
+                                    onChatSelect(chat);
                                   }
-                                  backupAvatar={`${BACKEND_URL}/contact_photo/${chat.chat_id}`}
-                                />
-                                <img
-                                  src={
-                                    chat.platform === "discord"
-                                      ? discord
-                                      : telegram
-                                  }
-                                  className={`
+                                }}
+                              >
+                                {/* Avatar */}
+                                <div className="relative">
+                                  <ChatAvatar
+                                    name={chat.name || chat.first_name}
+                                    avatar={
+                                      Array.isArray(chat.photo_url)
+                                        ? chat.photo_url
+                                        : chat.photo_url ||
+                                          `${BACKEND_URL}/chat_photo/${chat.chat_id}`
+                                    }
+                                    backupAvatar={`${BACKEND_URL}/contact_photo/${chat.chat_id}`}
+                                  />
+                                  <img
+                                    src={
+                                      chat.platform === "discord"
+                                        ? discord
+                                        : telegram
+                                    }
+                                    className={`
                             absolute -bottom-2 -right-1
                             ${
                               chat.platform === "discord"
@@ -1618,119 +1611,118 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                             }
                             rounded-[4px] w-5 h-5 p-1 border-2 border-[#111111]
                           `}
-                                  alt={chat.platform}
-                                />
-                              </div>
-                              {/* Chat Info */}
-                              <div className="flex-1 text-left">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-[#ffffff48] font-200 flex items-center gap-1">
-                                    {chat.platform === "discord" ? (
-                                      <FaDiscord className="text-[#7b5cfa]" />
-                                    ) : (
-                                      <FaTelegramPlane className="text-[#3474ff]" />
-                                    )}
-                                    <span className="line-clamp-1">
-                                      {chat.name || chat.username}
+                                    alt={chat.platform}
+                                  />
+                                </div>
+                                {/* Chat Info */}
+                                <div className="flex-1 text-left">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-[#fafafa] font-200 flex items-center gap-1">
+                                      {chat.platform === "discord" ? (
+                                        <FaDiscord className="text-[#7b5cfa]" />
+                                      ) : (
+                                        <FaTelegramPlane className="text-[#3474ff]" />
+                                      )}
+                                      <span className="line-clamp-1">
+                                        {chat.name || chat.username}
+                                      </span>
                                     </span>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm text-[#fafafa60] font-100 line-clamp-1">
+                                      {chat.is_typing
+                                        ? "Typing..."
+                                        : chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
+                                        ? chat.lastMessage.slice(0, 23) + "..."
+                                        : chat.lastMessage}
+                                      {chat.lastMessage == "" ? (
+                                        <>
+                                          <LucideFileImage
+                                            fill="#000"
+                                            stroke="#fff"
+                                            strokeWidth={"1px"}
+                                            height={20}
+                                          />
+                                        </>
+                                      ) : (
+                                        ""
+                                      )}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className="self-end text-xs text-gray-400">
+                                    {formatChatTime(chat.timestamp)}
                                   </span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm text-[#ffffff32] font-100 line-clamp-1">
-                                    {chat.is_typing
-                                      ? "Typing..."
-                                      : chat.lastMessage?.length > 23 // Use optional chaining for lastMessage
-                                      ? chat.lastMessage.slice(0, 23) + "..."
-                                      : chat.lastMessage}
-                                    {chat.lastMessage == "" ? (
-                                      <>
-                                        <LucideFileImage
-                                          fill="#000"
-                                          stroke="#fff"
-                                          strokeWidth={"1px"}
-                                          height={20}
-                                        />
-                                      </>
-                                    ) : (
-                                      ""
+                                  <div className="flex items-center gap-1">
+                                    {chat.isPinned && (
+                                      <Pin className="w-5 h-5 text-[#fafafa40] fill-[#fafafa60] ml-1" />
                                     )}
-                                  </span>
+                                    {!chat.read &&
+                                      chat.unread &&
+                                      chat.unread > 0 && (
+                                        <div
+                                          className={`rounded-full min-w-6 w-max px-1 h-6 text-xs flex items-center justify-center text-center ${
+                                            chat.platform === "Telegram"
+                                              ? "bg-[#3474ff]"
+                                              : "bg-[#7b5cfa]"
+                                          }`}
+                                        >
+                                          <span>{chat.unread}</span>
+                                        </div>
+                                      )}
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="flex flex-col items-center gap-1">
-                                <span className="self-end text-xs text-gray-400">
-                                  {/* {console.log('Raw chat.timestamp:', chat.timestamp, 'Type:', typeof chat.timestamp)} */}
-                                  {formatChatTime(chat.timestamp)}
-                                </span>
-                                <div className="flex items-center gap-1">
-                                  {chat.isPinned && (
-                                    <Pin className="w-5 h-5 text-[#fafafa40] fill-[#fafafa60] ml-1" />
-                                  )}
-                                  {!chat.read &&
-                                    chat.unread &&
-                                    chat.unread > 0 && (
-                                      <div
-                                        className={`rounded-full min-w-6 w-max px-1 h-6 text-xs flex items-center justify-center text-center ${
-                                          chat.platform === "Telegram"
-                                            ? "bg-[#3474ff]"
-                                            : "bg-[#7b5cfa]"
-                                        }`}
-                                      >
-                                        <span>{chat.unread}</span>
-                                      </div>
-                                    )}
-                                </div>
-                              </div>
-                            </button>
-                          </div>
-                        );
-                      })
-                    )}
-
-                    {/* Show More button for channels */}
-                    {!searchTerm.trim() &&
-                      filters.length === 0 &&
-                      channelsLimit < channels.length && (
-                        <button
-                          className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
-                          onClick={() =>
-                            setChannelsLimit((prev) =>
-                              Math.min(prev + 20, channels.length)
-                            )
-                          }
-                        >
-                          Show more channels...
-                          {/* Show {Math.min(20, channels.length - channelsLimit)} more channels... */}
-                        </button>
+                              </button>
+                            </div>
+                          );
+                        })
                       )}
 
-                    {/* Show Less button when channels are expanded */}
-                    {!searchTerm.trim() &&
-                      filters.length === 0 &&
-                      channelsLimit > 20 && (
-                        <button
-                          className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
-                          onClick={() => setChannelsLimit(20)}
-                        >
-                          Show Less
-                        </button>
-                      )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          {/* Inline FilterEditor modal for editing from ChatPanel */}
-          <FilterEditor
-            show={showFilterEditor}
-            onClose={() => {
-              setShowFilterEditor(false);
-              setEditingFilter(null);
-            }}
-            editingFilter={editingFilter}
-            onSave={handleEditorSave}
-            allChannels={allChannels}
-          />
+                      {/* Show More button for channels */}
+                      {!searchTerm.trim() &&
+                        filters.length === 0 &&
+                        channelsLimit < channels.length && (
+                          <button
+                            className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
+                            onClick={() =>
+                              setChannelsLimit((prev) =>
+                                Math.min(prev + 20, channels.length)
+                              )
+                            }
+                          >
+                            Show more channels...
+                            {/* Show {Math.min(20, channels.length - channelsLimit)} more channels... */}
+                          </button>
+                        )}
+
+                      {/* Show Less button when channels are expanded */}
+                      {!searchTerm.trim() &&
+                        filters.length === 0 &&
+                        channelsLimit > 20 && (
+                          <button
+                            className="w-full text-center py-2 text-[#84afff] hover:text-white text-sm"
+                            onClick={() => setChannelsLimit(20)}
+                          >
+                            Show Less
+                          </button>
+                        )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* Inline FilterEditor modal for editing from ChatPanel */}
+            <FilterEditor
+              show={showFilterEditor}
+              onClose={() => {
+                setShowFilterEditor(false);
+                setEditingFilter(null);
+              }}
+              editingFilter={editingFilter}
+              onSave={handleEditorSave}
+              allChannels={allChannels}
+            />
           </div>
         </aside>
       )}
