@@ -273,7 +273,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const [chatPhotoUrl, setChatPhotoUrl] = useState(null);
 
     const handleStickerSelect = (sticker) => {
-      console.log("Selected sticker:", sticker);
       setSelectedSticker([sticker.id]);
       handleSend({ sticker: [sticker.id] });
       // Optionally send sticker as message here
@@ -288,7 +287,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       async function fetchStickers() {
         try {
           const packs = await window.electronAPI.discord.getStickers("en-US");
-          console.log("packs", packs);
+          // console.log("packs", packs);
           setStickerPacks(packs?.data?.sticker_packs || []);
         } catch (err) {
           console.error("Failed to load stickers:", err);
@@ -333,11 +332,13 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
     const openMedia = (media) => {
       setEnlargedMedia(media);
-      console.log("enlarged media", media);
+      // console.log("enlarged media", media);
     };
     const closeMedia = () => setEnlargedMedia(null);
 
     useEffect(() => {
+      console.log('[setmsg sc]', selectedChat)
+      console.log('setMsg 0')
       setMessages([]);
       if (container) {
         container.scrollTop = container.scrollHeight;
@@ -364,7 +365,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
     useImperativeHandle(ref, () => ({
       handleSend: (message, targetChat) => {
-        console.log("[handleSend] called with message:", message);
+        // console.log("[handleSend] called with message:", message);
         if (targetChat) {
           selectedChat = targetChat;
         }
@@ -505,16 +506,16 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
         if (isPinned) {
           // Unpin the message - use pin.id, not pin._id
-          console.log("Attempting to unpin message with ID:", messageId);
-          console.log("All pinned messages:", pinnedMessages);
+          // console.log("Attempting to unpin message with ID:", messageId);
+          // console.log("All pinned messages:", pinnedMessages);
 
           const pinToRemove = pinnedMessages.find(
             (pin) => pin.message_id === messageId?.toString()
           );
-          console.log("Pin to remove:", pinToRemove);
+          // console.log("Pin to remove:", pinToRemove);
 
           if (pinToRemove && pinToRemove.id) {
-            console.log("Using pin ID for deletion:", pinToRemove.id);
+            // console.log("Using pin ID for deletion:", pinToRemove.id);
 
             await unpinMessage(pinToRemove.id);
 
@@ -529,24 +530,24 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             });
           } else {
             // If pin not found in local state, try to fetch latest pins and try again
-            console.log(
-              "Pin not found in local state, fetching latest pins..."
-            );
+            // console.log(
+            //   "Pin not found in local state, fetching latest pins..."
+            // );
 
             try {
               const chatIdForFetch = selectedChat?.id || null;
-              console.log("Fetching pins for chat:", chatIdForFetch);
+              // console.log("Fetching pins for chat:", chatIdForFetch);
 
               const latestPins = await getPinnedMessages(chatIdForFetch);
-              console.log("Latest pins from server:", latestPins);
+              // console.log("Latest pins from server:", latestPins);
 
               const serverPin = latestPins.find(
                 (pin) => pin.message_id === messageId?.toString()
               );
-              console.log("Server pin found:", serverPin);
+              // console.log("Server pin found:", serverPin);
 
               if (serverPin && serverPin.id) {
-                console.log("Using server pin ID for deletion:", serverPin.id);
+                // console.log("Using server pin ID for deletion:", serverPin.id);
                 await unpinMessage(serverPin.id);
 
                 // Update local state with fresh data minus the removed pin
@@ -577,10 +578,10 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           }
         } else {
           // Pin the message
-          console.log("Attempting to pin message with ID:", messageId);
+          // console.log("Attempting to pin message with ID:", messageId);
 
           const result = await pinMessage(messageId.toString());
-          console.log("Pin result:", result);
+          // console.log("Pin result:", result);
 
           // Update local pinned messages state
           setPinnedMessages((prev) => [result, ...prev]);
@@ -684,89 +685,89 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     };
 
     const openInTelegram = (msg = null) => {
-      console.log("🔍 === DEBUG: openInTelegram START ===");
-      console.log("🔍 openInTelegram called with msg:", msg);
+      // console.log("🔍 === DEBUG: openInTelegram START ===");
+      // console.log("🔍 openInTelegram called with msg:", msg);
 
       if (!selectedChat) {
-        console.log("❌ No selectedChat available");
+        // console.log("❌ No selectedChat available");
         return;
       }
 
-      console.log("✅ selectedChat exists:", selectedChat);
+      // console.log("✅ selectedChat exists:", selectedChat);
 
       // Get chatId from selectedChat
       const chatId = selectedChat.id || selectedChat._id;
-      console.log("🔍 Using chatId from selectedChat:", chatId);
+      // console.log("🔍 Using chatId from selectedChat:", chatId);
 
       // Use the preserved original chat type from the API response
       let chatType;
 
-      console.log(
-        "🔍 === DEBUG: GETTING CHAT TYPE FROM PRESERVED API DATA ==="
-      );
+      // console.log(
+      //   "🔍 === DEBUG: GETTING CHAT TYPE FROM PRESERVED API DATA ==="
+      // );
 
       if (msg && msg.originalChatType) {
         // Use the preserved chat type from the original API response
         chatType = msg.originalChatType;
-        console.log(
-          "✅ Got chatType from preserved API data (msg.originalChatType):",
-          chatType
-        );
+        // console.log(
+        //   "✅ Got chatType from preserved API data (msg.originalChatType):",
+        //   chatType
+        // );
       } else {
         // Fallback: Use heuristics from selectedChat if originalChatType is not available
-        console.log(
-          "⚠️ No preserved chat type found, using fallback heuristics"
-        );
+        // console.log(
+        //   "⚠️ No preserved chat type found, using fallback heuristics"
+        // );
 
         const chatIdStr = String(chatId);
         const chatIdLength = chatIdStr.length;
 
         if (selectedChat.participants_count !== undefined) {
           chatType = "Chat";
-          console.log(
-            "✅ Fallback: Determined Chat (found participants_count)"
-          );
+          // console.log(
+          //   "✅ Fallback: Determined Chat (found participants_count)"
+          // );
         } else if (
           selectedChat.username ||
           (selectedChat.name && selectedChat.name.startsWith("@"))
         ) {
           chatType = "Channel";
-          console.log("✅ Fallback: Determined Channel (found username/@)");
+          // console.log("✅ Fallback: Determined Channel (found username/@)");
         } else if (chatIdLength <= 10 && !selectedChat.title) {
           chatType = "User";
-          console.log("✅ Fallback: Determined User (short ID + no title)");
+          // console.log("✅ Fallback: Determined User (short ID + no title)");
         } else if (chatIdLength > 10) {
           chatType = "Channel";
-          console.log("✅ Fallback: Determined Channel (long ID)");
+          // console.log("✅ Fallback: Determined Channel (long ID)");
         } else {
           chatType = "Chat";
-          console.log("✅ Fallback: Defaulted to Chat");
+          // console.log("✅ Fallback: Defaulted to Chat");
         }
       }
 
-      console.log("🔍 Final chatType determined:", chatType);
+      // console.log("🔍 Final chatType determined:", chatType);
 
       let webUrl;
 
-      console.log("🔍 === DEBUG: URL GENERATION ===");
+      // console.log("🔍 === DEBUG: URL GENERATION ===");
 
       if (chatType === "User") {
         // Direct Message - no prefix
         webUrl = `https://web.telegram.org/a/#${chatId}`;
-        console.log("📱 Generated URL for Direct Message:", webUrl);
+        // console.log("📱 Generated URL for Direct Message:", webUrl);
       } else if (chatType === "Channel") {
         // Supergroup/Channel - needs -100 prefix
         webUrl = `https://web.telegram.org/a/#-100${chatId}`;
-        console.log("📱 Generated URL for Channel/Supergroup:", webUrl);
+        // console.log("📱 Generated URL for Channel/Supergroup:", webUrl);
       } else if (chatType === "Chat") {
         // Regular Group - needs - prefix
         webUrl = `https://web.telegram.org/a/#-${chatId}`;
-        console.log("📱 Generated URL for Regular Group:", webUrl);
+        // console.log("📱 Generated URL for Regular Group:", webUrl);
       } else {
         // Fallback - assume regular group
-        console.log("⚠️ Unknown chat type, assuming regular group");
+        // console.log("⚠️ Unknown chat type, assuming regular group");
         webUrl = `https://web.telegram.org/a/#-${chatId}`;
-        console.log("📱 Generated URL (fallback):", webUrl);
+        // console.log("📱 Generated URL (fallback):", webUrl);
       }
 
       window.open(webUrl, "_blank");
@@ -823,9 +824,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         setReactionLoading((prev) => ({ ...prev, [messageId]: true }));
 
         const isObjectId = /^[a-f\d]{24}$/i.test(messageId);
-        console.log(
-          `Reaction attempt: messageId="${messageId}", isObjectId=${isObjectId}, emoji="${emoji}"`
-        );
+        // console.log(
+        //   `Reaction attempt: messageId="${messageId}", isObjectId=${isObjectId}, emoji="${emoji}"`
+        // );
         if (selectedChat.platform === "discord") {
           // For Discord, we need to map the message to Telegram format first
           const res = await window.electronAPI.discord.addReaction(
@@ -833,7 +834,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             messageId,
             emoji
           );
-          console.log("Discord reaction result:", res);
+          // console.log("Discord reaction result:", res);
           return;
         }
         if (isObjectId) {
@@ -850,6 +851,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
             // Optimistic update
             rollbackSnapshot = messages;
+            console.log('setMsg 1')
             setMessages((prev) =>
               prev.map((m) => {
                 if (String(m.originalId || m.id) !== String(messageId))
@@ -891,9 +893,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                 clear: already,
               });
             }
-            console.log(
-              `Reaction ${emoji} sent to backend for message ${messageId} (sent_to_telegram=${res?.sent_to_telegram})`
-            );
+            // console.log(
+            //   `Reaction ${emoji} sent to backend for message ${messageId} (sent_to_telegram=${res?.sent_to_telegram})`
+            // );
             // If backend returns updated reactions snapshot, reflect it in UI immediately
             const toChips = (results: any[]) =>
               results
@@ -916,7 +918,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               const updated = Array.isArray(res.reactions?.results)
                 ? toChips(res.reactions.results)
                 : [];
-              setMessages((prev) =>
+              console.log('setMsg 2')
+                setMessages((prev) =>
                 prev.map((m) =>
                   String(m.originalId || m.id) === String(messageId)
                     ? { ...m, reactions: updated }
@@ -934,7 +937,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                 const parsed = Array.isArray(reactionResults)
                   ? toChips(reactionResults)
                   : [];
-                setMessages((prev) =>
+                console.log('setMsg 3')
+                  setMessages((prev) =>
                   prev.map((m) =>
                     String(m.originalId || m.id) === String(messageId)
                       ? { ...m, reactions: parsed }
@@ -951,13 +955,14 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               backendError
             );
             // Rollback
+            console.log('setMsg 4')
             setMessages((_) => rollbackSnapshot);
           }
         } else {
           // Dummy/local message
-          console.log(
-            `Reaction ${emoji} logged locally for dummy message ${messageId}`
-          );
+          // console.log(
+          //   `Reaction ${emoji} logged locally for dummy message ${messageId}`
+          // );
         }
 
         // Close reaction picker
@@ -978,6 +983,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
     // Close reaction picker when clicking outside
     useEffect(() => {
+      console.log('setMsg 5')
       setMessages([]);
       const handleClickOutside = (event: MouseEvent) => {
         const target = event.target as Element;
@@ -1000,7 +1006,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       if (msg.platform.toLowerCase() === "discord") {
         messageId = msg.id;
       }
-      console.log("Bookmarking message:", msg);
+      // console.log("Bookmarking message:", msg);
 
       if (!messageId) {
         toast({
@@ -1019,10 +1025,10 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           type,
           msg.platform.toLowerCase()
         );
-        console.log("Bookmark result:", result);
+        // console.log("Bookmark result:", result);
 
         const actionText = type === "pin" ? "pinned" : "bookmarked";
-        console.log(`Message ${actionText} successfully`);
+        // console.log(`Message ${actionText} successfully`);
 
         // Show success feedback
         toast({
@@ -1041,21 +1047,38 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       }
     };
 
+    const currentRequestId = useRef(0);
+
+    // const currentChatRef = useRef(selectedChat?.id);
+
+    useEffect(() => {
+      currentChatRef.current = selectedChat?.id;
+    }, [selectedChat]);
+
+    
     const fetchMessages = useCallback(
       async (
         chatId: number | string,
         beforeTimestamp?: string,
         append = false,
-        afterTimestamp?: string
+        afterTimestamp?: string,        
       ) => {
         if (!chatId) return;
-        if (selectedChat.platform === "discord") return;
+        currentRequestId.current += 1;
+        const thisRequestId = currentRequestId.current;
+        console.log("setmsg reqid:", thisRequestId);
+            console.log("setmsg reqid current:", currentRequestId.current);
+        if (thisRequestId !== currentRequestId.current) {
+          return;
+        }     
+        // if (selectedChat.platform === "discord") return;
         if (!append) {
           // Reset flag on fresh load
           hasFetchedFirstMessages.current = false;
 
           setLoading(true);
           setHasMoreMessages(true);
+          console.log('setMsg 6')
           setMessages([]);
         } else {
           setLoadingMore(true);
@@ -1063,10 +1086,10 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
         try {
         
-
-          if (selectedChat?.platform == "discord") {
-            return;
-          }
+            
+          // if (selectedChat?.platform == "discord") {
+          //   return;
+          // }
           let endpoint: string;
           if (chatId === "all-channels") {
             endpoint = `${BACKEND_URL}/chats/all/messages`;
@@ -1086,7 +1109,56 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           const hist = await window.electronAPI.telegram.getChatHistory(
             selectedChat.id
           );
-          const data = hist.data;
+          
+
+          let data;
+          if(selectedChat.platform=="discord"){
+            if (
+              history.length > 0 &&
+              selectedChat?.platform == "discord" &&
+              !isHistoryFetched(selectedChat.id)
+            ) {
+              // console.log(
+              //   "hist before set message",
+              //   history.map(mapDiscordMessageToItem)
+              // );
+              console.log('setMsg 7')
+              setMessages((prev) =>
+                [...history.map(mapDiscordMessageToItem), ...prev].sort(
+                  (a, b) =>
+                    Number(new Date(a.timestamp).getTime()) -
+                    Number(new Date(b.timestamp).getTime())
+                )
+              );
+              if (history.length > 0) setHistoryFetched(selectedChat.id);
+            }
+            // setLoading(false);
+            // setLoadingMore(false);
+            if (!hasScrolled) {
+              scrollToBottom();
+              setHasScrolled(true);
+            }
+            if (messagesList.length>0) {
+              console.log('setMsg 8')
+              setMessages((prev) =>
+                [...messagesList.map(mapDiscordMessageToItem), ...prev].sort(
+                  (a, b) =>
+                    Number(new Date(a.timestamp).getTime()) -
+                    Number(new Date(b.timestamp).getTime())
+                )
+              );
+            }
+            setLoading(false);
+            setLoadingMore(false);
+            if (!hasScrolled) {
+              scrollToBottom();
+              setHasScrolled(true);
+          } 
+              return;
+
+        }else {
+            data = hist.data;
+          }
 
           const transformed = await Promise.all(
             data.map(async (msg: any, index: number) => {
@@ -1198,14 +1270,19 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           }
           setTimeout(() => {
             if (append) {
-              console.log("Appending older messages:", transformed);
+              // console.log("Appending older messages:", transformed);
+              console.log('setMsg 9')
               setMessages((prev) => [...transformed, ...prev]);
               setLoadingMore(false);
 
               // Don't auto scroll on loading older messages
             } else {
-              console.log("Setting messages:", transformed);
+              console.log('setMsg 10')
+              console.log('setMsg cid', chatId)
+              console.log('setMsg scc', currentChatRef.current)
+              if(chatId == currentChatRef.current || chatId ==currentChatRef.current.id){
               setMessages(transformed);
+              }
               setLoading(false);
               setShouldAutoScroll(true);
             }
@@ -1223,9 +1300,10 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         } catch (error) {
           console.error("Failed to fetch messages:", error);
           if (!append) {
+            console.log('setMsg 11')
             setMessages([]);
-            setLoading(false);
           }
+          setLoading(false);
           setLoadingMore(false);
         }
       },
@@ -1245,13 +1323,16 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       if (selectedChat.platform === "discord") {
         setLoadingMore(true);
         loadMore();
-        setMessages((prev) =>
+        if(history.length>0){
+          console.log('setMsg 12')
+          setMessages((prev) =>
           [...history.map(mapDiscordMessageToItem), ...prev].sort(
             (a, b) =>
               Number(new Date(a.timestamp).getTime()) -
               Number(new Date(b.timestamp).getTime())
           )
         );
+      }
         setLoadingMore(false);
         return;
       }
@@ -1265,12 +1346,15 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         // Check if this is a smart filter or regular chat
         if (selectedChat.name && selectedChat.keywords !== undefined) {
           // This is a smart filter
+          console.log('setmsg FM 0')
           fetchMessages(selectedChat, beforeTimestamp, true);
         } else {
           // This is a regular chat
+          console.log('setmsg FM 1')
           fetchMessages(selectedChat.id, beforeTimestamp, true);
         }
       } else if (selectedChat === "all-channels") {
+        console.log('setmsg FM 2')
         fetchMessages("all-channels", beforeTimestamp, true);
       }
     }, [
@@ -1342,7 +1426,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     }, [messages, loadingMore]);
 
     const handleSend = async ({ sticker = null } = {}) => {
-      console.log("[handleSend] calling send with sticker", selectedSticker);
+      // console.log("[handleSend] calling send with sticker", selectedSticker);
       if (
         !inputRef.current ||
         (!inputRef.current.value.trim() &&
@@ -1369,7 +1453,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                   },
                 ]
               );
-              console.log(result, "uploadedattachments");
+              // console.log(result, "uploadedattachments");
               if (result.success && result.data) {
                 setAttachments(result.data);
 
@@ -1377,8 +1461,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                   result.data.attachments[0].upload_url,
                   fileWrapper.file
                 );
-                console.log("File uploaded to Discord CDN", resp);
-                console.log("replyTo", replyTo);
+                // console.log("File uploaded to Discord CDN", resp);
+                // console.log("replyTo", replyTo);
                 const res = await window.electronAPI.discord.sendMessage(
                   selectedChat.id,
                   inputRef.current.value.trim(),
@@ -1397,14 +1481,14 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                   }
                 );
                 index++;
-                console.log(res, [
-                  {
-                    id: String(index),
-                    filename: fileWrapper.file.name,
-                    uploaded_filename:
-                      result.data.attachments[0].upload_filename,
-                  },
-                ]);
+                // console.log(res, [
+                //   {
+                //     id: String(index),
+                //     filename: fileWrapper.file.name,
+                //     uploaded_filename:
+                //       result.data.attachments[0].upload_filename,
+                //   },
+                // ]);
               }
             } else {
               await sendMediaToChat({
@@ -1451,8 +1535,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       }
 
       const chatId = selectedChat.id;
-      console.log("replyTo");
-      console.log(replyTo);
+      // console.log("replyTo");
+      // console.log(replyTo);
       if (!chatId && !replyTo) {
         toast({
           title: "Invalid chat",
@@ -1500,6 +1584,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       };
 
       // Add optimistic message to UI
+      console.log('setMsg 13')
       setMessages((prev) => [...prev, optimisticMessage]);
 
       // Clear input and reply state immediately for better UX
@@ -1512,7 +1597,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         const id = chatId || replyTo.chat_id;
 
         if (selectedChat.platform == "discord") {
-          console.log("replyTo originalReplyTo", originalReplyTo);
+          // console.log("replyTo originalReplyTo", originalReplyTo);
 
           const result = await window.electronAPI.discord.sendMessage(
             id,
@@ -1547,6 +1632,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         }, 0);
 
         // Remove optimistic message since the real one will come from the database
+        console.log('setMsg 14')
         setMessages((prev) =>
           prev.filter((msg) => msg.id !== optimisticMessage.id)
         );
@@ -1555,6 +1641,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         scrollToBottom();
 
         // Remove optimistic message on error
+        console.log('setMsg 15')
         setMessages((prev) =>
           prev.filter((msg) => msg.id !== optimisticMessage.id)
         );
@@ -1612,58 +1699,68 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     }, [openMenuId]);
 
     const { messagesList } = useDiscordMessages(selectedChat?.id);
-    console.log(
-      messagesList.map(mapDiscordMessageToItem),
-      "livediscordmessages"
-    );
-    useEffect(() => {
-      console.log(
-        `history fetched for ${selectedChat.id}`,
-        isHistoryFetched(selectedChat.id)
-      );
-      if (
-        history.length > 0 &&
-        selectedChat?.platform == "discord" &&
-        !isHistoryFetched(selectedChat.id)
-      ) {
-        console.log(
-          "hist before set message",
-          history.map(mapDiscordMessageToItem)
-        );
-        setMessages((prev) =>
-          [...history.map(mapDiscordMessageToItem), ...prev].sort(
-            (a, b) =>
-              Number(new Date(a.timestamp).getTime()) -
-              Number(new Date(b.timestamp).getTime())
-          )
-        );
-        if (history.length > 0) setHistoryFetched(selectedChat.id);
-      }
-      setLoading(false);
-      setLoadingMore(false);
-      if (!hasScrolled) {
-        scrollToBottom();
-        setHasScrolled(true);
-      }
-    }, [history]);
+    useEffect(()=>{
+      console.log('debug msgl', messagesList)
+      console.log('debug sc', selectedChat)
+      console.log('setmsg wc')
+      if(messagesList.length>0){
+        setMessages(messagesList.map(mapDiscordMessageToItem).sort((a, b) => 
+          new Date(a.timestamp) - new Date(b.timestamp)
+        ));
+      }      
+    },[messagesList, selectedChat])
+    // console.log(
+    //   messagesList.map(mapDiscordMessageToItem),
+    //   "livediscordmessages"
+    // );
+    // useEffect(() => {
+    //   // console.log(
+    //   //   `history fetched for ${selectedChat.id}`,
+    //   //   isHistoryFetched(selectedChat.id)
+    //   // );
+    //   if (
+    //     history.length > 0 &&
+    //     selectedChat?.platform == "discord" &&
+    //     !isHistoryFetched(selectedChat.id)
+    //   ) {
+    //     // console.log(
+    //     //   "hist before set message",
+    //     //   history.map(mapDiscordMessageToItem)
+    //     // );
+    //     setMessages((prev) =>
+    //       [...history.map(mapDiscordMessageToItem), ...prev].sort(
+    //         (a, b) =>
+    //           Number(new Date(a.timestamp).getTime()) -
+    //           Number(new Date(b.timestamp).getTime())
+    //       )
+    //     );
+    //     if (history.length > 0) setHistoryFetched(selectedChat.id);
+    //   }
+    //   setLoading(false);
+    //   setLoadingMore(false);
+    //   if (!hasScrolled) {
+    //     scrollToBottom();
+    //     setHasScrolled(true);
+    //   }
+    // }, [history]);
 
-    useEffect(() => {
-      if (messagesList && selectedChat?.platform === "discord") {
-        setMessages((prev) =>
-          [...messagesList.map(mapDiscordMessageToItem), ...prev].sort(
-            (a, b) =>
-              Number(new Date(a.timestamp).getTime()) -
-              Number(new Date(b.timestamp).getTime())
-          )
-        );
-      }
-      setLoading(false);
-      setLoadingMore(false);
-      if (!hasScrolled) {
-        scrollToBottom();
-        setHasScrolled(true);
-      }
-    }, [messagesList]);
+    // useEffect(() => {
+    //   if (messagesList && selectedChat?.platform === "discord") {
+    //     setMessages((prev) =>
+    //       [...messagesList.map(mapDiscordMessageToItem), ...prev].sort(
+    //         (a, b) =>
+    //           Number(new Date(a.timestamp).getTime()) -
+    //           Number(new Date(b.timestamp).getTime())
+    //       )
+    //     );
+    //   }
+    //   setLoading(false);
+    //   setLoadingMore(false);
+    //   if (!hasScrolled) {
+    //     scrollToBottom();
+    //     setHasScrolled(true);
+    //   }
+    // }, [messagesList]);
 
     // Silent refresh that avoids toggling loading states and only appends new messages
     //     const refreshLatest = useCallback(async () => {
@@ -1875,6 +1972,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     //         console.error("DEBUG: refreshLatest error:", e);
     //       }
     //     }, [selectedChat]);
+    useEffect(()=>{
+      console.log('[setMsg messages]', messages)
+    },[messages])
     const refreshLatest = useCallback(async () => {
       if (!selectedChat || USE_DUMMY_DATA) return;
 
@@ -1901,8 +2001,52 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             selectedChat.id
           );
           rawMessages = hist?.data || [];
-          console.log("refreshLatest fetched tg history", rawMessages);
+          // console.log("refreshLatest fetched tg history", rawMessages);
+        } else {
+          if (
+            history.length > 0 &&
+            !isHistoryFetched(selectedChat.id)
+          ) {
+            // console.log(
+            //   "hist before set message",
+            //   history.map(mapDiscordMessageToItem)
+            // );
+            console.log('setMsg 16')
+            setMessages((prev) =>
+              [...history.map(mapDiscordMessageToItem), ...prev].sort(
+                (a, b) =>
+                  Number(new Date(a.timestamp).getTime()) -
+                  Number(new Date(b.timestamp).getTime())
+              )
+            );
+            if (history.length > 0) setHistoryFetched(selectedChat.id);
+          }
+          // setLoading(false);
+          // setLoadingMore(false);
+          if (!hasScrolled) {
+            scrollToBottom();
+            setHasScrolled(true);
+          }
+          if (messagesList.length>0) {
+            console.log('setMsg 17')
+            console.log('setMsg sc',selectedChat)
+            console.log('setMsg msglist',messagesList)
+            setMessages((prev) =>
+              [...messagesList.map(mapDiscordMessageToItem)].sort(
+                (a, b) =>
+                  Number(new Date(a.timestamp).getTime()) -
+                  Number(new Date(b.timestamp).getTime())
+              )
+            );
+          }
+          setLoading(false);
+          setLoadingMore(false);
+          if (!hasScrolled) {
+            scrollToBottom();
+            setHasScrolled(true);
         }
+        return;
+      }
 
         // Transform each message into UI format
         const transformed = rawMessages.map((msg, index) => {
@@ -1968,19 +2112,21 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         // Safe update — ignore stale fetches
         if (chatKey === currentChatRef.current) {
           setTimeout(() => {
-          setMessages(transformed);
+          console.log('setMsg 18')
+            setMessages(transformed);
           }, 200);
         }
       } catch (err) {
         if (err.name !== "AbortError")
           console.error("refreshLatest error:", err);
       }
-    }, [selectedChat]);
+    }, [selectedChat, messagesList]);
 
     // Fetch messages when selectedChat changes or on initial mount
     useEffect(() => {
       // Set flag to indicate this is a new chat (should auto-scroll)
       setIsNewChat(true);
+      console.log('setMsg 19')
       setMessages([]);
       // Update current chat ref to help prevent race conditions
       let chatId = null;
@@ -2002,7 +2148,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             const markRead = async () => {
               try {
                 await markChatAsRead(selectedChat.id);
-                console.log("Marked as read");
+                // console.log("Marked as read");
               } catch (err) {
                 console.error("Failed to mark as read:", err);
               }
@@ -2011,10 +2157,12 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             markRead();
 
             if (selectedChat.name && selectedChat.keywords !== undefined) {
+              console.log('setmsg FM 3')
               fetchMessages(selectedChat);
               // fetchPinnedMessages();
             } else {
               if (messages.length > 0) {
+                console.log('setmsg FM 4')
                 fetchMessages(
                   selectedChat.id,
                   null,
@@ -2022,20 +2170,24 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                   messages[0]?.timestamp ?? null
                 );
               } else {
+                console.log('setmsg FM 5')
                 fetchMessages(selectedChat.id);
               }
 
               // fetchPinnedMessages(selectedChat.id);
             }
           } else if (selectedChat === "all-channels") {
+            console.log('setmsg FM 6')
             fetchMessages("all-channels");
             // fetchPinnedMessages();
           } else {
+            console.log('setMsg 20')
             setMessages([]);
             setPinnedMessages([]);
           }
         }
       } else {
+        console.log('setMsg 21')
         // setMessages(dummyMessages);
         setPinnedMessages([]);
       }
@@ -2169,12 +2321,12 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
     useEffect(() => {
       if (!selectedChat) return;
-      console.log("Setting up new message listener for chat", selectedChat.id);
+      // console.log("Setting up new message listener for chat", selectedChat.id);
       // Subscribe to new messages, get unsubscribe
       const unsubscribe = window.electronAPI.telegram.onNewMessage((msg) => {
         if (msg?.chat?.id?.toString() === selectedChat?.id?.toString()) {
           const data = [msg]; // Wrap single message in array for uniform processing
-          console.log("New message for selected chat:", msg);
+          // console.log("New message for selected chat:", msg);
           const transformed = data.map((msg: any, index: number) => {
             let chatName = "Unknown";
             let channelName: string | null = null;
@@ -2273,6 +2425,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             };
           });
 
+          console.log('setMsg 22')
           setMessages((prev) => [...prev, ...transformed]);
         }
       });
@@ -2327,8 +2480,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const generateTaskFromMessage = async (msg) => {
       if (!msg) return;
 
-      console.log('generateTaskFromMessage entry test')
-      console.log(msg)
+      // console.log('generateTaskFromMessage entry test')
+      // console.log(msg)
       summarizeMessages(
         [{ ...msg, text: msg.message }],
         true,
@@ -2384,7 +2537,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         }
 
         const updatedFilter = await response.json();
-        console.log("Filter updated successfully:", updatedFilter);
+        // console.log("Filter updated successfully:", updatedFilter);
 
         // Update local filters list state if applicable
         setFiltersList((prev) =>
@@ -2500,6 +2653,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         );
 
         // After successful delete, remove message from state
+        console.log('setMsg 23')
         setMessages((prev) =>
           prev.filter(
             (message) => message.id !== msg.id && message.originalId !== msg.id
@@ -2578,12 +2732,12 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           console.error("Audio file is empty or invalid:", audioFile);
           return setIsSending(false);
         }
-        console.log(
-          "Sending audio file:",
-          audioFile,
-          "Is File:",
-          audioFile instanceof File
-        );
+        // console.log(
+        //   "Sending audio file:",
+        //   audioFile,
+        //   "Is File:",
+        //   audioFile instanceof File
+        // );
         await sendMediaToChat({
           chatId: selectedChat.id,
           file: audioFile,
@@ -2619,7 +2773,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     };
 
     const jumpToReply = (msg) => {
-      console.log(msg);
+      // console.log(msg);
       setSelectedMessageId(msg.replyToId);
     };
 
@@ -2634,7 +2788,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         });
         if (tgRes.ok) {
           const tg = await tgRes.json();
-          console.log("tg status res", tg);
+          // console.log("tg status res", tg);
           setTelegramUserId(String(tg.telegram_id));
         }
       } catch (e) {
@@ -2644,6 +2798,10 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     useEffect(() => {
       fetchStatus();
     }, []);
+    
+    useEffect(() => {
+      console.log('[scg]',groupedByDate)
+    }, [groupedByDate]);
 
     return (
       <div className="relative h-[calc(100vh-64px)] bg-[#1A1A1E] flex flex-1 flex-col flex-shrink-0 min-w-0">
@@ -2747,6 +2905,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                   <hr className="flex-1 border-[#23272f]" />
                 </div>
                 {msgs.map((msg, index) => {
+                  
                   const globalIndex = messages.findIndex(
                     (m) => m.id === msg.id
                   );
@@ -2772,7 +2931,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                     const mentionRegex = /<@(\d+)>/g;
                     const text = msg?.referenced_message?.content;
                     
-                    console.log("Original text:", text);
                     const parts = [];
                     let lastIndex = 0;
                     let match;
@@ -2781,29 +2939,22 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                       const start = match.index;
                       const end = mentionRegex.lastIndex;
                     
-                      console.log("[regex] Match found:", match[0], "at", start, "-", end);
                     
                       if (lastIndex !== start) {
                         const plainText = text.slice(lastIndex, start);
-                        console.log("Plain text before mention:", plainText);
                         parts.push(plainText);
                       }
                     
                       const matchedText = text.slice(start, end);
-                      console.log("[regex] Matched mention text:", matchedText);
                     
                       // Extract ID from mention
                       const id = matchedText.replace(/[<@>]/g, "");
-                      console.log("[regex] Extracted user ID:", id);
-                      console.log("[regex] msg:", msg);
                     
                       // Find mention username from mentions data
                       const mention = msg?.referenced_message?.mentions?.find((m) => m.id === id);
                       const user_id = mention ? mention.id : null;
                       const avatar = mention ? `https://cdn.discordapp.com/avatars/${mention.id}/${mention.avatar}.png` : null;
                       const username = mention ? mention.username : id;
-                    
-                      console.log("[regex] Found mention user:", username, user_id, avatar);
                     
                       parts.push(
                         <span
@@ -2819,7 +2970,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                     
                     if (lastIndex < text?.length) {
                       const remainingText = text.slice(lastIndex);
-                      console.log("[regex] Remaining text after last mention:", remainingText);
                       parts.push(remainingText);
                     }
                     
@@ -2940,7 +3090,6 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                               title="Reply"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                console.log("replyto", msg);
                                 setReplyTo(msg);
                                 setTimeout(() => {
                                   if (inputRef.current) {
