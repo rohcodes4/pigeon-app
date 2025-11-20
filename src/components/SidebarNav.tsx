@@ -1,12 +1,7 @@
-// ... existing code ...
 import AI from "@/assets/images/aiBlue.png";
-import Chat from "@/assets/images/sidebar/Chat.png";
-import Doc from "@/assets/images/sidebar/Doc.png";
 import Favourite from "@/assets/images/sidebar/Favourite.png";
 import Help from "@/assets/images/sidebar/Help.png";
-import Lobby from "@/assets/images/sidebar/Lobby.png";
 import Logs from "@/assets/images/sidebar/Logs.png";
-import Notification from "@/assets/images/sidebar/Notification.png";
 import focusEnable from "@/assets/images/focusLoading.svg";
 import focusDisable from "@/assets/images/focusSleep.svg";
 import Discord from "@/assets/images/discord.png";
@@ -14,7 +9,6 @@ import Telegram from "@/assets/images/telegram.png";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  ArrowUpCircle,
   LogOut,
   Settings,
   User,
@@ -26,12 +20,8 @@ import {
 } from "lucide-react";
 import logo from "@/assets/images/logo.svg";
 import { useNavigate } from "react-router-dom";
-// import { supabase } from "@/integrations/supabase/client"; // Removed Supabase import
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useTheme, Theme } from "@/hooks/useTheme"; // Correctly import Theme
-import ChatAvatar from "./ChatAvatar";
-import DiscordSidebar from "./DiscordSidebar";
-import { Checkbox } from "@radix-ui/react-checkbox";
 import FocusToggle from "./FocusToggle";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -44,120 +34,68 @@ interface SidebarNavProps {
   guilds: any[] | null;
 }
 
-const dummyServers = [
-  { id: "1", name: "Discord Server One" },
-  { id: "2", name: "Discord Server Two" },
-  { id: "3", name: "Discord Server Three" },
-  { id: "4", name: "Discord Server Four" },
-  { id: "5", name: "Discord Server Five" },
-  { id: "6", name: "Discord Server Six" },
-  { id: "7", name: "Discord Server Seven" },
-  { id: "8", name: "Discord Server Eight" },
-  { id: "9", name: "Discord Server Nine" },
-  { id: "10", name: "Discord Server Ten" },
-  { id: "11", name: "Discord Server Eleven" },
-  { id: "12", name: "Discord Server Twelve" },
-];
-
-export const SidebarNav: React.FC<SidebarNavProps> = ({ isFocusMode, setIsFocusMode, activePage,  onSelectDiscordServer, selectedDiscordServer, guilds }) => {
-  // console.log(Object.values(guilds))
-  const [guild, setGuild] = useState([])
-  
-  // if(guilds.length>0){
-  //   setGuild(Object.values(guild))
-  // } 
-
+export const SidebarNav: React.FC<SidebarNavProps> = ({
+  isFocusMode,
+  setIsFocusMode,
+  activePage,
+  onSelectDiscordServer,
+  selectedDiscordServer,
+  guilds,
+}) => {
+  const [guild, setGuild] = useState([]);
 
   useEffect(() => {
-    // Try to load guilds from localStorage first
     const cachedGuilds = localStorage.getItem("discordGuilds");
-    // console.log("[localguild][localStorage] raw:", cachedGuilds);
-  
     if (cachedGuilds) {
       try {
         const parsed = JSON.parse(cachedGuilds);
-        // console.log("[localguild][localStorage] parsed:", parsed);
-  
         if (Array.isArray(parsed)) {
           setDiscordServers(parsed);
-          // console.log("[localguild][localStorage] setGuilds:", parsed);
         }
       } catch (err) {
         console.error("[localguild][localStorage] parse error:", err);
-        // fail silently, will refetch
       }
     }
-  
-    // Always fetch fresh from Discord and update cache
+
     async function fetchGuilds() {
       const guilds = await window.electronAPI.discord.getGuilds();
-      // console.log("[localguild][discord API] raw:", guilds);
-  
-      // convert object of objects to array of objects with id
       let arr = [];
       if (guilds.data && typeof guilds.data === "object") {
         arr = [...guilds.data.entries()].map(([key, value]) => ({
-        id: key,
-        ...value,
-      }));   
-        // console.log("[localguild][discord API] mapped array:", arr);
+          id: key,
+          ...value,
+        }));
       }
-      if(arr.length>0){
+      if (arr.length > 0) {
         setDiscordServers(arr);
         localStorage.setItem("discordGuilds", JSON.stringify(arr));
-        // console.log("[localguild][discord API] saved to localStorage");
       }
-      
     }
-    setTimeout(()=>{
+    setTimeout(() => {
       fetchGuilds();
-    },5000)
-    
+    }, 5000);
   }, []);
-  
 
-  useEffect(()=>{
+  useEffect(() => {
     let timer: any = null;
     const poll = async () => {
-      const guilds = await window.electronAPI.discord.getGuilds(); 
-      // console.log("gggg",guilds.data)
-      // const guildArray = Array.from(guilds.data);   
+      const guilds = await window.electronAPI.discord.getGuilds();
       const guildArray = [...guilds.data.entries()].map(([key, value]) => ({
         id: key,
         ...value,
-      }));   
-      // console.log("ggg",guildArray)
-      setGuild(guildArray)
+      }));
+      setGuild(guildArray);
       localStorage.setItem("discordGuilds", JSON.stringify(guildArray));
-      setDiscordServers(guildArray)
-    }
+      setDiscordServers(guildArray);
+    };
     timer = setTimeout(poll, 30000);
     return () => {
       if (timer) clearTimeout(timer);
     };
-  },[])
-  
-  // useEffect(()=>{
-  //   console.log("gg",guild)
-  // },[guild])
+  }, []);
 
   const [discordServers, setDiscordServers] = useState([]);
 
-  
-  // useEffect(() => {
-  //   // define async function inside effect
-  //   async function fetchGuilds() {
-  //     const guilds = await window.electronAPI.discord.getGuilds();
-  //     console.log('guilds:',guilds)
-  //     if(guilds.success){
-  //       const guildArray = Object.values(guilds.data);
-  //       if(guildArray.length>0) setDiscordServers(guildArray)      
-  //     }      
-  //   }
-  //   fetchGuilds();
-  // }, []);
-
-  
   const navMap: { [key: string]: string } = {
     "/": "AI",
     "/smart-tasks": "Tasks",
@@ -165,11 +103,10 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ isFocusMode, setIsFocusM
     "/contacts": "Contacts",
     "/ai": "AiChat",
     "/help": "Help",
-    // add more as needed
   };
   const { settings, updateSettings, loading } = useUserSettings();
-  const { setTheme: setGlobalTheme } = useTheme(); // Destructure setTheme from useTheme
-const isHelpPage = activePage === "/help";
+  const { setTheme: setGlobalTheme } = useTheme();
+  const isHelpPage = activePage === "/help";
   useEffect(() => {
     if (!loading) {
       setTheme(settings.theme);
@@ -178,20 +115,18 @@ const isHelpPage = activePage === "/help";
 
   const [showProfile, setShowProfile] = useState(false);
   const [theme, setTheme] = useState(settings.theme || "default");
+  const [totalUnread, setTotalUnread] = useState(0);
   const [discordConnected, setDiscordConnected] = useState(false);
   const [telegramConnected, setTelegramConnected] = useState(false);
   const navigate = useNavigate();
-  const { user: authUser, signOut } = useAuth(); // Destructure signOut from useAuth
+  const { user: authUser, signOut } = useAuth();
 
   const handleThemeChange = (newTheme: Theme) => {
-    // Use Theme type
     updateSettings({ theme: newTheme });
     setTheme(newTheme);
-    setGlobalTheme(newTheme); // Pass Theme type directly
+    setGlobalTheme(newTheme);
   };
 
-  // const { user } = useAuth();
-  // console.log(user)
   const themes: { value: Theme; icon: React.ReactNode }[] = [
     { value: "default", icon: <Circle className="w-5 h-5" /> },
     { value: "light", icon: <Sun className="w-5 h-5" /> },
@@ -221,12 +156,6 @@ const isHelpPage = activePage === "/help";
 
   const themeIndex = themes.findIndex((t) => t.value === theme);
 
-  // const user = {
-  //   name: "Jane Doe",
-  //   email: "jane.doe@email.com",
-  //   avatar: User,
-  // };
-
   // Helper function to get user display name
   const getUserDisplayName = (user: any) => {
     if (user?.full_name) {
@@ -236,15 +165,15 @@ const isHelpPage = activePage === "/help";
       return user.username;
     }
     if (user?.email) {
-      return user.email.split("@")[0]; // Show username part of email
+      return user.email.split("@")[0];
     }
     return "User";
   };
 
   // Helper function to get user avatar
   const getUserAvatar = (user: any) => {
-    if(user?.profile_picture){
-      return `${BACKEND_URL}/static/profile_photos/${user.profile_picture}`
+    if (user?.profile_picture) {
+      return `${BACKEND_URL}/static/profile_photos/${user.profile_picture}`;
     }
     if (user?.username) {
       return gravatarUrl(user.username);
@@ -279,23 +208,40 @@ const isHelpPage = activePage === "/help";
         if (res?.success && res?.data) {
           setDiscordConnected(!!res.success);
         }
-      } catch (e) {
-        // ignore transient errors
-      }
+      } catch (e) {}
     };
     fetchStatuses();
   }, [authUser]);
 
   const logOut = async () => {
-    await signOut(); // Call signOut from useAuth
+    await signOut();
   };
+
+  const getTotalUnread = async () => {
+    try {
+      const token = localStorage.getItem("access_token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const [unreadRes] = await Promise.all([
+        fetch(`${BACKEND_URL}/api/unread-counts`, { headers }),
+      ]);
+      if (unreadRes.ok) {
+        const unread = await unreadRes.json();
+        console.log("unread", unread);
+        setTotalUnread(unread.total_unread);
+      }
+    } catch (e) {}
+  };
+  useEffect(() => {
+    getTotalUnread();
+  }, []);
   return (
-    <aside className={`h-screen w-16 flex flex-col items-center py-[18px] min-w-16 overflow-hidden bg-[#171717] flex-shrink-0 ${
-      isHelpPage ? 'fixed left-0 top-0 z-40' : ''
-    }`}>
-      <img src={logo} alt="AI" className="w-9 h-9 mb-4" />
+    <aside
+      className={`h-screen w-16 flex flex-col items-center py-[18px] min-w-16 overflow-hidden bg-[#161717] flex-shrink-0 ${
+        isHelpPage ? "fixed left-0 top-0 z-40" : ""
+      }`}
+    >
+      <img src={logo} alt="Pigeon Logo" className="w-9 h-9 mb-4" />
       <nav className="flex flex-col gap-4 flex-1 mt-5">
-        {/* AI */}
         <button
           className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
             ${activeNav === "AI" ? "bg-[#212121]" : "hover:bg-[#212121]"}`}
@@ -308,8 +254,12 @@ const isHelpPage = activePage === "/help";
             <span className="absolute left-[-13px] h-full top-0 bottom-2 w-1 rounded bg-[#3474ff]" />
           )}
           <img src={AI} alt="AI" className={`w-6 h-6`} />
+          {totalUnread > 0 && (
+            <div className="absolute -right-1 -bottom-1 h-5 w-5 rounded-full bg-white text-black text-[10px] flex items-center justify-center">
+              {totalUnread > 99 ? "99+" : totalUnread}
+            </div>
+          )}
         </button>
-        {/* Logs */}
         <button
           className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
             ${activeNav === "Tasks" ? "bg-[#212121]" : "hover:bg-[#212121]"}`}
@@ -329,7 +279,6 @@ const isHelpPage = activePage === "/help";
             } w-6 h-6`}
           />
         </button>
-        {/* Favourite */}
         <button
           className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
             ${
@@ -351,26 +300,24 @@ const isHelpPage = activePage === "/help";
             } w-6 h-6`}
           />
         </button>
-        {/* AI Chat */}
-<button
-  className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
+        <button
+          className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
     ${activeNav === "AIChat" ? "bg-[#212121]" : "hover:bg-[#212121]"}`}
-  onClick={() => {
-    setActiveNav("AIChat");
-    navigate("/ai");
-  }}
->
-{activeNav === "AiChat" && (
+          onClick={() => {
+            setActiveNav("AIChat");
+            navigate("/ai");
+          }}
+        >
+          {activeNav === "AiChat" && (
             <span className="absolute left-[-13px] h-full top-0 bottom-2 w-1 rounded bg-[#3474ff]" />
           )}
-  <BotMessageSquare
-  className={`${
-    activeNav === "AiChat" ? "opacity-1" : "opacity-[0.5]"
-  } w-6 h-6`}
-/>
-</button>
+          <BotMessageSquare
+            className={`${
+              activeNav === "AiChat" ? "opacity-1" : "opacity-[0.5]"
+            } w-6 h-6`}
+          />
+        </button>
 
-        {/* Users */}
         <button
           className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
             ${
@@ -390,7 +337,6 @@ const isHelpPage = activePage === "/help";
             } w-6 h-6`}
           />
         </button>
-        {/* Help */}
         <button
           className={`relative p-2 rounded-[10px] flex items-center justify-center transition-colors
             ${activeNav === "Help" ? "bg-[#212121]" : "hover:bg-[#212121]"}`}
@@ -410,44 +356,14 @@ const isHelpPage = activePage === "/help";
             } w-6 h-6`}
           />
         </button>
-        {/* <div onClick={()=>setIsFocusMode(!isFocusMode)}>{isFocusMode?"Unfocus":"Focus"}</div> */}
-        <FocusToggle 
+        <hr className="mb-2" />
+        <FocusToggle
           imgTop={focusDisable}
           imgBottom={focusEnable}
-          onToggle={()=>setIsFocusMode(!isFocusMode)}/>
-
+          onToggle={() => setIsFocusMode(!isFocusMode)}
+        />
       </nav>
-      {/* <div className="discord-servers my-4 pl-2 overflow-y-auto w-full flex flex-col items-center">
-  {discordServers.length > 0 && discordConnected &&
-    discordServers.map((server) => (
-      <button
-        key={server.id}
-        className={`block w-9 h-9 mb-2 rounded-full flex items-center justify-center focus:outline-none ${
-          selectedDiscordServer === server.id
-            ? "border-2 border-blue-600"
-            : "hover:bg-gray-700"
-        }`}
-        onClick={() => onSelectDiscordServer(server.id)}
-        type="button"
-      >
-        {server.icon ? (
-          <img
-            src={`https://cdn.discordapp.com/icons/${server.id}/${server.icon}.png?size=64`}
-            alt={server.name}
-            className="w-8 h-8 rounded-full"
-            draggable={false}
-          />
-        ) : (
-          <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center text-xs text-white select-none">
-            {server.name.charAt(0).toUpperCase()}
-          </div>
-        )}
-      </button>
-    ))}
-</div> */}
-
       <div className="flex flex-col items-center gap-6 mt-auto mb-4">
-        {/* Discord Icon with Connected Badge */}
         <div className="relative bg-[#7B5CFA] rounded-[10px] p-2 group">
           <img src={Discord} alt="Discord" className="w-4 h-4 rounded" />
           <span
@@ -455,8 +371,6 @@ const isHelpPage = activePage === "/help";
               discordConnected ? "bg-green-500" : "bg-gray-500"
             }`}
           ></span>
-
-          {/* Tooltip */}
           <div
             className="fixed left-14 opacity-0 group-hover:opacity-100 transition-opacity bg-[#111111] text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none border border-[#333]"
             style={{ zIndex: 99999 }}
@@ -464,8 +378,6 @@ const isHelpPage = activePage === "/help";
             {discordConnected ? "Discord Connected" : "Discord Not Connected"}
           </div>
         </div>
-
-        {/* Telegram Icon with Connected Badge */}
         <div className="relative bg-[#3474FF] rounded-[10px] p-2 group">
           <img src={Telegram} alt="Telegram" className="w-4 h-4 rounded" />
           <span
@@ -473,8 +385,6 @@ const isHelpPage = activePage === "/help";
               telegramConnected ? "bg-green-500" : "bg-gray-500"
             }`}
           ></span>
-
-          {/* Tooltip */}
           <div
             className="fixed left-14 opacity-0 group-hover:opacity-100 transition-opacity bg-[#111111] text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none border border-[#333]"
             style={{ zIndex: 99999 }}
@@ -485,7 +395,6 @@ const isHelpPage = activePage === "/help";
           </div>
         </div>
         <hr className="h-0.5 w-full bg-[#ffffff12]" />
-        {/* Profile Icon with Popover */}
         <div
           className="relative"
           onMouseEnter={() => setShowProfile(true)}
@@ -515,7 +424,6 @@ const isHelpPage = activePage === "/help";
               }}
             >
               {" "}
-              {/* Name */}
               <div className="flex items-center gap-3">
                 {authUser ? (
                   <>

@@ -2043,6 +2043,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         setText("");
       }
       setUploadedFiles([]);
+      setReplyTo(null)
     }, [selectedChat?.id, selectedChat, fetchMessages, fetchPinnedMessages]);
 
     useEffect(() => {
@@ -2643,7 +2644,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     }, []);
 
     return (
-      <div className="relative h-[calc(100vh-64px)] flex flex-1 flex-col flex-shrink-0 min-w-0">
+      <div className="relative h-[calc(100vh-64px)] bg-[#1A1A1E] flex flex-1 flex-col flex-shrink-0 min-w-0">
         {/* Selected Chat Info */}
         {selectedChat && (
           <div className="px-6 py-4 border-b border-[#23272f]  flex-shrink-0 relative z-0">
@@ -2770,6 +2771,60 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                     (isDiscord && msg.sender?.id === userId) ||
                     (isTelegram && msg?.chat_id === telegramUserId);
 
+                    const mentionRegex = /<@(\d+)>/g;
+                    const text = msg?.referenced_message?.content;
+                    
+                    console.log("Original text:", text);
+                    const parts = [];
+                    let lastIndex = 0;
+                    let match;
+                    
+                    while ((match = mentionRegex.exec(text)) !== null) {
+                      const start = match.index;
+                      const end = mentionRegex.lastIndex;
+                    
+                      console.log("[regex] Match found:", match[0], "at", start, "-", end);
+                    
+                      if (lastIndex !== start) {
+                        const plainText = text.slice(lastIndex, start);
+                        console.log("Plain text before mention:", plainText);
+                        parts.push(plainText);
+                      }
+                    
+                      const matchedText = text.slice(start, end);
+                      console.log("[regex] Matched mention text:", matchedText);
+                    
+                      // Extract ID from mention
+                      const id = matchedText.replace(/[<@>]/g, "");
+                      console.log("[regex] Extracted user ID:", id);
+                      console.log("[regex] msg:", msg);
+                    
+                      // Find mention username from mentions data
+                      const mention = msg?.referenced_message?.mentions?.find((m) => m.id === id);
+                      const user_id = mention ? mention.id : null;
+                      const avatar = mention ? `https://cdn.discordapp.com/avatars/${mention.id}/${mention.avatar}.png` : null;
+                      const username = mention ? mention.username : id;
+                    
+                      console.log("[regex] Found mention user:", username, user_id, avatar);
+                    
+                      parts.push(
+                        <span
+                          key={start}
+                          className="bg-blue-100 underline text-blue-700 px-1 rounded cursor-pointer"
+                        >
+                          @{username}
+                        </span>
+                      );
+                    
+                      lastIndex = end;
+                    }
+                    
+                    if (lastIndex < text?.length) {
+                      const remainingText = text.slice(lastIndex);
+                      console.log("[regex] Remaining text after last mention:", remainingText);
+                      parts.push(remainingText);
+                    }
+                    
                   return (
                     <div
                       key={String(msg.id)}
@@ -2805,7 +2860,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                         {isOwnMessage ? (
                           <></>
                         ) : isSameSenderAsPrev ? (
-                          <div className="w-10 h-10"></div>
+                          <div className="w-10"></div>
                         ) : (
                           <ChatAvatar
                             name={msg.name}
@@ -3169,7 +3224,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                               <></>
                             ) : (
                               <>
-                                <span className="text-[#ffffff72] font-[300]">
+                                <span className="text-[#fafafa] font-[300]">
                                   {msg.name}
                                 </span>
                                 <div
@@ -3191,19 +3246,19 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                                         msg.platform === "Discord" ? "" : ""
                                       } rounded px-2 py-0.5`}
                                     >
-                                      {msg.server}
+                                      {msg.platform==="Discord"?selectedChat.name:msg.server}
                                     </span>
                                   )}
                                 </div>
 
-                                <span className="text-xs text-[#fafafa99]">
+                                {/* {msg.platform!=="Discord" && <span className="text-xs text-[#fafafa99]">
                                   {selectedChat.name}
-                                </span>
+                                </span>} */}
                               </>
                             )}
-                            <span className="text-xs text-[#ffffff32]">
+                            {!isSameSenderAsPrev && <span className="text-xs text-[#ffffff32]">
                               {formatTime(msg.date)}
-                            </span>
+                            </span>}
                             {String(msg.id).startsWith("temp-") && (
                               <span className="text-xs text-[#84afff] italic">
                                 sending...
@@ -3229,19 +3284,19 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                             msg?.referenced_message?.id && (
                               <div
                                 className={`${
-                                  isOwnMessage ? "text-right flex flex-col items-end" : ""
-                                } cursor-pointer text-xs text-[#84afff] bg-[#1E3BA0] rounded-[10px] px-2 py-1 mb-1 mt-2 max-w-[100%] break-all`}
+                                  isOwnMessage ? "text-right flex flex-col items-end mb-2" : ""
+                                } cursor-pointer text-xs text-[#84afff] bg-[#1E3BA0] rounded-[10px] px-2 py-2 mb-1 mt-2 max-w-[100%] break-all border-l-2 border-[#3474FF]`}
                                 onClick={() => jumpToReply(msg)}
                               >
                                 
                                 {/* Replying to{" "} */}
                                 <div className="flex items-center gap-2">
-                                  <img src={replyArrow}/>
+                                  <img src={replyArrow} className="h-5 w-5"/>
                                 <ChatAvatar 
                                 name={msg?.referenced_message?.author?.global_name || msg?.referenced_message?.author?.username} 
                                 avatar={`https://cdn.discordapp.com/avatars/${msg?.referenced_message?.author.id}/${msg?.referenced_message?.author.avatar}.png`}
                                 size={20} />
-                                <span className="font-semibold">
+                                <span className="font-semibold -ml-1">
                                   {msg?.referenced_message?.author
                                     ?.global_name ||
                                     msg?.referenced_message?.author?.username}
@@ -3249,7 +3304,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                                 </span>{" "}
                                 </div>
                                 <p className="text-[#ffffffb0]">
-                                  {msg?.referenced_message?.content}
+                                  {/* {msg?.referenced_message?.content} */}
+                                  {parts}
                                 </p>
                               </div>
                             )}
@@ -3611,13 +3667,13 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           )}
 
           {replyTo && (
-            <div className="flex items-center mb-2 px-4 py-2 rounded-[10px] bg-[#111111] text-xs text-[#84afff]">
+            <div className="flex items-center mb-0 px-4 py-2 rounded-t-[10px] bg-[#2d2e32] text-xs text-[#fafafa]">
               <div className="grow flex flex-col">
                 <div className="uppercase flex items-center">
-                  <span className="font-[200] text-[#ffffff32] mr-2">
+                  <span className="font-[200] text-[#fafafa] mr-2">
                     Replying to
                   </span>
-                  <span className="text-[#ffffff72] font-[400]">
+                  <span className="text-[#fafafa] font-[400]">
                     {replyTo.name}
                   </span>
                   <img
@@ -3637,7 +3693,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                     </span>
                   )}
                 </div>
-                <span className="truncate flex-1 text-[#ffffff32] mt-1">
+                <span className="truncate flex-1 text-[#fafafa72] mt-1">
                   {replyTo.message.slice(0, 130)}
                   {replyTo.message.length > 130 ? "..." : ""}
                 </span>
@@ -3652,7 +3708,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             </div>
           )}
           <div className="flex z-50">
-            <div className="flex grow items-center bg-[#212121] rounded-[10px] px-4 py-2 shadow-lg">
+            <div className={`flex grow items-center bg-[#222327] ${replyTo?"rounded-b-[10px]":"rounded-[10px]"} px-4 py-2 shadow-lg`}>
               <div
                 ref={attachRef}
                 className="relative"

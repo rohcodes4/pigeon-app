@@ -1,6 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import {  Bell, Check, Filter, Pin, Search, X, Plus, Trash, CheckCheck, PinOff, SmilePlusIcon } from "lucide-react";
+import {
+  Bell,
+  Check,
+  Filter,
+  Pin,
+  Search,
+  X,
+  Plus,
+  Trash,
+  CheckCheck,
+  PinOff,
+  SmilePlusIcon,
+} from "lucide-react";
 import aiIMG from "@/assets/images/aiBlue.png";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -49,7 +61,7 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   selectedOptions,
   setSelectedOptions,
 }) => {
-  console.log('scc',selectedChat)
+  console.log("scc", selectedChat);
   const location = useLocation();
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const authToken = localStorage.getItem("access_token");
@@ -83,7 +95,6 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   const [pinnedChats, setPinnedChats] = useState<any[]>([]);
   const [isPinnedChat, setIsPinnedChat] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
-
 
   const handleToggleOption = (value: string) => {
     if (selectedOptions.includes(value)) {
@@ -124,8 +135,8 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`
-        }
+          Authorization: `Bearer ${authToken}`,
+        },
       });
       if (response.ok) {
         const data = await response.json();
@@ -142,8 +153,8 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`
-        }
+          Authorization: `Bearer ${authToken}`,
+        },
       });
 
       if (!response.ok) {
@@ -159,8 +170,8 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
               method: "DELETE",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${authToken}`
-              }
+                Authorization: `Bearer ${authToken}`,
+              },
             }
           );
           if (!unpinResponse.ok) throw new Error("Failed to unpin channel");
@@ -234,8 +245,8 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
     const fetchPlatforms = async () => {
       setIsTelegram(false);
       setIsDiscordChat(false);
-      console.log('scc before tg', isTelegram)
-      console.log('scc before dc', isDiscordChat)
+      console.log("scc before tg", isTelegram);
+      console.log("scc before dc", isDiscordChat);
       if (selectedChat === "all-channels") {
         setIsTelegram(true);
         setIsDiscordChat(true);
@@ -250,88 +261,92 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
         setIsTelegram(false);
         setIsDiscordChat(false);
       }
-      console.log('scc after tg', isTelegram)
-      console.log('scc after dc', isDiscordChat)
+      console.log("scc after tg", isTelegram);
+      console.log("scc after dc", isDiscordChat);
     };
-    
 
-    fetchPlatforms()
+    fetchPlatforms();
     fetchStatuses();
   }, [authUser, selectedChat]);
   // Only show smart button on home
   const showSmartButton =
     location.pathname === "/" || (location.pathname === "/ai" && !isAI);
 
-    
   return (
-    <header className="flex flex-shrink-0 gap-2 items-center justify-between px-6 py-1 border-b border-[#23272f] rounded-tl-[12px] py-2">
+    <header className="bg-[#1A1A1E] flex flex-shrink-0 gap-2 items-center justify-between px-6 py-1 border-b border-[#23272f] rounded-tl-[12px] py-2">
       <div className="flex flex-1 justify-between">
-      {/* Left: Title and subtitle */}
-      <div className="flex gap-2 items-center">
-        {selectedChat==="all-channels" && <h1 className="text-[15px] text-[#ffffff72]">{title}</h1>}
-
-        {telegramConnected && isTelegram && <span className="p-1.5 rounded-[6px] text-[11px] text-[#bfd6ff] bg-[#3474ff]">
-          Telegram
-        </span>}
-        {discordConnected && isDiscordChat && <span className="p-1.5 rounded-[6px] text-[11px] text-[#d7d5ff] bg-[#7b5cfa]">
-          Discord
-        </span>}
-
-        {/* Show pin button only if selectedChat is an object with ID */}
-        {isPinnable &&
-          typeof selectedChat === "object" &&
-          !("channels" in selectedChat) && (
-            <div
-              onClick={() => pinChannel(selectedChat.id)}
-              className="cursor-pointer p-2 flex items-center justify-center bg-[#fafafa10] rounded-[6px]"
-            >
-              <PinOff
-                className={`w-4 h-4 ${
-                  isPinnedChat
-                    ? "text-[#fafafa] fill-[#fafafa]"
-                    : "text-[#fafafa60] fill-[#fafafa60]"
-                }`}
-                aria-label={isPinnedChat ? "Unpin" : "Pin"}
-              />
-            </div>
+        {/* Left: Title and subtitle */}
+        <div className="flex gap-2 items-center">
+          {selectedChat === "all-channels" && (
+            <h1 className="text-[15px] text-[#ffffff72]">{title}</h1>
           )}
-      </div>
 
-      {/* Right: Actions */}
-      {isContact ? (
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() =>
-              setIsSmartSummary && setIsSmartSummary(!isSmartSummary)
-            }
-            className="p-1.5 my-1 flex gap-2 text-[11px] items-center rounded-[6px] bg-[#fafafa10] border border-[#ffffff03] text-[#ffffff] hover:text-[#ffffff] hover:bg-[#ffffff32] transition"
-          >
-            <SmilePlusIcon className="w-4 h-4" /> <span>Add a friend</span>
-          </button>
+          {telegramConnected && isTelegram && (
+            <span className="p-1.5 rounded-[6px] text-[11px] text-[#bfd6ff] bg-[#3474ff]">
+              Telegram
+            </span>
+          )}
+          {discordConnected && isDiscordChat && (
+            <span className="p-1.5 rounded-[6px] text-[11px] text-[#d7d5ff] bg-[#7b5cfa]">
+              Discord
+            </span>
+          )}
+
+          {/* Show pin button only if selectedChat is an object with ID */}
+          {isPinnable &&
+            typeof selectedChat === "object" &&
+            !("channels" in selectedChat) && (
+              <div
+                onClick={() => pinChannel(selectedChat.id)}
+                className="cursor-pointer p-2 flex items-center justify-center bg-[#fafafa10] rounded-[6px]"
+              >
+                <PinOff
+                  className={`w-4 h-4 ${
+                    isPinnedChat
+                      ? "text-[#fafafa] fill-[#fafafa]"
+                      : "text-[#fafafa60] fill-[#fafafa60]"
+                  }`}
+                  aria-label={isPinnedChat ? "Unpin" : "Pin"}
+                />
+              </div>
+            )}
         </div>
-      ) : (
-        <div className="flex items-center gap-2">
-          {isReadAll && (
-            <button className="p-1 font-[600] px-3 flex gap-2 text-[11px] items-center rounded-[6px] cursor-pointer bg-[#ffffff06] border border-[#ffffff03] text-[#ffffff32] hover:text-[#ffffff64] hover:bg-[#ffffff32] transition">
-              <CheckCheck className="w-5 h-5" /> <p>Read All</p>
-            </button>
-          )}
-          {showSmartButton && selectedChat!="all-channels" &&(
+
+        {/* Right: Actions */}
+        {isContact ? (
+          <div className="flex items-center gap-3">
             <button
               onClick={() =>
                 setIsSmartSummary && setIsSmartSummary(!isSmartSummary)
               }
-              className="p-1 font-[600]  px-3 flex gap-2 text-[11px] items-center rounded-[6px] cursor-pointer text-[#84afff] bg-[#3474ff12] hover:text-[#ffffff] hover:bg-[#3474ff] transition"
+              className="p-1.5 my-1 flex gap-2 text-[11px] items-center rounded-[6px] bg-[#fafafa10] border border-[#ffffff03] text-[#ffffff] hover:text-[#ffffff] hover:bg-[#ffffff32] transition"
             >
-              <img src={aiIMG} className="w-5 h-5" />
-              <span>{smartText}</span>
+              <SmilePlusIcon className="w-4 h-4" /> <span>Add a friend</span>
             </button>
-          )}
-        </div>
-      )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            {isReadAll && (
+              <button className="p-1 font-[600] px-3 flex gap-2 text-[11px] items-center rounded-[6px] cursor-pointer bg-[#ffffff06] border border-[#ffffff03] text-[#ffffff32] hover:text-[#ffffff64] hover:bg-[#ffffff32] transition">
+                <CheckCheck className="w-5 h-5" /> <p>Read All</p>
+              </button>
+            )}
+            {showSmartButton && selectedChat != "all-channels" && (
+              <button
+                onClick={() =>
+                  setIsSmartSummary && setIsSmartSummary(!isSmartSummary)
+                }
+                className="p-1 font-[600]  px-3 flex gap-2 text-[11px] items-center rounded-[6px] cursor-pointer text-[#84afff] bg-[#3474ff12] hover:text-[#ffffff] hover:bg-[#3474ff] transition"
+              >
+                <img src={aiIMG} className="w-5 h-5" />
+                <span>{smartText}</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
-       <div className="flex items-center gap-3 relative">
-        <div className="relative flex-1 flex items-center bg-[#212121] py-2 px-4 rounded-[8px]">
+      <div className="flex items-center gap-3 relative">
+        <div className="relative flex-1 flex items-center border border-[#FAFAFA10] py-2 px-4 rounded-[8px] h-8">
           <Search className="w-5 h-5 text-[#ffffff48] absolute left-2" />
           <input
             type="text"
@@ -341,7 +356,7 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
               setDropdown(e.target.value !== "");
               setIsSearchOpen(e.target.value !== "");
             }}
-            placeholder="Search message"
+            placeholder="Search"
             className="bg-transparent outline-none text-white flex-1 placeholder:text-[#ffffff48] pl-4 pr-8"
           />
           {searchTerm && (
@@ -415,7 +430,7 @@ const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
             )}
           </div>
         )}
-        
+
         <div className="p-2 border rounded-[10px] border-[#ffffff09] inline-flex items-center justify-center cursor-pointer">
           <Pin
             className="h-4 w-4 fill-[#84afff] text-[#84afff]"
