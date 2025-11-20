@@ -2863,7 +2863,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                           <ChatAvatar
                             name={msg.name}
                             avatar={msg.avatar}
-                            backupAvatar={`https://cdn.discordapp.com/avatars/${msg?.id}/${msg?.avatar}.png`}
+                            backupAvatar={`https://cdn.discordapp.com/avatars/${msg?.sender?.id}/${msg?.avatar}.png`}
+                            // debug={selectedChat.platform==="discord" && msg.name=="sahil" ?true:false}
                           />
                         )}
 
@@ -3281,7 +3282,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                           {selectedChat.platform === "discord" &&
                             msg?.referenced_message?.id && (
                               <div
-                                className={` cursor-pointer text-xs text-[#84afff] bg-[#1E3BA0] rounded-[10px] px-2 py-2 mb-1 mt-2 max-w-[100%] break-all border-l-2 border-[#3474FF]`}
+                                className={`cursor-pointer text-xs text-[#84afff] bg-[#1E3BA0] rounded-[10px] px-2 py-2 mb-1 mt-2 max-w-[100%] break-all border-l-2 border-[#3474FF]`}
                                 onClick={() => jumpToReply(msg)}
                               >
                                 
