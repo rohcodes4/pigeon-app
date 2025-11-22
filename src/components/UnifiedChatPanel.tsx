@@ -1212,16 +1212,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                 })
                 .filter(Boolean);
 
-              const replyToStr = msg?.message?.reply_to;
-              let replyId: number | null = null;
-              if (replyToStr && typeof replyToStr === "string") {
-                const match = replyToStr.match(/reply_to_msg_id=(\d+)/);
-                replyId = match ? parseInt(match[1], 10) : null;
-              }
-
-              const replyMessage = replyId
-                ? data.find((m) => m.message?.id === replyId) || null
-                : null;
+           
               return {
                 id: msg._id || msg.id || String(index + 1),
                 originalId: msg._id || msg.id,
@@ -1250,7 +1241,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                 link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
                 hasMedia: msg.message.has_media,
                 media: msg.media ?? null,
-                replyToId: replyId ?? null,
+                replyToId: msg.message.reply_to?.id ?? null,
                 timestamp: msg.timestamp,
                 replyTo: msg.message.reply_to,
                 originalChatType: msg.chat?._ || null,
@@ -1713,269 +1704,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         ));
       }      
     },[messagesList, selectedChat])
-    // console.log(
-    //   messagesList.map(mapDiscordMessageToItem),
-    //   "livediscordmessages"
-    // );
-    // useEffect(() => {
-    //   // console.log(
-    //   //   `history fetched for ${selectedChat.id}`,
-    //   //   isHistoryFetched(selectedChat.id)
-    //   // );
-    //   if (
-    //     history.length > 0 &&
-    //     selectedChat?.platform == "discord" &&
-    //     !isHistoryFetched(selectedChat.id)
-    //   ) {
-    //     // console.log(
-    //     //   "hist before set message",
-    //     //   history.map(mapDiscordMessageToItem)
-    //     // );
-    //     setMessages((prev) =>
-    //       [...history.map(mapDiscordMessageToItem), ...prev].sort(
-    //         (a, b) =>
-    //           Number(new Date(a.timestamp).getTime()) -
-    //           Number(new Date(b.timestamp).getTime())
-    //       )
-    //     );
-    //     if (history.length > 0) setHistoryFetched(selectedChat.id);
-    //   }
-    //   setLoading(false);
-    //   setLoadingMore(false);
-    //   if (!hasScrolled) {
-    //     scrollToBottom();
-    //     setHasScrolled(true);
-    //   }
-    // }, [history]);
-
-    // useEffect(() => {
-    //   if (messagesList && selectedChat?.platform === "discord") {
-    //     setMessages((prev) =>
-    //       [...messagesList.map(mapDiscordMessageToItem), ...prev].sort(
-    //         (a, b) =>
-    //           Number(new Date(a.timestamp).getTime()) -
-    //           Number(new Date(b.timestamp).getTime())
-    //       )
-    //     );
-    //   }
-    //   setLoading(false);
-    //   setLoadingMore(false);
-    //   if (!hasScrolled) {
-    //     scrollToBottom();
-    //     setHasScrolled(true);
-    //   }
-    // }, [messagesList]);
-
-    // Silent refresh that avoids toggling loading states and only appends new messages
-    //     const refreshLatest = useCallback(async () => {
-    //       if (USE_DUMMY_DATA) return;
-    //       if (refreshAbortController.current) {
-    //         refreshAbortController.current.abort();
-    //       }
-
-    //       const abortController = new AbortController();
-    //       refreshAbortController.current = abortController;
-
-    //       try {
-    //         let endpoint: string | null = null;
-    //         let currentChatId: string | null = null; // Track which chat we're fetching for
-
-    //         if (selectedChat === "all-channels") {
-    //           endpoint = `${
-    //             import.meta.env.VITE_BACKEND_URL
-    //           }/chats/all/messages?limit=${PAGE_SIZE}`;
-    //           currentChatId = "all-channels";
-    //         } else if (
-    //           selectedChat &&
-    //           typeof selectedChat === "object" &&
-    //           (selectedChat as any).id
-    //         ) {
-    //           if (
-    //             (selectedChat as any).name &&
-    //             (selectedChat as any).keywords !== undefined
-    //           ) {
-    //             endpoint = `${import.meta.env.VITE_BACKEND_URL}/filters/${
-    //               (selectedChat as any).id
-    //             }/messages?limit=${PAGE_SIZE}`;
-    //             currentChatId = `filter-${(selectedChat as any).id}`;
-    //           } else {
-    //             endpoint = `${import.meta.env.VITE_BACKEND_URL}/chats/${
-    //               (selectedChat as any).id
-    //             }/messages?limit=${PAGE_SIZE}`;
-    //             currentChatId = String((selectedChat as any).id);
-    //           }
-    //         } else {
-    //           console.log(
-    //             "DEBUG: No valid selectedChat, skipping refresh",
-    //             selectedChat
-    //           );
-    //           return;
-    //         }
-    //         let data = [];
-    //         if (selectedChat?.platform == "discord") {
-    //         } else {
-    //           const hist = await window.electronAPI.telegram.getChatHistory(
-    //             selectedChat.id
-    //           );
-    //           data = hist.data;
-    //           console.log("fetched tg history", hist);
-    //         }
-
-    //         const toChips = (results: any[]) =>
-    //           results
-    //             .map((r: any) => {
-    //               const emoticon =
-    //                 typeof r?.reaction?.emoticon === "string"
-    //                   ? r.reaction.emoticon
-    //                   : typeof r?.reaction === "string"
-    //                   ? r.reaction
-    //                   : null;
-    //               const normalized =
-    //                 emoticon === "❤" || emoticon === "♥️" ? "❤️" : emoticon;
-    //               return normalized
-    //                 ? { icon: normalized, count: r?.count || 0 }
-    //                 : null;
-    //             })
-    //             .filter(Boolean) as Array<{ icon: string; count: number }>;
-
-    //         const transformed = await Promise.all(
-    //           (data || []).map(async (msg: any, index: number) => {
-    //             const reactionResults =
-    //               ((msg?.message || {}).reactions || {}).results || [];
-    //             const parsedReactions = Array.isArray(reactionResults)
-    //               ? toChips(reactionResults)
-    //               : [];
-    //             const chatName = msg.chat
-    //               ? msg.chat.title ||
-    //                 msg.chat.username ||
-    //                 msg.chat.first_name ||
-    //                 selectedChat.name ||
-    //                 "Unknown"
-    //               : selectedChat && typeof selectedChat === "object"
-    //               ? (selectedChat as any).name || "Chat"
-    //               : "Unknown";
-
-    //             const replyToStr = msg?.message?.reply_to;
-    //             let replyId: number | null = null;
-    //             if (replyToStr && typeof replyToStr === "string") {
-    //               const match = replyToStr.match(/reply_to_msg_id=(\d+)/);
-    //               replyId = match ? parseInt(match[1], 10) : null;
-    //             }
-
-    //             const replyMessage = replyId
-    //               ? data.find((m) => m.message?.id === replyId) || null
-    //               : null;
-
-    //             return {
-    //               id: msg._id || msg.id || String(index + 1),
-    //               originalId: msg._id || msg.id,
-    //               telegramMessageId: msg.message?.id, // Store the Telegram message ID for replies
-    //               mentions: msg?.message?.mentions ?? [],
-    //               name: msg.sender?.first_name || msg.sender?.username || "Unknown",
-    //               chat_id: msg.sender.id,
-    //               avatar: msg.sender?.id
-    //                 ? `${import.meta.env.VITE_BACKEND_URL}/contact_photo/${
-    //                     msg.sender.id
-    //                   }`
-    //                 : gravatarUrl(
-    //                     msg.sender?.first_name || msg.sender?.username || "Unknown"
-    //                   ),
-    //               platform:
-    //                 selectedChat.platform == "discord"
-    //                   ? "Discord"
-    //                   : ("Telegram" as const),
-    //               channel: null,
-    //               server: chatName,
-    //               date: new Date(msg.timestamp),
-    //               message: msg.raw_text || "",
-    //               tags: [],
-    //               reactions: parsedReactions,
-    //               hasLink: (msg.raw_text || "").includes("http"),
-    //               link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
-    //               hasMedia: msg.message.has_media,
-    //               media: msg.message?.media ?? null,
-    //               stickerItems: msg.stickerItems ?? null,
-    //               timestamp: msg.timestamp,
-    //               replyTo: replyMessage
-    //                 ? {
-    //                     id: replyMessage.message.id,
-    //                     name:
-    //                       replyMessage.sender?.first_name ||
-    //                       replyMessage.sender?.username ||
-    //                       "Unknown",
-    //                     message: replyMessage.raw_text || "",
-    //                     chat_id: replyMessage.chat?.id || null,
-    //                   }
-    //                 : null,
-    //               originalChatType: msg.chat?._ || null,
-    //             } as MessageItem;
-    //           })
-    //         );
-
-    //         transformed.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-    //         setMessages((prev) => {
-    //           // CRITICAL: Only update messages if we're still on the same chat
-    //           // This prevents race conditions when switching between chats rapidly
-    //           const stillOnSameChat = currentChatId === currentChatRef.current;
-
-    //           if (!stillOnSameChat) {
-    //             console.log(
-    //               "DEBUG: Chat changed during refresh, ignoring stale data",
-    //               {
-    //                 currentChatId,
-    //                 currentChat: currentChatRef.current,
-    //                 selectedChat,
-    //               }
-    //             );
-    //             return prev; // Don't update if we've switched chats
-    //           }
-
-    //           const idOf = (x: any) => String(x.originalId || x.id);
-    //           const prevMap = new Map(prev.map((m) => [idOf(m), m]));
-    //           let changed = false;
-    //           for (const m of transformed) {
-    //             const key = idOf(m);
-    //             if (prevMap.has(key)) {
-    //               // Update existing entry (reactions/timestamp/etc.)
-    //               const old = prevMap.get(key)!;
-    //               // Preserve any local fields (e.g., replyTo)
-    //               const merged = {
-    //                 ...old,
-    //                 ...m,
-    //                 media: old.media ?? m.media, // preserve UI-fetched media
-    //               };
-
-    //               prevMap.set(key, merged);
-    //               changed = true;
-    //             } else {
-    //               prevMap.set(key, m);
-    //               changed = true;
-    //             }
-    //           }
-    //           if (!changed) return prev;
-    //           // Return in chronological order
-    //           return Array.from(prevMap.values()).sort((a, b) => {
-    //   const dateA = a.date instanceof Date ? a.date : new Date(a.date);
-    //   const dateB = b.date instanceof Date ? b.date : new Date(b.date);
-    //   return dateA.getTime() - dateB.getTime();
-    // });
-
-    //           // return Array.from(prevMap.values()).sort(
-    //           //   (a, b) => a.date.getTime() - b.date.getTime()
-    //           // );
-    //         });
-
-    //         // Don't set shouldAutoScroll to true - this prevents auto-scroll during polling
-    //         // Only scroll when it's a new chat or user explicitly sends a message
-    //       } catch (e) {
-    //         if (e.name === "AbortError") {
-    //           // Silently ignore aborts
-    //           return;
-    //         }
-    //         console.error("DEBUG: refreshLatest error:", e);
-    //       }
-    //     }, [selectedChat]);
+  
     useEffect(()=>{
       console.log('[setMsg messages]', messages)
     },[messages])
@@ -2069,12 +1798,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               })
               .filter(Boolean) ?? [];
 
-          const replyId = msg?.message?.reply_to?.match(
-            /reply_to_msg_id=(\d+)/
-          );
-          const replyMessage = replyId
-            ? rawMessages.find((m) => m.message?.id === Number(replyId[1]))
-            : null;
+       
 
           return {
             id: msg._id || msg.id || String(index + 1),
@@ -2370,17 +2094,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                   : null;
               })
               .filter(Boolean);
+     
 
-            const replyToStr = msg?.message?.reply_to;
-            let replyId: number | null = null;
-            if (replyToStr && typeof replyToStr === "string") {
-              const match = replyToStr.match(/reply_to_msg_id=(\d+)/);
-              replyId = match ? parseInt(match[1], 10) : null;
-            }
-
-            const replyMessage = replyId
-              ? data.find((m) => m.message?.id === replyId) || null
-              : null;
+          
             return {
               id: msg._id || msg.id || String(index + 1),
               originalId: msg._id || msg.id,
@@ -2406,7 +2122,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               link: (msg.raw_text || "").match(/https?:\/\/\S+/)?.[0] || null,
               hasMedia: msg.message.has_media,
               media: msg.message.media ?? null,
-              replyToId: replyId ?? null,
+              replyToId: msg.message.reply_to?.id ?? null,
               timestamp: msg.timestamp,
               replyTo: msg.message.reply_to,
               originalChatType: msg.chat?._ || null,

@@ -665,7 +665,7 @@ async parseReplyTo (msg,chatId) {
     return {
       id: rm.id,
       name:
-        `${rsender?.firstName } ${rsender?.lastName}`.trim() ||
+        `${rsender?.firstName } ${rsender?.lastName? rsender?.lastName : ''}`.trim() ||
         rsender?.username ||
         "Unknown",
       message: rm.message || "",
