@@ -644,11 +644,12 @@ class TelegramService extends EventEmitter {
     await this.client.sendMessage(chatId, { message });
   }
 
-  async getMessages(chatId, limit = 10, offset = 0) {
+  async getMessages(chatId, limit = 10, offset = 0, olderId = null) {
     try {
       const messages = await this.client.getMessages(chatId, {
         limit,
         addOffset: offset,
+        offsetId: olderId,  
       });
 
       const formattedMessages = await Promise.all(

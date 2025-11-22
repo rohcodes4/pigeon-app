@@ -142,11 +142,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     loginQR: () => ipcRenderer.invoke("telegram:login-qr"),
     sendMessage: (chatId, message) =>
       ipcRenderer.invoke("telegram:send-message", { chatId, message }),
-    getChatHistory: (chatId, limit, offset) =>
+    getChatHistory: (chatId, limit, offset, olderId) =>
       ipcRenderer.invoke("telegram:get-messages", {
         chatId,
         limit,
         offset,
+        olderId
       }),
     getDialogs: () => ipcRenderer.invoke("telegram:get-dialogs"),
     getMediaInfo: (message) =>

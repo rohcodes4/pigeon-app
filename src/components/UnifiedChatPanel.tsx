@@ -425,7 +425,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
     const [isSending, setIsSending] = useState(false);
     const [attachments, setAttachments] = useState([]);
     // Page size for fetching messages from backend
-    const PAGE_SIZE = 100;
+    const PAGE_SIZE = 10;
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const token = localStorage.getItem("access_token");
 
@@ -1061,7 +1061,8 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         chatId: number | string,
         beforeTimestamp?: string,
         append = false,
-        afterTimestamp?: string,        
+        afterTimestamp?: string, 
+        oldMessageId?: any       
       ) => {
         if (!chatId) return;
         currentRequestId.current += 1;
@@ -1107,7 +1108,11 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           if (params.toString()) endpoint += `?${params.toString()}`;
 
           const hist = await window.electronAPI.telegram.getChatHistory(
-            selectedChat.id
+            selectedChat.id,
+            PAGE_SIZE,
+            0,
+            oldMessageId
+
           );
           
 
@@ -1268,6 +1273,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
           if (data.length < PAGE_SIZE) {
             setHasMoreMessages(false);
           }
+          if(hist.data.length == PAGE_SIZE){
+            setHasMoreMessages(true);
+          }
           setTimeout(() => {
             if (append) {
               // console.log("Appending older messages:", transformed);
@@ -1351,7 +1359,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
         } else {
           // This is a regular chat
           console.log('setmsg FM 1')
-          fetchMessages(selectedChat.id, beforeTimestamp, true);
+          fetchMessages(selectedChat.id, beforeTimestamp, true,null,oldestMessage.id);
         }
       } else if (selectedChat === "all-channels") {
         console.log('setmsg FM 2')
@@ -2001,6 +2009,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             selectedChat.id
           );
           rawMessages = hist?.data || [];
+           if(hist.data.length == PAGE_SIZE){
+            setHasMoreMessages(true);
+          }
           // console.log("refreshLatest fetched tg history", rawMessages);
         } else {
           if (

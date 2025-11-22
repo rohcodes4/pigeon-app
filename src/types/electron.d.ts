@@ -125,7 +125,8 @@ export interface ElectronAPI {
     getChatHistory: (
       chatId: string,
       limit?: number,
-      offset?: number
+      offset?: number,
+      olderId?: string
     ) => Promise<{
       success: boolean;
       data?: Array<any>;
@@ -225,7 +226,8 @@ export interface ElectronAPI {
     getChatHistory: (
       chatId: string,
       limit?: number,
-      offset?: number
+      offset?: number,
+      olderId?: string
     ) => Promise<{
       success: boolean;
       data?: Array<any>;
