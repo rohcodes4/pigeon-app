@@ -613,7 +613,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   useEffect(() => {
     handleFocusMode();
-  }, [isFocusMode, sortedDisplayChats]);
+  }, [isFocusMode, allChannels]);
 
   const filteredChats = useMemo(() => {
     return isFocus
