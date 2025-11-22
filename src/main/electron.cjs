@@ -678,10 +678,61 @@ function setupIPCHandlers() {
     }
   );
 
-  ipcMain.handle("telegram:get-messages", async (_event, { chatId, limit, offset, olderId }) => {
-    const data = await telegramClient.getMessages(chatId, limit, offset, olderId);
-    return { success: true, data };
-  });
+  ipcMain.handle(
+    "telegram:get-messages",
+    async (_event, { chatId, limit, offset, olderId }) => {
+      const data = await telegramClient.getMessages(
+        chatId,
+        limit,
+        offset,
+        olderId
+      );
+      if (data && Array.isArray(data)) {
+        for (const msg of data) {
+          if (msg.sender) {
+            await dbManager.createUser({
+              id: msg.sender.id.toString(),
+              platform: "telegram",
+              username: msg.sender.username,
+              display_name:
+                msg.sender.global_name ||
+                msg.sender.username ||
+                `${msg.sender.first_name} ${msg.sender.last_name || ""}`.trim(),
+              avatar_url: null,
+            });
+          }
+          await dbManager.createChat({
+            id: msg.chat.id.toString(),
+            platform: "telegram",
+            type: msg.chat.type,
+            name:
+              msg.chat.title || msg.sender.username || msg.sender.first_name,
+            participant_count: msg.chat.participants_count || 0,
+            last_message_id: null,
+          });
+
+          await dbManager.createMessage({
+            id: msg.message.id.toString(),
+            chat_id: msg.chat.id,
+            user_id: msg.sender.id,
+            content: msg.message.text,
+            message_type: msg.chat.type,
+            attachments: msg.message.attachments || null,
+            reactions: msg.message.reactions || null,
+            embeds: msg.message.embeds || null,
+            timestamp: msg.message.date,
+            sync_status: "synced",
+            mentions: msg.message.mentions || null,
+            message_reference: msg.message_reference || null,
+            referenced_message: msg.referenced_message || null,
+            sticker_items: msg.sticker_items || null,
+            channel_type: msg.chat.type || null,
+          });
+        }
+      }
+      return { success: true, data };
+    }
+  );
 
   ipcMain.handle("telegram:get-dialogs", async () => {
     const data = await telegramClient.getDialogs();
@@ -694,192 +745,219 @@ function setupIPCHandlers() {
   });
 
   ipcMain.handle("telegram:connect-existing", async (event) => {
-  const connected = await telegramClient.connectExisting(mainWindow);
-  return {success: connected};
-});
+    const connected = await telegramClient.connectExisting(mainWindow);
+    return { success: connected };
+  });
 
-ipcMain.handle("telegram:delete-message", async (_event, { chatId, messageId }) => {
-  try {
-    await telegramClient.deleteMessage(chatId, messageId);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle(
+    "telegram:delete-message",
+    async (_event, { chatId, messageId }) => {
+      try {
+        await telegramClient.deleteMessage(chatId, messageId);
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+  );
 
-ipcMain.handle("telegram:search-messages", async (_event, { chatId, query }) => {
-  try {
-    const data = await telegramClient.searchMessages(chatId, query);
-    return { success: true, data }; 
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle(
+    "telegram:search-messages",
+    async (_event, { chatId, query }) => {
+      try {
+        const data = await telegramClient.searchMessages(chatId, query);
+        return { success: true, data };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+  );
 
-ipcMain.handle("telegram:mark-as-read", async (_event, chatId) => {
-  try {
-    await telegramClient.markAsRead(chatId);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
-// === Sending Media ===
-ipcMain.handle("telegram:send-photo", async (_event, { chatId, file, caption,filename }) => {
-  try {
-    await telegramClient.sendPhoto(chatId, file, caption,filename);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle("telegram:mark-as-read", async (_event, chatId) => {
+    try {
+      await telegramClient.markAsRead(chatId);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+  // === Sending Media ===
+  ipcMain.handle(
+    "telegram:send-photo",
+    async (_event, { chatId, file, caption, filename }) => {
+      try {
+        await telegramClient.sendPhoto(chatId, file, caption, filename);
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+  );
 
-ipcMain.handle("telegram:send-document", async (_event, { chatId, document, caption }) => {
-  try {
-    await telegramClient.sendDocument(chatId, document, caption);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle(
+    "telegram:send-document",
+    async (_event, { chatId, document, caption }) => {
+      try {
+        await telegramClient.sendDocument(chatId, document, caption);
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+  );
 
-ipcMain.handle("telegram:send-video", async (_event, { chatId, video, caption,filename }) => {
-  try {
-    await telegramClient.sendVideo(chatId, video, caption,filename);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle(
+    "telegram:send-video",
+    async (_event, { chatId, video, caption, filename }) => {
+      try {
+        await telegramClient.sendVideo(chatId, video, caption, filename);
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+  );
 
-ipcMain.handle("telegram:send-voice", async (_event, { chatId, voice, caption }) => {
-  try {
-    await telegramClient.sendVoice(chatId, voice, caption);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle(
+    "telegram:send-voice",
+    async (_event, { chatId, voice, caption }) => {
+      try {
+        await telegramClient.sendVoice(chatId, voice, caption);
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+  );
 
-ipcMain.handle("telegram:send-sticker", async (_event, { chatId, sticker }) => {
-  try {
-    await telegramClient.sendSticker(chatId, sticker);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle(
+    "telegram:send-sticker",
+    async (_event, { chatId, sticker }) => {
+      try {
+        await telegramClient.sendSticker(chatId, sticker);
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+  );
 
-ipcMain.handle("telegram:reply-message", async (_event, { chatId, messageId, message }) => {
-  try {
-    await telegramClient.replyMessage(chatId, messageId, message);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle(
+    "telegram:reply-message",
+    async (_event, { chatId, messageId, message }) => {
+      try {
+        await telegramClient.replyMessage(chatId, messageId, message);
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+  );
 
-ipcMain.handle("telegram:forward-message", async (_event, { chatId, fromChatId, messageId }) => {
-  try {
-    await telegramClient.forwardMessage(chatId, fromChatId, messageId);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle(
+    "telegram:forward-message",
+    async (_event, { chatId, fromChatId, messageId }) => {
+      try {
+        await telegramClient.forwardMessage(chatId, fromChatId, messageId);
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+  );
 
-// === Chat / Group Info ===
-ipcMain.handle("telegram:get-chat-info", async (_event, chatId) => {
-  try {
-    const data = await telegramClient.getChatInfo(chatId);
-    return { success: true, data };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  // === Chat / Group Info ===
+  ipcMain.handle("telegram:get-chat-info", async (_event, chatId) => {
+    try {
+      const data = await telegramClient.getChatInfo(chatId);
+      return { success: true, data };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
 
-ipcMain.handle("telegram:get-participants", async (_event, chatId) => {
-  try {
-    const data = await telegramClient.getParticipants(chatId);
-    return { success: true, data };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle("telegram:get-participants", async (_event, chatId) => {
+    try {
+      const data = await telegramClient.getParticipants(chatId);
+      return { success: true, data };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
 
-ipcMain.handle("telegram:join-chat", async (_event, chatId) => {
-  try {
-    await telegramClient.joinChat(chatId);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle("telegram:join-chat", async (_event, chatId) => {
+    try {
+      await telegramClient.joinChat(chatId);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
 
-ipcMain.handle("telegram:leave-chat", async (_event, chatId) => {
-  try {
-    await telegramClient.leaveChat(chatId);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle("telegram:leave-chat", async (_event, chatId) => {
+    try {
+      await telegramClient.leaveChat(chatId);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
 
-// === Profile / User ===
-ipcMain.handle("telegram:get-user-info", async (_event, userId) => {
-  try {
-    const data = await telegramClient.getUserInfo(userId);
-    return { success: true, data };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  // === Profile / User ===
+  ipcMain.handle("telegram:get-user-info", async (_event, userId) => {
+    try {
+      const data = await telegramClient.getUserInfo(userId);
+      return { success: true, data };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
 
-ipcMain.handle("telegram:update-profile-photo", async (_event, photo) => {
-  try {
-    await telegramClient.updateProfilePhoto(photo);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle("telegram:update-profile-photo", async (_event, photo) => {
+    try {
+      await telegramClient.updateProfilePhoto(photo);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
 
-ipcMain.handle("telegram:update-bio", async (_event, bio) => {
-  try {
-    await telegramClient.updateBio(bio);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle("telegram:update-bio", async (_event, bio) => {
+    try {
+      await telegramClient.updateBio(bio);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
 
-// === Typing & Status ===
-ipcMain.handle("telegram:send-typing", async (_event, chatId) => {
-  try {
-    await telegramClient.sendTyping(chatId);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  // === Typing & Status ===
+  ipcMain.handle("telegram:send-typing", async (_event, chatId) => {
+    try {
+      await telegramClient.sendTyping(chatId);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
 
-ipcMain.handle("telegram:send-uploading", async (_event, chatId) => {
-  try {
-    await telegramClient.sendUploading(chatId);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle("telegram:send-uploading", async (_event, chatId) => {
+    try {
+      await telegramClient.sendUploading(chatId);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
 
-ipcMain.handle("telegram:send-recording", async (_event, chatId) => {
-  try {
-    await telegramClient.sendRecording(chatId);
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
+  ipcMain.handle("telegram:send-recording", async (_event, chatId) => {
+    try {
+      await telegramClient.sendRecording(chatId);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
 }
 
 async function openDiscordLogin() {

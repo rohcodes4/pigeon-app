@@ -649,7 +649,7 @@ class TelegramService extends EventEmitter {
       const messages = await this.client.getMessages(chatId, {
         limit,
         addOffset: offset,
-        offsetId: olderId,  
+        offsetId: olderId,
       });
 
       const formattedMessages = await Promise.all(
@@ -870,7 +870,7 @@ class TelegramService extends EventEmitter {
   }
   async getDialogs() {
     const dialogs = await this.client.getDialogs();
-    const chatList = dialogs.map((dialog) => {
+    const chatList = dialogs.map( (dialog) => {
       const entity = dialog.entity;
       const message = dialog.message;
 
@@ -889,7 +889,31 @@ class TelegramService extends EventEmitter {
         entity.title ||
         [entity.firstName, entity.lastName].filter(Boolean).join(" ") ||
         "Unknown";
-
+      if (message.sender) {
+         this.dbManager.createUser({
+          id: message.sender.id.toString(),
+          platform: "telegram",
+          username: message.sender.username,
+          display_name:
+            message.sender.global_name ||
+            message.sender.username ||
+            `${message.sender.first_name} ${
+              message.sender.last_name || ""
+            }`.trim(),
+          avatar_url: null,
+        });
+      }
+       this.dbManager.createChat({
+        id: message.chat.id.toString(),
+        platform: "telegram",
+        type: chat_type,
+        name:
+          message.chat.title ||
+          message.sender.username ||
+          message.sender.first_name,
+        participant_count: message.chat.participants_count || 0,
+        last_message_id: null,
+      });
       // Compose chat object in your required shape
       return {
         _id: entity.id?.value,
@@ -1028,7 +1052,7 @@ class TelegramService extends EventEmitter {
     const file = new CustomFile(filename, buffer.length, "", buffer);
     return await this.client.sendFile(chatId, {
       file: file,
-      caption
+      caption,
     });
   }
 
@@ -1038,7 +1062,7 @@ class TelegramService extends EventEmitter {
 
   // async sendVideo(chatId, video, caption = "", filename = "video.mp4") {
   //    const buffer = Buffer.from(new Uint8Array(video));
-     
+
   //   const file = new CustomFile(filename, buffer.length, null, buffer);
   //   console.log(buffer?.constructor?.name, buffer?.byteLength ?? buffer?.length);
 
@@ -1048,31 +1072,31 @@ class TelegramService extends EventEmitter {
   // }
 
   async sendVideo(chatId, video, caption = "", filename = "video.mp4") {
-  const buffer = Buffer.from(new Uint8Array(video));
-  
-  // If >20MB → must use file path
-  const MAX_BUFFER_MB = 20 * 1024 * 1024;
+    const buffer = Buffer.from(new Uint8Array(video));
 
-  let file;
+    // If >20MB → must use file path
+    const MAX_BUFFER_MB = 20 * 1024 * 1024;
 
-  if (buffer.length > MAX_BUFFER_MB) {
-    // create temp file
-    const tmpPath = path.join(os.tmpdir(), `${Date.now()}-${filename}`);
-    await fs.promises.writeFile(tmpPath, buffer);
+    let file;
 
-    file = new CustomFile(filename, buffer.length, tmpPath);
-  } else {
-    // under 20MB → buffer method works fine
-    file = new CustomFile(filename, buffer.length, null, buffer);
+    if (buffer.length > MAX_BUFFER_MB) {
+      // create temp file
+      const tmpPath = path.join(os.tmpdir(), `${Date.now()}-${filename}`);
+      await fs.promises.writeFile(tmpPath, buffer);
+
+      file = new CustomFile(filename, buffer.length, tmpPath);
+    } else {
+      // under 20MB → buffer method works fine
+      file = new CustomFile(filename, buffer.length, null, buffer);
+    }
+
+    return await this.client.sendFile(chatId, {
+      file,
+      caption,
+      fileSize: buffer.length,
+      supportsStreaming: false,
+    });
   }
-
-  return await this.client.sendFile(chatId, {
-    file,
-    caption,
-    fileSize: buffer.length,
-    supportsStreaming: false,
-  });
-}
 
   async sendVoice(chatId, voice, caption = "") {
     return await this.client.sendFile(chatId, {
