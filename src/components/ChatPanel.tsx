@@ -44,7 +44,7 @@ const TOP_ITEMS = ["All", "Unread", "Filtered Streams", "Telegram", "Discord"];
 
 function formatChatTime(dateString: string) {
   const now = new Date();
-  const chatDate = new Date(dateString + "Z");
+  const chatDate = new Date(dateString);
 
   if (isNaN(chatDate.getTime())) {
     return "now";
