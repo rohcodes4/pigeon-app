@@ -279,7 +279,7 @@ class TelegramService extends EventEmitter {
               text: msg.message || "",
               from_id: msg.fromId?.userId?.toString() || null,
               to_id: msg.peerId?.chatId?.toString() || null,
-              reply_to: safe(msg.replyTo),
+              reply_to: await this.parseReplyTo(msg,msg.peerId),
               forward: safe(msg.fwdFrom),
               edited: !!msg.editDate,
               media: await getMediaInfo(msg),
@@ -643,6 +643,39 @@ class TelegramService extends EventEmitter {
   async sendMessage(chatId, message) {
     await this.client.sendMessage(chatId, { message });
   }
+// ------------------------------
+// REPLY_TO EXPANSION
+// ------------------------------
+async parseReplyTo (msg,chatId) {
+  if (!msg.replyTo || !msg.replyTo.replyToMsgId || !chatId) return null;
+
+  try {
+    const repliedId = msg.replyTo.replyToMsgId;
+    const replied = await this.client.getMessages(chatId, { ids: repliedId });
+    const rm = replied[0];
+
+    if (!rm) return null;
+   const safe = (obj) => {
+            if (!obj) return null;
+            return JSON.parse(JSON.stringify(obj)); // remove class refs
+          };
+    const rsender = safe(rm.sender);
+    const rchat = safe(rm.chat);
+
+    return {
+      id: rm.id,
+      name:
+        rsender?.firstName ||
+        rsender?.username ||
+        "Unknown",
+      message: rm.message || "",
+      chat_id: rchat?.id || chatId,
+    };
+  } catch (e) {
+    console.warn("Failed to fetch replyTo:", e);
+    return null;
+  }
+};
 
   async getMessages(chatId, limit = 10, offset = 0, olderId = null) {
     try {
@@ -750,7 +783,7 @@ class TelegramService extends EventEmitter {
               text: msg.message || "",
               from_id: msg.fromId ? msg.fromId.toString() : null,
               to_id: msg.peerId ? msg.peerId.toString() : null,
-              reply_to: msg.replyTo ? JSON.stringify(msg.replyTo) : null,
+              reply_to: await this.parseReplyTo(msg,chatId),
               forward: msg.fwdFrom || null,
               edited: !!msg.editDate,
               media: await getMediaInfo(msg),

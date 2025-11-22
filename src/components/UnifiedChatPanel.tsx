@@ -1252,17 +1252,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                 media: msg.media ?? null,
                 replyToId: replyId ?? null,
                 timestamp: msg.timestamp,
-                replyTo: replyMessage
-                  ? {
-                      id: replyMessage.message.id,
-                      name:
-                        replyMessage.sender?.first_name ||
-                        replyMessage.sender?.username ||
-                        "Unknown",
-                      message: replyMessage.raw_text || "",
-                      chat_id: replyMessage.chat?.id || null,
-                    }
-                  : null,
+                replyTo: msg.message.reply_to,
                 originalChatType: msg.chat?._ || null,
               };
             })
@@ -2110,16 +2100,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             hasMedia: msg.message.has_media,
             media: msg.message?.media || null,
             timestamp: msg.timestamp,
-            replyTo: replyMessage
-              ? {
-                  id: replyMessage.message.id,
-                  name:
-                    replyMessage.sender?.first_name ||
-                    replyMessage.sender?.username ||
-                    "Unknown",
-                  message: replyMessage.raw_text || "",
-                }
-              : null,
+            replyTo: msg.message.reply_to ,
           };
         });
 
@@ -2427,17 +2408,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               media: msg.message.media ?? null,
               replyToId: replyId ?? null,
               timestamp: msg.timestamp,
-              replyTo: replyMessage
-                ? {
-                    id: replyMessage.message.id,
-                    name:
-                      replyMessage.sender?.first_name ||
-                      replyMessage.sender?.username ||
-                      "Unknown",
-                    message: replyMessage.raw_text || "",
-                    chat_id: replyMessage.chat?.id || null,
-                  }
-                : null,
+              replyTo: msg.message.reply_to,
               originalChatType: msg.chat?._ || null,
             };
           });
