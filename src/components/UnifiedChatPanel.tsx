@@ -1186,10 +1186,10 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
               } else if (msg?.chat?.id?.toString() === selectedChat?.id?.toString()) {
                 chatName =
                   (chatId && typeof chatId === "object"
-                    ? chatId.name
+                    ? chatId?.name
                     : typeof chatId === "string"
                     ? chatId
-                    : "") || "Chat";
+                    :  typeof msg.chat ==="object"  ? msg.chat?.title : "Chat") || "Chat";
               }
 
               // Parse reactions
@@ -2072,7 +2072,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                   ? selectedChat.name
                   : typeof selectedChat === "string"
                   ? selectedChat
-                  : "") || "Chat";
+                  : typeof msg.chat ==="object"  ? msg.chat?.title : "Chat") || "Chat";
             }
 
             // Parse reactions
