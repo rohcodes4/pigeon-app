@@ -1624,7 +1624,13 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             }
           }
         } else {
-          await window.electronAPI.telegram.sendMessage(id, messageText);
+          if(originalReplyTo?.id){
+            await window.electronAPI.telegram.replyMessage(id, originalReplyTo.id, messageText);
+
+          }else{
+            await window.electronAPI.telegram.sendMessage(id, messageText);
+
+          }
         }
         if (inputRef.current) {
           inputRef.current.value = "";

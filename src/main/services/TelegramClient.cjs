@@ -1089,7 +1089,7 @@ class TelegramService extends EventEmitter {
   async replyMessage(chatId, messageId, message) {
     return await this.client.sendMessage(chatId, {
       message,
-      replyTo: messageId,
+      replyTo: Number(messageId),
     });
   }
 
