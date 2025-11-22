@@ -1172,9 +1172,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
               if (chatId === "all-channels" && msg.chat) {
                 if (
-                  msg.chat._ === "Channel" ||
-                  msg.chat._ === "Chat" ||
-                  msg.chat._ === "User"
+                  msg.chat.type === "Channel" ||
+                  msg.chat.type === "Chat" ||
+                  msg.chat.type === "User"
                 ) {
                   chatName =
                     msg.chat.title ||
@@ -1183,7 +1183,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                     "Unknown";
                 }
                 channelName = null;
-              } else {
+              } else if (msg?.chat?.id?.toString() === selectedChat?.id?.toString()) {
                 chatName =
                   (chatId && typeof chatId === "object"
                     ? chatId.name
@@ -2335,7 +2335,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
       // console.log("Setting up new message listener for chat", selectedChat.id);
       // Subscribe to new messages, get unsubscribe
       const unsubscribe = window.electronAPI.telegram.onNewMessage((msg) => {
-        if (msg?.chat?.id?.toString() === selectedChat?.id?.toString()) {
+        // if (msg?.chat?.id?.toString() === selectedChat?.id?.toString()) {
           const data = [msg]; // Wrap single message in array for uniform processing
           // console.log("New message for selected chat:", msg);
           const transformed = data.map((msg: any, index: number) => {
@@ -2344,9 +2344,9 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
 
             if (selectedChat === "all-channels" && msg.chat) {
               if (
-                msg.chat._ === "Channel" ||
-                msg.chat._ === "Chat" ||
-                msg.chat._ === "User"
+                msg.chat.type === "Channel" ||
+                msg.chat.type === "Chat" ||
+                msg.chat.type === "User"
               ) {
                 chatName =
                   msg.chat.title ||
@@ -2355,7 +2355,7 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
                   "Unknown";
               }
               channelName = null;
-            } else {
+            } else if (msg?.chat?.id?.toString() === selectedChat?.id?.toString()) {
               chatName =
                 (selectedChat && typeof selectedChat === "object"
                   ? selectedChat.name
@@ -2436,9 +2436,13 @@ const UnifiedChatPanel = forwardRef<UnifiedChatPanelRef, UnifiedChatPanelProps>(
             };
           });
 
+
+          if (msg?.chat?.id?.toString() === selectedChat?.id?.toString() || selectedChat === "all-channels") {
           console.log('setMsg 22')
           setMessages((prev) => [...prev, ...transformed]);
-        }
+          }
+        
+        // }
       });
 
       // Cleanup when selectedChat changes or component unmounts
